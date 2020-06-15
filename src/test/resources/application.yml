@@ -1,0 +1,5 @@
+kestra:
+  storage:
+    type: local
+    local:
+      base-path: /tmp/unittest
