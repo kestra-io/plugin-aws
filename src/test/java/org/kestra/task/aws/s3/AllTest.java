@@ -4,13 +4,13 @@ import com.adobe.testing.s3mock.junit5.S3MockExtension;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
-import io.micronaut.context.ApplicationContext;
 import io.micronaut.test.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.kestra.core.exceptions.IllegalVariableEvaluationException;
 import org.kestra.core.models.tasks.Task;
 import org.kestra.core.runners.RunContext;
+import org.kestra.core.runners.RunContextFactory;
 import org.kestra.core.storages.StorageInterface;
 import org.kestra.core.utils.TestsUtils;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -35,7 +35,7 @@ import static org.mockito.Mockito.spy;
 @ExtendWith(S3MockExtension.class)
 class AllTest {
     @Inject
-    private ApplicationContext applicationContext;
+    private RunContextFactory runContextFactory;
 
     @Inject
     private StorageInterface storageInterface;
@@ -115,7 +115,7 @@ class AllTest {
 
     private RunContext runContext(Task task) {
         return TestsUtils.mockRunContext(
-            this.applicationContext,
+            this.runContextFactory,
             task,
             ImmutableMap.of()
         );
