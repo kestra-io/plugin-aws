@@ -1,19 +1,15 @@
 package org.kestra.task.aws.s3;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.kestra.core.exceptions.IllegalVariableEvaluationException;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.tasks.Task;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.runners.RunContext;
 import org.kestra.task.aws.AbstractConnection;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -24,10 +20,10 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractS3 extends AbstractConnection {
-    @InputProperty(
-        description = "The AWS region to used",
-        dynamic = true
+    @Schema(
+        title = "The AWS region to used"
     )
+    @PluginProperty(dynamic = true)
     private String region;
 
     S3Client client(RunContext runContext) throws IllegalVariableEvaluationException {

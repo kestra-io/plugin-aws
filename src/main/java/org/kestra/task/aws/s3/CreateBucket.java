@@ -1,10 +1,11 @@
 package org.kestra.task.aws.s3;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -16,62 +17,65 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Example(
-    title = "Create a new bucket with some options",
-    code = {
-        "name: \"my-bucket\"",
-        "region: \"eu-west-1\""
+@Plugin(
+    examples = {
+        @Example(
+            title = "Create a new bucket with some options",
+            code = {
+                "name: \"my-bucket\"",
+                "region: \"eu-west-1\""
+            }
+        )
     }
 )
-@Documentation(
-    description = "Create a bucket"
+@Schema(
+    title = "Create a bucket"
 )
 public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucket.Output> {
-    @InputProperty(
-        description = "The bucket where to download the file",
-        dynamic = true
+    @Schema(
+        description = "The bucket where to download the file"
     )
+    @PluginProperty(dynamic = true)
     private String bucket;
 
-
-    @InputProperty(
-        description = "Allows grantee the read, write, read ACP, and write ACP permissions on the bucket.",
-        dynamic = true
+    @Schema(
+        description = "Allows grantee the read, write, read ACP, and write ACP permissions on the bucket."
     )
+    @PluginProperty(dynamic = true)
     private String grantFullControl;
 
-    @InputProperty(
-        description = "Allows grantee to list the objects in the bucket.",
-        dynamic = true
+    @Schema(
+        title = "Allows grantee to list the objects in the bucket."
     )
+    @PluginProperty(dynamic = true)
     private String grantRead;
 
-    @InputProperty(
-        description = "Allows grantee to list the objects in the bucket.",
-        dynamic = true
+    @Schema(
+        title = "Allows grantee to list the objects in the bucket."
     )
+    @PluginProperty(dynamic = true)
     private String grantReadACP;
 
-    @InputProperty(
-        description = "Allows grantee to create, overwrite, and delete any object in the bucket.",
-        dynamic = true
+    @Schema(
+        title = "Allows grantee to create, overwrite, and delete any object in the bucket."
     )
+    @PluginProperty(dynamic = true)
     private String grantWrite;
 
-    @InputProperty(
-        description = "Allows grantee to write the ACL for the applicable bucket.",
-        dynamic = true
+    @Schema(
+        title = "Allows grantee to write the ACL for the applicable bucket."
     )
+    @PluginProperty(dynamic = true)
     private String grantWriteACP;
 
-    @InputProperty(
-        description = "The canned ACL to apply to the bucket.",
-        dynamic = true
+    @Schema(
+        title = "The canned ACL to apply to the bucket."
     )
+    @PluginProperty(dynamic = true)
     private String acl;
 
-    @InputProperty(
-        description = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
+    @Schema(
+        title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
     )
     private Boolean objectLockEnabledForBucket;
 

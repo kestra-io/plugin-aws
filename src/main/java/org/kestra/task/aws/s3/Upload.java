@@ -1,10 +1,14 @@
 package org.kestra.task.aws.s3;
 
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.executions.metrics.Counter;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -13,9 +17,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -26,44 +28,49 @@ import java.util.Map;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Example(
-    code = {
-        "from: \"{{ inputs.file }}\"",
-        "bucket: \"my-bucket\"",
-        "key: \"path/to/file\""
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "from: \"{{ inputs.file }}\"",
+                "bucket: \"my-bucket\"",
+                "key: \"path/to/file\""
+            }
+        )
     }
 )
-@Documentation(
-    description = "Upload a file to a S3 bucket."
+@Schema(
+    title = "Upload a file to a S3 bucket."
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
-    @InputProperty(
-        description = "The file to upload",
-        dynamic = true
+    @Schema(
+        title = "The file to upload"
     )
+    @PluginProperty(dynamic = true)
     private String from;
 
-    @InputProperty(
-        description = "The bucket where to upload the file",
-        dynamic = true
+    @Schema(
+        title = "The bucket where to upload the file"
     )
+    @PluginProperty(dynamic = true)
     private String bucket;
 
-    @InputProperty(
-        description = "The key where to upload the file",
-        dynamic = true
+    @Schema(
+        title = "The key where to upload the file"
     )
+    @PluginProperty(dynamic = true)
     private String key;
 
-    @InputProperty(
-        description = "A map of metadata to store with the object in S3."
+    @Schema(
+        title = "A map of metadata to store with the object in S3."
     )
+    @PluginProperty(dynamic = false)
     private Map<String, String> metadata;
 
-    @InputProperty(
-        description = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes.",
-        dynamic = true
+    @Schema(
+        title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."
     )
+    @PluginProperty(dynamic = true)
     private String storageClass;
 
     @Override

@@ -1,11 +1,11 @@
 package org.kestra.task.aws.s3;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -19,45 +19,50 @@ import java.io.File;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Example(
-    code = {
-        "bucket: \"my-bucket\"",
-        "key: \"path/to/file\""
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "bucket: \"my-bucket\"",
+                "key: \"path/to/file\""
+            }
+        )
     }
 )
-@Documentation(
-    description = "Download a file to a S3 bucket."
+@Schema(
+    title = "Download a file to a S3 bucket."
 )
 public class Delete extends AbstractS3 implements RunnableTask<Delete.Output> {
-    @InputProperty(
-        description = "The bucket",
-        dynamic = true
+    @Schema(
+        title = "The bucket"
     )
+    @PluginProperty(dynamic = true)
     private String bucket;
 
-    @InputProperty(
-        description = "The key to delete",
-        dynamic = true
+    @Schema(
+        title = "The key to delete"
     )
+    @PluginProperty(dynamic = true)
     private String key;
 
-    @InputProperty(
-        description = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
+    @Schema(
+        title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
     )
     private Boolean bypassGovernanceRetention;
 
-    @InputProperty(
-        description = "The concatenation of the authentication device's serial number, a space, and the value that is displayed on " +
-            "your authentication device. Required to permanently delete a versioned object if versioning is configured " +
-            "with MFA delete enabled.",
-        dynamic = true
+    @Schema(
+        title = "The concatenation of the authentication device's serial number, a space, and the value that is displayed on " +
+            "your authentication device.",
+        description = "Required to permanently delete a versioned object if versioning is configured " +
+            "with MFA delete enabled."
     )
+    @PluginProperty(dynamic = true)
     private String mfa;
 
-    @InputProperty(
-        description = "Sets the value of the RequestPayer property for this object.",
-        dynamic = true
+    @Schema(
+        description = "Sets the value of the RequestPayer property for this object."
     )
+    @PluginProperty(dynamic = true)
     private String requestPayer;
 
     @Override
@@ -99,18 +104,18 @@ public class Delete extends AbstractS3 implements RunnableTask<Delete.Output> {
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "Returns the version ID of the delete marker created as a result of the DELETE operation."
+        @Schema(
+            title = "Returns the version ID of the delete marker created as a result of the DELETE operation."
         )
         private final String versionId;
 
-        @OutputProperty(
-            description = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker."
+        @Schema(
+            title = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker."
         )
         private final Boolean deleteMarker;
 
-        @OutputProperty(
-            description = "Returns the value of the RequestCharged property for this object."
+        @Schema(
+            title = "Returns the value of the RequestCharged property for this object."
         )
         private final String requestCharged;
 

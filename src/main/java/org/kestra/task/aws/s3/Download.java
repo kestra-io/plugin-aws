@@ -1,11 +1,14 @@
 package org.kestra.task.aws.s3;
 
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.executions.metrics.Counter;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -23,32 +26,36 @@ import java.util.Map;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Example(
-    code = {
-        "bucket: \"my-bucket\"",
-        "key: \"path/to/file\""
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "bucket: \"my-bucket\"",
+                "key: \"path/to/file\""
+            }
+        )
     }
 )
-@Documentation(
-    description = "Download a file to a S3 bucket."
+@Schema(
+    title = "Download a file to a S3 bucket."
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
-    @InputProperty(
-        description = "The bucket where to download the file",
-        dynamic = true
+    @Schema(
+        title = "The bucket where to download the file"
     )
+    @PluginProperty(dynamic = true)
     private String bucket;
 
-    @InputProperty(
-        description = "The key where to download the file",
-        dynamic = true
+    @Schema(
+        title = "The key where to download the file"
     )
+    @PluginProperty(dynamic = true)
     private String key;
 
-    @InputProperty(
-        description = "VersionId used to reference a specific version of the object.",
-        dynamic = true
+    @Schema(
+        title = "VersionId used to reference a specific version of the object."
     )
+    @PluginProperty(dynamic = true)
     protected String versionId;
 
     @Override
@@ -96,18 +103,18 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     public static class Output extends ObjectOutput implements org.kestra.core.models.tasks.Output {
         private final URI uri;
 
-        @OutputProperty(
-            description = "Size of the body in bytes."
+        @Schema(
+            title = "Size of the body in bytes."
         )
         private final Long contentLength;
 
-        @OutputProperty(
-            description = "A standard MIME type describing the format of the object data."
+        @Schema(
+            title = "A standard MIME type describing the format of the object data."
         )
         private final String contentType;
 
-        @OutputProperty(
-            description = "A map of metadata to store with the object in S3."
+        @Schema(
+            title = "A map of metadata to store with the object in S3."
         )
         private final Map<String, String> metadata;
     }
