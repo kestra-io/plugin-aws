@@ -69,7 +69,7 @@ dependencies {
     testImplementation "io.micronaut.test:micronaut-test-junit5"
 
     // test
-    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.5.2"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine"
     testImplementation "org.hamcrest:hamcrest:2.2"
     testImplementation "org.hamcrest:hamcrest-library:2.2"
     testImplementation group: 'org.mockito', name: 'mockito-junit-jupiter', version: '3.3.3'
