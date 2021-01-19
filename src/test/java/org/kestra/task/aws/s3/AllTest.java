@@ -4,7 +4,7 @@ import com.adobe.testing.s3mock.junit5.S3MockExtension;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
-import io.micronaut.test.annotation.MicronautTest;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.kestra.core.exceptions.IllegalVariableEvaluationException;
