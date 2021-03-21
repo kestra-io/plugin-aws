@@ -10,7 +10,7 @@
 
 ## Documentation
 * The official Kestra documentation can be found under: [kestra.io](https://kestra.io)
-* This plugin documentation can be found [here](https://kestra.io/plugins/task-aws/)
+* This plugin documentation can be found [here](https://kestra.io/plugins/plugin-aws/)
 
 
 ## License

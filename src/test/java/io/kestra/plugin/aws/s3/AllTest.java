@@ -1,4 +1,4 @@
-package org.kestra.task.aws.s3;
+package io.kestra.plugin.aws.s3;
 
 import com.adobe.testing.s3mock.junit5.S3MockExtension;
 import com.devskiller.friendly_id.FriendlyId;
@@ -7,12 +7,12 @@ import com.google.common.io.CharStreams;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.kestra.core.exceptions.IllegalVariableEvaluationException;
-import org.kestra.core.models.tasks.Task;
-import org.kestra.core.runners.RunContext;
-import org.kestra.core.runners.RunContextFactory;
-import org.kestra.core.storages.StorageInterface;
-import org.kestra.core.utils.TestsUtils;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.utils.TestsUtils;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 

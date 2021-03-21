@@ -1,13 +1,13 @@
-package org.kestra.task.aws.s3;
+package io.kestra.plugin.aws.s3;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.Plugin;
-import org.kestra.core.models.annotations.PluginProperty;
-import org.kestra.core.models.tasks.RunnableTask;
-import org.kestra.core.runners.RunContext;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
@@ -103,7 +103,7 @@ public class Delete extends AbstractS3 implements RunnableTask<Delete.Output> {
 
     @Builder
     @Getter
-    public static class Output implements org.kestra.core.models.tasks.Output {
+    public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Returns the version ID of the delete marker created as a result of the DELETE operation."
         )

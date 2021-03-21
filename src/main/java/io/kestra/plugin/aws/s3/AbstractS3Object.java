@@ -1,4 +1,4 @@
-package org.kestra.task.aws.s3;
+package io.kestra.plugin.aws.s3;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

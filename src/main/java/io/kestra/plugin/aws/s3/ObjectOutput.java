@@ -1,4 +1,4 @@
-package org.kestra.task.aws.s3;
+package io.kestra.plugin.aws.s3;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
