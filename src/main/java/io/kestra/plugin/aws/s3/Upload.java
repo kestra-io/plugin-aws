@@ -79,7 +79,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         String key = runContext.render(this.key);
 
         try (S3Client client = this.client(runContext)) {
-            File tempFile = File.createTempFile("upload_", ".s3");
+            File tempFile = runContext.tempFile().toFile();
             URI from = new URI(runContext.render(this.from));
             Files.copy(runContext.uriToInputStream(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
@@ -105,10 +105,6 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 RequestBody.fromFile(tempFile)
             );
             runContext.metric(Counter.of("file.size", tempFile.length()));
-
-            //noinspection ResultOfMethodCallIgnored
-            tempFile.delete();
-
 
             return Output
                 .builder()

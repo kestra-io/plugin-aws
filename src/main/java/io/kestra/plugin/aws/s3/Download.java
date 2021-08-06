@@ -62,7 +62,9 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
-        File tempFile = File.createTempFile("download_", ".s3");
+
+        // s3 require non existing files
+        File tempFile = runContext.tempFile().toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
 

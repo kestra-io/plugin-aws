@@ -69,9 +69,6 @@ public class Delete extends AbstractS3 implements RunnableTask<Delete.Output> {
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
-        File tempFile = File.createTempFile("download_", ".s3");
-        //noinspection ResultOfMethodCallIgnored
-        tempFile.delete();
 
         try (S3Client client = this.client(runContext)) {
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
