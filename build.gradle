@@ -84,7 +84,7 @@ dependencies {
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
 
-    testImplementation (group: 'com.adobe.testing', name: 's3mock-junit5', version: '2.2.3') {
+    testImplementation (group: 'com.adobe.testing', name: 's3mock-junit5', version: '2.3.3') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
     }
     testImplementation group: 'com.devskiller.friendly-id', name: 'friendly-id', version: '1.1.0'
