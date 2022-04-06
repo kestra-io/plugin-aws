@@ -1,38 +1,41 @@
 package io.kestra.plugin.aws.s3;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnection;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.AbstractConnection;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+
+import java.net.URI;
 
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class AbstractS3 extends AbstractConnection {
-    @Schema(
-        title = "The AWS region to used"
-    )
-    @PluginProperty(dynamic = true)
-    private String region;
+public abstract class AbstractS3 extends AbstractConnection implements AbstractS3Interface  {
+    protected String region;
 
-    S3Client client(RunContext runContext) throws IllegalVariableEvaluationException {
+    protected String endpointOverride;
+
+    protected S3Client client(RunContext runContext) throws IllegalVariableEvaluationException {
         S3ClientBuilder s3ClientBuilder = S3Client.builder()
+            .httpClient(ApacheHttpClient.create())
             .credentialsProvider(this.credentials(runContext));
 
-        String region = runContext.render(this.region);
         if (this.region != null) {
-            s3ClientBuilder.region(Region.of(region));
+            s3ClientBuilder.region(Region.of(runContext.render(this.region)));
+        }
+
+        if (this.endpointOverride != null) {
+            s3ClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
         }
 
         return s3ClientBuilder.build();

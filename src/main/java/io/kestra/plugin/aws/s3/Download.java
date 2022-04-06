@@ -1,23 +1,21 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.executions.metrics.Counter;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import software.amazon.awssdk.core.sync.ResponseTransformer;
+import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
-import java.io.File;
 import java.net.URI;
 import java.util.Map;
 
@@ -30,6 +28,9 @@ import java.util.Map;
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "bucket: \"my-bucket\"",
                 "key: \"path/to/file\""
             }
@@ -41,19 +42,13 @@ import java.util.Map;
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The bucket where to download the file"
-    )
-    @PluginProperty(dynamic = true)
-    private String bucket;
-
-    @Schema(
-        title = "The key where to download the file"
+        title = "The key where to download the file."
     )
     @PluginProperty(dynamic = true)
     private String key;
 
     @Schema(
-        title = "VersionId used to reference a specific version of the object."
+        title = "The specific version of the object."
     )
     @PluginProperty(dynamic = true)
     protected String versionId;
@@ -62,11 +57,6 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
-
-        // s3 require non existing files
-        File tempFile = runContext.tempFile().toFile();
-        //noinspection ResultOfMethodCallIgnored
-        tempFile.delete();
 
         try (S3Client client = this.client(runContext)) {
             GetObjectRequest.Builder builder = GetObjectRequest.builder()
@@ -81,21 +71,16 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 builder.requestPayer(runContext.render(this.requestPayer));
             }
 
-            GetObjectResponse response = client.getObject(
-                builder.build(),
-                ResponseTransformer.toFile(tempFile)
-            );
-
-            runContext.metric(Counter.of("file.size", response.contentLength()));
+            Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder);
 
             return Output
                 .builder()
-                .uri(runContext.putTempFile(tempFile))
-                .eTag(response.eTag())
-                .contentLength(response.contentLength())
-                .contentType(response.contentType())
-                .metadata(response.metadata())
-                .versionId(response.versionId())
+                .uri(download.getRight())
+                .eTag(download.getLeft().eTag())
+                .contentLength(download.getLeft().contentLength())
+                .contentType(download.getLeft().contentType())
+                .metadata(download.getLeft().metadata())
+                .versionId(download.getLeft().versionId())
                 .build();
         }
     }

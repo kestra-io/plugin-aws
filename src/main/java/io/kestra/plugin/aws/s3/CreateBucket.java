@@ -1,13 +1,13 @@
 package io.kestra.plugin.aws.s3;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
@@ -22,6 +22,9 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
         @Example(
             title = "Create a new bucket with some options",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "name: \"my-bucket\"",
                 "region: \"eu-west-1\""
             }
@@ -33,7 +36,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 )
 public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucket.Output> {
     @Schema(
-        description = "The bucket where to download the file"
+        description = "The bucket name to create"
     )
     @PluginProperty(dynamic = true)
     private String bucket;

@@ -1,18 +1,16 @@
 package io.kestra.plugin.aws.s3;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
-
-import java.io.File;
 
 @SuperBuilder
 @ToString
@@ -23,6 +21,9 @@ import java.io.File;
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "bucket: \"my-bucket\"",
                 "key: \"path/to/file\""
             }
@@ -30,15 +31,9 @@ import java.io.File;
     }
 )
 @Schema(
-    title = "Download a file to a S3 bucket."
+    title = "Delete a file in a S3 bucket."
 )
-public class Delete extends AbstractS3 implements RunnableTask<Delete.Output> {
-    @Schema(
-        title = "The bucket"
-    )
-    @PluginProperty(dynamic = true)
-    private String bucket;
-
+public class Delete extends AbstractS3Object implements RunnableTask<Delete.Output> {
     @Schema(
         title = "The key to delete"
     )

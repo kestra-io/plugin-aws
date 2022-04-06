@@ -20,20 +20,10 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class AbstractConnection extends Task {
-    @Schema(
-        title = "The Access Key Id in order to connect to AWS",
-        description = "If no connection is defined, we will use default DefaultCredentialsProvider that will try to guess the value"
-    )
-    @PluginProperty(dynamic = true)
-    private String accessKeyId;
+public abstract class AbstractConnection extends Task implements AbstractConnectionInterface {
+    protected String accessKeyId;
 
-    @Schema(
-        title = "The Secret Key Id in order to connect to AWS",
-        description = "If no connection is defined, we will use default DefaultCredentialsProvider that will try to guess the value"
-    )
-    @PluginProperty(dynamic = true)
-    private String secretKeyId;
+    protected String secretKeyId;
 
     protected AwsCredentialsProvider credentials(RunContext runContext) throws IllegalVariableEvaluationException {
         String accessKeyId = runContext.render(this.accessKeyId);

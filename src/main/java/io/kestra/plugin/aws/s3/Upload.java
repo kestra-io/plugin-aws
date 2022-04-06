@@ -1,17 +1,17 @@
 package io.kestra.plugin.aws.s3;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -32,6 +32,9 @@ import java.util.Map;
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "from: \"{{ inputs.file }}\"",
                 "bucket: \"my-bucket\"",
                 "key: \"path/to/file\""
@@ -48,12 +51,6 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     )
     @PluginProperty(dynamic = true)
     private String from;
-
-    @Schema(
-        title = "The bucket where to upload the file"
-    )
-    @PluginProperty(dynamic = true)
-    private String bucket;
 
     @Schema(
         title = "The key where to upload the file"

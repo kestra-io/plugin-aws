@@ -49,6 +49,7 @@ dependencies {
     // libs
     api platform("software.amazon.awssdk:bom:$awsVersion")
     api 'software.amazon.awssdk:s3'
+    api 'software.amazon.awssdk:apache-client'
 }
 
 
@@ -83,11 +84,7 @@ dependencies {
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
-
-    testImplementation (group: 'com.adobe.testing', name: 's3mock-junit5', version: '2.4.9') {
-        exclude group: 'ch.qos.logback', module: 'logback-classic'
-    }
-    testImplementation group: 'com.devskiller.friendly-id', name: 'friendly-id', version: '1.1.0'
+    testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
 }
 
 /**********************************************************************************************************************\
