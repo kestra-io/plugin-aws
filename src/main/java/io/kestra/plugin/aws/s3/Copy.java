@@ -98,6 +98,7 @@ public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
 
     @SuperBuilder(toBuilder = true)
     @Getter
+    @NoArgsConstructor
     public static class CopyObject {
         @Schema(
             title = "The bucket name"
@@ -114,18 +115,20 @@ public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
 
     @SuperBuilder(toBuilder = true)
     @Getter
+    @NoArgsConstructor
     public static class CopyObjectFrom extends CopyObject {
         @Schema(
             title = "The specific version of the object."
         )
         @PluginProperty(dynamic = true)
-        String versionId;
+        private String versionId;
     }
 
     @SuperBuilder
     @Getter
+    @NoArgsConstructor
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
-        private final String bucket;
-        private final String key;
+        private String bucket;
+        private String key;
     }
 }

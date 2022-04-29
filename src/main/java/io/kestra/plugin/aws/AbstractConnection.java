@@ -1,19 +1,14 @@
 package io.kestra.plugin.aws;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.*;
 
 @SuperBuilder
 @ToString
@@ -25,11 +20,20 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
 
     protected String secretKeyId;
 
+    protected String sessionToken;
+
     protected AwsCredentialsProvider credentials(RunContext runContext) throws IllegalVariableEvaluationException {
         String accessKeyId = runContext.render(this.accessKeyId);
         String secretKeyId = runContext.render(this.secretKeyId);
+        String sessionToken = runContext.render(this.sessionToken);
 
-        if (accessKeyId != null && secretKeyId != null) {
+        if (sessionToken != null) {
+            StaticCredentialsProvider.create(AwsSessionCredentials.create(
+                accessKeyId,
+                secretKeyId,
+                sessionToken
+            ));
+        } else if (accessKeyId != null && secretKeyId != null) {
             return StaticCredentialsProvider.create(AwsBasicCredentials.create(
                 accessKeyId,
                 secretKeyId

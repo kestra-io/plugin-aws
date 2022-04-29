@@ -17,4 +17,11 @@ public interface AbstractConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getSecretKeyId();
+
+    @Schema(
+        title = "The he AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permission to access some resource.",
+        description = "If no connection is defined, we will use default DefaultCredentialsProvider that will try to guess the value"
+    )
+    @PluginProperty(dynamic = true)
+    String getSessionToken();
 }

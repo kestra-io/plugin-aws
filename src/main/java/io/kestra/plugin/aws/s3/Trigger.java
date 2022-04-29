@@ -79,6 +79,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     protected String secretKeyId;
 
+    protected String sessionToken;
+
     protected String region;
 
     protected String endpointOverride;
