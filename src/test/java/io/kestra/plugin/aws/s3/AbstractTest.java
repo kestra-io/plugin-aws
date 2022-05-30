@@ -88,7 +88,7 @@ abstract class AbstractTest {
             .secretKeyId(this.secretKeyId)
             .region(this.region)
             .from(source.toString())
-            .key(dir + "/" + out)
+            .key(dir + "/" + out + ".yml")
             .build();
         Upload.Output uploadOutput = upload.run(runContext(upload));
 

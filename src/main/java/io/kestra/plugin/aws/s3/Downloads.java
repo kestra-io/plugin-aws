@@ -55,6 +55,9 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
 
     protected String regexp;
 
+    @Builder.Default
+    protected final Filter filter = Filter.BOTH;
+
     private ActionInterface.Action action;
 
     private Copy.CopyObject moveTo;
@@ -77,6 +80,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
             .maxKeys(this.maxKeys)
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
+            .filter(this.filter)
             .build();
         List.Output run = task.run(runContext);
 

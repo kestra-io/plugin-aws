@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 
 import java.io.File;
 import java.io.IOException;
@@ -118,14 +119,22 @@ public class S3Service {
 
         String regExp = runContext.render(list.getRegexp());
 
-        return client.listObjects(builder.build()).contents()
+        ListObjectsResponse listObjectsResponse = client.listObjects(builder.build());
+
+        return listObjectsResponse
+            .contents()
             .stream()
-            .filter(s3Object -> S3Service.filter(s3Object, regExp))
+            .filter(s3Object -> S3Service.filter(s3Object, regExp, list.getFilter()))
             .map(S3Object::of)
             .collect(Collectors.toList());
     }
 
-    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp) {
-        return regExp == null || object.key().matches(regExp);
+    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
+        return
+            (regExp == null || object.key().matches(regExp)) &&
+            (filter == ListInterface.Filter.BOTH ||
+                (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
+                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/"))
+            );
     }
 }

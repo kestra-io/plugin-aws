@@ -26,6 +26,14 @@ class ListTest extends AbstractTest {
         List.Output run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(11));
 
+        // Dir listing
+        task = list()
+            .filter(ListInterface.Filter.FILES)
+            .prefix("/tasks/s3/" + dir + "/sub")
+            .build();
+        run = task.run(runContext(task));
+        assertThat(run.getObjects().size(), is(1));
+
         // prefix
         task = list()
             .prefix("/tasks/s3/" + dir + "/sub")

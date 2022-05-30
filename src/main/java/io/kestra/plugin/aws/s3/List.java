@@ -48,6 +48,9 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
 
     protected String regexp;
 
+    @Builder.Default
+    protected final Filter filter = Filter.BOTH;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (S3Client client = this.client(runContext)) {

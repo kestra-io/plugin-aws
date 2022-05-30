@@ -20,7 +20,7 @@ public interface ListInterface {
     String getPrefix();
 
     @Schema(
-        title = "Limits the response to keys that begin with the specified prefix."
+        title = "A delimiter is a character you use to group keys."
     )
     @PluginProperty(dynamic = true)
     String getDelimiter();
@@ -60,4 +60,16 @@ public interface ListInterface {
     )
     @PluginProperty(dynamic = true)
     String getRegexp();
+
+    @Schema(
+        title = "The filter files or directory"
+    )
+    Filter getFilter();
+
+
+    enum Filter {
+        FILES,
+        DIRECTORY,
+        BOTH
+    }
 }

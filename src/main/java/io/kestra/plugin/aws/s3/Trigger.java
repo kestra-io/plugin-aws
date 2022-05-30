@@ -104,6 +104,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     protected String regexp;
 
+    @Builder.Default
+    protected final Filter filter = Filter.BOTH;
+
     private ActionInterface.Action action;
 
     private Copy.CopyObject moveTo;
@@ -128,6 +131,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .maxKeys(this.maxKeys)
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
+            .filter(this.filter)
             .build();
         List.Output run = task.run(runContext);
 

@@ -59,6 +59,9 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
 
     protected String regexp;
 
+    @Builder.Default
+    protected final Filter filter = Filter.BOTH;
+
     @Min(2)
     @Schema(
         title = "Number of concurrent parallels deletion"
@@ -138,14 +141,9 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
             client.deleteObject(builder.build());
 
 
-//            if (connection.delete(BlobId.of(o.getBucket(), o.getName()))) {
-                return o.getSize();
-//            } else {
-//                return 0L;
-//            }
+            return o.getSize();
         };
     }
-
 
     @Builder
     @Getter
