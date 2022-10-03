@@ -98,9 +98,9 @@ jobs:
           status: ${{ job.status }}
           job_name: Check & Publish
           fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
-          username: Github Actions
-          icon_emoji: ':octocat:'
-          channel: '#git'
+          username: GitHub Actions
+          icon_emoji: ':github-actions:'
+          channel: 'C02DQ1A7JLR'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
