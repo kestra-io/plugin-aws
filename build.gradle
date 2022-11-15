@@ -85,7 +85,7 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-engine"
     testImplementation "org.hamcrest:hamcrest:2.2"
     testImplementation "org.hamcrest:hamcrest-library:2.2"
-    testImplementation 'org.mockito:mockito-junit-jupiter:4.8.1'
+    testImplementation 'org.mockito:mockito-junit-jupiter:4.9.0'
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
