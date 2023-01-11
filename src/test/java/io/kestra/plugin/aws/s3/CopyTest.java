@@ -18,6 +18,7 @@ class CopyTest extends AbstractTest {
             .id(CopyTest.class.getSimpleName())
             .type(List.class.getName())
             .endpointOverride(this.endpoint)
+            .pathStyleAccess(true)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .region(this.region)

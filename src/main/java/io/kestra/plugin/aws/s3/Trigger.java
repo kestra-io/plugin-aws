@@ -85,6 +85,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     protected String endpointOverride;
 
+    protected Boolean pathStyleAccess;
+
     protected String requestPayer;
 
     protected String bucket;
@@ -120,6 +122,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .type(List.class.getName())
             .region(this.region)
             .endpointOverride(this.endpointOverride)
+            .pathStyleAccess(this.pathStyleAccess)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .requestPayer(this.requestPayer)
@@ -150,6 +153,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .type(List.class.getName())
                     .region(this.region)
                     .endpointOverride(this.endpointOverride)
+                    .pathStyleAccess(this.pathStyleAccess)
                     .accessKeyId(this.accessKeyId)
                     .secretKeyId(this.secretKeyId)
                     .requestPayer(this.requestPayer)

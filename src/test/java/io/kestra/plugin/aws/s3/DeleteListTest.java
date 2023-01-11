@@ -21,6 +21,7 @@ class DeleteListTest extends AbstractTest {
             .type(List.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(this.endpoint)
+            .pathStyleAccess(true)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .region(this.region)

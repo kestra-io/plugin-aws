@@ -69,6 +69,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
             .type(List.class.getName())
             .region(this.region)
             .endpointOverride(this.endpointOverride)
+            .pathStyleAccess(this.pathStyleAccess)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .requestPayer(this.requestPayer)

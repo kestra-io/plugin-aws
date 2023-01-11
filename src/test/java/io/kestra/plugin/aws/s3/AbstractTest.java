@@ -37,7 +37,6 @@ abstract class AbstractTest {
     @Value("${s3.region}")
     protected String region;
 
-
     @Inject
     protected final String BUCKET = IdUtils.create().toLowerCase();
 
@@ -57,6 +56,7 @@ abstract class AbstractTest {
             .type(CreateBucket.class.getName())
             .bucket(bucket)
             .endpointOverride(this.endpoint)
+            .pathStyleAccess(true)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .region(this.region)
@@ -84,6 +84,7 @@ abstract class AbstractTest {
             .type(Upload.class.getName())
             .bucket(bucket)
             .endpointOverride(this.endpoint)
+            .pathStyleAccess(true)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .region(this.region)
@@ -101,6 +102,7 @@ abstract class AbstractTest {
             .type(List.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(this.endpoint)
+            .pathStyleAccess(true)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .region(this.region);

@@ -8,6 +8,7 @@ triggers:
     interval: PT10S
     action: DELETE
     endpointOverride: http://localhost:9000
+    pathStyleAccess: true
     region: eu-central-1
     accessKeyId: AKIAIOSFODNN7EXAMPLE
     secretKeyId: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
