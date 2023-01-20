@@ -58,6 +58,7 @@ dependencies {
     api platform("software.amazon.awssdk:bom:$awsVersion")
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:apache-client'
+    api 'software.amazon.awssdk:dynamodb'
 }
 
 
@@ -93,6 +94,13 @@ dependencies {
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
+
+    // testcontainers
+    testImplementation "org.testcontainers:testcontainers:1.17.6"
+    testImplementation "org.testcontainers:junit-jupiter:1.17.6"
+    testImplementation "org.testcontainers:localstack:1.17.6"
+    // Localstack module misses SDK v1 classes that are mandatory, see https://github.com/testcontainers/testcontainers-java/issues/1442#issuecomment-694342883
+    testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.13'
 }
 
 /**********************************************************************************************************************\

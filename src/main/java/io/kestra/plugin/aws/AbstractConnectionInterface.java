@@ -24,4 +24,17 @@ public interface AbstractConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getSessionToken();
+
+    @Schema(
+        title = "The region with which the SDK should communicate."
+    )
+    @PluginProperty(dynamic = true)
+    String getRegion();
+
+    @Schema(
+        title = "The endpoint with which the SDK should communicate.",
+        description = "Should normally not be used except for local development."
+    )
+    @PluginProperty(dynamic = true)
+    String getEndpointOverride();
 }

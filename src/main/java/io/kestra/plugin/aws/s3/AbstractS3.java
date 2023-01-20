@@ -24,10 +24,6 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractS3 extends AbstractConnection implements AbstractS3Interface  {
-    protected String region;
-
-    protected String endpointOverride;
-
     protected Boolean pathStyleAccess;
 
     protected S3Client client(RunContext runContext) throws IllegalVariableEvaluationException {
