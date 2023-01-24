@@ -1,0 +1,18 @@
+id: sqs-listen
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.aws.sqs.Trigger
+    endpointOverride: "http://127.0.0.1:4566"
+    queueUrl: "http://127.0.0.1:4566/000000000000/test-queue"
+    region: "us-east-1"
+    accessKeyId: "accesskey"
+    secretKeyId: "secretkey"
+    maxRecords: 2
+    interval: PT10S
+
+tasks:
+  - id: end
+    type: io.kestra.core.tasks.debugs.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
