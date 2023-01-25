@@ -61,7 +61,7 @@ public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput
     public VoidOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
             var fields = fields(runContext, this.item);
-            var item = DynamoDbUtils.valueMapFrom(fields);
+            var item = valueMapFrom(fields);
 
             var putRequest = PutItemRequest.builder()
                 .tableName(runContext.render(this.getTableName()))

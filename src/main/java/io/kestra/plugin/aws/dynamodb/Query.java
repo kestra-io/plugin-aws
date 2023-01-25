@@ -96,7 +96,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
     @Schema(
         title = "Query filter expression.",
-        description = "Query filter expression. When used, 'expressionAttributeValues' must also be used."
+        description = "Query filter expression."
     )
     @PluginProperty(dynamic = true)
     private String filterExpression;
@@ -109,7 +109,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
             var queryBuilder = QueryRequest.builder()
                 .tableName(runContext.render(this.getTableName()))
                 .keyConditionExpression(runContext.render(keyConditionExpression))
-                .expressionAttributeValues(DynamoDbUtils.valueMapFrom(expressionAttributeValues));
+                .expressionAttributeValues(valueMapFrom(expressionAttributeValues));
 
             if(limit != null) {
                 queryBuilder.limit(limit);
@@ -164,7 +164,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
         try (var output = new FileOutputStream(tempFile)) {
             items.forEach(throwConsumer(attributes -> {
                 count.incrementAndGet();
-                FileSerde.write(output, DynamoDbUtils.objectMapFrom(attributes));
+                FileSerde.write(output, objectMapFrom(attributes));
             }));
         }
 
@@ -180,7 +180,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
         items.forEach(throwConsumer(attributes -> {
             count.incrementAndGet();
-            result.add(DynamoDbUtils.objectMapFrom(attributes));
+            result.add(objectMapFrom(attributes));
         }));
 
         return Pair.of(result, count.get());
@@ -190,7 +190,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     private Map<String, Object> fetchOne(List<Map<String, AttributeValue>> items) {
         return items.stream()
             .findFirst()
-            .map(attributes -> DynamoDbUtils.objectMapFrom(attributes))
+            .map(attributes -> objectMapFrom(attributes))
             .orElse(null);
     }
 }

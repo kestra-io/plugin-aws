@@ -22,8 +22,7 @@ class DeleteItemTest extends AbstractDynamoDbTest {
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")
-            .keyName("id")
-            .keyValue("1")
+            .key(Map.of("id", "1"))
             .build();
 
         createTable(runContext, delete);

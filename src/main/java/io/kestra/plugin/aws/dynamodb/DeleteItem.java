@@ -14,9 +14,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @SuperBuilder
@@ -33,30 +31,24 @@ import java.util.Map;
             title = "Delete an item from its key.",
             code = {
                 "tableName: \"persons\"",
-                "keyName: \"id\"",
-                "keyValue; \"1\""
+                "key: ",
+                "   id: \"1\""
             }
         )
     }
 )
 public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item key name."
+        title = "The DynamoDB item key.",
+        description = "The DynamoDB item key. It's a map of string -> object."
     )
     @PluginProperty
-    private String keyName;
-
-    @Schema(
-        title = "The DynamoDB key value."
-    )
-    @PluginProperty(dynamic = true)
-    private String keyValue;
+    private Map<String, Object>  key;
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
-            Map<String, AttributeValue> key = new HashMap<>();
-            key.put(keyName, AttributeValue.fromS(runContext.render(keyValue)));
+            Map<String, AttributeValue> key = valueMapFrom(getKey());
 
             var deleteRequest = DeleteItemRequest.builder()
                 .tableName(runContext.render(this.getTableName()))

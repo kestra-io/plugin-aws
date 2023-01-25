@@ -25,18 +25,6 @@ public abstract class AbstractDynamoDbTest {
     @Inject
     protected StorageInterface storageInterface;
 
-    @Value("${s3.endpoint}")
-    protected String endpoint;
-
-    @Value("${s3.access-key-id}")
-    protected String accessKeyId;
-
-    @Value("${s3.secret-key-id}")
-    protected String secretKeyId;
-
-    @Value("${s3.region}")
-    protected String region;
-
     @BeforeAll
     static void startLocalstack() {
         localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.3.1"))

@@ -102,7 +102,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
                     throw new IllegalArgumentException("'expressionAttributeValues' must be set when 'expressionAttributeValues' is set");
                 }
                 scanBuilder.filterExpression(runContext.render(filterExpression));
-                scanBuilder.expressionAttributeValues(DynamoDbUtils.valueMapFrom(expressionAttributeValues));
+                scanBuilder.expressionAttributeValues(valueMapFrom(expressionAttributeValues));
             }
 
 
@@ -151,7 +151,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
         try (var output = new FileOutputStream(tempFile)) {
             items.forEach(throwConsumer(attributes -> {
                 count.incrementAndGet();
-                FileSerde.write(output, DynamoDbUtils.objectMapFrom(attributes));
+                FileSerde.write(output, objectMapFrom(attributes));
             }));
         }
 
@@ -167,7 +167,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
         items.forEach(throwConsumer(attributes -> {
             count.incrementAndGet();
-            result.add(DynamoDbUtils.objectMapFrom(attributes));
+            result.add(objectMapFrom(attributes));
         }));
 
         return Pair.of(result, count.get());
@@ -177,7 +177,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     private Map<String, Object> fetchOne(List<Map<String, AttributeValue>> items) {
         return items.stream()
             .findFirst()
-            .map(attributes -> DynamoDbUtils.objectMapFrom(attributes))
+            .map(attributes -> objectMapFrom(attributes))
             .orElse(null);
     }
 }
