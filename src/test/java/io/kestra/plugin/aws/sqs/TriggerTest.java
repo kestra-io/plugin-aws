@@ -73,7 +73,7 @@ class TriggerTest extends AbstractSqsTest {
 
             scheduler.run();
 
-            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/sqs")));
 
             // publish two messages to trigger the flow
             Publish task = Publish.builder()

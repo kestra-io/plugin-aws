@@ -7,9 +7,3 @@ kestra:
     type: memory
   repository:
     type: memory
-
-s3:
-  endpoint: http://localhost:9000
-  access-key-id: AKIAIOSFODNN7EXAMPLE
-  secret-key-id: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  region: eu-central-1

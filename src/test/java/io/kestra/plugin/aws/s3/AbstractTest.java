@@ -7,9 +7,13 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,27 +22,34 @@ import java.net.URISyntaxException;
 import java.util.Objects;
 
 @MicronautTest
+@Testcontainers
 abstract class AbstractTest {
+    protected static LocalStackContainer localstack;
+
     @Inject
     protected RunContextFactory runContextFactory;
 
     @Inject
     protected StorageInterface storageInterface;
 
-    @Value("${s3.endpoint}")
-    protected String endpoint;
-
-    @Value("${s3.access-key-id}")
-    protected String accessKeyId;
-
-    @Value("${s3.secret-key-id}")
-    protected String secretKeyId;
-
-    @Value("${s3.region}")
-    protected String region;
-
     @Inject
     protected final String BUCKET = IdUtils.create().toLowerCase();
+
+    @BeforeAll
+    static void startLocalstack() {
+        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.3.1"))
+            .withServices(LocalStackContainer.Service.S3);
+        // we must use fixed port in order the TriggerTest to work as it uses a real flow with hardcoded configuration
+        localstack.setPortBindings(java.util.List.of("4566:4566"));
+        localstack.start();
+    }
+
+    @AfterAll
+    static void stopLocalstack() {
+        if(localstack != null) {
+            localstack.stop();
+        }
+    }
 
     protected static File file() throws URISyntaxException {
         return new File(Objects.requireNonNull(AbstractTest.class.getClassLoader()
@@ -55,11 +66,11 @@ abstract class AbstractTest {
             .id(AllTest.class.getSimpleName())
             .type(CreateBucket.class.getName())
             .bucket(bucket)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -83,15 +94,15 @@ abstract class AbstractTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(bucket)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .from(source.toString())
             .key(dir + "/" + out + ".yml")
             .build();
-        Upload.Output uploadOutput = upload.run(runContext(upload));
+        upload.run(runContext(upload));
 
         return upload.getKey();
     }
@@ -101,11 +112,11 @@ abstract class AbstractTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region);
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion());
     }
 
     protected RunContext runContext(Task task) {

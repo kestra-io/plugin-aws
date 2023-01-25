@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -17,11 +18,11 @@ class DownloadsTest extends AbstractTest {
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .action(ActionInterface.Action.DELETE)
             .build();
 
@@ -45,12 +46,12 @@ class DownloadsTest extends AbstractTest {
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .action(ActionInterface.Action.MOVE)
-            .region(this.region)
             .moveTo(Copy.CopyObject.builder()
                 .key("/tasks/s3-move")
                 .build()
