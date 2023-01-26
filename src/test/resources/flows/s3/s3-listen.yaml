@@ -7,11 +7,11 @@ triggers:
     bucket: trigger-test
     interval: PT10S
     action: DELETE
-    endpointOverride: http://localhost:9000
+    endpointOverride: http://localhost:4566
     pathStyleAccess: true
-    region: eu-central-1
-    accessKeyId: AKIAIOSFODNN7EXAMPLE
-    secretKeyId: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    region: us-east-1
+    accessKeyId: accesskey
+    secretKeyId: secretkey
 
 tasks:
   - id: end

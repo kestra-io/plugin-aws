@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import com.google.common.io.CharStreams;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import java.io.FileInputStream;
@@ -25,11 +26,11 @@ class AllTest extends AbstractTest{
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .prefix("tasks/aws/upload/")
             .build();
 
@@ -41,11 +42,11 @@ class AllTest extends AbstractTest{
             .id(AllTest.class.getSimpleName())
             .type(Download.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .key(key)
             .build();
         Download.Output run = download.run(runContext(download));
@@ -61,11 +62,11 @@ class AllTest extends AbstractTest{
             .id(AllTest.class.getSimpleName())
             .type(Delete.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(this.endpoint)
+            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .pathStyleAccess(true)
-            .accessKeyId(this.accessKeyId)
-            .secretKeyId(this.secretKeyId)
-            .region(this.region)
+            .accessKeyId(localstack.getAccessKey())
+            .secretKeyId(localstack.getSecretKey())
+            .region(localstack.getRegion())
             .key(key)
             .build();
         Delete.Output deleteOutput = delete.run(runContext(delete));

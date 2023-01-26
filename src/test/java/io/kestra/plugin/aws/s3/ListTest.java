@@ -43,7 +43,7 @@ class ListTest extends AbstractTest {
 
         // regexp
         task = list()
-            .regexp("tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/"))
+            .regexp("/tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/"))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));

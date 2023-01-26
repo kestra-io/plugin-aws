@@ -76,7 +76,7 @@ class TriggerTest extends AbstractTest {
             upload("trigger/s3", "trigger-test");
 
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3")));
 
             queueCount.await(1, TimeUnit.MINUTES);
 
