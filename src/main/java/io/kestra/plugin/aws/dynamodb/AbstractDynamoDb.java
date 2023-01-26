@@ -26,7 +26,7 @@ import javax.validation.constraints.NotNull;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public class AbstractDynamoDb extends AbstractConnection {
+abstract class AbstractDynamoDb extends AbstractConnection {
 
     @Schema(title = "The DynamoDB table name.")
     @PluginProperty(dynamic = true)
