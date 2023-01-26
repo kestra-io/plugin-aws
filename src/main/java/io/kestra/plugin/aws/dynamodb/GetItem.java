@@ -34,21 +34,20 @@ import java.util.Map;
     }
 )
 public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Output> {
-
     @Schema(
         title = "The DynamoDB item key.",
         description = "The DynamoDB item key. It's a map of string -> object."
     )
-    @PluginProperty
-    private Map<String, Object>  key;
+    @PluginProperty(dynamic = true)
+    private Map<String, Object> key;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
-            Map<String, AttributeValue> key = valueMapFrom(getKey());
+            Map<String, AttributeValue> key = valueMapFrom(runContext.render(this.key));
 
             var getRequest = GetItemRequest.builder()
-                .tableName(runContext.render(this.getTableName()))
+                .tableName(runContext.render(this.tableName))
                 .key(key)
                 .build();
 

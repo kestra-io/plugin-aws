@@ -10,14 +10,14 @@ import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @SuperBuilder
@@ -64,14 +64,16 @@ public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput
             var item = valueMapFrom(fields);
 
             var putRequest = PutItemRequest.builder()
-                .tableName(runContext.render(this.getTableName()))
+                .tableName(runContext.render(this.tableName))
                 .item(item)
                 .build();
             dynamoDb.putItem(putRequest);
+
             return null;
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> fields(RunContext runContext, Object value) throws IllegalVariableEvaluationException, JsonProcessingException {
         if (value instanceof String) {
             return JacksonMapper.toMap(runContext.render((String) value));

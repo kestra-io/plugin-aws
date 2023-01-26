@@ -43,7 +43,7 @@ public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOut
         description = "The DynamoDB item key. It's a map of string -> object."
     )
     @PluginProperty
-    private Map<String, Object>  key;
+    private Map<String, Object> key;
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
