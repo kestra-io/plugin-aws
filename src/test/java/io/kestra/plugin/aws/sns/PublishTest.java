@@ -34,5 +34,4 @@ class PublishTest extends AbstractSnsTest {
         var publishOutput = publish.run(runContext);
         assertThat(publishOutput.getMessagesCount(), is(2));
     }
-
 }

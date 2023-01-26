@@ -30,7 +30,6 @@ public class Message {
     @PluginProperty
     private Integer delaySeconds;
 
-
     public SendMessageRequest to(SendMessageRequest.Builder builder) {
         return builder
             .messageBody(data)

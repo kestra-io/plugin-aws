@@ -53,6 +53,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     )
     private Object from;
 
+    @SuppressWarnings("unchecked")
     @Override
     public Publish.Output run(RunContext runContext) throws Exception {
         try (var snsClient = this.client(runContext)) {

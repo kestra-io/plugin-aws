@@ -50,6 +50,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     private Duration maxDuration;
 
 
+    @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
         if (this.maxDuration == null && this.maxRecords == null) {
@@ -77,6 +78,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 runContext.metric(Counter.of("records", total.get(), "queue", runContext.render(this.getQueueUrl())));
                 outputFile.flush();
             }
+
             return Output.builder()
                 .uri(runContext.putTempFile(tempFile))
                 .count(total.get())
@@ -88,6 +90,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         if (this.maxRecords != null && count.get() >= this.maxRecords) {
             return true;
         }
+
         if (this.maxDuration != null && ZonedDateTime.now().toEpochSecond() > start.plus(this.maxDuration).toEpochSecond()) {
             return true;
         }

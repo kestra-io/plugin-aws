@@ -53,6 +53,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     )
     private Object from;
 
+    @SuppressWarnings("unchecked")
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (var sqsClient = this.client(runContext)) {
