@@ -64,6 +64,7 @@ public interface ListInterface {
     @Schema(
         title = "The filter files or directory"
     )
+    @PluginProperty
     Filter getFilter();
 
 

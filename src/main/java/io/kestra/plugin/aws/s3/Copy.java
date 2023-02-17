@@ -41,19 +41,19 @@ public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
     @Schema(
         title = "The source bucket and key"
     )
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     private CopyObjectFrom from;
 
     @Schema(
         title = "The destination bucket and key."
     )
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     private CopyObject to;
 
     @Schema(
         title = "Delete the source file after download"
     )
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     @Builder.Default
     private Boolean delete = false;
 

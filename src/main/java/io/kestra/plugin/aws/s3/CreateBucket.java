@@ -80,6 +80,7 @@ public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucke
     @Schema(
         title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
     )
+    @PluginProperty
     private Boolean objectLockEnabledForBucket;
 
     @Override
