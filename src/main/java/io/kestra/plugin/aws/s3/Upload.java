@@ -12,10 +12,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CompletedFileUpload;
+import software.amazon.awssdk.transfer.s3.model.FileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 import java.io.File;
 import java.net.URI;
@@ -61,7 +64,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = "A map of metadata to store with the object in S3."
     )
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     private Map<String, String> metadata;
 
     @Schema(
@@ -75,7 +78,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
 
-        try (S3Client client = this.client(runContext)) {
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
             File tempFile = runContext.tempFile().toFile();
             URI from = new URI(runContext.render(this.from));
             Files.copy(runContext.uriToInputStream(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -97,19 +100,25 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 builder.storageClass(runContext.render(this.storageClass));
             }
 
-            PutObjectResponse response = client.putObject(
-                builder.build(),
-                RequestBody.fromFile(tempFile)
-            );
-            runContext.metric(Counter.of("file.size", tempFile.length()));
+            // use the transfer manager for uploading an S3 file will end up using 8MB upload parts.
+            try (S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
+                FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
+                    .putObjectRequest(builder.build())
+                    .source(tempFile)
+                    .build());
 
-            return Output
-                .builder()
-                .bucket(bucket)
-                .key(key)
-                .eTag(response.eTag())
-                .versionId(response.versionId())
-                .build();
+                // wait for the upload
+                PutObjectResponse response = upload.completionFuture().get().response();
+
+                runContext.metric(Counter.of("file.size", tempFile.length()));
+                return Output
+                    .builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .eTag(response.eTag())
+                    .versionId(response.versionId())
+                    .build();
+            }
         }
 
     }

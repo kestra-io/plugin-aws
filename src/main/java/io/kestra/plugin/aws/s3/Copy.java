@@ -79,7 +79,6 @@ public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
                     .type(Delete.class.getName())
                     .region(this.region)
                     .endpointOverride(this.endpointOverride)
-                    .pathStyleAccess(this.pathStyleAccess)
                     .accessKeyId(this.accessKeyId)
                     .secretKeyId(this.secretKeyId)
                     .bucket(request.sourceBucket())

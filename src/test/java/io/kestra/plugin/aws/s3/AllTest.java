@@ -4,14 +4,15 @@ import com.google.common.io.CharStreams;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AllTest extends AbstractTest{
@@ -27,7 +28,6 @@ class AllTest extends AbstractTest{
             .type(Upload.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())
@@ -43,7 +43,6 @@ class AllTest extends AbstractTest{
             .type(Download.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())
@@ -63,7 +62,6 @@ class AllTest extends AbstractTest{
             .type(Delete.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())
@@ -73,9 +71,12 @@ class AllTest extends AbstractTest{
         assertThat(deleteOutput.getDeleteMarker(), is(nullValue()));
 
         // delete missing
-        assertThrows(
-            NoSuchKeyException.class,
+        ExecutionException exp = assertThrows(
+            ExecutionException.class,
             () -> download.run(runContext(download))
         );
+        assertThat(exp.getCause(), instanceOf(S3Exception.class));
+        S3Exception cause = (S3Exception) exp.getCause();
+        assertThat(cause.statusCode(), is(404));
     }
 }

@@ -71,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractS3Interface, AbstractConnectionInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractConnectionInterface {
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -84,8 +84,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected String region;
 
     protected String endpointOverride;
-
-    protected Boolean pathStyleAccess;
 
     protected String requestPayer;
 
@@ -122,7 +120,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .type(List.class.getName())
             .region(this.region)
             .endpointOverride(this.endpointOverride)
-            .pathStyleAccess(this.pathStyleAccess)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .requestPayer(this.requestPayer)
@@ -153,7 +150,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .type(List.class.getName())
                     .region(this.region)
                     .endpointOverride(this.endpointOverride)
-                    .pathStyleAccess(this.pathStyleAccess)
                     .accessKeyId(this.accessKeyId)
                     .secretKeyId(this.secretKeyId)
                     .requestPayer(this.requestPayer)
@@ -166,7 +162,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }))
             .collect(Collectors.toList());
 
-
         S3Service.archive(
             run.getObjects(),
             this.action,
@@ -176,12 +171,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             this,
             this
         );
-
         ExecutionTrigger executionTrigger = ExecutionTrigger.of(
             this,
             List.Output.builder().objects(list).build()
         );
-
         Execution execution = Execution.builder()
             .id(executionId)
             .namespace(context.getNamespace())
