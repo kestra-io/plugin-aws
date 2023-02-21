@@ -43,6 +43,7 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
     @Schema(
         title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
     )
+    @PluginProperty
     private Boolean bypassGovernanceRetention;
 
     @Schema(

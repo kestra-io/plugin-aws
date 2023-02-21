@@ -9,7 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
-import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
@@ -69,7 +69,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
             .type(List.class.getName())
             .region(this.region)
             .endpointOverride(this.endpointOverride)
-            .pathStyleAccess(this.pathStyleAccess)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
             .requestPayer(this.requestPayer)
@@ -85,7 +84,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
             .build();
         List.Output run = task.run(runContext);
 
-        try (S3Client client = this.client(runContext)) {
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
             java.util.List<S3Object> list = run
                 .getObjects()
                 .stream()

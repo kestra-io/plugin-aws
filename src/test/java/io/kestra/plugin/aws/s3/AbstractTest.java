@@ -37,7 +37,7 @@ abstract class AbstractTest {
 
     @BeforeAll
     static void startLocalstack() {
-        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.3.1"))
+        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.4.0"))
             .withServices(LocalStackContainer.Service.S3);
         // we must use fixed port in order the TriggerTest to work as it uses a real flow with hardcoded configuration
         localstack.setPortBindings(java.util.List.of("4566:4566"));
@@ -67,7 +67,6 @@ abstract class AbstractTest {
             .type(CreateBucket.class.getName())
             .bucket(bucket)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())
@@ -95,7 +94,6 @@ abstract class AbstractTest {
             .type(Upload.class.getName())
             .bucket(bucket)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())
@@ -113,7 +111,6 @@ abstract class AbstractTest {
             .type(List.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion());

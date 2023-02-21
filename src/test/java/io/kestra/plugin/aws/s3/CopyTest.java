@@ -19,7 +19,6 @@ class CopyTest extends AbstractTest {
             .id(CopyTest.class.getSimpleName())
             .type(List.class.getName())
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())

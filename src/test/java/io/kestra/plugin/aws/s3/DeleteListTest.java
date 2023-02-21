@@ -22,7 +22,6 @@ class DeleteListTest extends AbstractTest {
             .type(List.class.getName())
             .bucket(this.BUCKET)
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .pathStyleAccess(true)
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .region(localstack.getRegion())

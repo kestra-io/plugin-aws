@@ -9,33 +9,45 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.CompletedFileDownload;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.FileDownload;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class S3Service {
-    public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3Client client, GetObjectRequest.Builder builder) throws IOException {
+    public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest.Builder builder) throws IOException, ExecutionException, InterruptedException {
         // s3 require non existing files
         File tempFile = runContext.tempFile().toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
 
-        GetObjectResponse response = client.getObject(
-            builder.build(),
-            ResponseTransformer.toFile(tempFile)
-        );
+        try (S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
+            FileDownload download = transferManager.downloadFile(
+                DownloadFileRequest.builder()
+                    .getObjectRequest(builder.build())
+                    .destination(tempFile)
+                    .build()
+            );
 
-        runContext.metric(Counter.of("file.size", response.contentLength()));
+            GetObjectResponse response =download.completionFuture().get().response();
 
-        return Pair.of(response, runContext.putTempFile(tempFile));
+            runContext.metric(Counter.of("file.size", response.contentLength()));
+
+            return Pair.of(response, runContext.putTempFile(tempFile));
+        }
     }
 
     static void archive(
@@ -44,7 +56,7 @@ public class S3Service {
         Copy.CopyObject moveTo,
         RunContext runContext,
         AbstractS3ObjectInterface abstractS3Object,
-        AbstractS3Interface abstractS3,
+        AbstractConnectionInterface abstractS3,
         AbstractConnectionInterface abstractConnection
     ) throws Exception {
         if (action == ActionInterface.Action.DELETE) {
@@ -54,7 +66,6 @@ public class S3Service {
                     .type(Delete.class.getName())
                     .region(abstractS3.getRegion())
                     .endpointOverride(abstractS3.getEndpointOverride())
-                    .pathStyleAccess(abstractS3.getPathStyleAccess())
                     .accessKeyId(abstractConnection.getAccessKeyId())
                     .secretKeyId(abstractConnection.getSecretKeyId())
                     .key(object.getKey())
@@ -69,7 +80,6 @@ public class S3Service {
                     .type(Copy.class.getName())
                     .region(abstractS3.getRegion())
                     .endpointOverride(abstractS3.getEndpointOverride())
-                    .pathStyleAccess(abstractS3.getPathStyleAccess())
                     .accessKeyId(abstractConnection.getAccessKeyId())
                     .secretKeyId(abstractConnection.getSecretKeyId())
                     .from(Copy.CopyObjectFrom.builder()

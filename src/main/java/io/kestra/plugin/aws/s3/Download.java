@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -58,7 +59,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
 
-        try (S3Client client = this.client(runContext)) {
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
             GetObjectRequest.Builder builder = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(key);

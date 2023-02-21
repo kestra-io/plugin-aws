@@ -66,7 +66,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     @Schema(
         title = "Number of concurrent parallels deletion"
     )
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     private Integer concurrent;
 
     @Schema(

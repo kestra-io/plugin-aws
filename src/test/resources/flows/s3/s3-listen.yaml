@@ -7,8 +7,8 @@ triggers:
     bucket: trigger-test
     interval: PT10S
     action: DELETE
-    endpointOverride: http://localhost:4566
-    pathStyleAccess: true
+    # We need to use this endpoint for Localstack and DNS style path, see https://github.com/localstack/localstack/issues/2631
+    endpointOverride: http://s3.localhost.localstack.cloud:4566
     region: us-east-1
     accessKeyId: accesskey
     secretKeyId: secretkey
