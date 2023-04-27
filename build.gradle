@@ -58,7 +58,7 @@ dependencies {
     api platform("software.amazon.awssdk:bom:$awsVersion")
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
-    api 'software.amazon.awssdk.crt:aws-crt:0.21.9' //used by s3-transfer-manager
+    api 'software.amazon.awssdk.crt:aws-crt:0.21.12' //used by s3-transfer-manager
     api 'software.amazon.awssdk:apache-client'
     api 'software.amazon.awssdk:dynamodb'
     api 'software.amazon.awssdk:sns'
@@ -92,7 +92,7 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-engine"
     testImplementation "org.hamcrest:hamcrest:2.2"
     testImplementation "org.hamcrest:hamcrest-library:2.2"
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.2.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.3.1'
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
@@ -100,11 +100,11 @@ dependencies {
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
 
     // testcontainers
-    testImplementation "org.testcontainers:testcontainers:1.17.6"
-    testImplementation "org.testcontainers:junit-jupiter:1.17.6"
-    testImplementation "org.testcontainers:localstack:1.17.6"
+    testImplementation "org.testcontainers:testcontainers:1.18.0"
+    testImplementation "org.testcontainers:junit-jupiter:1.18.0"
+    testImplementation "org.testcontainers:localstack:1.18.0"
     // Localstack module misses SDK v1 classes that are mandatory, see https://github.com/testcontainers/testcontainers-java/issues/1442#issuecomment-694342883
-    testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.431'
+    testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.457'
 }
 
 /**********************************************************************************************************************\
