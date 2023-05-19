@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws.sqs.model;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,11 +32,11 @@ public class Message {
     @PluginProperty
     private Integer delaySeconds;
 
-    public SendMessageRequest to(SendMessageRequest.Builder builder) {
+    public SendMessageRequest to(SendMessageRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException {
         return builder
-            .messageBody(data)
-            .messageGroupId(groupId)
-            .messageDeduplicationId(deduplicationId)
+            .messageBody(runContext.render(data))
+            .messageGroupId(runContext.render(groupId))
+            .messageDeduplicationId(runContext.render(deduplicationId))
             .delaySeconds(delaySeconds)
             .build();
     }

@@ -69,7 +69,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
                     flowable = Flowable.create(FileSerde.reader(inputStream, Message.class), BackpressureStrategy.BUFFER);
-                    resultFlowable = this.buildFlowable(flowable, sqsClient);
+                    resultFlowable = this.buildFlowable(flowable, sqsClient, runContext);
 
                     count = resultFlowable.reduce(Integer::sum).blockingGet();
                 }
@@ -79,12 +79,12 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                     .fromArray(((List<Message>) this.from).toArray())
                     .cast(Message.class);
 
-                resultFlowable = this.buildFlowable(flowable, sqsClient);
+                resultFlowable = this.buildFlowable(flowable, sqsClient, runContext);
 
                 count = resultFlowable.reduce(Integer::sum).blockingGet();
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
-                sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(getQueueUrl())));
+                sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(getQueueUrl()), runContext));
 
                 count = 1;
             }
@@ -98,10 +98,10 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         }
     }
 
-    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SqsClient sqsClient) {
+    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SqsClient sqsClient, RunContext runContext) {
         return flowable
             .map(message -> {
-                sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(getQueueUrl())));
+                sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(getQueueUrl()), runContext));
                 return 1;
             });
     }
