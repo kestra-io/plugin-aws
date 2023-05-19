@@ -139,8 +139,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        String executionId = IdUtils.create();
-
         java.util.List<S3Object> list = run
             .getObjects()
             .stream()
@@ -176,7 +174,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             List.Output.builder().objects(list).build()
         );
         Execution execution = Execution.builder()
-            .id(executionId)
+            .id(runContext.getTriggerExecutionId())
             .namespace(context.getNamespace())
             .flowId(context.getFlowId())
             .flowRevision(context.getFlowRevision())
