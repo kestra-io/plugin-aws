@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws.sns.model;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -39,14 +41,14 @@ public class Message {
     private String structure;
 
 
-    public PublishRequest to(PublishRequest.Builder builder) {
+    public PublishRequest to(PublishRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException {
         return builder
-            .message(data)
-            .messageGroupId(groupId)
-            .messageDeduplicationId(deduplicationId)
-            .subject(subject)
-            .phoneNumber(phoneNumber)
-            .messageStructure(structure)
+            .message(runContext.render(data))
+            .messageGroupId(runContext.render(groupId))
+            .messageDeduplicationId(runContext.render(deduplicationId))
+            .subject(runContext.render(subject))
+            .phoneNumber(runContext.render(phoneNumber))
+            .messageStructure(runContext.render(structure))
             .build();
     }
 }
