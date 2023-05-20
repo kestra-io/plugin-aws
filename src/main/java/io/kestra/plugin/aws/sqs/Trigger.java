@@ -90,15 +90,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        String executionId = IdUtils.create();
-
         ExecutionTrigger executionTrigger = ExecutionTrigger.of(
             this,
             run
         );
 
         Execution execution = Execution.builder()
-            .id(executionId)
+            .id(runContext.getTriggerExecutionId())
             .namespace(context.getNamespace())
             .flowId(context.getFlowId())
             .flowRevision(context.getFlowRevision())
