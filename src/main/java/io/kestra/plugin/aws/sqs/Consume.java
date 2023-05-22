@@ -10,6 +10,7 @@ import io.kestra.core.serializers.FileSerde;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import java.io.BufferedOutputStream;
@@ -69,6 +70,10 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
                         FileSerde.write(outputFile, m.body());
+                        sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                            .queueUrl(getQueueUrl())
+                            .receiptHandle(m.receiptHandle()).build()
+                        );
                         total.getAndIncrement();
                     }));
 
