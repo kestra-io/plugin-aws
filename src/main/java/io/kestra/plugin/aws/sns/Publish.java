@@ -56,6 +56,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     @SuppressWarnings("unchecked")
     @Override
     public Publish.Output run(RunContext runContext) throws Exception {
+        var topicArn = runContext.render(getTopicArn());
         try (var snsClient = this.client(runContext)) {
             Integer count;
             Flowable<Message> flowable;
@@ -69,7 +70,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
                     flowable = Flowable.create(FileSerde.reader(inputStream, Message.class), BackpressureStrategy.BUFFER);
-                    resultFlowable = this.buildFlowable(flowable, snsClient, runContext);
+                    resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 
                     count = resultFlowable.reduce(Integer::sum).blockingGet();
                 }
@@ -79,18 +80,18 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                     .fromArray(((List<Message>) this.from).toArray())
                     .cast(Message.class);
 
-                resultFlowable = this.buildFlowable(flowable, snsClient, runContext);
+                resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 
                 count = resultFlowable.reduce(Integer::sum).blockingGet();
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
-                snsClient.publish(msg.to(PublishRequest.builder().topicArn(getTopicArn()), runContext));
+                snsClient.publish(msg.to(PublishRequest.builder().topicArn(topicArn), runContext));
 
                 count = 1;
             }
 
             // metrics
-            runContext.metric(Counter.of("records", count, "topic", runContext.render(this.getTopicArn())));
+            runContext.metric(Counter.of("records", count, "topic", topicArn));
 
             return Output.builder()
                 .messagesCount(count)
@@ -98,10 +99,10 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
         }
     }
 
-    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SnsClient snsClient, RunContext runContext) {
+    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SnsClient snsClient, String topicArn, RunContext runContext) {
         return flowable
             .map(message -> {
-                snsClient.publish(message.to(PublishRequest.builder().topicArn(getTopicArn()), runContext));
+                snsClient.publish(message.to(PublishRequest.builder().topicArn(topicArn), runContext));
                 return 1;
             });
     }
