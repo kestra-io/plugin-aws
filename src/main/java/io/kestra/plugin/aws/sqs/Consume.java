@@ -54,6 +54,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
+        var queueUrl = runContext.render(getQueueUrl());
         if (this.maxDuration == null && this.maxRecords == null) {
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
         }
@@ -66,12 +67,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 while (!this.ended(total, started)) {
                     // TODO if we have a maxNumber we can pass the number to avoid too many network calls
-                    var receiveRequest = ReceiveMessageRequest.builder().queueUrl(getQueueUrl()).build();
+                    var receiveRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
                         FileSerde.write(outputFile, m.body());
                         sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                            .queueUrl(getQueueUrl())
+                            .queueUrl(queueUrl)
                             .receiptHandle(m.receiptHandle()).build()
                         );
                         total.getAndIncrement();
@@ -80,7 +81,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     Thread.sleep(100);
                 }
 
-                runContext.metric(Counter.of("records", total.get(), "queue", runContext.render(this.getQueueUrl())));
+                runContext.metric(Counter.of("records", total.get(), "queue", queueUrl));
                 outputFile.flush();
             }
 

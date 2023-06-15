@@ -24,7 +24,7 @@ import javax.validation.constraints.NotNull;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-abstract class AbstractSqs  extends AbstractConnection implements SqsConnectionInterface{
+abstract class AbstractSqs  extends AbstractConnection implements SqsConnectionInterface {
     private String queueUrl;
 
     protected SqsClient client(RunContext runContext) throws IllegalVariableEvaluationException {
