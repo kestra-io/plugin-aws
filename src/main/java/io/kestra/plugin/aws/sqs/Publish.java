@@ -56,6 +56,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @SuppressWarnings("unchecked")
     @Override
     public Output run(RunContext runContext) throws Exception {
+        var queueUrl = runContext.render(getQueueUrl());
         try (var sqsClient = this.client(runContext)) {
             Integer count;
             Flowable<Message> flowable;
@@ -69,7 +70,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
                     flowable = Flowable.create(FileSerde.reader(inputStream, Message.class), BackpressureStrategy.BUFFER);
-                    resultFlowable = this.buildFlowable(flowable, sqsClient, runContext);
+                    resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
                     count = resultFlowable.reduce(Integer::sum).blockingGet();
                 }
@@ -79,18 +80,18 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                     .fromArray(((List<Message>) this.from).toArray())
                     .cast(Message.class);
 
-                resultFlowable = this.buildFlowable(flowable, sqsClient, runContext);
+                resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
                 count = resultFlowable.reduce(Integer::sum).blockingGet();
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
-                sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(getQueueUrl()), runContext));
+                sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
 
                 count = 1;
             }
 
             // metrics
-            runContext.metric(Counter.of("records", count, "queue", runContext.render(this.getQueueUrl())));
+            runContext.metric(Counter.of("records", count, "queue", queueUrl));
 
             return Output.builder()
                 .messagesCount(count)
@@ -98,10 +99,10 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         }
     }
 
-    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SqsClient sqsClient, RunContext runContext) {
+    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SqsClient sqsClient, String queueUrl, RunContext runContext) {
         return flowable
             .map(message -> {
-                sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(getQueueUrl()), runContext));
+                sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
                 return 1;
             });
     }
