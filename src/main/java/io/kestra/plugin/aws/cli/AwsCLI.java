@@ -12,6 +12,7 @@ import io.kestra.plugin.scripts.exec.scripts.models.RunnerType;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.exec.scripts.services.ScriptService;
+import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -44,7 +45,7 @@ import java.util.Map;
                         }
                 ),
                 @Example(
-                        title = "List all S3 buckets as task output",
+                        title = "List all S3 buckets as the task's output",
                         code = {
                                 "accessKeyId: \"<access-key>\"",
                                 "secretKeyId: \"<secret-key>\"",
@@ -83,6 +84,13 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .entryPoint(Collections.emptyList())
             .build();
 
+    @Schema(
+            title = "Wanted output format for AWS commands (can be override with --format parameter)"
+    )
+    @PluginProperty
+    @Builder.Default
+    protected OutputFormat outputFormat = OutputFormat.JSON;
+
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
         CommandsWrapper commands = new CommandsWrapper(runContext)
@@ -119,12 +127,26 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             envs.put("AWS_ENDPOINT_URL", runContext.render(this.endpointOverride));
         }
 
-        envs.put("AWS_DEFAULT_OUTPUT", "json");
+        envs.put("AWS_DEFAULT_OUTPUT", this.outputFormat.toString());
 
         if (this.env != null) {
             envs.putAll(this.env);
         }
 
         return envs;
+    }
+
+    @Introspected
+    public enum OutputFormat {
+        JSON,
+        TEXT,
+        TABLE,
+        YAML;
+
+
+        @Override
+        public String toString() {
+            return super.toString().toLowerCase();
+        }
     }
 }
