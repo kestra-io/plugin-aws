@@ -23,7 +23,7 @@ import java.util.Objects;
 
 @MicronautTest
 @Testcontainers
-abstract class AbstractTest {
+public abstract class AbstractTest {
     protected static LocalStackContainer localstack;
 
     @Inject
