@@ -19,7 +19,6 @@ import lombok.experimental.SuperBuilder;
 
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +80,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     @Builder.Default
     protected DockerOptions docker = DockerOptions.builder()
             .image("amazon/aws-cli")
-            .entryPoint(Collections.emptyList())
+            .entryPoint(List.of(""))
             .build();
 
     @Schema(
