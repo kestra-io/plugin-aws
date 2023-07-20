@@ -50,7 +50,7 @@ import java.util.Map;
                                 "secretKeyId: \"<secret-key>\"",
                                 "region: \"eu-central-1\"",
                                 "commands:",
-                                "  - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
+                                "  - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
                         }
                 )
         }
