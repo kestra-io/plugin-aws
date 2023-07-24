@@ -93,7 +93,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
                         .bucket(bucket)
                         .key(object.getKey());
 
-                    Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder);
+                    Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
 
                     return object.withUri(download.getRight());
                 }))

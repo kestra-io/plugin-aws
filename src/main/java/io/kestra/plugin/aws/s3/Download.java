@@ -72,7 +72,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 builder.requestPayer(runContext.render(this.requestPayer));
             }
 
-            Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder);
+            Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
 
             return Output
                 .builder()
