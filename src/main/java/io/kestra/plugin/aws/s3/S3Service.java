@@ -8,7 +8,6 @@ import io.kestra.plugin.aws.s3.models.S3Object;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -16,7 +15,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.CompletedFileDownload;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
 
@@ -28,16 +26,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class S3Service {
-    public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest.Builder builder) throws IOException, ExecutionException, InterruptedException {
+    public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest request) throws IOException, ExecutionException, InterruptedException {
         // s3 require non existing files
-        File tempFile = runContext.tempFile().toFile();
+        File tempFile = runContext.tempFile(runContext.fileExtension(request.key())).toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
 
         try (S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
             FileDownload download = transferManager.downloadFile(
                 DownloadFileRequest.builder()
-                    .getObjectRequest(builder.build())
+                    .getObjectRequest(request)
                     .destination(tempFile)
                     .build()
             );

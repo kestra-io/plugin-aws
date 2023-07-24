@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 class DownloadsTest extends AbstractTest {
@@ -28,6 +29,7 @@ class DownloadsTest extends AbstractTest {
         List.Output run = task.run(runContext(task));
 
         assertThat(run.getObjects().size(), is(2));
+        assertThat(run.getObjects().get(0).getUri().toString(), endsWith(".yml"));
 
         List list = list().build();
         List.Output listOutput = list.run(runContext(list));
