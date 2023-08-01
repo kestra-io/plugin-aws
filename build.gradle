@@ -64,6 +64,7 @@ dependencies {
     api 'software.amazon.awssdk:dynamodb'
     api 'software.amazon.awssdk:sns'
     api 'software.amazon.awssdk:sqs'
+    api 'software.amazon.awssdk:athena'
 }
 
 
