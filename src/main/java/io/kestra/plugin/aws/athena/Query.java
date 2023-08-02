@@ -54,7 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Schema(
     title = "Query an Athena table.",
     description = """
-        The query will wait for completion, except if fetchMode is set to `NONE`, and will convert the rows.
+        The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
         Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html), complex data types like array, map and struct will be converted to a string."""
 )
 @Plugin(
@@ -98,10 +98,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     @Schema(
         title = "The way you want to store the data",
-        description = "FETCH_ONE output the first row, "
-            + "FETCH output all the rows, "
-            + "STORE store all rows in a file, "
-            + "NONE do nothing, in this case the task didn't wait for the query to succeed and returns after submitting it."
+        description = "FETCH_ONE outputs the first row, "
+            + "FETCH outputs all the rows, "
+            + "STORE stores all rows in a file, "
+            + "NONE does nothing — in this case, the task submits the query without waiting for its completion."
     )
     @NotNull
     @PluginProperty
