@@ -43,7 +43,11 @@ jobs:
 
       # Gradle check
       - name: Build with Gradle
-        run: ./gradlew check
+        env:
+          AWS_APPLICATION: ${{ secrets.AWS_APPLICATION }}
+        run: |
+          echo $AWS_APPLICATION | base64 -d > src/test/resources/application-test.yml
+          ./gradlew check
 
       # Publish
       - name: Publish package to Sonatype

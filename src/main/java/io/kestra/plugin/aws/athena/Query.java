@@ -73,7 +73,6 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class Query extends AbstractConnection implements RunnableTask<Query.QueryOutput> {
-
     @Schema(title = "Athena catalog")
     @PluginProperty(dynamic = true)
     private String catalog;
@@ -114,30 +113,12 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Builder.Default
     private boolean skipHeader = true;
 
-    @Schema(title = "The format used to parse dates")
-    @NotNull
-    @PluginProperty
-    @Builder.Default
-    private String dateFormat = "yyyy-MM-dd";
 
-    @Schema(title = "The format used to parse timestamps")
-    @NotNull
-    @PluginProperty
-    @Builder.Default
-    private String timestampFormat = "yyyy-MM-dd HH:mm:ss";
-
-    @Getter(AccessLevel.NONE)
-    private transient DateTimeFormatter dateFormatter;
-
-    @Getter(AccessLevel.NONE)
-    private transient DateTimeFormatter timestampFormatter;
+    private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
-        // init date formatter
-        dateFormatter = DateTimeFormatter.ofPattern(dateFormat);
-        timestampFormatter = DateTimeFormatter.ofPattern(timestampFormat);
-
         // The QueryExecutionContext allows us to set the database.
         var queryExecutionContext = QueryExecutionContext.builder()
             .catalog(catalog != null ? runContext.render(catalog) : null)
@@ -164,12 +145,29 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
             var statistics = waitForQueryToComplete(client, startQueryExecution.queryExecutionId());
             if (statistics != null) {
-                runContext.metric(Counter.of("data.scanned.bytes", statistics.dataScannedInBytes()));
-                runContext.metric(Counter.of("engine.execution.time.ms", statistics.engineExecutionTimeInMillis()));
-                runContext.metric(Counter.of("query.planning.time.ms", statistics.queryPlanningTimeInMillis()));
-                runContext.metric(Counter.of("query.queue.time.ms", statistics.queryQueueTimeInMillis()));
-                runContext.metric(Counter.of("service.processing.time.s", statistics.serviceProcessingTimeInMillis()));
-                runContext.metric(Counter.of("total.execution.time.ms", statistics.totalExecutionTimeInMillis()));
+                if (statistics.dataScannedInBytes() != null) {
+                    runContext.metric(Counter.of("data.scanned.bytes", statistics.dataScannedInBytes()));
+                }
+
+                if (statistics.engineExecutionTimeInMillis() != null) {
+                    runContext.metric(Counter.of("engine.execution.duration", statistics.engineExecutionTimeInMillis()));
+                }
+
+                if (statistics.queryPlanningTimeInMillis() != null) {
+                    runContext.metric(Counter.of("query.planning.duration", statistics.queryPlanningTimeInMillis()));
+                }
+
+                if (statistics.queryQueueTimeInMillis() != null) {
+                    runContext.metric(Counter.of("query.queue.duration", statistics.queryQueueTimeInMillis()));
+                }
+
+                if (statistics.serviceProcessingTimeInMillis() != null) {
+                    runContext.metric(Counter.of("service.processing.duration", statistics.serviceProcessingTimeInMillis()));
+                }
+
+                if (statistics.totalExecutionTimeInMillis() != null) {
+                    runContext.metric(Counter.of("total.execution.duration", statistics.totalExecutionTimeInMillis()));
+                }
             }
 
             var getQueryResult = GetQueryResultsRequest.builder()
