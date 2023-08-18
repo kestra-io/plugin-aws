@@ -7,6 +7,7 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -19,6 +20,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -50,6 +53,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
     private Duration maxDuration;
 
+    @Builder.Default
+    @PluginProperty
+    @NotNull
+    @Schema(title = "The serializer/deserializer to use.")
+    private SerdeType serdeType = SerdeType.STRING;
+
 
     @SuppressWarnings("BusyWait")
     @Override
@@ -70,7 +79,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     var receiveRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
-                        FileSerde.write(outputFile, m.body());
+                        FileSerde.write(outputFile, serdeType.deserialize(m.body()));
                         sqsClient.deleteMessage(DeleteMessageRequest.builder()
                             .queueUrl(queueUrl)
                             .receiptHandle(m.receiptHandle()).build()
