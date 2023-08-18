@@ -49,7 +49,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @NotNull
     @Schema(
         title = "The source of the published data.",
-        description = "Can be an internal storage URI, a list of SQS messages or a single SQS message."
+        description = "Can be an internal storage URI, a list of SQS messages or a single SQS message.",
+        anyOf = {String.class, List.class, Message.class}
     )
     private Object from;
 
