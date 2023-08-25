@@ -56,8 +56,10 @@ import java.util.Map;
         }
 )
 public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOutput> {
+    private static final String DEFAULT_IMAGE = "amazon/aws-cli";
+
     @Schema(
-            title = "The commands to run"
+        title = "The commands to run"
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -65,7 +67,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected List<String> commands;
 
     @Schema(
-            title = "Additional environment variables for the current process."
+        title = "Additional environment variables for the current process."
     )
     @PluginProperty(
             additionalProperties = String.class,
@@ -74,17 +76,15 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected Map<String, String> env;
 
     @Schema(
-            title = "Docker options when for the `DOCKER` runner"
+        title = "Docker options when for the `DOCKER` runner",
+        defaultValue = "{image=" + DEFAULT_IMAGE + ", pullPolicy=ALWAYS}"
     )
     @PluginProperty
     @Builder.Default
-    protected DockerOptions docker = DockerOptions.builder()
-            .image("amazon/aws-cli")
-            .entryPoint(List.of(""))
-            .build();
+    protected DockerOptions docker = DockerOptions.builder().build();
 
     @Schema(
-            title = "Wanted output format for AWS commands (can be override with --format parameter)"
+        title = "Wanted output format for AWS commands (can be override with --format parameter)"
     )
     @PluginProperty
     @Builder.Default
@@ -95,7 +95,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         CommandsWrapper commands = new CommandsWrapper(runContext)
                 .withWarningOnStdErr(true)
                 .withRunnerType(RunnerType.DOCKER)
-                .withDockerOptions(this.docker)
+                .withDockerOptions(injectDefaults(getDocker()))
                 .withCommands(
                         ScriptService.scriptCommands(
                                 List.of("/bin/sh", "-c"),
@@ -106,6 +106,18 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         commands = commands.withEnv(this.getEnv(runContext));
 
         return commands.run();
+    }
+
+    private DockerOptions injectDefaults(DockerOptions original) {
+        var builder = original.toBuilder();
+        if (original.getImage() == null) {
+            builder.image(DEFAULT_IMAGE);
+        }
+        if (original.getEntryPoint() == null || original.getEntryPoint().isEmpty()) {
+            builder.entryPoint(List.of(""));
+        }
+
+        return builder.build();
     }
 
     private Map<String, String> getEnv(RunContext runContext) throws IllegalVariableEvaluationException {
