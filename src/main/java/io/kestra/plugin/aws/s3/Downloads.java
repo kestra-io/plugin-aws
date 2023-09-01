@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
@@ -50,6 +51,14 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
 
     @Builder.Default
     private Integer maxKeys = 1000;
+
+    @Schema(
+        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
+    )
+    @PluginProperty
+    @Builder.Default
+    private Boolean compatibilityMode = false;
+
 
     private String expectedBucketOwner;
 
