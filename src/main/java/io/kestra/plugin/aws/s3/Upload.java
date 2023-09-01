@@ -7,16 +7,12 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.CompletedFileUpload;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
@@ -68,6 +64,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Map<String, String> metadata;
 
     @Schema(
+        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
+    )
+    @PluginProperty
+    @Builder.Default
+    private Boolean compatibilityMode = false;
+
+    @Schema(
         title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."
     )
     @PluginProperty(dynamic = true)
@@ -79,6 +82,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         String key = runContext.render(this.key);
 
         try (S3AsyncClient client = this.asyncClient(runContext)) {
+
             File tempFile = runContext.tempFile().toFile();
             URI from = new URI(runContext.render(this.from));
             Files.copy(runContext.uriToInputStream(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
