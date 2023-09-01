@@ -6,10 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -53,6 +50,13 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     )
     @PluginProperty(dynamic = true)
     protected String versionId;
+
+    @Schema(
+        title = "Use the default S3AsyncClientBuilder client to upload files."
+    )
+    @PluginProperty
+    @Builder.Default
+    private Boolean useDefaultAsyncClient = false;
 
     @Override
     public Output run(RunContext runContext) throws Exception {

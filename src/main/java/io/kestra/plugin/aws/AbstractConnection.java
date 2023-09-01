@@ -26,6 +26,8 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
 
     protected String endpointOverride;
 
+    private Boolean useDefaultAsyncClient;
+
     protected AwsCredentialsProvider credentials(RunContext runContext) throws IllegalVariableEvaluationException {
         String accessKeyId = runContext.render(this.accessKeyId);
         String secretKeyId = runContext.render(this.secretKeyId);
