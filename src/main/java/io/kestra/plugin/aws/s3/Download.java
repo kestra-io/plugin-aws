@@ -52,11 +52,11 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     protected String versionId;
 
     @Schema(
-        title = "Use the default S3AsyncClientBuilder client to upload files."
+        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
     )
     @PluginProperty
     @Builder.Default
-    private Boolean useDefaultAsyncClient = false;
+    private Boolean compatibilityMode = false;
 
     @Override
     public Output run(RunContext runContext) throws Exception {

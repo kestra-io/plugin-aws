@@ -64,11 +64,11 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Map<String, String> metadata;
 
     @Schema(
-        title = "Use the default S3AsyncClientBuilder client to upload files."
+        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
     )
     @PluginProperty
     @Builder.Default
-    private Boolean useDefaultAsyncClient = false;
+    private Boolean compatibilityMode = false;
 
     @Schema(
         title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."

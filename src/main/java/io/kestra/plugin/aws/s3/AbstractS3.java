@@ -39,7 +39,7 @@ public abstract class AbstractS3 extends AbstractConnection {
 
     protected S3AsyncClient asyncClient(RunContext runContext) throws IllegalVariableEvaluationException {
 
-        if (this.getUseDefaultAsyncClient()) {
+        if (this.getCompatibilityMode()) {
             S3AsyncClientBuilder s3ClientBuilder = S3AsyncClient.builder()
                 .credentialsProvider(this.credentials(runContext));
 

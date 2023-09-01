@@ -53,11 +53,11 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
     private Integer maxKeys = 1000;
 
     @Schema(
-        title = "Use the default S3AsyncClientBuilder client to upload files."
+        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
     )
     @PluginProperty
     @Builder.Default
-    private Boolean useDefaultAsyncClient = false;
+    private Boolean compatibilityMode = false;
 
 
     private String expectedBucketOwner;
