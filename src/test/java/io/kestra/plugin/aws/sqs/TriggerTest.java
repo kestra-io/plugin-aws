@@ -66,10 +66,10 @@ class TriggerTest extends AbstractSqsTest {
 
             // wait for execution
             executionQueue.receive(TriggerTest.class, execution -> {
-                last.set(execution);
+                last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getFlowId(), is("sqs-listen"));
+                assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
             });
 
             worker.run();

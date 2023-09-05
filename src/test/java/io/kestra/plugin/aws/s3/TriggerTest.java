@@ -64,10 +64,10 @@ class TriggerTest extends AbstractTest {
 
             // wait for execution
             executionQueue.receive(TriggerTest.class, execution -> {
-                last.set(execution);
+                last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getFlowId(), is("s3-listen"));
+                assertThat(execution.getLeft().getFlowId(), is("s3-listen"));
             });
 
 
