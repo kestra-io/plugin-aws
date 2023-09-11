@@ -33,12 +33,6 @@ public abstract class AbstractLambdaInvoke extends AbstractConnection {
      */
     protected final Boolean wait = true;
 
-    protected String customAccessKeyId;
-
-    protected String customSecretKeyId;
-
-    protected String customRegion;
-
     protected LambdaClient client(RunContext runContext) throws IllegalVariableEvaluationException {
         LambdaClientBuilder builder = LambdaClient.builder().httpClient(ApacheHttpClient.create())
                 .credentialsProvider(this.credentials(runContext));
@@ -52,5 +46,4 @@ public abstract class AbstractLambdaInvoke extends AbstractConnection {
 
         return builder.build();
     }
-
 }
