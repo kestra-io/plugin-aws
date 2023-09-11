@@ -30,7 +30,6 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import lombok.val;
-import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
@@ -38,7 +37,6 @@ import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 
 @ExtendWith(MockitoExtension.class)
-@Slf4j
 public class InvokeUnitTest {
     
     private Invoke invoke;
@@ -47,14 +45,6 @@ public class InvokeUnitTest {
     private RunContext context;
 
     private File tempFile;
-
-    // protected RunContext runContext(Task task) {
-    //     return TestsUtils.mockRunContext(
-    //         this.runContextFactory,
-    //         task,
-    //         ImmutableMap.of()
-    //     );
-    // }
 
     @BeforeEach
     public void setUp() throws IOException, IllegalVariableEvaluationException {

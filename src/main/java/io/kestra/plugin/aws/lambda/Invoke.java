@@ -76,9 +76,8 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
         try (val lambda = client(runContext)) {
             val builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
-                // TODO add input parameters, currently from the flow (provided by the user)
-                // But next, it could a result from previous task(s)
-                // builder.payload(payload)
+                SdkBytes payload = SdkBytes.fromUtf8String(mapToJson(requestPayload)) ;
+                builder.payload(payload);
             }
             if (!wait) {
                 // This should not work until we'll decide to suppprt async requests
@@ -95,8 +94,7 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
             ContentType contentType = parseContentType(contentTypeHeader);
             if (res.functionError() != null) {
                 // If error response, then detect the message, and construct an exception, log
-                // details and throw
-                // This will throw an exception in any case
+                // details and throw - this will throw an exception in any case
                 handleError(functionArn, contentType, res.payload());
             }
             if (log.isDebugEnabled()) {
@@ -123,9 +121,23 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
         return ContentType.APPLICATION_OCTET_STREAM;
     }
 
+    String mapToJson(Map<String, Object> map) {
+        try {
+            return new ObjectMapper().writeValueAsString(map);
+        } catch(JsonProcessingException e) {
+            log.warn("Unable to write the map as JSON: {}", e.getMessage());
+        }
+        return "{}"; // TODO a better approach? error?
+    }
+
     Optional<String> readError(String payload) {
         ObjectMapper jsonMapper = new ObjectMapper();
         try {
+            // Sample error from AWS could be:
+            // {"errorMessage": "'path'", "errorType": "KeyError", "requestId":
+            // "f32ff4cf-b0dc-44ec-a59a-4c5b18b836c3", "stackTrace": [" File \"/var/task/hello.py\",
+            // line 12, in handler\n \"body\": \"Hello AWS Lambda!!! You have requested
+            // {}\".format(event[\"path\"])\n"]}
             // TODO May be it's more resonable to return the whole payload as an error
             // but then there are risks:
             // 1) to expose something sensitive to unexpected readers
@@ -134,7 +146,7 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
             if (message.isValueNode()) {
                 return Optional.of(message.asText());
             }
-        } catch(JsonProcessingException e) {
+        } catch (JsonProcessingException e) {
             log.warn("Unable to read Lambda error response JSON: {}", e.getMessage());
         }
         return Optional.empty();

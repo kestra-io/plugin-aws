@@ -29,7 +29,8 @@ public abstract class AbstractLambdaInvoke extends AbstractConnection {
     protected String functionArn;
 
     /**
-     * Currently we assume synchronous invokation of Lambda function.
+     * Currently we assume synchronous invokation of Lambda function and hardcoded it. But when
+     * asycn function invocation will be managed by user - this flag is a tool.
      */
     protected final Boolean wait = true;
 
