@@ -5,18 +5,26 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.http.Consts;
+import javax.validation.constraints.NotNull;
+import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,11 +32,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.val;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.lambda.model.InvocationType;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.LambdaClientBuilder;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
@@ -57,40 +67,47 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                 "  lastname: \"Doe\""
             }
         )
+    },
+    metrics = {
+        @Metric(name = "file.size", type = Counter.TYPE),
+        @Metric(name = "duration", type = Timer.TYPE)
     }
 )
 @Slf4j
-public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output> {
+public class Invoke extends AbstractConnection implements RunnableTask<Output> {
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
+
+    @Schema(title = "The Lambda function name.")
+    @PluginProperty(dynamic = true)
+    @NotNull
+    private String functionArn;
 
     @Schema(
         title = "Function request payload.",
         description = "Request payload. It's a map of string -> object."
-    )
+    )    
     @PluginProperty(dynamic = true)
     private Map<String, Object> functionPayload;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        val functionArn = runContext.render(this.functionArn);
-        val requestPayload = this.functionPayload != null ? runContext.render(this.functionPayload) : null;
-        try (val lambda = client(runContext)) {
-            val builder = InvokeRequest.builder().functionName(functionArn);
+        final long start = System.nanoTime();
+        var functionArn = runContext.render(this.functionArn);
+        var requestPayload = this.functionPayload != null ? runContext.render(this.functionPayload) : null;
+        try (var lambda = client(runContext)) {
+            var builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
-                SdkBytes payload = SdkBytes.fromUtf8String(mapToJson(requestPayload)) ;
+                var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload)) ;
                 builder.payload(payload);
             }
-            if (!wait) {
-                // This should not work until we'll decide to suppprt async requests
-                builder.invocationType(InvocationType.EVENT);
-            }            
             InvokeRequest request = builder.build();
             // TODO take care about long-running functions: your client might disconnect during
             // synchronous invocation while it waits for a response. Configure your HTTP client,
             // SDK, firewall, proxy, or operating system to allow for long connections with timeout
             // or keep-alive settings.
             InvokeResponse res = lambda.invoke(request);
-            // Check mimetype of the payload and respectivelly save in temp and then store
-            Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader("Content-Type");
+            Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader(HttpHeaders.CONTENT_TYPE);
             ContentType contentType = parseContentType(contentTypeHeader);
             if (res.functionError() != null) {
                 // If error response, then detect the message, and construct an exception, log
@@ -100,18 +117,39 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
             if (log.isDebugEnabled()) {
                 log.debug("Lambda {} invoked successfully", functionArn);
             }
-            return handleContent(runContext, functionArn, contentType, res.payload());
+            Output out = handleContent(runContext, functionArn, contentType, res.payload());
+            runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
+            return out;
         } catch (LambdaException e) {
             throw new LambdaInvokeException("Lambda Invoke task execution failed for function: " + functionArn, e);
         }
     }
 
+    @VisibleForTesting
+    LambdaClient client(RunContext runContext) throws IllegalVariableEvaluationException {
+        LambdaClientBuilder builder = LambdaClient.builder().httpClient(ApacheHttpClient.create())
+                .credentialsProvider(this.credentials(runContext));
+
+        if (this.region != null) {
+            builder.region(Region.of(runContext.render(this.region)));
+        }
+        if (this.endpointOverride != null) {
+            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
+        }
+
+        return builder.build();
+    }
+
+    @VisibleForTesting
     ContentType parseContentType(Optional<String> contentType) {
         if (contentType.isPresent()) {
             try {
-                val ct = ContentType.getByMimeType(ContentType.parse(contentType.get()).getMimeType());
-                if (ct !=null) {
-                    return ct;
+                // Parse and construct content type reflecting the given header value
+                var parsed = ContentType.parse(contentType.get());
+                var known = ContentType.getByMimeType(parsed.getMimeType());
+                if (known != null) {
+                    // Apply charset only if it was provided originally
+                    return ContentType.create(known.getMimeType(), parsed.getCharset());
                 }
             } catch(Exception cte) {
                 log.warn("Unable to parse Lambda response content type {}: {}", contentType.get(), cte.getMessage());
@@ -121,17 +159,8 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
         return ContentType.APPLICATION_OCTET_STREAM;
     }
 
-    String mapToJson(Map<String, Object> map) {
-        try {
-            return new ObjectMapper().writeValueAsString(map);
-        } catch(JsonProcessingException e) {
-            log.warn("Unable to write the map as JSON: {}", e.getMessage());
-        }
-        return "{}"; // TODO a better approach? error?
-    }
-
+    @VisibleForTesting
     Optional<String> readError(String payload) {
-        ObjectMapper jsonMapper = new ObjectMapper();
         try {
             // Sample error from AWS could be:
             // {"errorMessage": "'path'", "errorType": "KeyError", "requestId":
@@ -142,7 +171,7 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
             // but then there are risks:
             // 1) to expose something sensitive to unexpected readers
             // 2) to load too large string and cause memory/perf consumption w/o a reason
-            val message = jsonMapper.readTree(payload).path("errorMessage");
+            final var message = OBJECT_MAPPER.readTree(payload).path("errorMessage");
             if (message.isValueNode()) {
                 return Optional.of(message.asText());
             }
@@ -152,6 +181,7 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
         return Optional.empty();
     }
 
+    @VisibleForTesting
     void handleError(String functionArn, ContentType contentType, SdkBytes payload) {
         String errorPayload;
         try {
@@ -166,9 +196,8 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
                     functionArn, contentType, errorPayload);
         }
         if (errorPayload != null 
-                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())
-                && (contentType.getCharset() == null || Consts.UTF_8.equals(contentType.getCharset()))) {
-            val errorMessage = readError(errorPayload);
+                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+            var errorMessage = readError(errorPayload);
             throw new LambdaInvokeException(
                     "Lambda Invoke task responded with error for function: " + functionArn
                             + (errorMessage.isPresent() ? ". Error: " + errorMessage.get() : ""));
@@ -178,17 +207,18 @@ public class Invoke extends AbstractLambdaInvoke implements RunnableTask<Output>
         }
     }
 
+    @VisibleForTesting
     Output handleContent(RunContext runContext, String functionArn, ContentType contentType,
             SdkBytes payload) {
-        try (val dataStream = payload.asInputStream()) {
-            File tempFile = runContext.tempFile("lambdainvoke").toFile();
+        try (var dataStream = payload.asInputStream()) {
+            File tempFile = runContext.tempFile().toFile();
             // noinspection ResultOfMethodCallIgnored
             tempFile.delete();
 
-            val size = Files.copy(dataStream, tempFile.toPath());
+            var size = Files.copy(dataStream, tempFile.toPath());
             // Doing the same as in S3Service.download()
             runContext.metric(Counter.of("file.size", size));
-            val uri = runContext.putTempFile(tempFile);
+            var uri = runContext.putTempFile(tempFile);
             if (log.isDebugEnabled()) {
                 log.debug("Lambda invokation task completed {}: response type: {}, file: `{}", 
                         functionArn, contentType, uri);

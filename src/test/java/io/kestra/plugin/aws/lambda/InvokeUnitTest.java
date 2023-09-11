@@ -18,6 +18,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.Optional;
 import org.apache.http.entity.ContentType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +30,6 @@ import org.mockito.stubbing.Answer;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
-import lombok.val;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
@@ -48,7 +48,7 @@ public class InvokeUnitTest {
 
     @BeforeEach
     public void setUp() throws IOException, IllegalVariableEvaluationException {
-        given(context.tempFile(anyString())).willReturn(Files.createTempFile("test", "lambdainvoke"));
+        given(context.tempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
         given(context.render(anyString())).willAnswer(new Answer<String>() {
             @Override
@@ -73,6 +73,14 @@ public class InvokeUnitTest {
             .secretKeyId("test_secretKeyId")
             .region("test_region")
             .build();        
+    }
+
+    @AfterEach
+    public void tearDown() {
+        if (tempFile != null && tempFile.exists()) {
+            tempFile.delete();
+        }
+        this.tempFile = null;
     }
 
     @Test
@@ -115,7 +123,7 @@ public class InvokeUnitTest {
     @Test
     public void testHandleContent_SaveFile_ReturnOutput(@Mock SdkBytes bytes) throws IOException {
         //val json = "{\"data\": \"some value\", \"author\": \"The User\"}";
-        val data = "some raw data";
+        var data = "some raw data";
         given(bytes.asInputStream()).willReturn(new ByteArrayInputStream(data.getBytes()));
 
         Output res = invoke.handleContent(context, invoke.getFunctionArn(), ContentType.APPLICATION_OCTET_STREAM, bytes);
@@ -125,7 +133,7 @@ public class InvokeUnitTest {
 
     private void checkOutput(final String originalData, final Output result) throws IOException {
         assertNotNull(tempFile);
-        val savedData = new String(Files.readAllBytes(tempFile.toPath()));
+        var savedData = new String(Files.readAllBytes(tempFile.toPath()));
         assertEquals(originalData, savedData, "Data must match");
 
         assertNotNull(result, "Output should be returned");
@@ -144,7 +152,7 @@ public class InvokeUnitTest {
                 @Mock SdkBytes payload) 
                 throws IllegalVariableEvaluationException, IOException {
         //Given: functionArn and no input params, AWS Lambda clinet mocked for the expected behaviour
-        val data = "some raw data";
+        var data = "some raw data";
         given(payload.asInputStream()).willReturn(new ByteArrayInputStream(data.getBytes()));
         given(awsHttpResponse.firstMatchingHeader(eq("Content-Type"))).willReturn(Optional.of(ContentType.APPLICATION_OCTET_STREAM.getMimeType()));
         given(awsResponse.functionError()).willReturn(null); // means no error
@@ -153,7 +161,7 @@ public class InvokeUnitTest {
         given(awsLambda.invoke(any(InvokeRequest.class))).willReturn(awsResponse);
         
         // Mock AbstractLambdaInvoke.client() to return the mocked AWS client
-        val spyInvoke = spy(invoke);
+        var spyInvoke = spy(invoke);
         doReturn(awsLambda).when(spyInvoke).client(any());
         
         // When 
