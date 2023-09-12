@@ -197,10 +197,9 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         }
         if (errorPayload != null 
                 && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
-            var errorMessage = readError(errorPayload);
             throw new LambdaInvokeException(
                     "Lambda Invoke task responded with error for function: " + functionArn
-                            + (errorMessage.isPresent() ? ". Error: " + errorMessage.get() : ""));
+                            + ". Error: " + errorPayload);
         } else {
             throw new LambdaInvokeException(
                     "Lambda Invoke task responded with error for function: " + functionArn);
