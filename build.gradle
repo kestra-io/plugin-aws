@@ -104,7 +104,7 @@ dependencies {
 
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:1.18.3"
-    testImplementation "org.testcontainers:junit-jupiter:1.18.3"
+    testImplementation "org.testcontainers:junit-jupiter:1.19.0"
     testImplementation "org.testcontainers:localstack:1.18.3"
     // Localstack module misses SDK v1 classes that are mandatory, see https://github.com/testcontainers/testcontainers-java/issues/1442#issuecomment-694342883
     testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.520'
