@@ -66,6 +66,7 @@ dependencies {
     api 'software.amazon.awssdk:sqs'
     api 'software.amazon.awssdk:athena'
     api 'software.amazon.awssdk:lambda'
+    api 'software.amazon.awssdk:eventbridge'
 }
 
 
@@ -86,6 +87,10 @@ testlogger {
 }
 
 dependencies {
+    // lombok
+    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+
     testAnnotationProcessor platform("io.micronaut:micronaut-bom:$micronautVersion")
     testAnnotationProcessor "io.micronaut:micronaut-inject-java"
     testImplementation platform("io.micronaut:micronaut-bom:$micronautVersion")
