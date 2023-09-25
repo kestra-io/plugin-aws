@@ -31,6 +31,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -162,9 +163,9 @@ class PutEventsTest {
             ))
             .build();
 
-        File tempFile = runContext.tempFile(".json").toFile();
+        File tempFile = runContext.tempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
-            MAPPER.writeValue(stream, List.of(entry, entry2, entry3));
+            List.of(entry, entry2, entry3).forEach(throwConsumer(e -> FileSerde.write(stream, e)));
         }
 
         var put = PutEvents.builder()
