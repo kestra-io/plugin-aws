@@ -16,6 +16,8 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -89,7 +91,8 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     @NotNull
     @Schema(
         title = "List of event entries to send to or internal storage uri to retrieve it.",
-        description = "A list of at least one EventBridge entry."
+        description = "A list of at least one EventBridge entry.",
+        oneOf = {String.class, Entry[].class}
     )
     private Object entries;
 
@@ -177,8 +180,8 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                return MAPPER.readValue(inputStream, new TypeReference<List<Entry>>() {
-                });
+                return Flowable.create(FileSerde.reader(inputStream, Entry.class), BackpressureStrategy.BUFFER)
+                    .toList().blockingGet();
             }
         } else if (entries instanceof List) {
             return MAPPER.convertValue(entries, new TypeReference<>() {
