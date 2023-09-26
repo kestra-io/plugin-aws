@@ -1,12 +1,10 @@
 package io.kestra.plugin.aws.eventbridge;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.reactivex.BackpressureStrategy;
@@ -16,12 +14,8 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,28 +31,12 @@ import static org.hamcrest.Matchers.*;
 
 @MicronautTest
 @Testcontainers
-class PutEventsTest {
-    private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
-        .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+class PutEventsTest extends AbstractLocalStackTest {
 
-    protected static LocalStackContainer localstack;
     @Inject
     protected RunContextFactory runContextFactory;
     @Inject
     protected StorageInterface storageInterface;
-
-    @BeforeAll
-    static void startLocalstack() {
-        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.3.1"));
-        localstack.start();
-    }
-
-    @AfterAll
-    static void stopLocalstack() {
-        if (localstack != null) {
-            localstack.stop();
-        }
-    }
 
     private static List<PutEvents.OutputEntry> getOutputEntries(PutEvents put, RunContext runContext) throws Exception {
         var output = put.run(runContext);
