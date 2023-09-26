@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -75,6 +76,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
+        @JsonInclude
         @Schema(
             title = "The list of objects"
         )
