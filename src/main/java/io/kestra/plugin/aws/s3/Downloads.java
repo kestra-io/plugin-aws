@@ -38,7 +38,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Downloads files to a S3 bucket."
+    title = "Downloads multiple files from a S3 bucket."
 )
 public class Downloads extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface, ActionInterface {
     private String prefix;
@@ -99,7 +99,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
                 .stream()
                 .map(throwFunction(object -> {
                     GetObjectRequest.Builder builder = GetObjectRequest.builder()
-                        .bucket(bucket)
+                        .bucket(runContext.render(bucket))
                         .key(object.getKey());
 
                     Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
