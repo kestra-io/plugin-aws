@@ -1,13 +1,26 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 
 class ListTest extends AbstractTest {
+    @Test
+    void emptyFolderAlwaysSerialized() throws Exception {
+        this.createBucket();
+
+        List task = list()
+            .build();
+        List.Output run = task.run(runContext(task));
+        assertThat(run.getObjects().size(), is(0));
+
+        assertThat(JacksonMapper.ofJson().writeValueAsString(run), is("{\"objects\":[]}"));
+    }
+
     @Test
     void run() throws Exception {
         this.createBucket();
