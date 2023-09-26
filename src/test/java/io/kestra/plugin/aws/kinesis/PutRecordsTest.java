@@ -8,6 +8,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.kinesis.model.Record;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.reactivex.BackpressureStrategy;
@@ -46,8 +47,8 @@ import static org.hamcrest.Matchers.*;
 class PutRecordsTest {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+    private static LocalStackContainer localstack;
 
-    protected static LocalStackContainer localstack;
     @Inject
     protected RunContextFactory runContextFactory;
     @Inject
@@ -55,7 +56,7 @@ class PutRecordsTest {
 
     @BeforeAll
     static void startLocalstack() throws IllegalVariableEvaluationException, InterruptedException {
-        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.3.1"));
+        localstack = new LocalStackContainer(DockerImageName.parse(AbstractLocalStackTest.LOCALSTACK_VERSION));
         localstack.start();
 
         KinesisClient client = client(localstack);
@@ -223,7 +224,7 @@ class PutRecordsTest {
         try (var stream = new FileOutputStream(tempFile)) {
             List.of(record, record2, record3).forEach(throwConsumer(r -> FileSerde.write(stream, r)));
         }
-        
+
         var put = PutRecords.builder()
             .endpointOverride(localstack.getEndpoint().toString())
             .region(localstack.getRegion())
