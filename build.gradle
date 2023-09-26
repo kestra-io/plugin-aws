@@ -67,6 +67,7 @@ dependencies {
     api 'software.amazon.awssdk:athena'
     api 'software.amazon.awssdk:lambda'
     api 'software.amazon.awssdk:eventbridge'
+    api 'software.amazon.awssdk:kinesis'
 }
 
 
