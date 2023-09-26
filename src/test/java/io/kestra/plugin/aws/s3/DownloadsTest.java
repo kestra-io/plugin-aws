@@ -1,13 +1,20 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.runners.RunContextFactory;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 class DownloadsTest extends AbstractTest {
+    @Inject
+    private RunContextFactory runContextFactory;
+
     @Test
     void delete() throws Exception {
         this.createBucket();
@@ -46,7 +53,7 @@ class DownloadsTest extends AbstractTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
-            .bucket(this.BUCKET)
+            .bucket("{{bucket}}")
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
@@ -58,7 +65,7 @@ class DownloadsTest extends AbstractTest {
             )
             .build();
 
-        List.Output run = task.run(runContext(task));
+        List.Output run = task.run(runContextFactory.of(Map.of("bucket", this.BUCKET)));
 
         assertThat(run.getObjects().size(), is(2));
 
