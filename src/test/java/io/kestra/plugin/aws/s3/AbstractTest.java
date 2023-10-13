@@ -61,6 +61,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
 
     protected String upload(String dir, String bucket) throws Exception {
         URI source = storageInterface.put(
+            null,
             new URI("/" + IdUtils.create()),
             new FileInputStream(file())
         );
