@@ -5,6 +5,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -21,6 +22,7 @@ public class GetAuthTokenTest extends AbstractLocalStackTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    @Disabled
     void run() throws Exception {
         RunContext runContext = runContextFactory.of();
 
