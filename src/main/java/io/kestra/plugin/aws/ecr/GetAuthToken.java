@@ -58,7 +58,14 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
             String encodedToken = authorizationData.get(0).authorizationToken();
             byte[] decodedTokenBytes = Base64.getDecoder().decode(encodedToken);
 
-            return TokenOutput.builder().token(new String(decodedTokenBytes)).build();
+            String token = new String(decodedTokenBytes);
+            if (token.indexOf(":") > 0) {
+                token = token.substring(token.indexOf(":") + 1);
+            }
+
+            return TokenOutput.builder()
+                .token(token)
+                .build();
         }
     }
 
