@@ -24,12 +24,12 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Gets AWS authorization token for the docker CLI to push and pull images with Amazon ECR."
+        title = "Retrieve AWS ECR authorization token to push Docker images to Amazon ECR and to pull images from that container registry."
 )
 @Plugin(
         examples = {
                 @Example(
-                        title = "Retrieving AWS authorization",
+                        title = "Retrieve the AWS ECR authorization token",
                         code = {
                                 "accessKeyId: \"<access-key>\"",
                                 "secretKeyId: \"<secret-key>\"",
