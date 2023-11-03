@@ -69,6 +69,7 @@ dependencies {
     api 'software.amazon.awssdk:eventbridge'
     api 'software.amazon.awssdk:kinesis'
     api 'software.amazon.awssdk:sts'
+    api 'software.amazon.awssdk:ecr'
 }
 
 
