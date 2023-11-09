@@ -59,7 +59,7 @@ dependencies {
     api platform("software.amazon.awssdk:bom:$awsVersion")
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
-    api 'software.amazon.awssdk.crt:aws-crt:0.24.0' //used by s3-transfer-manager
+    api 'software.amazon.awssdk.crt:aws-crt:0.28.5' //used by s3-transfer-manager
     api 'software.amazon.awssdk:apache-client'
     api 'software.amazon.awssdk:dynamodb'
     api 'software.amazon.awssdk:sns'
