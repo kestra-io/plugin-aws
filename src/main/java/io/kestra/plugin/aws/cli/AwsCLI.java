@@ -4,9 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.NamespaceFiles;
-import io.kestra.core.models.tasks.NamespaceFilesInterface;
-import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
@@ -57,7 +55,7 @@ import java.util.Map;
                 )
         }
 )
-public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOutput>, NamespaceFilesInterface {
+public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOutput>, NamespaceFilesInterface, InputFilesInterface, OutputFilesInterface {
     private static final String DEFAULT_IMAGE = "amazon/aws-cli";
 
     @Schema(
@@ -94,6 +92,10 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
     private NamespaceFiles namespaceFiles;
 
+    private Object inputFiles;
+
+    private List<String> outputFiles;
+
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
         CommandsWrapper commands = new CommandsWrapper(runContext)
@@ -108,7 +110,9 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
                 );
 
         commands = commands.withEnv(this.getEnv(runContext))
-            .withNamespaceFiles(namespaceFiles);
+            .withNamespaceFiles(namespaceFiles)
+            .withInputFiles(inputFiles)
+            .withOutputFiles(outputFiles);
 
         return commands.run();
     }
