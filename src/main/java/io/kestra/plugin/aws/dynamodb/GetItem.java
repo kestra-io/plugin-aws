@@ -24,8 +24,11 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Get an item from its key.",
+            title = "Get an item by its key.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "key: ",
                 "   id: \"1\""
@@ -36,7 +39,7 @@ import java.util.Map;
 public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Output> {
     @Schema(
         title = "The DynamoDB item key.",
-        description = "The DynamoDB item key. It's a map of string -> object."
+        description = "The DynamoDB item identifier."
     )
     @PluginProperty(dynamic = true)
     private Map<String, Object> key;

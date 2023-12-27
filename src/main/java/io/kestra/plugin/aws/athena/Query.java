@@ -55,29 +55,32 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     title = "Query an Athena table.",
     description = """
         The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
-        Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html), complex data types like array, map and struct will be converted to a string."""
+        Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html). 
+        Complex data types like array, map and struct will be converted to a string."""
 )
 @Plugin(
     examples = {
         @Example(
             code = {
                 """
-                    id: query
-                    type: io.kestra.plugin.aws.athena.Query
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
                     database: my_database
                     outputLocation: s3://some-s3-bucket
                     query: |
-                      select * from cloudfront_logs limit 10"""
+                      select * from cloudfront_logs limit 10
+                """
             }
         )
     }
 )
 public class Query extends AbstractConnection implements RunnableTask<Query.QueryOutput> {
-    @Schema(title = "Athena catalog")
+    @Schema(title = "Athena catalog.")
     @PluginProperty(dynamic = true)
     private String catalog;
 
-    @Schema(title = "Athena database")
+    @Schema(title = "Athena database.")
     @NotNull
     @PluginProperty(dynamic = true)
     private String database;
@@ -90,13 +93,13 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @PluginProperty(dynamic = true)
     private String outputLocation;
 
-    @Schema(title = "Athena SQL query")
+    @Schema(title = "Athena SQL query.")
     @NotNull
     @PluginProperty(dynamic = true)
     private String query;
 
     @Schema(
-        title = "The way you want to store the data",
+        title = "The way you want to store the data.",
         description = "FETCH_ONE outputs the first row, "
             + "FETCH outputs all the rows, "
             + "STORE stores all rows in a file, "
@@ -107,7 +110,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Builder.Default
     private FetchType fetchType = FetchType.STORE;
 
-    @Schema(title = "Whether to skip the first row which is usually the header")
+    @Schema(title = "Whether to skip the first row which is usually the header.")
     @NotNull
     @PluginProperty
     @Builder.Default
@@ -231,10 +234,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             var getQueryExecution = client.getQueryExecution(getQueryExecutionRequest);
             queryExecution = getQueryExecution.queryExecution();
             switch (queryExecution.status().state()) {
-                case FAILED -> throw new RuntimeException("The Amazon Athena query failed to run with error message: " +
+                case FAILED -> throw new RuntimeException("Amazon Athena query failed to run with error message: " +
                     getQueryExecution.queryExecution().status().stateChangeReason());
-                case CANCELLED -> throw new RuntimeException("The Amazon Athena query was cancelled.");
-                case UNKNOWN_TO_SDK_VERSION -> throw new RuntimeException("The Amazon Athena failed for an unknown reason.");
+                case CANCELLED -> throw new RuntimeException("Amazon Athena query was cancelled.");
+                case UNKNOWN_TO_SDK_VERSION -> throw new RuntimeException("Amazon Athena failed for an unknown reason.");
                 case SUCCEEDED -> {}
                 default -> Thread.sleep(500);
             }
@@ -315,29 +318,29 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Getter
     public static class QueryOutput implements Output {
 
-        @Schema(title = "The query execution identifier")
+        @Schema(title = "The query execution identifier.")
         private String queryExecutionId;
 
         @Schema(
-            title = "List containing the fetched data",
-            description = "Only populated if using `fetchType=FETCH`."
+            title = "List containing the fetched data.",
+            description = "Only populated if `fetchType=FETCH`."
         )
         private List<Object> rows;
 
         @Schema(
-            title = "Map containing the first row of fetched data",
-            description = "Only populated if using `fetchType=FETCH_ONE`."
+            title = "Map containing the first row of fetched data.",
+            description = "Only populated if `fetchType=FETCH_ONE`."
         )
         private Map<String, Object> row;
 
         @Schema(
-            title = "The uri of stored data",
-            description = "Only populated if using `fetchType=STORE`"
+            title = "The URI of stored data.",
+            description = "Only populated if `fetchType=STORE`."
         )
         private URI uri;
 
         @Schema(
-            title = "The size of the fetched rows"
+            title = "The size of the fetched rows."
         )
         private Long size;
     }

@@ -24,18 +24,18 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Retrieve AWS ECR authorization token to push Docker images to Amazon ECR and to pull images from that container registry."
+        title = "Retrieve AWS ECR authorization token to push Docker images to Amazon ECR, or pull images from that container registry."
 )
 @Plugin(
         examples = {
                 @Example(
-                        title = "Retrieve the AWS ECR authorization token",
+                        title = "Retrieve the AWS ECR authorization token.",
                         code = {
-                                "accessKeyId: \"<access-key>\"",
-                                "secretKeyId: \"<secret-key>\"",
-                                "region: \"eu-central-1\""
+                            "accessKeyId: \"<access-key>\"",
+                            "secretKeyId: \"<secret-key>\"",
+                            "region: \"eu-central-1\""
                         }
-                ),
+                )
         }
 )
 public class GetAuthToken extends AbstractConnection implements RunnableTask<GetAuthToken.TokenOutput> {
@@ -73,7 +73,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
     @Getter
     public static class TokenOutput implements Output {
 
-        @Schema(title = "Amazon authorization token")
+        @Schema(title = "AWS ECR authorization token.")
         private String token;
 
     }

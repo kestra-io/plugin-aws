@@ -25,14 +25,20 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Scan all items of a table.",
+            title = "Scan all items from a table.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\""
             }
         ),
         @Example(
-            title = "Scan items of a table with a filter expression.",
+            title = "Scan items from a table with a filter expression.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "filterExpression: \"lastname = :lastname\"",
                 "expressionAttributeValues:",
@@ -44,7 +50,7 @@ import java.util.Map;
 public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
 
     @Schema(
-        title = "The way you want to store the data",
+        title = "The way you want to store the data.",
         description = "FETCH_ONE output the first row, "
             + "FETCH output all the rows, "
             + "STORE store all rows in a file, "
@@ -62,14 +68,14 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
     @Schema(
         title = "Scan filter expression.",
-        description = "Scan filter expression. When used, 'expressionAttributeValues' must also be used."
+        description = "When used, `expressionAttributeValues` property must also be provided."
     )
     @PluginProperty(dynamic = true)
     private String filterExpression;
 
     @Schema(
         title = "Scan expression attributes.",
-        description = "Scan expression attributes. It's a map of string -> object."
+        description = "It's a map of string -> object."
     )
     @PluginProperty(dynamic = true)
     private Map<String, Object> expressionAttributeValues;
@@ -86,7 +92,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
             }
             if(filterExpression != null){
                 if(expressionAttributeValues == null){
-                    throw new IllegalArgumentException("'expressionAttributeValues' must be set when 'expressionAttributeValues' is set");
+                    throw new IllegalArgumentException("'expressionAttributeValues' must be provided when 'filterExpression' is used");
                 }
                 scanBuilder.filterExpression(runContext.render(filterExpression));
                 scanBuilder.expressionAttributeValues(valueMapFrom(expressionAttributeValues));
