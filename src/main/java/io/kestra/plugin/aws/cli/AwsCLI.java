@@ -29,12 +29,12 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Execute aws commands."
+        title = "Execute AWS commands."
 )
 @Plugin(
         examples = {
                 @Example(
-                        title = "Create a simple S3 bucket",
+                        title = "Create a simple S3 bucket.",
                         code = {
                                 "accessKeyId: \"<access-key>\"",
                                 "secretKeyId: \"<secret-key>\"",
@@ -44,7 +44,7 @@ import java.util.Map;
                         }
                 ),
                 @Example(
-                        title = "List all S3 buckets as the task's output",
+                        title = "List all S3 buckets as the task's output.",
                         code = {
                                 "accessKeyId: \"<access-key>\"",
                                 "secretKeyId: \"<secret-key>\"",
@@ -59,7 +59,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     private static final String DEFAULT_IMAGE = "amazon/aws-cli";
 
     @Schema(
-        title = "The commands to run"
+        title = "The AWS commands to run."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -76,7 +76,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected Map<String, String> env;
 
     @Schema(
-        title = "Docker options when for the `DOCKER` runner",
+        title = "Docker options to be used along with for the `DOCKER` runner.",
         defaultValue = "{image=" + DEFAULT_IMAGE + ", pullPolicy=ALWAYS}"
     )
     @PluginProperty
@@ -84,7 +84,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected DockerOptions docker = DockerOptions.builder().build();
 
     @Schema(
-        title = "Wanted output format for AWS commands (can be override with --format parameter)"
+        title = "Expected output format for AWS commands (can be overridden with --format parameter)."
     )
     @PluginProperty
     @Builder.Default

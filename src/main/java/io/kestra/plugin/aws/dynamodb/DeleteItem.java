@@ -28,8 +28,11 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Delete an item from its key.",
+            title = "Delete an item by its key.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "key: ",
                 "   id: \"1\""
@@ -40,7 +43,7 @@ import java.util.Map;
 public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
         title = "The DynamoDB item key.",
-        description = "The DynamoDB item key. It's a map of string -> object."
+        description = "The DynamoDB item identifier."
     )
     @PluginProperty
     private Map<String, Object> key;

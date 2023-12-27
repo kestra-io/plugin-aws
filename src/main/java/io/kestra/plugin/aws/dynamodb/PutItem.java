@@ -28,8 +28,11 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Put an item from a map.",
+            title = "Put an item in map form into a table.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "item:",
                 "  id: 1",
@@ -38,8 +41,11 @@ import java.util.Map;
             }
         ),
         @Example(
-            title = "Put an item from a JSON string.",
+            title = "Put an item in JSON string form into a table.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "item: \"{{ outputs.task_id.data | json }}\""
             }
@@ -47,12 +53,12 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table, if it already exist the element will be updated."
+    title = "Put an item into a DynamoDB table. If an item with the same key already exists, the element will be updated."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
         title = "The DynamoDB item.",
-        description = "Can be a JSON string, or a map."
+        description = "The item can be in the form of a JSON string, or a map."
     )
     @PluginProperty(dynamic = true)
     private Object item;

@@ -26,8 +26,11 @@ import javax.validation.constraints.NotNull;
 @Plugin(
     examples = {
         @Example(
-            title = "Query items of a table.",
+            title = "Query items from a table.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "keyConditionExpression: id = :id",
                 "expressionAttributeValues:",
@@ -35,8 +38,11 @@ import javax.validation.constraints.NotNull;
             }
         ),
         @Example(
-            title = "Query items of a table with a filter expression.",
+            title = "Query items from a table with a filter expression.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "tableName: \"persons\"",
                 "keyConditionExpression: id = :id",
                 "expressionAttributeValues:",
@@ -48,7 +54,7 @@ import javax.validation.constraints.NotNull;
 )
 public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
     @Schema(
-        title = "The way you want to store the data",
+        title = "The way you want to store the data.",
         description = "FETCH_ONE output the first row, "
             + "FETCH output all the rows, "
             + "STORE store all rows in a file, "
@@ -73,7 +79,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
     @Schema(
         title = "Query expression attributes.",
-        description = "Query expression attributes. It's a map of string -> object."
+        description = "It's a map of string -> object."
     )
     @PluginProperty(dynamic = true)
     @NotNull
