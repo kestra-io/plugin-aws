@@ -52,7 +52,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     protected String versionId;
 
     @Schema(
-        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
+        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
     )
     @PluginProperty
     @Builder.Default
@@ -96,7 +96,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         private final URI uri;
 
         @Schema(
-            title = "Size of the body in bytes."
+            title = "The size of the body in bytes."
         )
         private final Long contentLength;
 

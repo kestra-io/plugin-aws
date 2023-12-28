@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.s3.S3Client;
     }
 )
 @Schema(
-    title = "List key on a S3 bucket."
+    title = "List keys on a S3 bucket."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
     private String prefix;
@@ -78,7 +78,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     public static class Output implements io.kestra.core.models.tasks.Output {
         @JsonInclude
         @Schema(
-            title = "The list of objects"
+            title = "The list of S3 objects."
         )
         private final java.util.List<S3Object> objects;
     }

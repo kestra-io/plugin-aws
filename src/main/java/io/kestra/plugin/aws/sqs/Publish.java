@@ -29,12 +29,15 @@ import javax.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to an SQS queue"
+    title = "Publish a message to an SQS queue."
 )
 @Plugin(
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "queueUrl: \"https://sqs.us-east-2.amazonaws.com/000000000000/test-queue\"",
                 "from:",
                 "- data: Hello World",
@@ -49,7 +52,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @NotNull
     @Schema(
         title = "The source of the published data.",
-        description = "Can be an internal storage URI, a list of SQS messages or a single SQS message.",
+        description = "Can be an internal storage URI, a list of SQS messages, or a single SQS message.",
         anyOf = {String.class, List.class, Message.class}
     )
     private Object from;

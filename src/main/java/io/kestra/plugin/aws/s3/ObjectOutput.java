@@ -15,7 +15,7 @@ public abstract class ObjectOutput {
     private String eTag;
 
     @Schema(
-        title = "Version of the object."
+        title = "The version of the object."
     )
     private String versionId;
 }

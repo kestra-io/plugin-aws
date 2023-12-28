@@ -50,6 +50,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "streamName: \"mystream\"",
                 "records:",
                 "  - data: \"user sign-in event\"",
@@ -61,6 +64,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "streamName: \"mystream\"",
                 "records: kestra://myfile.ion"
             }
@@ -85,14 +91,14 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
     @PluginProperty(dynamic = true)
     @Schema(
-        title = "The name of the stream to add the records.",
+        title = "The name of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private String streamName;
 
     @PluginProperty(dynamic = true)
     @Schema(
-        title = "The ARN of the stream to add the records.",
+        title = "The ARN of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private String streamArn;
@@ -163,7 +169,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
             URI from = new URI(runContext.render((String) records));
             if (!from.getScheme().equals("kestra")) {
-                throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of record.");
+                throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
                 return Flowable.create(FileSerde.reader(inputStream, Record.class), BackpressureStrategy.BUFFER)

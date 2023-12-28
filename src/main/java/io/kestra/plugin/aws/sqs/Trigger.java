@@ -29,12 +29,16 @@ import javax.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Wait for messages in a SQS queue"
+    title = "Wait for messages in a SQS queue.",
+    description = "Requires `maxDuration` or `maxRecords`."
 )
 @Plugin(
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "queueUrl: \"https://sqs.us-east-2.amazonaws.com/000000000000/test-queue\"",
                 "maxRecords: 10"
             }

@@ -54,17 +54,23 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
         @Example(
             title = "Invoke given Lambda function and wait for its completion.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "functionArn: \"arn:aws:lambda:us-west-2:123456789012:function:my-function\""
             }
         ),
         @Example(
             title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "functionArn: \"arn:aws:lambda:us-west-2:123456789012:function:my-function\"",
                 "functionPayload:",
-                "  id: 1",
-                "  firstname: \"John\"",
-                "  lastname: \"Doe\""
+                "    id: 1",
+                "    firstname: \"John\"",
+                "    lastname: \"Doe\""
             }
         )
     },

@@ -47,8 +47,11 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules",
+            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "entries:",
                 "  - eventBusName: \"events\"",
                 "    source: \"Kestra\"",
@@ -60,6 +63,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules.",
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "entries:",
                 "  - eventBusName: \"events\"",
                 "    source: \"Kestra\"",
@@ -90,7 +96,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     @PluginProperty(dynamic = true)
     @NotNull
     @Schema(
-        title = "List of event entries to send to or internal storage uri to retrieve it.",
+        title = "List of event entries to send to, or internal storage URI to retrieve it.",
         description = "A list of at least one EventBridge entry.",
         oneOf = {String.class, Entry[].class}
     )
@@ -177,7 +183,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         if (entries instanceof String) {
             URI from = new URI(runContext.render((String) entries));
             if (!from.getScheme().equals("kestra")) {
-                throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
+                throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
                 return Flowable.create(FileSerde.reader(inputStream, Entry.class), BackpressureStrategy.BUFFER)
@@ -196,9 +202,9 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The uri of stored data",
-            description = "The successfully and unsuccessfully ingested events." +
-                "If the ingestion was successful, the entry has the event ID in it." +
+            title = "The URI of the stored data.",
+            description = "The successfully and unsuccessfully ingested events. " +
+                "If the ingestion was successful, the entry has the event ID in it. " +
                 "Otherwise, you can use the error code and error message to identify the problem with the entry."
         )
         private URI uri;
@@ -209,7 +215,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         private int failedEntryCount;
 
         @Schema(
-            title = "The total number entries."
+            title = "The total number of entries."
         )
         private int entryCount;
 
