@@ -7,7 +7,7 @@ import javax.validation.constraints.NotNull;
 
 public interface ListInterface {
     @Schema(
-        title = "The bucket where to download the file"
+        title = "The S3 bucket where to download the file."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -40,7 +40,7 @@ public interface ListInterface {
 
     @Schema(
         title = "Sets the maximum number of keys returned in the response.",
-        description = "By default the action returns up to 1,000 key names. The response might contain fewer keys but will never contain more."
+        description = "By default, the action returns up to 1,000 key names. The response might contain fewer keys but will never contain more."
     )
     @PluginProperty(dynamic = true)
     Integer getMaxKeys();
@@ -53,7 +53,7 @@ public interface ListInterface {
     String getExpectedBucketOwner();
 
     @Schema(
-        title = "A regexp to filter on full key",
+        title = "A regexp to filter on full key.",
         description = "ex:\n"+
             "`regExp: .*` to match all files\n"+
             "`regExp: .*2020-01-0.\\\\.csv` to match files between 01 and 09 of january ending with `.csv`"
@@ -62,7 +62,7 @@ public interface ListInterface {
     String getRegexp();
 
     @Schema(
-        title = "The filter files or directory"
+        title = "The type of objects to filter: files, directory, or both."
     )
     @PluginProperty
     Filter getFilter();

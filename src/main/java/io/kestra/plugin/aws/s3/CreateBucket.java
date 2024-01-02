@@ -25,8 +25,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "name: \"my-bucket\"",
-                "region: \"eu-west-1\""
+                "name: \"my-bucket\""
             }
         )
     }
@@ -36,7 +35,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 )
 public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucket.Output> {
     @Schema(
-        description = "The bucket name to create"
+        description = "The S3 bucket name to create."
     )
     @PluginProperty(dynamic = true)
     private String bucket;
@@ -54,7 +53,7 @@ public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucke
     private String grantRead;
 
     @Schema(
-        title = "Allows grantee to list the objects in the bucket."
+        title = "Allows grantee to list the ACL for the applicable bucket."
     )
     @PluginProperty(dynamic = true)
     private String grantReadACP;

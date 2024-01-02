@@ -46,13 +46,13 @@ import java.util.Map;
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
     @Schema(
-        title = "The file to upload"
+        title = "The file to upload."
     )
     @PluginProperty(dynamic = true)
     private String from;
 
     @Schema(
-        title = "The key where to upload the file"
+        title = "The key where to upload the file."
     )
     @PluginProperty(dynamic = true)
     private String key;
@@ -64,7 +64,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Map<String, String> metadata;
 
     @Schema(
-        title = "Can be used to specify caching behavior along the request/reply chain."
+        title = "Can be used to specify caching behavior along the request/response chain."
     )
     @PluginProperty(dynamic = true)
     private String cacheControl;
@@ -77,7 +77,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     @Schema(
         title = "Specifies what content encodings have been applied to the object.",
-        description = "And thus what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
+        description = "And thus, what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
     )
     @PluginProperty(dynamic = true)
     private String contentEncoding;
@@ -95,14 +95,14 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private String contentLanguage;
 
     @Schema(
-        title = "Size of the body in bytes.",
+        title = "The size of the body in bytes.",
         description = "This parameter is useful when the size of the body cannot be determined automatically."
     )
     @PluginProperty
     private Long contentLength;
 
     @Schema(
-        title = "The date and time at which the object is no longer cacheable."
+        title = "The date and time after which the object is no longer cacheable."
     )
     @PluginProperty(dynamic = true)
     private String expires;
@@ -121,7 +121,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     @Schema(
         title = "The server-side encryption algorithm used when storing this object in Amazon S3.",
-        description = "(for example, AES256, aws:kms, aws:kms:dsse)."
+        description = "For example, AES256, aws:kms, aws:kms:dsse"
     )
     @PluginProperty
     private ServerSideEncryption serverSideEncryption;
@@ -141,7 +141,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     @Schema(
         title = "The account ID of the expected bucket owner.",
-        description = "If the bucket is owned by a different account, the request fails\n" +
+        description = "If the bucket is owned by a different account, the request fails " +
             "with the HTTP status code `403 Forbidden` (access denied)."
     )
     @PluginProperty(dynamic = true)
@@ -167,7 +167,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     @Schema(
         title = "The checksum data integrity check to verify that the data received is the same data that was originally sent.",
-        description = "Must be use in pair with `checksumAlgorithm` to defined the expect algorithm of these values"
+        description = "Must be used in pair with `checksumAlgorithm` to defined the expect algorithm of these values"
     )
     @PluginProperty(dynamic = true)
     private String checksum;
@@ -179,7 +179,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Map<String, String> tagging;
 
     @Schema(
-        title = "this property will use the AsynS3Client instead of the S3CrtAsynClient which maximize compatibility with S3-compatible services but restrict uploads and downloads to 2GB"
+        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
     )
     @PluginProperty
     @Builder.Default

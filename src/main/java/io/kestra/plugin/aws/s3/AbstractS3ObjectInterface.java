@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface AbstractS3ObjectInterface {
     @Schema(
-        title = "The bucket name"
+        title = "The S3 bucket name."
     )
     @PluginProperty(dynamic = true)
     String getBucket();

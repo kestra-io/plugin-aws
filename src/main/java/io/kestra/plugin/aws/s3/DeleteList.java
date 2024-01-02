@@ -41,7 +41,7 @@ import javax.validation.constraints.Min;
     }
 )
 @Schema(
-    title = "Delete a list of key on a S3 bucket."
+    title = "Delete a list of keys on a S3 bucket."
 )
 public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteList.Output>, ListInterface {
     private String prefix;

@@ -32,12 +32,15 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @NoArgsConstructor
 @Schema(
     title = "Consume messages from a SQS queue.",
-    description = "Required a maxDuration or a maxRecords."
+    description = "Requires `maxDuration` or `maxRecords`."
 )
 @Plugin(
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "queueUrl: \"https://sqs.us-east-2.amazonaws.com/000000000000/test-queue\""
             }
         )
@@ -46,11 +49,11 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
 
     @PluginProperty
-    @Schema(title = "Max number of records, when reached the task will end.")
+    @Schema(title = "Maximum number of records; when reached, the task will end.")
     private Integer maxRecords;
 
     @PluginProperty
-    @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
+    @Schema(title = "Maximum duration in the Duration ISO format, after that the task will end.")
     private Duration maxDuration;
 
     @Builder.Default

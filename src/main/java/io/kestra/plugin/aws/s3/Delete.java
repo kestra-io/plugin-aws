@@ -35,7 +35,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 )
 public class Delete extends AbstractS3Object implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "The key to delete"
+        title = "The key to delete."
     )
     @PluginProperty(dynamic = true)
     private String key;

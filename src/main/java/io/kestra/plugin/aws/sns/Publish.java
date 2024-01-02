@@ -29,12 +29,15 @@ import javax.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to a SNS topic"
+    title = "Publish a message to a SNS topic."
 )
 @Plugin(
     examples = {
         @Example(
             code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
                 "topicArn: \"arn:aws:sns:us-east-1:000000000000:MessageTopic\"",
                 "from:",
                 "- data: Hello World",
@@ -49,7 +52,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     @NotNull
     @Schema(
         title = "The source of the published data.",
-        description = "Can be an internal storage URI, a list of SNS messages or a single SNS message."
+        description = "Can be an internal storage URI, a list of SNS messages, or a single SNS message."
     )
     private Object from;
 
@@ -65,7 +68,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
             if (this.from instanceof String) {
                 URI from = new URI(runContext.render((String) this.from));
                 if (!from.getScheme().equals("kestra")) {
-                    throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
+                    throw new Exception("Invalid 'from' parameter, must be a Kestra internal storage URI");
                 }
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {

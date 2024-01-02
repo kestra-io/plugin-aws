@@ -35,11 +35,11 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
     }
 )
 @Schema(
-    title = "Copy a file between S3 bucket."
+    title = "Copy a file between S3 buckets."
 )
 public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
     @Schema(
-        title = "The source bucket and key"
+        title = "The source bucket and key."
     )
     @PluginProperty
     private CopyObjectFrom from;
@@ -51,7 +51,7 @@ public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
     private CopyObject to;
 
     @Schema(
-        title = "Delete the source file after download"
+        title = "Whether to delete the source file after download."
     )
     @PluginProperty
     @Builder.Default

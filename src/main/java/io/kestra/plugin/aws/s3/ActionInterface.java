@@ -7,7 +7,7 @@ import javax.validation.constraints.NotNull;
 
 public interface ActionInterface {
     @Schema(
-        title = "The action to do on find files"
+        title = "The action to perform on the retrieved files."
     )
     @PluginProperty(dynamic = true)
     @NotNull
