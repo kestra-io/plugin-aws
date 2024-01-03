@@ -20,7 +20,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import java.util.NoSuchElementException;
-import javax.validation.constraints.Min;
+import jakarta.validation.constraints.Min;
 
 @SuperBuilder
 @ToString

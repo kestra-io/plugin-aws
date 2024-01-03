@@ -13,7 +13,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 
 import java.util.Map;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString

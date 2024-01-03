@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
 import com.fasterxml.jackson.core.JsonProcessingException;
