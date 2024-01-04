@@ -38,7 +38,7 @@ import javax.validation.constraints.NotNull;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "topicArn: \"arn:aws:sns:us-east-1:000000000000:MessageTopic\"",
+                "topicArn: \"arn:aws:sns:eu-central-1:000000000000:MessageTopic\"",
                 "from:",
                 "- data: Hello World",
                 "- data: Hello Kestra",
