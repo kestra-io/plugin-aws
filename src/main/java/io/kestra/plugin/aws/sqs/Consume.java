@@ -41,7 +41,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.us-east-2.amazonaws.com/000000000000/test-queue\""
+                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
             }
         )
     }

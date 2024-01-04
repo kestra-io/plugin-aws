@@ -63,13 +63,13 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
         @Example(
             code = {
                 """
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
-                    region: "eu-central-1"
-                    database: my_database
-                    outputLocation: s3://some-s3-bucket
-                    query: |
-                      select * from cloudfront_logs limit 10
+                accessKeyId: "<access-key>"
+                secretKeyId: "<secret-key>"
+                region: "eu-central-1"
+                database: my_database
+                outputLocation: s3://some-s3-bucket
+                query: |
+                  select * from cloudfront_logs limit 10
                 """
             }
         )
