@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -9,11 +10,11 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sqs.model.Message;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
@@ -22,6 +23,8 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import jakarta.validation.constraints.NotNull;
+
+import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -63,8 +66,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         var queueUrl = runContext.render(getQueueUrl());
         try (var sqsClient = this.client(runContext)) {
             Integer count;
-            Flowable<Message> flowable;
-            Flowable<Integer> resultFlowable;
+            Flux<Message> flowable;
+            Flux<Integer> resultFlowable;
 
             if (this.from instanceof String) {
                 URI from = new URI(runContext.render((String) this.from));
@@ -73,20 +76,20 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                 }
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                    flowable = Flowable.create(FileSerde.reader(inputStream, Message.class), BackpressureStrategy.BUFFER);
+                    flowable = Flux.create(FileSerde.reader(inputStream, Message.class), FluxSink.OverflowStrategy.BUFFER);
                     resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
-                    count = resultFlowable.reduce(Integer::sum).blockingGet();
+                    count = resultFlowable.reduce(Integer::sum).block();
                 }
 
             } else if (this.from instanceof List) {
-                flowable = Flowable
+                flowable = Flux
                     .fromArray(((List<Message>) this.from).toArray())
                     .cast(Message.class);
 
                 resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
-                count = resultFlowable.reduce(Integer::sum).blockingGet();
+                count = resultFlowable.reduce(Integer::sum).block();
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
                 sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
@@ -103,12 +106,12 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         }
     }
 
-    private Flowable<Integer> buildFlowable(Flowable<Message> flowable, SqsClient sqsClient, String queueUrl, RunContext runContext) {
+    private Flux<Integer> buildFlowable(Flux<Message> flowable, SqsClient sqsClient, String queueUrl, RunContext runContext) throws IllegalVariableEvaluationException {
         return flowable
-            .map(message -> {
+            .map(throwFunction(message -> {
                 sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
                 return 1;
-            });
+            }));
     }
 
     @Builder

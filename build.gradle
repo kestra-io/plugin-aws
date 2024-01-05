@@ -47,7 +47,7 @@ dependencies {
     compileOnly platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     compileOnly "io.micronaut:micronaut-inject"
     compileOnly "io.micronaut.validation:micronaut-validation"
-    compileOnly "io.micronaut.rxjava2:micronaut-rxjava2"
+    compileOnly "io.micronaut.reactor:micronaut-reactor"
 
     // kestra
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
@@ -98,7 +98,7 @@ dependencies {
 
     testImplementation platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     testImplementation "io.micronaut.test:micronaut-test-junit5"
-    testImplementation "io.micronaut.rxjava2:micronaut-rxjava2"
+    testImplementation "io.micronaut.reactor:micronaut-reactor"
 
     // test
     testImplementation "org.junit.jupiter:junit-jupiter-engine"

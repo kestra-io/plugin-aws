@@ -103,8 +103,17 @@ class TriggerTest extends AbstractTest {
         this.createBucket(bucket);
         List listTask = list().bucket(bucket).build();
 
-        // mock flow listeners
+        // wait for execution
         CountDownLatch queueCount = new CountDownLatch(1);
+        AtomicReference<Execution> last = new AtomicReference<>();
+        executionQueue.receive(TriggerTest.class, executionWithError -> {
+            Execution execution = executionWithError.getLeft();
+
+            if (execution.getFlowId().equals("s3-listen-none-action")) {
+                last.set(execution);
+                queueCount.countDown();
+            }
+        });
 
         // scheduler
         Worker worker = new Worker(applicationContext, 8, null);
@@ -115,19 +124,6 @@ class TriggerTest extends AbstractTest {
                 this.triggerState
             );
         ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
-
-            // wait for execution
-            executionQueue.receive(TriggerTest.class, executionWithError -> {
-                Execution execution = executionWithError.getLeft();
-
-                if (execution.getFlowId().equals("s3-listen-none-action")) {
-                    last.set(execution);
-                    queueCount.countDown();
-                }
-            });
-
-
             upload("trigger/s3", bucket);
             upload("trigger/s3", bucket);
 

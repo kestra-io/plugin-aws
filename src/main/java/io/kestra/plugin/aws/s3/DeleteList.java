@@ -7,20 +7,23 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
-import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import java.util.NoSuchElementException;
+import java.util.function.Function;
+
 import jakarta.validation.constraints.Min;
+
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 
 @SuperBuilder
 @ToString
@@ -83,21 +86,21 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
 
 
         try (S3Client client = this.client(runContext)) {
-            Flowable<S3Object> flowable = Flowable
-                .create(emitter -> {
+            Flux<S3Object> flowable = Flux
+                .create(throwConsumer(emitter -> {
                     S3Service
                         .list(runContext, client, this, this)
-                            .forEach(emitter::onNext);
+                            .forEach(emitter::next);
 
-                    emitter.onComplete();
-                }, BackpressureStrategy.BUFFER);
+                    emitter.complete();
+                }), FluxSink.OverflowStrategy.BUFFER);
 
-            Flowable<Long> result;
+            Flux<Long> result;
 
             if (this.concurrent != null) {
                 result = flowable
                     .parallel(this.concurrent)
-                    .runOn(Schedulers.io())
+                    .runOn(Schedulers.boundedElastic())
                     .map(delete(logger, client, bucket))
                     .sequential();
             } else {
@@ -107,7 +110,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
 
             Pair<Long, Long> finalResult = result
                 .reduce(Pair.of(0L, 0L), (pair, size) -> Pair.of(pair.getLeft() + 1, pair.getRight() + size))
-                .blockingGet();
+                .block();
 
             runContext.metric(Counter.of("count", finalResult.getLeft()));
             runContext.metric(Counter.of("size", finalResult.getRight()));

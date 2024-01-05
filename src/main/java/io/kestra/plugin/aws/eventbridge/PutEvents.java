@@ -16,11 +16,11 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
@@ -186,8 +186,8 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                return Flowable.create(FileSerde.reader(inputStream, Entry.class), BackpressureStrategy.BUFFER)
-                    .toList().blockingGet();
+                return Flux.create(FileSerde.reader(inputStream, Entry.class), FluxSink.OverflowStrategy.BUFFER)
+                    .collectList().block();
             }
         } else if (entries instanceof List) {
             return MAPPER.convertValue(entries, new TypeReference<>() {
