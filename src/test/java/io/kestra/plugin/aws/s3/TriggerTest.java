@@ -64,10 +64,10 @@ class TriggerTest extends AbstractTest {
             executionQueue.receive(TriggerTest.class, executionWithError -> {
                 Execution execution = executionWithError.getLeft();
 
-                last.set(execution);
-                queueCount.countDown();
-
-                assertThat(execution.getFlowId(), is("s3-listen"));
+                if (execution.getFlowId().equals("s3-listen")) {
+                    last.set(execution);
+                    queueCount.countDown();
+                }
             });
 
 
@@ -79,8 +79,11 @@ class TriggerTest extends AbstractTest {
             repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen.yaml")));
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
-            assertThat(await, is(true));
-            worker.shutdown();
+            try {
+                assertThat(await, is(true));
+            } finally {
+                worker.shutdown();
+            }
 
             @SuppressWarnings("unchecked")
             java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -118,10 +121,10 @@ class TriggerTest extends AbstractTest {
             executionQueue.receive(TriggerTest.class, executionWithError -> {
                 Execution execution = executionWithError.getLeft();
 
-                last.set(execution);
-                queueCount.countDown();
-
-                assertThat(execution.getFlowId(), is("s3-listen-none-action"));
+                if (execution.getFlowId().equals("s3-listen-none-action")) {
+                    last.set(execution);
+                    queueCount.countDown();
+                }
             });
 
 
@@ -133,8 +136,11 @@ class TriggerTest extends AbstractTest {
             repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen-none-action.yaml")));
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
-            assertThat(await, is(true));
-            worker.shutdown();
+            try {
+                assertThat(await, is(true));
+            } finally {
+                worker.shutdown();
+            }
 
             @SuppressWarnings("unchecked")
             java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");

@@ -67,6 +67,41 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 "    moveTo: ",
                 "      key: archive",
             }
+        ),
+        @Example(
+            title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering.",
+            full = true,
+            code = {
+                "id: s3-listen",
+                "namespace: io.kestra.tests",
+                "",
+                "tasks:",
+                "  - id: each",
+                "    type: io.kestra.core.tasks.flows.EachSequential",
+                "    tasks:",
+                "      - id: return",
+                "        type: io.kestra.core.tasks.debugs.Return",
+                "        format: \"{{ taskrun.value }}\"",
+                "      - id: delete",
+                "        type: io.kestra.plugin.aws.s3.Delete",
+                "        accessKeyId: \"<access-key>\"",
+                "        secretKeyId: \"<secret-key>\"",
+                "        region: \"eu-central-1\"",
+                "        bucket: \"my-bucket\"",
+                "        key: \"{{ taskrun.value }}\"",
+                "    value: \"{{ trigger.objects | jq('.[].key') }}\"",
+                "",
+                "triggers:",
+                "  - id: watch",
+                "    type: io.kestra.plugin.aws.s3.Trigger",
+                "    interval: \"PT5M\"",
+                "    accessKeyId: \"<access-key>\"",
+                "    secretKeyId: \"<secret-key>\"",
+                "    region: \"eu-central-1\"",
+                "    bucket: \"my-bucket\"",
+                "    prefix: \"sub-dir\"",
+                "    action: NONE",
+            }
         )
     }
 )
@@ -134,7 +169,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .build();
         List.Output run = task.run(runContext);
 
-        if (run.getObjects().size() == 0) {
+        if (run.getObjects().isEmpty()) {
             return Optional.empty();
         }
 
