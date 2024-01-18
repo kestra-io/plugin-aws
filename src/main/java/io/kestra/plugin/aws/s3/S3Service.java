@@ -48,7 +48,7 @@ public class S3Service {
         }
     }
 
-    static void archive(
+    static void performAction(
         java.util.List<S3Object> s3Objects,
         ActionInterface.Action action,
         Copy.CopyObject moveTo,

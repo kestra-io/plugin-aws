@@ -41,12 +41,10 @@ class TriggerTest extends AbstractTest {
     protected LocalFlowRepositoryLoader repositoryLoader;
 
     @Test
-    void flow() throws Exception {
-        try {
-            this.createBucket("trigger-test");
-        } catch (Exception ignored) {
-
-        }
+    void deleteAction() throws Exception {
+        String bucket = "trigger-test";
+        this.createBucket(bucket);
+        List listTask = list().bucket(bucket).build();
 
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
@@ -63,27 +61,90 @@ class TriggerTest extends AbstractTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(TriggerTest.class, execution -> {
-                last.set(execution.getLeft());
+            executionQueue.receive(TriggerTest.class, executionWithError -> {
+                Execution execution = executionWithError.getLeft();
 
+                last.set(execution);
                 queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), is("s3-listen"));
+
+                assertThat(execution.getFlowId(), is("s3-listen"));
             });
 
 
-            upload("trigger/s3", "trigger-test");
-            upload("trigger/s3", "trigger-test");
+            upload("trigger/s3", bucket);
+            upload("trigger/s3", bucket);
 
             worker.run();
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3")));
+            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen.yaml")));
 
-            queueCount.await(1, TimeUnit.MINUTES);
+            boolean await = queueCount.await(10, TimeUnit.SECONDS);
+            assertThat(await, is(true));
+            worker.shutdown();
 
             @SuppressWarnings("unchecked")
             java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
 
             assertThat(trigger.size(), is(2));
+
+            int remainingFilesOnBucket = listTask.run(runContext(listTask))
+                .getObjects()
+                .size();
+            assertThat(remainingFilesOnBucket, is(0));
+        }
+    }
+
+    @Test
+    void noneAction() throws Exception {
+        String bucket = "trigger-none-action-test";
+        this.createBucket(bucket);
+        List listTask = list().bucket(bucket).build();
+
+        // mock flow listeners
+        CountDownLatch queueCount = new CountDownLatch(1);
+
+        // scheduler
+        Worker worker = new Worker(applicationContext, 8, null);
+        try (
+            AbstractScheduler scheduler = new DefaultScheduler(
+                this.applicationContext,
+                this.flowListenersService,
+                this.triggerState
+            );
+        ) {
+            AtomicReference<Execution> last = new AtomicReference<>();
+
+            // wait for execution
+            executionQueue.receive(TriggerTest.class, executionWithError -> {
+                Execution execution = executionWithError.getLeft();
+
+                last.set(execution);
+                queueCount.countDown();
+
+                assertThat(execution.getFlowId(), is("s3-listen-none-action"));
+            });
+
+
+            upload("trigger/s3", bucket);
+            upload("trigger/s3", bucket);
+
+            worker.run();
+            scheduler.run();
+            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen-none-action.yaml")));
+
+            boolean await = queueCount.await(10, TimeUnit.SECONDS);
+            assertThat(await, is(true));
+            worker.shutdown();
+
+            @SuppressWarnings("unchecked")
+            java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
+
+            assertThat(trigger.size(), is(2));
+
+            int remainingFilesOnBucket = listTask.run(runContext(listTask))
+                .getObjects()
+                .size();
+            assertThat(remainingFilesOnBucket, is(2));
         }
     }
 }

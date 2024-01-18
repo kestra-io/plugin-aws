@@ -11,7 +11,6 @@ import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -160,7 +159,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }))
             .collect(Collectors.toList());
 
-        S3Service.archive(
+        S3Service.performAction(
             run.getObjects(),
             this.action,
             this.moveTo,
