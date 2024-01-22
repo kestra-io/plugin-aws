@@ -109,7 +109,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
                 .collect(Collectors.toList());
 
 
-            S3Service.archive(
+            S3Service.performAction(
                 run.getObjects(),
                 this.action,
                 this.moveTo,
