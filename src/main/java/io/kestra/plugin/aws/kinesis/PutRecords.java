@@ -17,11 +17,11 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.kinesis.model.Record;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
@@ -29,7 +29,9 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
+
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -172,8 +175,8 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                return Flowable.create(FileSerde.reader(inputStream, Record.class), BackpressureStrategy.BUFFER)
-                    .toList().blockingGet();
+                return Flux.create(FileSerde.reader(inputStream, Record.class), FluxSink.OverflowStrategy.BUFFER)
+                    .collectList().block();
             }
         } else if (records instanceof List) {
             return MAPPER.convertValue(records, new TypeReference<>() {
@@ -187,15 +190,17 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         // Create Output
         File tempFile = runContext.tempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
-            Flowable.fromIterable(records)
-                .zipWith(putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
+            Flux.fromIterable(records)
+                .zipWithIterable(putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
                     .record(record)
                     .sequenceNumber(response.sequenceNumber())
                     .shardId(response.shardId())
                     .errorCode(response.errorCode())
                     .errorMessage(response.errorMessage())
                     .build())
-                .blockingForEach(outputEntry -> FileSerde.write(stream, outputEntry));
+                .doOnEach(throwConsumer(outputEntry -> FileSerde.write(stream, outputEntry.get())))
+                .collectList()
+                .block();
         }
         return tempFile;
     }

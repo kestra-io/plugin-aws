@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @Getter
 @Builder

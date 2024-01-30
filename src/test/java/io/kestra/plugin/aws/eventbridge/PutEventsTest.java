@@ -7,8 +7,6 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -16,6 +14,8 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -46,7 +46,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
         }
         try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-            outputEntries = Flowable.create(FileSerde.reader(inputStream, PutEvents.OutputEntry.class), BackpressureStrategy.BUFFER).toList().blockingGet();
+            outputEntries = Flux.create(FileSerde.reader(inputStream, PutEvents.OutputEntry.class), FluxSink.OverflowStrategy.BUFFER).collectList().block();
         }
         return outputEntries;
     }

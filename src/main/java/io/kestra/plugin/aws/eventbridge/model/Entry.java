@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 
