@@ -61,7 +61,7 @@ class TriggerTest extends AbstractTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(TriggerTest.class, executionWithError -> {
+            executionQueue.receive(executionWithError -> {
                 Execution execution = executionWithError.getLeft();
 
                 if (execution.getFlowId().equals("s3-listen")) {
@@ -106,7 +106,7 @@ class TriggerTest extends AbstractTest {
         // wait for execution
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        executionQueue.receive(TriggerTest.class, executionWithError -> {
+        executionQueue.receive(executionWithError -> {
             Execution execution = executionWithError.getLeft();
 
             if (execution.getFlowId().equals("s3-listen-none-action")) {
