@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "name: \"my-bucket\""
+                "bucket: \"my-bucket\""
             }
         )
     }
