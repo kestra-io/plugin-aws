@@ -60,6 +60,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 "records:",
                 "  - data: \"user sign-in event\"",
                 "    explicitHashKey: \"optional hash value overriding the partition key\"",
+                "    partitionKey: \"user1\"",
                 "  - data: \"user sign-out event\"",
                 "    partitionKey: \"user1\""
             }
@@ -71,7 +72,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
                 "streamName: \"mystream\"",
-                "records: kestra://myfile.ion"
+                "records: kestra:///myfile.ion"
             }
         )
     }
