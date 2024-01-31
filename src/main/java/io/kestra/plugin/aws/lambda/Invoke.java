@@ -57,7 +57,7 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "functionArn: \"arn:aws:lambda:us-west-2:123456789012:function:my-function\""
+                "functionArn: \"arn:aws:lambda:eu-central-1:123456789012:function:my-function\""
             }
         ),
         @Example(
@@ -66,7 +66,7 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "functionArn: \"arn:aws:lambda:us-west-2:123456789012:function:my-function\"",
+                "functionArn: \"arn:aws:lambda:eu-central-1:123456789012:function:my-function\"",
                 "functionPayload:",
                 "    id: 1",
                 "    firstname: \"John\"",
