@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.Output;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -64,7 +65,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
             }
 
             return TokenOutput.builder()
-                .token(token)
+                .token(EncryptedString.from(token, runContext))
                 .build();
         }
     }
@@ -73,8 +74,11 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
     @Getter
     public static class TokenOutput implements Output {
 
-        @Schema(title = "AWS ECR authorization token.")
-        private String token;
+        @Schema(
+            title = "AWS ECR authorization token.",
+            description = "Will be automatically encrypted and decrypted in the outputs if encryption is configured"
+        )
+        private EncryptedString token;
 
     }
 }
