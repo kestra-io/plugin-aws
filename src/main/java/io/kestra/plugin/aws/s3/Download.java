@@ -36,11 +36,11 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Download a file to a S3 bucket."
+    title = "Download a file from an S3 bucket."
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The key where to download the file."
+        title = "The key of a file to download."
     )
     @PluginProperty(dynamic = true)
     private String key;
@@ -52,7 +52,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     protected String versionId;
 
     @Schema(
-        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
+        title = "If set to true, the task will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which better integrates with S3-compatible services but restricts uploads and downloads to 2GB."
     )
     @PluginProperty
     @Builder.Default

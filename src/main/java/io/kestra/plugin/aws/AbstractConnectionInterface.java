@@ -6,21 +6,21 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public interface AbstractConnectionInterface {
     @Schema(
         title = "Access Key Id in order to connect to AWS.",
-        description = "If no connection is defined, we will use default DefaultCredentialsProvider to fetch the value."
+        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
     )
     @PluginProperty(dynamic = true)
     String getAccessKeyId();
 
     @Schema(
         title = "Secret Key Id in order to connect to AWS.",
-        description = "If no connection is defined, we will use default DefaultCredentialsProvider to fetch the value."
+        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
     )
     @PluginProperty(dynamic = true)
     String getSecretKeyId();
 
     @Schema(
-        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permission to access some resource.",
-        description = "If no connection is defined, we will use default DefaultCredentialsProvider to fetch the value."
+        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
+        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
     )
     @PluginProperty(dynamic = true)
     String getSessionToken();
