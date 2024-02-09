@@ -14,6 +14,7 @@ import io.kestra.plugin.aws.sqs.model.Message;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
@@ -27,6 +28,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
+@Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
 class TriggerTest extends AbstractSqsTest {
     @Inject
     private ApplicationContext applicationContext;
