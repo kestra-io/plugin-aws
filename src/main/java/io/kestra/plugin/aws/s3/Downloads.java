@@ -90,6 +90,11 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(this.filter)
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
+            .stsEndpointOverride(this.stsEndpointOverride)
             .build();
         List.Output run = task.run(runContext);
 
