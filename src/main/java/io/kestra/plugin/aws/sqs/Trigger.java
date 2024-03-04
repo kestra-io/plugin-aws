@@ -12,6 +12,7 @@ import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -75,6 +76,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(title = "The serializer/deserializer to use.")
     private SerdeType serdeType = SerdeType.STRING;
 
+    // Configuration for AWS STS AssumeRole
+    protected String stsRoleArn;
+    protected String stsRoleExternalId;
+    protected String stsRoleSessionName;
+    protected String stsEndpointOverride;
+    @Builder.Default
+    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -90,6 +99,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)
             .serdeType(this.serdeType)
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
+            .stsEndpointOverride(this.stsEndpointOverride)
             .build();
 
         Consume.Output run = task.run(runContext);

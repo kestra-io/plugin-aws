@@ -14,7 +14,11 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Duration;
@@ -145,6 +149,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private Copy.CopyObject moveTo;
 
+    // Configuration for AWS STS AssumeRole
+    protected String stsRoleArn;
+    protected String stsRoleExternalId;
+    protected String stsRoleSessionName;
+    protected String stsEndpointOverride;
+    @Builder.Default
+    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -166,6 +178,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(this.filter)
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
+            .stsEndpointOverride(this.stsEndpointOverride)
             .build();
         List.Output run = task.run(runContext);
 
