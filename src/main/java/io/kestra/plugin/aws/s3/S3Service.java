@@ -40,7 +40,7 @@ public class S3Service {
                     .build()
             );
 
-            GetObjectResponse response =download.completionFuture().get().response();
+            GetObjectResponse response = download.completionFuture().get().response();
 
             runContext.metric(Counter.of("file.size", response.contentLength()));
 
@@ -68,6 +68,11 @@ public class S3Service {
                     .secretKeyId(abstractConnection.getSecretKeyId())
                     .key(object.getKey())
                     .bucket(abstractS3Object.getBucket())
+                    .stsRoleArn(abstractConnection.getStsRoleArn())
+                    .stsRoleExternalId(abstractConnection.getStsRoleExternalId())
+                    .stsRoleSessionName(abstractConnection.getStsRoleSessionName())
+                    .stsRoleSessionDuration(abstractConnection.getStsRoleSessionDuration())
+                    .stsEndpointOverride(abstractConnection.getStsEndpointOverride())
                     .build();
                 delete.run(runContext);
             }
@@ -80,6 +85,11 @@ public class S3Service {
                     .endpointOverride(abstractS3.getEndpointOverride())
                     .accessKeyId(abstractConnection.getAccessKeyId())
                     .secretKeyId(abstractConnection.getSecretKeyId())
+                    .stsRoleArn(abstractConnection.getStsRoleArn())
+                    .stsRoleExternalId(abstractConnection.getStsRoleExternalId())
+                    .stsRoleSessionName(abstractConnection.getStsRoleSessionName())
+                    .stsRoleSessionDuration(abstractConnection.getStsRoleSessionDuration())
+                    .stsEndpointOverride(abstractConnection.getStsEndpointOverride())
                     .from(Copy.CopyObjectFrom.builder()
                         .bucket(abstractS3Object.getBucket())
                         .key(object.getKey())
