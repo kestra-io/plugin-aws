@@ -19,8 +19,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 
@@ -208,19 +206,9 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         }
     }
 
-    private AthenaClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        var builder = AthenaClient.builder()
-            .httpClient(ApacheHttpClient.create())
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    private AthenaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, AthenaClient.builder()).build();
     }
 
     public QueryExecutionStatistics waitForQueryToComplete(AthenaClient client, String queryExecutionId) throws InterruptedException {

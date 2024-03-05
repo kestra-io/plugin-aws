@@ -30,7 +30,6 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 
 import jakarta.validation.constraints.NotNull;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
 import java.io.*;
 import java.net.URI;
@@ -206,18 +205,9 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         return tempFile;
     }
 
-    protected KinesisClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        KinesisClientBuilder builder = KinesisClient.builder()
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder

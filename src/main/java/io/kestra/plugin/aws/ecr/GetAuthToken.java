@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.ecr;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.Output;
@@ -10,12 +11,9 @@ import io.kestra.plugin.aws.AbstractConnection;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ecr.EcrClient;
-import software.amazon.awssdk.services.ecr.EcrClientBuilder;
 import software.amazon.awssdk.services.ecr.model.AuthorizationData;
 
-import java.net.URI;
 import java.util.Base64;
 import java.util.List;
 
@@ -43,17 +41,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
 
     @Override
     public TokenOutput run(RunContext runContext) throws Exception {
-        EcrClientBuilder ecrClientBuilder = EcrClient.builder().credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            ecrClientBuilder.region(Region.of(runContext.render(this.region)));
-        }
-
-        if (this.endpointOverride != null) {
-            ecrClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        try (EcrClient client = ecrClientBuilder.build()) {
+        try (EcrClient client = client(runContext)) {
             List<AuthorizationData> authorizationData = client.getAuthorizationToken().authorizationData();
 
             String encodedToken = authorizationData.get(0).authorizationToken();
@@ -68,6 +56,11 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
                 .token(EncryptedString.from(token, runContext))
                 .build();
         }
+    }
+
+    private EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, EcrClient.builder()).build();
     }
 
     @Builder
