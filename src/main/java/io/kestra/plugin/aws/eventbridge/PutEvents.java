@@ -124,7 +124,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
         File tempFile = writeOutputFile(runContext, putEventsResponse, entryList);
         return Output.builder()
-            .uri(runContext.putTempFile(tempFile))
+            .uri(runContext.storage().putFile(tempFile))
             .failedEntryCount(putEventsResponse.failedEntryCount())
             .entryCount(entryList.size())
             .build();
@@ -168,14 +168,13 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         return configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
     }
 
-    @SuppressWarnings("unchecked")
     private List<Entry> readEntryList(RunContext runContext, Object entries) throws IllegalVariableEvaluationException, URISyntaxException, IOException {
         if (entries instanceof String) {
             URI from = new URI(runContext.render((String) entries));
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
+            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
                 return Flux.create(FileSerde.reader(inputStream, Entry.class), FluxSink.OverflowStrategy.BUFFER)
                     .collectList().block();
             }

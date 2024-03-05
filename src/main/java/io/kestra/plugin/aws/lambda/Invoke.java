@@ -211,7 +211,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             var size = Files.copy(dataStream, tempFile.toPath());
             // Doing the same as in S3Service.download()
             runContext.metric(Counter.of("file.size", size));
-            var uri = runContext.putTempFile(tempFile);
+            var uri = runContext.storage().putFile(tempFile);
             if (log.isDebugEnabled()) {
                 log.debug("Lambda invokation task completed {}: response type: {}, file: `{}", 
                         functionArn, contentType, uri);

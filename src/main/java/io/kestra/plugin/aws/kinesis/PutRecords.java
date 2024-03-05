@@ -22,9 +22,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
@@ -138,7 +136,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
         File tempFile = writeOutputFile(runContext, putRecordsResponse, records);
         return Output.builder()
-            .uri(runContext.putTempFile(tempFile))
+            .uri(runContext.storage().putFile(tempFile))
             .failedRecordsCount(putRecordsResponse.failedRecordCount())
             .recordCount(records.size())
             .build();
@@ -174,7 +172,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
+            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
                 return Flux.create(FileSerde.reader(inputStream, Record.class), FluxSink.OverflowStrategy.BUFFER)
                     .collectList().block();
             }

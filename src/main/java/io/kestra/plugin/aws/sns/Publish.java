@@ -74,7 +74,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                     throw new Exception("Invalid 'from' parameter, must be a Kestra internal storage URI");
                 }
 
-                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
+                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
                     flowable = Flux.create(FileSerde.reader(inputStream, Message.class), FluxSink.OverflowStrategy.BUFFER);
                     resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 

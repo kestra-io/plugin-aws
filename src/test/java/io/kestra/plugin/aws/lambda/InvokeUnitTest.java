@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.Optional;
+
+import io.kestra.core.storages.Storage;
 import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,10 +46,14 @@ public class InvokeUnitTest {
     @Mock(strictness = Strictness.LENIENT)
     private RunContext context;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private Storage storage;
+
     private File tempFile;
 
     @BeforeEach
     public void setUp() throws IOException, IllegalVariableEvaluationException {
+        given(context.storage()).willReturn(storage);
         given(context.tempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
         given(context.render(anyString())).willAnswer(new Answer<String>() {
@@ -56,7 +62,7 @@ public class InvokeUnitTest {
                 return invocation.getArgument(0, String.class).toString();
             }
         });
-        given(context.putTempFile(any(File.class))).willAnswer(new Answer<URI>() {
+        given(storage.putFile(any(File.class))).willAnswer(new Answer<URI>() {
             @Override
             public URI answer(InvocationOnMock invocation) throws Throwable {
                 tempFile = invocation.getArgument(0, File.class);
