@@ -15,8 +15,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -44,19 +42,9 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     @NotNull
     protected String tableName;
 
-    protected DynamoDbClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        var builder = DynamoDbClient.builder()
-            .httpClient(ApacheHttpClient.create())
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    protected DynamoDbClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, DynamoDbClient.builder()).build();
     }
 
     protected Map<String, Object> objectMapFrom(Map<String, AttributeValue> fields) {

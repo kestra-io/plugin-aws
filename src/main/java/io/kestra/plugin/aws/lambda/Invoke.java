@@ -35,10 +35,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.lambda.LambdaClient;
-import software.amazon.awssdk.services.lambda.LambdaClientBuilder;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
@@ -132,18 +129,9 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     }
 
     @VisibleForTesting
-    LambdaClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        LambdaClientBuilder builder = LambdaClient.builder().httpClient(ApacheHttpClient.create())
-                .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, LambdaClient.builder()).build();
     }
 
     @VisibleForTesting

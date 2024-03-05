@@ -21,7 +21,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
@@ -164,18 +163,9 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         }
     }
 
-    protected EventBridgeClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        var builder = EventBridgeClient.builder()
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    private EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
     }
 
     @SuppressWarnings("unchecked")

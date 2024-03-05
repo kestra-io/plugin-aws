@@ -8,9 +8,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.*;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3CrtAsyncClientBuilder;
 
 import java.net.URI;
 
@@ -21,49 +22,25 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class AbstractS3 extends AbstractConnection {
 
-    protected S3Client client(RunContext runContext) throws IllegalVariableEvaluationException {
-        S3ClientBuilder s3ClientBuilder = S3Client.builder()
-            .httpClient(ApacheHttpClient.create())
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            s3ClientBuilder.region(Region.of(runContext.render(this.region)));
-        }
-
-        if (this.endpointOverride != null) {
-            s3ClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return s3ClientBuilder.build();
+    protected S3Client client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, S3Client.builder()).build();
     }
 
-    protected S3AsyncClient asyncClient(RunContext runContext) throws IllegalVariableEvaluationException {
-
+    protected S3AsyncClient asyncClient(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
         if (this.getCompatibilityMode()) {
-            S3AsyncClientBuilder s3ClientBuilder = S3AsyncClient.builder()
-                .credentialsProvider(this.credentials(runContext));
-
-            if (this.region != null) {
-                s3ClientBuilder.region(Region.of(runContext.render(this.region)));
-            }
-
-            if (this.endpointOverride != null) {
-                s3ClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-            }
-            return s3ClientBuilder.build();
-
+            return configureAsyncClient(clientConfig, S3AsyncClient.builder()).build();
         } else {
             S3CrtAsyncClientBuilder s3ClientBuilder = S3AsyncClient.crtBuilder()
-                .credentialsProvider(this.credentials(runContext));
+                .credentialsProvider(credentialsProvider(clientConfig));
 
-            if (this.region != null) {
-                s3ClientBuilder.region(Region.of(runContext.render(this.region)));
+            if (clientConfig.region() != null) {
+                s3ClientBuilder.region(Region.of(clientConfig.region()));
             }
-
-            if (this.endpointOverride != null) {
-                s3ClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
+            if (clientConfig.endpointOverride() != null) {
+                s3ClientBuilder.endpointOverride(URI.create(clientConfig.endpointOverride()));
             }
-
             return s3ClientBuilder.build();
         }
 
