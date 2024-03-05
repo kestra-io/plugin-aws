@@ -8,32 +8,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-
-import java.net.URI;
 
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-abstract class AbstractSqs  extends AbstractConnection implements SqsConnectionInterface {
+abstract class AbstractSqs extends AbstractConnection implements SqsConnectionInterface {
     private String queueUrl;
 
-    protected SqsClient client(RunContext runContext) throws IllegalVariableEvaluationException {
-        var builder = SqsClient.builder()
-            .httpClient(ApacheHttpClient.create())
-            .credentialsProvider(this.credentials(runContext));
-
-        if (this.region != null) {
-            builder.region(Region.of(runContext.render(this.region)));
-        }
-        if (this.endpointOverride != null) {
-            builder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        return builder.build();
+    protected SqsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return configureSyncClient(clientConfig, SqsClient.builder()).build();
     }
 }
