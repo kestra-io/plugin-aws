@@ -155,7 +155,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         }
 
         return Pair.of(
-            runContext.putTempFile(tempFile),
+            runContext.storage().putFile(tempFile),
             count.get()
         );
     }

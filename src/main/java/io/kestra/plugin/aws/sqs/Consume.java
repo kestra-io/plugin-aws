@@ -98,7 +98,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             }
 
             return Output.builder()
-                .uri(runContext.putTempFile(tempFile))
+                .uri(runContext.storage().putFile(tempFile))
                 .count(total.get())
                 .build();
         }
