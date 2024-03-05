@@ -267,7 +267,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         }
 
         return Pair.of(
-            runContext.putTempFile(tempFile),
+            runContext.storage().putFile(tempFile),
             count.get()
         );
     }

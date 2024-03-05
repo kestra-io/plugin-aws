@@ -44,7 +44,7 @@ public class S3Service {
 
             runContext.metric(Counter.of("file.size", response.contentLength()));
 
-            return Pair.of(response, runContext.putTempFile(tempFile));
+            return Pair.of(response, runContext.storage().putFile(tempFile));
         }
     }
 
