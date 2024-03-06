@@ -57,7 +57,7 @@ dependencies {
     api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
-    api 'software.amazon.awssdk.crt:aws-crt:0.29.10' //used by s3-transfer-manager
+    api 'software.amazon.awssdk.crt:aws-crt:0.29.11' //used by s3-transfer-manager
     api 'software.amazon.awssdk:apache-client'
     api 'software.amazon.awssdk:dynamodb'
     api 'software.amazon.awssdk:sns'
