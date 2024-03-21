@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.runner;
 
-import io.kestra.core.models.script.AbstractLogConsumer;
-import io.kestra.core.models.script.RunnerResult;
+import io.kestra.core.models.script.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
@@ -10,21 +9,23 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FileUtils;
-import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
-public class AwsBatchScriptRunnerTest {
+@Disabled("Need AWS credentials")
+public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -37,21 +38,12 @@ public class AwsBatchScriptRunnerTest {
     @Value("${kestra.aws.batch.s3Bucket}")
     private String s3Bucket;
 
+    @Override
     @Test
-    @Disabled
-    void run() throws Exception {
-        AwsBatchScriptRunner runner = AwsBatchScriptRunner.builder()
-            .accessKeyId(accessKeyId)
-            .secretKeyId(secretKeyId)
-            .s3Bucket(s3Bucket)
-            .region("eu-west-3")
-            .computeEnvironmentArn("arn:aws:batch:eu-west-3:634784741179:compute-environment/FargateComputeEnvironment")
-            .executionRoleArn("arn:aws:iam::634784741179:role/AWS-Batch-Role-For-Fargate")
-            .waitUntilCompletion(Duration.ofMinutes(30))
-            .build();
-
+    protected void inputAndOutputFiles() throws Exception {
         RunContext runContext = runContextFactory.of();
 
+        // Generate input file
         Path workingDirectory = runContext.tempDir();
         File file = workingDirectory.resolve("hello.txt").toFile();
         FileUtils.writeStringToFile(file, "Hello World", "UTF-8");
@@ -60,13 +52,12 @@ public class AwsBatchScriptRunnerTest {
         // This is purely to showcase that no logs is sent as STDERR for now as CloudWatch doesn't seem to send such information.
         Map<String, Boolean> logsWithIsStdErr = new HashMap<>();
         CommandsWrapper commandsWrapper = new CommandsWrapper(runContext)
-            .withCommands(List.of(
-                "/bin/bash", "-c",
-                "s3 cp {{workingDir}}/hello.txt hello.txt",
+            .withCommands(ScriptService.scriptCommands(List.of("/bin/sh", "-c"), null, List.of(
+                "aws s3 cp {{workingDir}}/hello.txt hello.txt",
                 "cat hello.txt",
-                "s3 cp hello.txt {{outputDir}}/output.txt"
-            ))
-            .withContainerImage("amazonlinux")
+                "aws s3 cp hello.txt {{outputDir}}/output.txt"
+            )))
+            .withContainerImage("ghcr.io/kestra-io/awsbatch:latest")
             .withLogConsumer(new AbstractLogConsumer() {
                 @Override
                 public void accept(String log, Boolean isStdErr) {
@@ -74,9 +65,35 @@ public class AwsBatchScriptRunnerTest {
                     defaultLogConsumer.accept(log, isStdErr);
                 }
             });
-        RunnerResult run = runner.run(runContext, commandsWrapper, List.of("hello.txt"), List.of("output.txt"));
+        RunnerResult run = scriptRunner().run(runContext, commandsWrapper, List.of("hello.txt"), List.of("output.txt"));
 
-        MatcherAssert.assertThat(run.getExitCode(), is(0));
-        MatcherAssert.assertThat(logsWithIsStdErr.get("[JOB LOG] Hello World"), is(false));
+        // Exit code for successful job
+        assertThat(run.getExitCode(), is(0));
+
+        // Verify logs
+        Map.Entry<String, Boolean> helloWorldEntry = logsWithIsStdErr.entrySet().stream()
+            .filter(e -> e.getKey().contains("Hello World"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(helloWorldEntry.getValue(), is(false));
+
+        // Verify outputFiles
+        File outputFile = runContext.resolve(Path.of("output.txt")).toFile();
+        assertThat(outputFile.exists(), is(true));
+        assertThat(FileUtils.readFileToString(outputFile, StandardCharsets.UTF_8), is("Hello World"));
+    }
+
+    @Override
+    protected ScriptRunner scriptRunner() {
+        return AwsBatchScriptRunner.builder()
+            .accessKeyId(accessKeyId)
+            .secretKeyId(secretKeyId)
+            .s3Bucket(s3Bucket)
+            .region("eu-west-3")
+            .computeEnvironmentArn("arn:aws:batch:eu-west-3:634784741179:compute-environment/FargateComputeEnvironment")
+            .executionRoleArn("arn:aws:iam::634784741179:role/AWS-Batch-Role-For-Fargate")
+            .jobRoleArn("arn:aws:iam::634784741179:role/S3-Within-AWS-Batch")
+            .waitUntilCompletion(Duration.ofMinutes(30))
+            .build();
     }
 }

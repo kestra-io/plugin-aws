@@ -1,12 +1,14 @@
 package io.kestra.plugin.aws.runner;
 
 import com.google.common.annotations.Beta;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.script.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.s3.AbstractS3;
 import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -22,12 +24,23 @@ import software.amazon.awssdk.services.batch.BatchClientBuilder;
 import software.amazon.awssdk.services.batch.model.*;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsAsyncClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.*;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.FileDownload;
+import software.amazon.awssdk.transfer.s3.model.FileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 
 @Introspected
 @SuperBuilder
@@ -38,6 +51,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Beta
 @Schema(title = "AWS Batch script runner", description = """
     Run a script in a container on an AWS Batch Compute Environment.
+    To use `inputFiles`, `outputFiles` and `namespaceFiles` properties, you must provide a `s3Bucket`.
     This runner will wait for the task to succeed or fail up to a max `waitUntilCompletion` duration.
     It will return with an exit code according to the following mapping:
     - SUCCEEDED: 0
@@ -48,14 +62,14 @@ import java.util.concurrent.atomic.AtomicReference;
     - STARTING: 5
     - SUBMITTED: 6
     - OTHER: -1""")
-public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnectionInterface {
+public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, AbstractConnectionInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
-        JobStatus.SUBMITTED, 6,
-        JobStatus.PENDING, 4,
-        JobStatus.RUNNABLE, 3,
-        JobStatus.STARTING, 5,
         JobStatus.RUNNING, 2,
+        JobStatus.RUNNABLE, 3,
+        JobStatus.PENDING, 4,
+        JobStatus.STARTING, 5,
+        JobStatus.SUBMITTED, 6,
         JobStatus.UNKNOWN_TO_SDK_VERSION, -1
     );
 
@@ -94,25 +108,35 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
     private String computeEnvironmentArn;
 
     @Schema(
-        title = "Job queue to use to submit jobs (ARN). If not specified, will create one."
+        title = "Job queue to use to submit jobs (ARN). If not specified, will create one which could lead to longer execution."
     )
     @PluginProperty(dynamic = true)
     private String jobQueueArn;
 
     @Schema(
-        title = "S3 Bucket to use to upload (inputFiles) and download (outputFiles) files. Can be left empty if not using such features."
+        title = "S3 Bucket to use to upload (inputFiles) and download (outputFiles) files.",
+        description = "It's mandatory to provide a bucket if you want to use such properties."
     )
     @PluginProperty(dynamic = true)
     private String s3Bucket;
 
     @Schema(
-        title = "Execution role to use to run the job. Mandatory if the compute environment is a Fargate one."
+        title = "Execution role to use to run the job.",
+        description = "Mandatory if the compute environment is a Fargate one. See https://docs.aws.amazon.com/batch/latest/userguide/execution-IAM-role.html"
     )
     @PluginProperty(dynamic = true)
     private String executionRoleArn;
 
     @Schema(
-        title = "Container custom resources requests. If using a Fargate compute environments, resources requests must match this table: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html"
+        title = "Job role to use within the container.",
+        description = "Needed if you want to be authentified to AWS CLI within your container. Otherwise, you will need to authenticate by your own or not use it."
+    )
+    @PluginProperty(dynamic = true)
+    private String jobRoleArn;
+
+    @Schema(
+        title = "Container custom resources requests.",
+        description = "If using a Fargate compute environments, resources requests must match this table: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html"
     )
     @PluginProperty
     @Builder.Default
@@ -132,6 +156,17 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
 
     @Override
     public RunnerResult run(RunContext runContext, ScriptCommands commands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
+        boolean hasS3Bucket = this.s3Bucket != null;
+
+        boolean hasFilesToUpload = filesToUpload != null && !filesToUpload.isEmpty();
+        if (hasFilesToUpload && !hasS3Bucket) {
+            throw new IllegalArgumentException("You must provide a S3Bucket to use `inputFiles` or `namespaceFiles`");
+        }
+        boolean hasFilesToDownload = filesToDownload != null && !filesToDownload.isEmpty();
+        if (hasFilesToDownload && !hasS3Bucket) {
+            throw new IllegalArgumentException("You must provide a S3Bucket to use `outputFiles`");
+        }
+
         Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
         Logger logger = runContext.logger();
         AbstractLogConsumer logConsumer = commands.getLogConsumer();
@@ -187,21 +222,44 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
                 );
         }
 
-        Map<String, Object> additionalVars = Optional.ofNullable(runContext.render(s3Bucket))
+        String renderedBucket = runContext.render(s3Bucket);
+        String workingDirKey = IdUtils.create();
+        String outputDirKey = IdUtils.create();
+        Map<String, Object> additionalVars = Optional.ofNullable(renderedBucket)
             .map(bucket -> Map.<String, Object>of(
-                "workingDir", "s3:" + bucket + "/"+IdUtils.create(),
-                "outputDir", "s3:" + bucket + "/"+IdUtils.create()
+                "workingDir", "s3://" + bucket + "/" + workingDirKey,
+                "outputDir", "s3://" + bucket + "/" + outputDirKey
             ))
             .orElse(Collections.emptyMap());
         List<String> command = ScriptService.uploadInputFiles(runContext, runContext.render(commands.getCommands(), additionalVars));
 
-        containerPropsBuilder.command(command);
+        if (filesToUpload != null && !filesToUpload.isEmpty()) {
+            try (S3TransferManager transferManager = transferManager(runContext)) {
+                filesToUpload.stream().parallel().map(relativePath ->
+                        UploadFileRequest.builder()
+                            .putObjectRequest(
+                                PutObjectRequest
+                                    .builder()
+                                    .bucket(renderedBucket)
+                                    .key(workingDirKey + "/" + relativePath)
+                                    .build()
+                            )
+                            .source(runContext.resolve(Path.of(relativePath)))
+                            .build()
+                    ).map(transferManager::uploadFile)
+                    .map(FileUpload::completionFuture)
+                    .forEach(throwConsumer(CompletableFuture::get));
+            }
+        }
+
+        containerPropsBuilder.command(command)
+            .jobRoleArn(runContext.render(this.jobRoleArn));
 
         ComputeEnvironmentDetail computeEnvironmentDetail = client.describeComputeEnvironments(
-            DescribeComputeEnvironmentsRequest.builder()
-                .computeEnvironments(computeEnvironmentArn)
-                .build()
-        ).computeEnvironments().stream()
+                DescribeComputeEnvironmentsRequest.builder()
+                    .computeEnvironments(computeEnvironmentArn)
+                    .build()
+            ).computeEnvironments().stream()
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + computeEnvironmentArn));
 
@@ -316,15 +374,83 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
                 }, Duration.ofMillis(500), this.waitUntilCompletion);
             } catch (TimeoutException | RuntimeException e) {
                 Integer exitCode = exitCodeByStatus.get(describeJobsResponse.get().jobs().get(0).status());
-                return new RunnerResult(exitCode, commands.getLogConsumer());
+                throw new ScriptException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
+            }
+
+            try (S3TransferManager transferManager = transferManager(runContext)) {
+                if (filesToDownload != null && !filesToDownload.isEmpty()) {
+                    filesToDownload.stream().parallel().map(relativePath -> transferManager.downloadFile(
+                            DownloadFileRequest.builder()
+                                .getObjectRequest(GetObjectRequest.builder()
+                                    .bucket(renderedBucket)
+                                    .key(outputDirKey + "/" + relativePath)
+                                    .build())
+                                .destination(runContext.resolve(Path.of(relativePath)))
+                                .build()
+                        )).map(FileDownload::completionFuture)
+                        .forEach(throwConsumer(CompletableFuture::get));
+                }
             }
         } finally {
-            cleanup(client, jobQueue, jobDefArn);
+            cleanupBatchResources(client, jobQueue, jobDefArn);
             // Manual close after cleanup to make sure we get all remaining logs
             cloudWatchLogsAsyncClient.close();
+            if (hasFilesToUpload || hasFilesToDownload) {
+                cleanupS3Resources(runContext, filesToUpload, filesToDownload, workingDirKey, outputDirKey);
+            }
         }
 
-        return new RunnerResult(0, commands.getLogConsumer());
+        return new RunnerResult(0, logConsumer);
+    }
+
+    private void cleanupS3Resources(RunContext runContext, List<String> filesToUpload, List<String> filesToDownload, String workingDirKey, String outputDirKey) throws IllegalVariableEvaluationException {
+        String renderedBucket = runContext.render(s3Bucket);
+        try(S3AsyncClient s3AsyncClient = asyncClient(runContext)) {
+            List<CompletableFuture<DeleteObjectsResponse>> deletions = new ArrayList<>();
+            if (filesToUpload != null && !filesToUpload.isEmpty()) {
+                deletions.add(s3AsyncClient.deleteObjects(
+                    DeleteObjectsRequest.builder()
+                        .bucket(renderedBucket)
+                        .delete(Delete.builder()
+                            .objects(
+                                filesToUpload.stream()
+                                    .map(relativePath -> ObjectIdentifier.builder()
+                                        .key(workingDirKey + "/" + relativePath)
+                                        .build()
+                                    )
+                                    .toList()
+                            ).build()
+                        ).build()
+                ));
+            }
+
+            if (filesToDownload != null && !filesToDownload.isEmpty()) {
+                deletions.add(s3AsyncClient.deleteObjects(
+                    DeleteObjectsRequest.builder()
+                        .bucket(renderedBucket)
+                        .delete(Delete.builder()
+                            .objects(
+                                filesToDownload.stream()
+                                    .map(relativePath -> ObjectIdentifier.builder()
+                                        .key(outputDirKey + "/" + relativePath)
+                                        .build()
+                                    )
+                                    .toList()
+                            ).build()
+                        ).build()
+                ));
+            }
+
+            deletions.stream().parallel().forEach(throwConsumer(CompletableFuture::get));
+        } catch (Exception e) {
+            runContext.logger().warn("Error while cleaning up S3: {}", e.getMessage());
+        }
+    }
+
+    private S3TransferManager transferManager(RunContext runContext) throws IllegalVariableEvaluationException {
+        return S3TransferManager.builder()
+            .s3Client(this.asyncClient(runContext))
+            .build();
     }
 
     private static StartLiveTailResponseHandler getStartLiveTailResponseStreamHandler(Logger logger, AbstractLogConsumer logConsumer) {
@@ -343,10 +469,13 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
                 public void onNext(StartLiveTailResponseStream event) {
                     if (event instanceof LiveTailSessionStart) {
                         // do nothing
-                    } else if (event instanceof LiveTailSessionUpdate) {
-                        LiveTailSessionUpdate sessionUpdate = (LiveTailSessionUpdate) event;
+                    } else if (event instanceof LiveTailSessionUpdate sessionUpdate) {
                         List<LiveTailSessionLogEvent> logEvents = sessionUpdate.sessionResults();
-                        logEvents.forEach(e -> logConsumer.accept("[JOB LOG] " + e.message(), false));
+                        logEvents.stream()
+                            .mapMulti((e, consumer) -> e.message().replace("\r", System.lineSeparator())
+                                .lines()
+                                .forEach(consumer)
+                            ).forEach(message -> logConsumer.accept("[JOB LOG] " + message, false));
                     } else {
                         throw CloudWatchLogsException.builder().message("Unknown event type").build();
                     }
@@ -377,7 +506,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractConnec
         }, Duration.ofMillis(500), Duration.ofMinutes(1));
     }
 
-    private void cleanup(BatchClient client, String jobQueue, String jobDefArn) throws TimeoutException {
+    private void cleanupBatchResources(BatchClient client, String jobQueue, String jobDefArn) throws TimeoutException {
         // We created one and should delete it at the end
         if (this.jobQueueArn == null) {
             client.updateJobQueue(

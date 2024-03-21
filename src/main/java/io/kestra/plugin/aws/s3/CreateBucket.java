@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnection;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -33,7 +34,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 @Schema(
     title = "Create a bucket"
 )
-public class CreateBucket extends AbstractS3 implements RunnableTask<CreateBucket.Output> {
+public class CreateBucket extends AbstractConnection implements AbstractS3, RunnableTask<CreateBucket.Output> {
     @Schema(
         description = "The S3 bucket name to create."
     )

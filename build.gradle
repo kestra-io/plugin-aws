@@ -109,6 +109,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter'
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
+    testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion

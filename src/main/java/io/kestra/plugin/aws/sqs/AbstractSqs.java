@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.sqs;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,6 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
 
     protected SqsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, SqsClient.builder()).build();
+        return AbstractConnectionInterface.configureSyncClient(clientConfig, SqsClient.builder()).build();
     }
 }

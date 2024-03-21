@@ -7,6 +7,11 @@ import io.kestra.core.utils.Rethrow;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang3.StringUtils;
 import software.amazon.awssdk.auth.credentials.*;
+import software.amazon.awssdk.awscore.AwsClient;
+import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.awscore.client.builder.AwsSyncClientBuilder;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -88,6 +93,11 @@ public interface AbstractConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getEndpointOverride();
+
+    @PluginProperty(dynamic = true)
+    default Boolean getCompatibilityMode() {
+        return false;
+    }
 
     static String renderStringConfig(final RunContext runContext, final String config) throws IllegalVariableEvaluationException {
         return Optional.ofNullable(config).map(Rethrow.throwFunction(runContext::render)).orElse(null);
@@ -181,5 +191,46 @@ public interface AbstractConnectionInterface {
                 stsClientBuilder.region(Region.of(regionString)));
         }
         return builder.build();
+    }
+
+    /**
+     * Configures and returns the given {@link AwsSyncClientBuilder}.
+     */
+    static <C extends AwsClient, B extends AwsClientBuilder<B, C> & AwsSyncClientBuilder<B, C>> B configureSyncClient(
+        final AbstractConnection.AwsClientConfig clientConfig, final B builder) throws IllegalVariableEvaluationException {
+
+        builder
+            // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
+            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build())
+            .credentialsProvider(AbstractConnectionInterface.credentialsProvider(clientConfig));
+
+        return configureClient(clientConfig, builder);
+    }
+
+    /**
+     * Configures and returns the given {@link AwsAsyncClientBuilder}.
+     */
+    static <C extends AwsClient, B extends AwsClientBuilder<B, C> & AwsAsyncClientBuilder<B, C>> B configureAsyncClient(
+        final AbstractConnection.AwsClientConfig clientConfig, final B builder) {
+
+        builder.credentialsProvider(AbstractConnectionInterface.credentialsProvider(clientConfig));
+        return configureClient(clientConfig, builder);
+    }
+
+    /**
+     * Configures and returns the given {@link AwsClientBuilder}.
+     */
+    static <C extends AwsClient, B extends AwsClientBuilder<B, C>> B configureClient(
+        final AbstractConnection.AwsClientConfig clientConfig, final B builder) {
+
+        builder.credentialsProvider(AbstractConnectionInterface.credentialsProvider(clientConfig));
+
+        if (clientConfig.region() != null) {
+            builder.region(Region.of(clientConfig.region()));
+        }
+        if (clientConfig.endpointOverride() != null) {
+            builder.endpointOverride(URI.create(clientConfig.endpointOverride()));
+        }
+        return builder;
     }
 }

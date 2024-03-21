@@ -11,6 +11,7 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -208,7 +209,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     private AthenaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, AthenaClient.builder()).build();
+        return AbstractConnectionInterface.configureSyncClient(clientConfig, AthenaClient.builder()).build();
     }
 
     public QueryExecutionStatistics waitForQueryToComplete(AthenaClient client, String queryExecutionId) throws InterruptedException {

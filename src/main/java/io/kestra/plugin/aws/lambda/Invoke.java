@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import jakarta.validation.constraints.NotNull;
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
@@ -131,7 +133,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, LambdaClient.builder()).build();
+        return AbstractConnectionInterface.configureSyncClient(clientConfig, LambdaClient.builder()).build();
     }
 
     @VisibleForTesting

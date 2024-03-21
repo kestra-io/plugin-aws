@@ -16,6 +16,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.kinesis.model.Record;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -205,7 +206,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
     protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, KinesisClient.builder()).build();
+        return AbstractConnectionInterface.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder

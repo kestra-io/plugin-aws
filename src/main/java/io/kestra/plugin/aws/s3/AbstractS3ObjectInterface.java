@@ -3,7 +3,7 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-public interface AbstractS3ObjectInterface {
+public interface AbstractS3ObjectInterface extends AbstractS3 {
     @Schema(
         title = "The S3 bucket name."
     )
