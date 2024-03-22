@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.runner;
 
 import com.google.common.annotations.Beta;
+import com.google.common.collect.Iterables;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.script.*;
@@ -39,6 +40,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -50,8 +53,9 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @NoArgsConstructor
 @Beta
 @Schema(title = "AWS Batch script runner", description = """
-    Run a script in a container on an AWS Batch Compute Environment.
+    Run a script in a container on an AWS Batch Compute Environment (Only Fargate or EC2 are supported; For EKS, Kubernetes Script Runner must be used).
     To use `inputFiles`, `outputFiles` and `namespaceFiles` properties, you must provide a `s3Bucket`.
+    Doing so will upload the files to the bucket before running the script and download them after the script execution.
     This runner will wait for the task to succeed or fail up to a max `waitUntilCompletion` duration.
     It will return with an exit code according to the following mapping:
     - SUCCEEDED: 0
@@ -72,6 +76,8 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         JobStatus.SUBMITTED, 6,
         JobStatus.UNKNOWN_TO_SDK_VERSION, -1
     );
+    public static final String S3_WORKING_DIR_KEY = "s3WorkingDir";
+    public static final String WORKING_DIR_KEY = "workingDir";
 
     @NotNull
     @PluginProperty(dynamic = true)
@@ -139,6 +145,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         description = "If using a Fargate compute environments, resources requests must match this table: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html"
     )
     @PluginProperty
+    @NotNull
     @Builder.Default
     private Resources resources = Resources.builder()
         .request(
@@ -186,74 +193,6 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             .build();
 
         String jobName = IdUtils.create();
-        ContainerProperties.Builder containerPropsBuilder = ContainerProperties.builder()
-            .image(runContext.render(commands.getContainerImage()))
-            .logConfiguration(
-                LogConfiguration.builder()
-                    .logDriver(LogDriver.AWSLOGS)
-                    .options(Map.of("awslogs-stream-prefix", jobName))
-                    .build()
-            );
-
-        if (this.resources != null && this.resources.getRequest() != null) {
-            containerPropsBuilder
-                .resourceRequirements(
-                    ResourceRequirement.builder()
-                        .type(ResourceType.MEMORY)
-                        .value(this.resources.getRequest().getMemory())
-                        .build(),
-                    ResourceRequirement.builder()
-                        .type(ResourceType.VCPU)
-                        .value(this.resources.getRequest().getCpu())
-                        .build()
-                );
-        }
-
-        if (this.executionRoleArn != null) {
-            containerPropsBuilder.executionRoleArn(runContext.render(this.executionRoleArn));
-        }
-
-        if (commands.getEnv() != null) {
-            containerPropsBuilder
-                .environment(
-                    commands.getEnv().entrySet().stream()
-                        .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
-                        .toArray(KeyValuePair[]::new)
-                );
-        }
-
-        String renderedBucket = runContext.render(s3Bucket);
-        String workingDirKey = IdUtils.create();
-        String outputDirKey = IdUtils.create();
-        Map<String, Object> additionalVars = Optional.ofNullable(renderedBucket)
-            .map(bucket -> Map.<String, Object>of(
-                "workingDir", "s3://" + bucket + "/" + workingDirKey,
-                "outputDir", "s3://" + bucket + "/" + outputDirKey
-            ))
-            .orElse(Collections.emptyMap());
-        List<String> command = ScriptService.uploadInputFiles(runContext, runContext.render(commands.getCommands(), additionalVars));
-
-        if (filesToUpload != null && !filesToUpload.isEmpty()) {
-            try (S3TransferManager transferManager = transferManager(runContext)) {
-                filesToUpload.stream().parallel().map(relativePath ->
-                        UploadFileRequest.builder()
-                            .putObjectRequest(
-                                PutObjectRequest
-                                    .builder()
-                                    .bucket(renderedBucket)
-                                    .key(workingDirKey + "/" + relativePath)
-                                    .build()
-                            )
-                            .source(runContext.resolve(Path.of(relativePath)))
-                            .build()
-                    ).map(transferManager::uploadFile)
-                    .map(FileUpload::completionFuture)
-                    .forEach(throwConsumer(CompletableFuture::get));
-            }
-        }
-
-        containerPropsBuilder.command(command)
-            .jobRoleArn(runContext.render(this.jobRoleArn));
 
         ComputeEnvironmentDetail computeEnvironmentDetail = client.describeComputeEnvironments(
                 DescribeComputeEnvironmentsRequest.builder()
@@ -262,6 +201,11 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             ).computeEnvironments().stream()
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + computeEnvironmentArn));
+
+        String kestraVolume = "kestra";
+        if (computeEnvironmentDetail.containerOrchestrationType() != OrchestrationType.ECS) {
+            throw new IllegalArgumentException("Only ECS compute environments are supported");
+        }
 
         PlatformCapability platformCapability = switch (computeEnvironmentDetail.computeResources().type()) {
             case FARGATE:
@@ -274,24 +218,173 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                 yield null;
         };
 
+        RegisterJobDefinitionRequest.Builder jobDefBuilder = RegisterJobDefinitionRequest.builder()
+            .jobDefinitionName(IdUtils.create())
+            .type(JobDefinitionType.CONTAINER)
+            .platformCapabilities(platformCapability);
+
+        String renderedBucket = runContext.render(s3Bucket);
+        String workingDirName = IdUtils.create();
+        Map<String, Object> additionalVars = Optional.ofNullable(renderedBucket)
+            .map(bucket -> Map.<String, Object>of(
+                S3_WORKING_DIR_KEY, "s3://" + bucket + "/" + workingDirName,
+                WORKING_DIR_KEY, "/" + workingDirName,
+                "outputDir", "/" + workingDirName
+            ))
+            .orElse(Collections.emptyMap());
+
+        if (filesToUpload != null && !filesToUpload.isEmpty()) {
+            try (S3TransferManager transferManager = transferManager(runContext)) {
+                filesToUpload.stream().parallel().map(relativePath ->
+                        UploadFileRequest.builder()
+                            .putObjectRequest(
+                                PutObjectRequest
+                                    .builder()
+                                    .bucket(renderedBucket)
+                                    .key(workingDirName + "/" + relativePath)
+                                    .build()
+                            )
+                            .source(runContext.resolve(Path.of(relativePath)))
+                            .build()
+                    ).map(transferManager::uploadFile)
+                    .map(FileUpload::completionFuture)
+                    .forEach(throwConsumer(CompletableFuture::get));
+            }
+        }
+
+        EcsTaskProperties.Builder taskPropertiesBuilder = EcsTaskProperties.builder()
+            .volumes(
+                Volume.builder()
+                    .name(kestraVolume)
+                    .build()
+            );
+
         if (platformCapability == PlatformCapability.FARGATE) {
-            containerPropsBuilder.networkConfiguration(
-                NetworkConfiguration.builder()
-                    .assignPublicIp(AssignPublicIp.ENABLED)
+            taskPropertiesBuilder
+                .networkConfiguration(
+                    NetworkConfiguration.builder()
+                        .assignPublicIp(AssignPublicIp.ENABLED)
+                        .build()
+                );
+        }
+
+        if (this.executionRoleArn != null) {
+            taskPropertiesBuilder.executionRoleArn(runContext.render(this.executionRoleArn));
+        }
+
+        if (this.jobRoleArn != null) {
+            taskPropertiesBuilder.taskRoleArn(runContext.render(this.jobRoleArn));
+        }
+
+        List<TaskContainerProperties> containers = new ArrayList<>();
+        String inputFilesContainerName = "inputFiles";
+        String mainContainerName = "main";
+        String outputFilesContainerName = "outputFiles";
+
+        int baseSideContainerMemory = 128;
+        float baseSideContainerCpu = 0.1f;
+        Object s3WorkingDir = additionalVars.get(S3_WORKING_DIR_KEY);
+        if (hasFilesToUpload) {
+            containers.add(
+                withResources(
+                    TaskContainerProperties.builder()
+                        .image("ghcr.io/kestra-io/awsbatch:latest")
+                        .mountPoints(
+                            MountPoint.builder()
+                                .containerPath("/" + workingDirName)
+                                .sourceVolume(kestraVolume)
+                                .build()
+                        )
+                        .essential(false)
+                        .command(ScriptService.scriptCommands(
+                            List.of("/bin/sh", "-c"),
+                            null,
+                            filesToUpload.stream()
+                                .map(relativePath -> "aws s3 cp " + s3WorkingDir + "/" + relativePath + " /" + workingDirName + "/" + relativePath)
+                                .toList()
+                        ))
+                        .name(inputFilesContainerName),
+                    baseSideContainerMemory,
+                    baseSideContainerCpu).build()
+            );
+        }
+
+        int sideContainersMemoryAllocations = (hasFilesToUpload ? baseSideContainerMemory : 0) + (hasFilesToDownload ? baseSideContainerMemory : 0);
+        float sideContainersCpuAllocations = (hasFilesToUpload ? baseSideContainerCpu : 0) + (hasFilesToDownload ? baseSideContainerCpu : 0);
+
+        List<String> command = ScriptService.uploadInputFiles(runContext, runContext.render(commands.getCommands(), additionalVars));
+        TaskContainerProperties.Builder mainContainerBuilder = withResources(
+            TaskContainerProperties.builder()
+                .image(commands.getContainerImage())
+                .command(command)
+                .name(mainContainerName)
+                .logConfiguration(
+                    LogConfiguration.builder()
+                        .logDriver(LogDriver.AWSLOGS)
+                        .options(Map.of("awslogs-stream-prefix", jobName))
+                        .build()
+                )
+                .dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("COMPLETE").build())
+                .essential(!hasFilesToDownload),
+            Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
+            Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
+        );
+
+        if (commands.getEnv() != null) {
+            mainContainerBuilder
+                .environment(
+                    commands.getEnv().entrySet().stream()
+                        .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
+                        .toArray(KeyValuePair[]::new)
+                );
+        }
+
+        if (hasFilesToUpload || hasFilesToDownload) {
+            mainContainerBuilder.mountPoints(
+                MountPoint.builder()
+                    .containerPath("/" + workingDirName)
+                    .sourceVolume(kestraVolume)
                     .build()
             );
         }
 
+        containers.add(mainContainerBuilder.build());
+
+        if (hasFilesToDownload) {
+            containers.add(
+                withResources(
+                    TaskContainerProperties.builder()
+                        .image("ghcr.io/kestra-io/awsbatch:latest")
+                        .mountPoints(
+                            MountPoint.builder()
+                                .containerPath("/" + workingDirName)
+                                .sourceVolume(kestraVolume)
+                                .build()
+                        )
+                        .command(ScriptService.scriptCommands(
+                            List.of("/bin/sh", "-c"),
+                            null,
+                            filesToDownload.stream()
+                                .map(relativePath -> "aws s3 cp /" + workingDirName + "/" + relativePath + " " + s3WorkingDir + "/" + relativePath)
+                                .toList()
+                        ))
+                        .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("COMPLETE").build())
+                        .name(outputFilesContainerName),
+                    baseSideContainerMemory,
+                    baseSideContainerCpu).build()
+            );
+
+            taskPropertiesBuilder.containers(containers);
+
+            jobDefBuilder.ecsProperties(
+                EcsProperties.builder()
+                    .taskProperties(taskPropertiesBuilder.build())
+                    .build()
+            );
+        }
 
         logger.debug("Registering job definition");
-        RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(
-            RegisterJobDefinitionRequest.builder()
-                .jobDefinitionName(IdUtils.create())
-                .type(JobDefinitionType.CONTAINER)
-                .platformCapabilities(platformCapability)
-                .containerProperties(containerPropsBuilder.build())
-                .build()
-        );
+        RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(jobDefBuilder.build());
         String jobDefArn = registerJobDefinitionResponse.jobDefinitionArn();
         logger.debug("Job definition successfully registered: {}", jobDefArn);
 
@@ -383,7 +476,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                             DownloadFileRequest.builder()
                                 .getObjectRequest(GetObjectRequest.builder()
                                     .bucket(renderedBucket)
-                                    .key(outputDirKey + "/" + relativePath)
+                                    .key(workingDirName + "/" + relativePath)
                                     .build())
                                 .destination(runContext.resolve(Path.of(relativePath)))
                                 .build()
@@ -396,52 +489,46 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             // Manual close after cleanup to make sure we get all remaining logs
             cloudWatchLogsAsyncClient.close();
             if (hasFilesToUpload || hasFilesToDownload) {
-                cleanupS3Resources(runContext, filesToUpload, filesToDownload, workingDirKey, outputDirKey);
+                cleanupS3Resources(runContext, filesToUpload, filesToDownload, workingDirName);
             }
         }
 
         return new RunnerResult(0, logConsumer);
     }
 
-    private void cleanupS3Resources(RunContext runContext, List<String> filesToUpload, List<String> filesToDownload, String workingDirKey, String outputDirKey) throws IllegalVariableEvaluationException {
+    private TaskContainerProperties.Builder withResources(TaskContainerProperties.Builder builder, Integer memory, Float cpu) {
+        return builder
+            .resourceRequirements(
+                ResourceRequirement.builder()
+                    .type(ResourceType.MEMORY)
+                    .value(memory.toString())
+                    .build(),
+                ResourceRequirement.builder()
+                    .type(ResourceType.VCPU)
+                    .value(cpu.toString())
+                    .build()
+            );
+    }
+
+    private void cleanupS3Resources(RunContext runContext, List<String> filesToUpload, List<String> filesToDownload, String workingDirName) throws IllegalVariableEvaluationException {
         String renderedBucket = runContext.render(s3Bucket);
-        try(S3AsyncClient s3AsyncClient = asyncClient(runContext)) {
-            List<CompletableFuture<DeleteObjectsResponse>> deletions = new ArrayList<>();
-            if (filesToUpload != null && !filesToUpload.isEmpty()) {
-                deletions.add(s3AsyncClient.deleteObjects(
+        try (S3AsyncClient s3AsyncClient = asyncClient(runContext)) {
+            StreamSupport.stream(Iterables.partition(
+                    Stream.concat(
+                            Optional.ofNullable(filesToUpload).stream().flatMap(Collection::stream),
+                            Optional.ofNullable(filesToDownload).stream().flatMap(Collection::stream)
+                        ).map(file -> ObjectIdentifier.builder().key("/" + workingDirName + "/" + file).build())
+                        .toList(),
+                    1000
+                ).spliterator(), false).parallel()
+                .map(objects -> s3AsyncClient.deleteObjects(
                     DeleteObjectsRequest.builder()
                         .bucket(renderedBucket)
                         .delete(Delete.builder()
-                            .objects(
-                                filesToUpload.stream()
-                                    .map(relativePath -> ObjectIdentifier.builder()
-                                        .key(workingDirKey + "/" + relativePath)
-                                        .build()
-                                    )
-                                    .toList()
-                            ).build()
-                        ).build()
-                ));
-            }
-
-            if (filesToDownload != null && !filesToDownload.isEmpty()) {
-                deletions.add(s3AsyncClient.deleteObjects(
-                    DeleteObjectsRequest.builder()
-                        .bucket(renderedBucket)
-                        .delete(Delete.builder()
-                            .objects(
-                                filesToDownload.stream()
-                                    .map(relativePath -> ObjectIdentifier.builder()
-                                        .key(outputDirKey + "/" + relativePath)
-                                        .build()
-                                    )
-                                    .toList()
-                            ).build()
-                        ).build()
-                ));
-            }
-
-            deletions.stream().parallel().forEach(throwConsumer(CompletableFuture::get));
+                            .objects(objects)
+                            .build())
+                        .build()
+                )).forEach(throwConsumer(CompletableFuture::get));
         } catch (Exception e) {
             runContext.logger().warn("Error while cleaning up S3: {}", e.getMessage());
         }

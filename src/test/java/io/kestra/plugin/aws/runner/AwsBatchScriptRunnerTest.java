@@ -24,7 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
-@Disabled("Need AWS credentials")
+@Disabled("Too costly to run on CI")
 public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
     @Inject
     private RunContextFactory runContextFactory;
@@ -53,9 +53,8 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
         Map<String, Boolean> logsWithIsStdErr = new HashMap<>();
         CommandsWrapper commandsWrapper = new CommandsWrapper(runContext)
             .withCommands(ScriptService.scriptCommands(List.of("/bin/sh", "-c"), null, List.of(
-                "aws s3 cp {{workingDir}}/hello.txt hello.txt",
-                "cat hello.txt",
-                "aws s3 cp hello.txt {{outputDir}}/output.txt"
+                "cat {{workingDir}}/hello.txt",
+                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt"
             )))
             .withContainerImage("ghcr.io/kestra-io/awsbatch:latest")
             .withLogConsumer(new AbstractLogConsumer() {
@@ -71,11 +70,7 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
         assertThat(run.getExitCode(), is(0));
 
         // Verify logs
-        Map.Entry<String, Boolean> helloWorldEntry = logsWithIsStdErr.entrySet().stream()
-            .filter(e -> e.getKey().contains("Hello World"))
-            .findFirst()
-            .orElseThrow();
-        assertThat(helloWorldEntry.getValue(), is(false));
+        assertThat(logsWithIsStdErr.get("[JOB LOG] Hello World"), is(false));
 
         // Verify outputFiles
         File outputFile = runContext.resolve(Path.of("output.txt")).toFile();
@@ -94,6 +89,7 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
             .executionRoleArn("arn:aws:iam::634784741179:role/AWS-Batch-Role-For-Fargate")
             .jobRoleArn("arn:aws:iam::634784741179:role/S3-Within-AWS-Batch")
             .waitUntilCompletion(Duration.ofMinutes(30))
+            .jobQueueArn("arn:aws:batch:eu-west-3:634784741179:job-queue/queue")
             .build();
     }
 }
