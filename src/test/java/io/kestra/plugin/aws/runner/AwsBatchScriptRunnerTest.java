@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -41,21 +42,24 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
     @Override
     @Test
     protected void inputAndOutputFiles() throws Exception {
-        RunContext runContext = runContextFactory.of();
+        RunContext runContext = runContextFactory.of(Map.of("internalStorageFile", "kestra://some/internalStorage.txt"));
 
         // Generate input file
         Path workingDirectory = runContext.tempDir();
         File file = workingDirectory.resolve("hello.txt").toFile();
         FileUtils.writeStringToFile(file, "Hello World", "UTF-8");
 
+        // Generate internal storage file
+        FileUtils.writeStringToFile(Path.of("/tmp/unittest/internalStorage.txt").toFile(), "Hello from internal storage", StandardCharsets.UTF_8);
+
         DefaultLogConsumer defaultLogConsumer = new DefaultLogConsumer(runContext);
         // This is purely to showcase that no logs is sent as STDERR for now as CloudWatch doesn't seem to send such information.
         Map<String, Boolean> logsWithIsStdErr = new HashMap<>();
         CommandsWrapper commandsWrapper = new CommandsWrapper(runContext)
             .withCommands(ScriptService.scriptCommands(List.of("/bin/sh", "-c"), null, List.of(
+                "cat {{workingDir}}/{{internalStorageFile}}",
                 "cat {{workingDir}}/hello.txt",
-                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt",
-                "exit 1"
+                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt"
             )))
             .withContainerImage("ghcr.io/kestra-io/awsbatch:latest")
             .withLogConsumer(new AbstractLogConsumer() {
@@ -70,8 +74,11 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
         // Exit code for successful job
         assertThat(run.getExitCode(), is(0));
 
-        // Verify logs
-        assertThat(logsWithIsStdErr.get("[JOB LOG] Hello World"), is(false));
+        // Verify logs, we can't assert exact log entries as logs are sometimes grouped together by AWS CloudWatch
+        Set<Map.Entry<String, Boolean>> logEntries = logsWithIsStdErr.entrySet();
+        assertThat(logEntries.stream().filter(e -> e.getKey().startsWith("[JOB LOG]")).findFirst().orElseThrow().getValue(), is(false));
+        assertThat(logEntries.stream().filter(e -> e.getKey().contains("Hello from internal storage")).findFirst().orElseThrow().getValue(), is(false));
+        assertThat(logEntries.stream().filter(e -> e.getKey().contains("Hello World")).findFirst().orElseThrow().getValue(), is(false));
 
         // Verify outputFiles
         File outputFile = runContext.resolve(Path.of("output.txt")).toFile();

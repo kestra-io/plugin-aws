@@ -14,6 +14,7 @@ import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.s3.AbstractS3;
 import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -40,6 +41,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -155,8 +157,25 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     private final Duration waitUntilCompletion = Duration.ofHours(1);
 
     @Override
-    public RunnerResult run(RunContext runContext, ScriptCommands commands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
+    public RunnerResult run(RunContext runContext, ScriptCommands commands, List<String> filesToUploadWithoutInternalStorage, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.s3Bucket != null;
+
+
+        String renderedBucket = runContext.render(s3Bucket);
+        String workingDirName = IdUtils.create();
+        Map<String, Object> additionalVars = commands.getAdditionalVars();
+        Optional.ofNullable(renderedBucket).ifPresent(bucket -> additionalVars.putAll(Map.<String, Object>of(
+            S3_WORKING_DIR_KEY, "s3://" + bucket + "/" + workingDirName,
+            WORKING_DIR_KEY, "/" + workingDirName,
+            "outputDir", "/" + workingDirName
+        )));
+
+        List<String> filesToUpload = new ArrayList<>(ListUtils.emptyOnNull(filesToUploadWithoutInternalStorage));
+        List<String> command = ScriptService.uploadInputFiles(
+            runContext,
+            runContext.render(commands.getCommands(), additionalVars),
+            (ignored, localFilePath) -> filesToUpload.add(localFilePath)
+        );
 
         boolean hasFilesToUpload = !ListUtils.isEmpty(filesToUpload);
         if (hasFilesToUpload && !hasS3Bucket) {
@@ -210,20 +229,11 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                 yield null;
         };
 
+        String jobDefinitionName = IdUtils.create();
         RegisterJobDefinitionRequest.Builder jobDefBuilder = RegisterJobDefinitionRequest.builder()
-            .jobDefinitionName(IdUtils.create())
+            .jobDefinitionName(jobDefinitionName)
             .type(JobDefinitionType.CONTAINER)
             .platformCapabilities(platformCapability);
-
-        String renderedBucket = runContext.render(s3Bucket);
-        String workingDirName = IdUtils.create();
-        Map<String, Object> additionalVars = Optional.ofNullable(renderedBucket)
-            .map(bucket -> Map.<String, Object>of(
-                S3_WORKING_DIR_KEY, "s3://" + bucket + "/" + workingDirName,
-                WORKING_DIR_KEY, "/" + workingDirName,
-                "outputDir", "/" + workingDirName
-            ))
-            .orElse(Collections.emptyMap());
 
         if (filesToUpload != null && !filesToUpload.isEmpty()) {
             try (S3TransferManager transferManager = transferManager(runContext)) {
@@ -304,7 +314,6 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         int sideContainersMemoryAllocations = (hasFilesToUpload ? baseSideContainerMemory : 0) + (hasFilesToDownload ? baseSideContainerMemory : 0);
         float sideContainersCpuAllocations = (hasFilesToUpload ? baseSideContainerCpu : 0) + (hasFilesToDownload ? baseSideContainerCpu : 0);
 
-        List<String> command = ScriptService.uploadInputFiles(runContext, runContext.render(commands.getCommands(), additionalVars));
         TaskContainerProperties.Builder mainContainerBuilder = withResources(
             TaskContainerProperties.builder()
                 .image(commands.getContainerImage())
@@ -377,8 +386,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         logger.debug("Registering job definition");
         RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(jobDefBuilder.build());
-        String jobDefArn = registerJobDefinitionResponse.jobDefinitionArn();
-        logger.debug("Job definition successfully registered: {}", jobDefArn);
+        logger.debug("Job definition successfully registered: {}", jobDefinitionName);
 
         String jobQueue = runContext.render(this.jobQueueArn);
         if (jobQueue == null) {
@@ -402,21 +410,25 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             logger.debug("Job queue created: {}", jobQueue);
         }
 
+        String jobDefArn = registerJobDefinitionResponse.jobDefinitionArn();
+
         CloudWatchLogsAsyncClient cloudWatchLogsAsyncClient =
             CloudWatchLogsAsyncClient.builder()
                 .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
                 .build();
         try {
-            String logGroupArn = cloudWatchLogsAsyncClient.describeLogGroups(
-                    DescribeLogGroupsRequest.builder()
-                        .logGroupNamePrefix("/aws/batch/job")
+            String logGroupName = "/aws/batch/job";
+            String logGroupArn = getLogGroupArn(cloudWatchLogsAsyncClient, logGroupName, renderedRegion);
+
+            if (logGroupArn == null) {
+                cloudWatchLogsAsyncClient.createLogGroup(
+                    CreateLogGroupRequest.builder()
+                        .logGroupName(logGroupName)
                         .build()
-                ).get().logGroups().stream()
-                .filter(logGroup -> logGroup.arn().contains(renderedRegion))
-                .findFirst()
-                .map(LogGroup::arn)
-                .map(arn -> arn.endsWith("*") ? arn.substring(0, arn.length() - 1) : arn)
-                .orElse(null);
+                ).get();
+
+                logGroupArn = getLogGroupArn(cloudWatchLogsAsyncClient, logGroupName, renderedRegion);
+            }
 
             StartLiveTailRequest request = StartLiveTailRequest.builder()
                 .logGroupIdentifiers(logGroupArn)
@@ -487,6 +499,20 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         }
 
         return new RunnerResult(0, logConsumer);
+    }
+
+    @Nullable
+    private static String getLogGroupArn(CloudWatchLogsAsyncClient cloudWatchLogsAsyncClient, String logGroupName, String renderedRegion) throws InterruptedException, ExecutionException {
+        return cloudWatchLogsAsyncClient.describeLogGroups(
+                DescribeLogGroupsRequest.builder()
+                    .logGroupNamePrefix(logGroupName)
+                    .build()
+            ).get().logGroups().stream()
+            .filter(logGroup -> logGroup.arn().contains(renderedRegion))
+            .findFirst()
+            .map(LogGroup::arn)
+            .map(arn -> arn.endsWith("*") ? arn.substring(0, arn.length() - 1) : arn)
+            .orElse(null);
     }
 
     private TaskContainerProperties.Builder withResources(TaskContainerProperties.Builder builder, Integer memory, Float cpu) {
