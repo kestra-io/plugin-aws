@@ -8,8 +8,9 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -45,7 +45,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     protected DynamoDbClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return AbstractConnectionInterface.configureSyncClient(clientConfig, DynamoDbClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, DynamoDbClient.builder()).build();
     }
 
     protected Map<String, Object> objectMapFrom(Map<String, AttributeValue> fields) {

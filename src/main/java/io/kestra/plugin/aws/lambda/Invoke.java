@@ -1,18 +1,5 @@
 package io.kestra.plugin.aws.lambda;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
-
-import io.kestra.plugin.aws.AbstractConnectionInterface;
-import jakarta.validation.constraints.NotNull;
-import org.apache.http.HttpHeaders;
-import org.apache.http.entity.ContentType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -27,20 +14,33 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpHeaders;
+import org.apache.http.entity.ContentType;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -133,7 +133,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return AbstractConnectionInterface.configureSyncClient(clientConfig, LambdaClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder()).build();
     }
 
     @VisibleForTesting

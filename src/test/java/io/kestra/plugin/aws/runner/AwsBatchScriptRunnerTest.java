@@ -54,7 +54,8 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
         CommandsWrapper commandsWrapper = new CommandsWrapper(runContext)
             .withCommands(ScriptService.scriptCommands(List.of("/bin/sh", "-c"), null, List.of(
                 "cat {{workingDir}}/hello.txt",
-                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt"
+                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt",
+                "exit 1"
             )))
             .withContainerImage("ghcr.io/kestra-io/awsbatch:latest")
             .withLogConsumer(new AbstractLogConsumer() {

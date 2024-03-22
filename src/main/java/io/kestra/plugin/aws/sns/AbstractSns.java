@@ -4,7 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -27,6 +27,6 @@ abstract class AbstractSns extends AbstractConnection {
 
     protected SnsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return AbstractConnectionInterface.configureSyncClient(clientConfig, SnsClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, SnsClient.builder()).build();
     }
 }

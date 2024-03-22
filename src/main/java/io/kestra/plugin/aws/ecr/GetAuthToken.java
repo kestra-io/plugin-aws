@@ -8,7 +8,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -61,7 +61,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
 
     private EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return AbstractConnectionInterface.configureSyncClient(clientConfig, EcrClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, EcrClient.builder()).build();
     }
 
     @Builder

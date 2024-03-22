@@ -1,14 +1,16 @@
 package io.kestra.plugin.aws.runner;
 
-import com.google.common.annotations.Beta;
 import com.google.common.collect.Iterables;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.script.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
 import io.kestra.core.utils.IdUtils;
+import io.kestra.core.utils.ListUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.s3.AbstractS3;
 import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -51,9 +53,9 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Beta
 @Schema(title = "AWS Batch script runner", description = """
     Run a script in a container on an AWS Batch Compute Environment (Only Fargate or EC2 are supported; For EKS, Kubernetes Script Runner must be used).
+    Upon worker restart, this job will be requeued and executed again. Moreover, the existing job will be kept running and handled by AWS Batch till this issue (https://github.com/kestra-io/plugin-aws/issues/402) is handled.
     To use `inputFiles`, `outputFiles` and `namespaceFiles` properties, you must provide a `s3Bucket`.
     Doing so will upload the files to the bucket before running the script and download them after the script execution.
     This runner will wait for the task to succeed or fail up to a max `waitUntilCompletion` duration.
@@ -66,6 +68,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     - STARTING: 5
     - SUBMITTED: 6
     - OTHER: -1""")
+@Plugin(examples = {}, beta = true)
 public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, AbstractConnectionInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
@@ -80,29 +83,19 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     public static final String WORKING_DIR_KEY = "workingDir";
 
     @NotNull
-    @PluginProperty(dynamic = true)
     private String region;
-    @PluginProperty(dynamic = true)
     private String endpointOverride;
 
     // Configuration for StaticCredentialsProvider
-    @PluginProperty(dynamic = true)
     private String accessKeyId;
-    @PluginProperty(dynamic = true)
     private String secretKeyId;
-    @PluginProperty(dynamic = true)
     private String sessionToken;
 
     // Configuration for AWS STS AssumeRole
-    @PluginProperty(dynamic = true)
     private String stsRoleArn;
-    @PluginProperty(dynamic = true)
     private String stsRoleExternalId;
-    @PluginProperty(dynamic = true)
     private String stsRoleSessionName;
-    @PluginProperty(dynamic = true)
     private String stsEndpointOverride;
-    @PluginProperty(dynamic = true)
     @Builder.Default
     private Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
 
@@ -120,7 +113,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     private String jobQueueArn;
 
     @Schema(
-        title = "S3 Bucket to use to upload (inputFiles) and download (outputFiles) files.",
+        title = "S3 Bucket to use to upload (`inputFiles` and `namespaceFiles`) and download (`outputFiles`) files.",
         description = "It's mandatory to provide a bucket if you want to use such properties."
     )
     @PluginProperty(dynamic = true)
@@ -156,7 +149,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         ).build();
 
     @Schema(
-        title = "The maximum duration to wait for the pod completion. AWS Batch will automatically timeout the job upon reaching such duration and the task will be failed."
+        title = "The maximum duration to wait for the job completion. AWS Batch will automatically timeout the job upon reaching such duration and the task will be failed."
     )
     @Builder.Default
     private final Duration waitUntilCompletion = Duration.ofHours(1);
@@ -165,22 +158,21 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     public RunnerResult run(RunContext runContext, ScriptCommands commands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.s3Bucket != null;
 
-        boolean hasFilesToUpload = filesToUpload != null && !filesToUpload.isEmpty();
+        boolean hasFilesToUpload = !ListUtils.isEmpty(filesToUpload);
         if (hasFilesToUpload && !hasS3Bucket) {
             throw new IllegalArgumentException("You must provide a S3Bucket to use `inputFiles` or `namespaceFiles`");
         }
-        boolean hasFilesToDownload = filesToDownload != null && !filesToDownload.isEmpty();
+        boolean hasFilesToDownload = !ListUtils.isEmpty(filesToDownload);
         if (hasFilesToDownload && !hasS3Bucket) {
             throw new IllegalArgumentException("You must provide a S3Bucket to use `outputFiles`");
         }
 
-        Thread.currentThread().setContextClassLoader(this.getClass().getClassLoader());
         Logger logger = runContext.logger();
         AbstractLogConsumer logConsumer = commands.getLogConsumer();
 
         String renderedRegion = runContext.render(this.region);
         BatchClientBuilder batchClientBuilder = BatchClient.builder()
-            .credentialsProvider(AbstractConnectionInterface.credentialsProvider(this.awsClientConfig(runContext)))
+            .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
             .region(Region.of(renderedRegion))
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
             .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build());
@@ -235,7 +227,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         if (filesToUpload != null && !filesToUpload.isEmpty()) {
             try (S3TransferManager transferManager = transferManager(runContext)) {
-                filesToUpload.stream().parallel().map(relativePath ->
+                filesToUpload.stream().map(relativePath ->
                         UploadFileRequest.builder()
                             .putObjectRequest(
                                 PutObjectRequest
@@ -324,7 +316,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                         .options(Map.of("awslogs-stream-prefix", jobName))
                         .build()
                 )
-                .dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("COMPLETE").build())
+                .dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build())
                 .essential(!hasFilesToDownload),
             Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
             Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
@@ -368,7 +360,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                                 .map(relativePath -> "aws s3 cp /" + workingDirName + "/" + relativePath + " " + s3WorkingDir + "/" + relativePath)
                                 .toList()
                         ))
-                        .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("COMPLETE").build())
+                        .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("SUCCESS").build())
                         .name(outputFilesContainerName),
                     baseSideContainerMemory,
                     baseSideContainerCpu).build()
@@ -412,7 +404,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         CloudWatchLogsAsyncClient cloudWatchLogsAsyncClient =
             CloudWatchLogsAsyncClient.builder()
-                .credentialsProvider(AbstractConnectionInterface.credentialsProvider(this.awsClientConfig(runContext)))
+                .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
                 .build();
         try {
             String logGroupArn = cloudWatchLogsAsyncClient.describeLogGroups(
@@ -446,7 +438,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                     )
                     .build()
             );
-            logger.debug("Job submitted: {}", submitJobResponse.jobId());
+            logger.debug("Job submitted: {}", submitJobResponse.jobName());
 
             final AtomicReference<DescribeJobsResponse> describeJobsResponse = new AtomicReference<>();
             try {
@@ -458,7 +450,6 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                     ));
 
                     JobStatus status = describeJobsResponse.get().jobs().get(0).status();
-
                     if (status == JobStatus.FAILED) {
                         throw new RuntimeException();
                     }
@@ -466,13 +457,15 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                     return status == JobStatus.SUCCEEDED;
                 }, Duration.ofMillis(500), this.waitUntilCompletion);
             } catch (TimeoutException | RuntimeException e) {
-                Integer exitCode = exitCodeByStatus.get(describeJobsResponse.get().jobs().get(0).status());
+                JobStatus status = describeJobsResponse.get().jobs().get(0).status();
+                Integer exitCode = exitCodeByStatus.get(status);
+                logConsumer.accept("AWS Batch Job ended with status " + status.name() + ". Please check job with name " + jobName + " for more details.", true);
                 throw new ScriptException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
             }
 
-            try (S3TransferManager transferManager = transferManager(runContext)) {
-                if (filesToDownload != null && !filesToDownload.isEmpty()) {
-                    filesToDownload.stream().parallel().map(relativePath -> transferManager.downloadFile(
+            if (hasFilesToDownload) {
+                try (S3TransferManager transferManager = transferManager(runContext)) {
+                    filesToDownload.stream().map(relativePath -> transferManager.downloadFile(
                             DownloadFileRequest.builder()
                                 .getObjectRequest(GetObjectRequest.builder()
                                     .bucket(renderedBucket)
@@ -520,7 +513,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                         ).map(file -> ObjectIdentifier.builder().key("/" + workingDirName + "/" + file).build())
                         .toList(),
                     1000
-                ).spliterator(), false).parallel()
+                ).spliterator(), false)
                 .map(objects -> s3AsyncClient.deleteObjects(
                     DeleteObjectsRequest.builder()
                         .bucket(renderedBucket)
@@ -544,7 +537,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         return StartLiveTailResponseHandler.builder()
             .onError(throwable -> {
                 CloudWatchLogsException e = (CloudWatchLogsException) throwable.getCause();
-                logger.error(e.awsErrorDetails().errorMessage());
+                logConsumer.accept(e.awsErrorDetails().errorMessage(), true);
             })
             .subscriber(() -> new CoreSubscriber<>() {
                 @Override
@@ -570,7 +563,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
                 @Override
                 public void onError(Throwable throwable) {
-                    logger.error(throwable.getMessage());
+                    logConsumer.accept(throwable.getMessage(), true);
                 }
 
                 @Override

@@ -15,9 +15,10 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
@@ -28,7 +29,6 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResponse;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResultEntry;
 
-import jakarta.validation.constraints.NotNull;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -166,7 +166,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
     private EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return AbstractConnectionInterface.configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
     }
 
     private List<Entry> readEntryList(RunContext runContext, Object entries) throws IllegalVariableEvaluationException, URISyntaxException, IOException {
