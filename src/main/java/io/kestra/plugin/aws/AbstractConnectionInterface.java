@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Duration;
@@ -31,20 +33,19 @@ public interface AbstractConnectionInterface {
     String getSessionToken();
 
     @Schema(
-        title =  "AWS STS Role.",
+        title = "AWS STS Role.",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. Otherwise, the `StaticCredentialsProvider` will be used with the provided Access Key Id and Secret Key."
     )
     @PluginProperty(dynamic = true)
-
     String getStsRoleArn();
 
     @Schema(
-        title =  "AWS STS External Id.",
+        title = "AWS STS External Id.",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(dynamic = true)
-
     String getStsRoleExternalId();
+
     @Schema(
         title = "AWS STS Session name. This property is only used when an `stsRoleArn` is defined."
     )
@@ -76,4 +77,24 @@ public interface AbstractConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getEndpointOverride();
+
+    @PluginProperty(dynamic = true)
+    default Boolean getCompatibilityMode() {
+        return false;
+    }
+
+    default AbstractConnection.AwsClientConfig awsClientConfig(final RunContext runContext) throws IllegalVariableEvaluationException {
+        return new AbstractConnection.AwsClientConfig(
+            runContext.render(this.getAccessKeyId()),
+            runContext.render(this.getSecretKeyId()),
+            runContext.render(this.getSessionToken()),
+            runContext.render(this.getStsRoleArn()),
+            runContext.render(this.getStsRoleExternalId()),
+            runContext.render(this.getStsRoleSessionName()),
+            runContext.render(this.getStsEndpointOverride()),
+            getStsRoleSessionDuration(),
+            runContext.render(this.getRegion()),
+            runContext.render(this.getEndpointOverride())
+        );
+    }
 }

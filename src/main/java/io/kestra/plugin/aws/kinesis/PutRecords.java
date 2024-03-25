@@ -16,8 +16,10 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.kinesis.model.Record;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
@@ -26,8 +28,6 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
-
-import jakarta.validation.constraints.NotNull;
 
 import java.io.*;
 import java.net.URI;
@@ -81,7 +81,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     @NotNull
     @Schema(
         title = "Mark the task as failed when sending a record is unsuccessful.",
@@ -205,7 +205,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
     protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, KinesisClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder

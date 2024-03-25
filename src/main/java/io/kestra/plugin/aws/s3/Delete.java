@@ -66,7 +66,7 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
         String bucket = runContext.render(this.bucket);
         String key = runContext.render(this.key);
 
-        try (S3Client client = this.client(runContext)) {
+        try (S3Client client = client(runContext)) {
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
                 .bucket(bucket)
                 .key(key);

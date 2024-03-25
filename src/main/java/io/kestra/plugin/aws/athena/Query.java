@@ -11,12 +11,10 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.athena.AthenaClient;
@@ -35,7 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -208,7 +205,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     private AthenaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return configureSyncClient(clientConfig, AthenaClient.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, AthenaClient.builder()).build();
     }
 
     public QueryExecutionStatistics waitForQueryToComplete(AthenaClient client, String queryExecutionId) throws InterruptedException {

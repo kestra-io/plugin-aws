@@ -55,6 +55,8 @@ dependencies {
 
     // AWS libs: versions are managed by the Micronaut BOM
     api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
+    api 'software.amazon.awssdk:cloudwatchlogs'
+    api 'software.amazon.awssdk:batch:2.25.14' // we can remove this after micronaut bump as long as it contains the RegisterJobDefinitionRequest.ecsProperties exists
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
     api 'software.amazon.awssdk.crt:aws-crt:0.29.10' //used by s3-transfer-manager
@@ -107,6 +109,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter'
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
+    testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion

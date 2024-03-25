@@ -4,6 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.script.ScriptService;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
@@ -11,14 +12,13 @@ import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.RunnerType;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
-import io.kestra.plugin.scripts.exec.scripts.services.ScriptService;
 import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,31 +29,31 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Execute AWS commands."
+    title = "Execute AWS commands."
 )
 @Plugin(
-        examples = {
-                @Example(
-                        title = "Create a simple S3 bucket.",
-                        code = {
-                                "accessKeyId: \"<access-key>\"",
-                                "secretKeyId: \"<secret-key>\"",
-                                "region: \"eu-central-1\"",
-                                "commands:",
-                                "  - aws s3 mb s3://test-bucket"
-                        }
-                ),
-                @Example(
-                        title = "List all S3 buckets as the task's output.",
-                        code = {
-                                "accessKeyId: \"<access-key>\"",
-                                "secretKeyId: \"<secret-key>\"",
-                                "region: \"eu-central-1\"",
-                                "commands:",
-                                "  - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
-                        }
-                )
-        }
+    examples = {
+        @Example(
+            title = "Create a simple S3 bucket.",
+            code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
+                "commands:",
+                "  - aws s3 mb s3://test-bucket"
+            }
+        ),
+        @Example(
+            title = "List all S3 buckets as the task's output.",
+            code = {
+                "accessKeyId: \"<access-key>\"",
+                "secretKeyId: \"<secret-key>\"",
+                "region: \"eu-central-1\"",
+                "commands:",
+                "  - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
+            }
+        )
+    }
 )
 public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOutput>, NamespaceFilesInterface, InputFilesInterface, OutputFilesInterface {
     private static final String DEFAULT_IMAGE = "amazon/aws-cli";
@@ -70,8 +70,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Additional environment variables for the current process."
     )
     @PluginProperty(
-            additionalProperties = String.class,
-            dynamic = true
+        additionalProperties = String.class,
+        dynamic = true
     )
     protected Map<String, String> env;
 
@@ -99,15 +99,15 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
         CommandsWrapper commands = new CommandsWrapper(runContext)
-                .withWarningOnStdErr(true)
-                .withRunnerType(RunnerType.DOCKER)
-                .withDockerOptions(injectDefaults(getDocker()))
-                .withCommands(
-                        ScriptService.scriptCommands(
-                                List.of("/bin/sh", "-c"),
-                                null,
-                                this.commands)
-                );
+            .withWarningOnStdErr(true)
+            .withRunnerType(RunnerType.DOCKER)
+            .withDockerOptions(injectDefaults(getDocker()))
+            .withCommands(
+                ScriptService.scriptCommands(
+                    List.of("/bin/sh", "-c"),
+                    null,
+                    this.commands)
+            );
 
         commands = commands.withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)

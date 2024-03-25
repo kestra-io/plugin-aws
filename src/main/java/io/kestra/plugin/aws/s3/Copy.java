@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnection;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -37,7 +38,7 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 @Schema(
     title = "Copy a file between S3 buckets."
 )
-public class Copy extends AbstractS3 implements RunnableTask<Copy.Output> {
+public class Copy extends AbstractConnection implements AbstractS3, RunnableTask<Copy.Output> {
     @Schema(
         title = "The source bucket and key."
     )
