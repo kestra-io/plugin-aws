@@ -326,11 +326,14 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                         .options(Map.of("awslogs-stream-prefix", jobName))
                         .build()
                 )
-                .dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build())
                 .essential(!hasFilesToDownload),
             Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
             Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
         );
+
+        if (hasFilesToUpload) {
+            mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
+        }
 
         if (commands.getEnv() != null) {
             mainContainerBuilder
