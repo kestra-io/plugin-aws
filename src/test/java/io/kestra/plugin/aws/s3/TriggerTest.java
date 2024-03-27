@@ -16,6 +16,7 @@ import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,13 +51,13 @@ class TriggerTest extends AbstractTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
+        Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
         try (
             AbstractScheduler scheduler = new DefaultScheduler(
                 this.applicationContext,
                 this.flowListenersService,
                 this.triggerState
-            );
+            )
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -116,13 +117,13 @@ class TriggerTest extends AbstractTest {
         });
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
+        Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
         try (
             AbstractScheduler scheduler = new DefaultScheduler(
                 this.applicationContext,
                 this.flowListenersService,
                 this.triggerState
-            );
+            )
         ) {
             upload("trigger/s3", bucket);
             upload("trigger/s3", bucket);
