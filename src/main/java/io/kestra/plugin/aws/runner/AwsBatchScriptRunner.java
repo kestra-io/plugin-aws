@@ -129,11 +129,11 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     private String executionRoleArn;
 
     @Schema(
-        title = "Job role to use within the container.",
+        title = "Task role to use within the container.",
         description = "Needed if you want to be authentified to AWS CLI within your container. Otherwise, you will need to authenticate by your own or not use it."
     )
     @PluginProperty(dynamic = true)
-    private String jobRoleArn;
+    private String taskRoleArn;
 
     @Schema(
         title = "Container custom resources requests.",
@@ -275,8 +275,8 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             taskPropertiesBuilder.executionRoleArn(runContext.render(this.executionRoleArn));
         }
 
-        if (this.jobRoleArn != null) {
-            taskPropertiesBuilder.taskRoleArn(runContext.render(this.jobRoleArn));
+        if (this.taskRoleArn != null) {
+            taskPropertiesBuilder.taskRoleArn(runContext.render(this.taskRoleArn));
         }
 
         List<TaskContainerProperties> containers = new ArrayList<>();

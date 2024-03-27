@@ -98,7 +98,7 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
             .region("eu-west-3")
             .computeEnvironmentArn("arn:aws:batch:eu-west-3:634784741179:compute-environment/FargateComputeEnvironment")
             .executionRoleArn("arn:aws:iam::634784741179:role/AWS-Batch-Role-For-Fargate")
-            .jobRoleArn("arn:aws:iam::634784741179:role/S3-Within-AWS-Batch")
+            .taskRoleArn("arn:aws:iam::634784741179:role/S3-Within-AWS-Batch")
             .waitUntilCompletion(Duration.ofMinutes(30))
             .jobQueueArn("arn:aws:batch:eu-west-3:634784741179:job-queue/queue")
             .build();
