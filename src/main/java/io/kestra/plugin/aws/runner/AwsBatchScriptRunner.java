@@ -236,7 +236,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             .type(JobDefinitionType.CONTAINER)
             .platformCapabilities(platformCapability);
 
-        if (filesToUpload != null && !filesToUpload.isEmpty()) {
+        if (hasFilesToUpload) {
             try (S3TransferManager transferManager = transferManager(runContext)) {
                 filesToUpload.stream().map(relativePath ->
                         UploadFileRequest.builder()
@@ -375,15 +375,15 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                     baseSideContainerMemory,
                     baseSideContainerCpu).build()
             );
-
-            taskPropertiesBuilder.containers(containers);
-
-            jobDefBuilder.ecsProperties(
-                EcsProperties.builder()
-                    .taskProperties(taskPropertiesBuilder.build())
-                    .build()
-            );
         }
+
+        taskPropertiesBuilder.containers(containers);
+
+        jobDefBuilder.ecsProperties(
+            EcsProperties.builder()
+                .taskProperties(taskPropertiesBuilder.build())
+                .build()
+        );
 
         logger.debug("Registering job definition");
         RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(jobDefBuilder.build());
@@ -642,13 +642,16 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     @Getter
     @Builder
     public static class Resources {
+        @NotNull
         private Resource request;
     }
 
     @Getter
     @Builder
     public static class Resource {
+        @NotNull
         private String memory;
+        @NotNull
         private String cpu;
     }
 }
