@@ -190,9 +190,10 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         AbstractLogConsumer logConsumer = commands.getLogConsumer();
 
         String renderedRegion = runContext.render(this.region);
+        Region regionObject = Region.of(renderedRegion);
         BatchClientBuilder batchClientBuilder = BatchClient.builder()
             .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
-            .region(Region.of(renderedRegion))
+            .region(regionObject)
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
             .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build());
 
@@ -415,6 +416,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         CloudWatchLogsAsyncClient cloudWatchLogsAsyncClient =
             CloudWatchLogsAsyncClient.builder()
                 .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
+                .region(regionObject)
                 .build();
         try {
             String logGroupName = "/aws/batch/job";
