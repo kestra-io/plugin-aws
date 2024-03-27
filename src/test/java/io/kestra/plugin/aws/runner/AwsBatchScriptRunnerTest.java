@@ -59,7 +59,8 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
             .withCommands(ScriptService.scriptCommands(List.of("/bin/sh", "-c"), null, List.of(
                 "cat {{workingDir}}/{{internalStorageFile}}",
                 "cat {{workingDir}}/hello.txt",
-                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt"
+                "cat {{workingDir}}/hello.txt > {{workingDir}}/output.txt",
+                "echo '::{\"outputs\":{\"logOutput\":\"Hello World\"}}::'"
             )))
             .withContainerImage("ghcr.io/kestra-io/awsbatch:latest")
             .withLogConsumer(new AbstractLogConsumer() {
@@ -84,6 +85,8 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
         File outputFile = runContext.resolve(Path.of("output.txt")).toFile();
         assertThat(outputFile.exists(), is(true));
         assertThat(FileUtils.readFileToString(outputFile, StandardCharsets.UTF_8), is("Hello World"));
+
+        assertThat(defaultLogConsumer.getOutputs().get("logOutput"), is("Hello World"));
     }
 
     @Override

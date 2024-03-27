@@ -437,7 +437,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                 .logStreamNamePrefixes(jobName)
                 .build();
 
-            cloudWatchLogsAsyncClient.startLiveTail(request, getStartLiveTailResponseStreamHandler(logger, logConsumer));
+            cloudWatchLogsAsyncClient.startLiveTail(request, getStartLiveTailResponseStreamHandler(logConsumer));
 
             logger.debug("Submitting job to queue");
             SubmitJobResponse submitJobResponse = client.submitJob(
@@ -561,7 +561,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             .build();
     }
 
-    private static StartLiveTailResponseHandler getStartLiveTailResponseStreamHandler(Logger logger, AbstractLogConsumer logConsumer) {
+    private static StartLiveTailResponseHandler getStartLiveTailResponseStreamHandler(AbstractLogConsumer logConsumer) {
         return StartLiveTailResponseHandler.builder()
             .onError(throwable -> {
                 CloudWatchLogsException e = (CloudWatchLogsException) throwable.getCause();
@@ -580,10 +580,18 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                     } else if (event instanceof LiveTailSessionUpdate sessionUpdate) {
                         List<LiveTailSessionLogEvent> logEvents = sessionUpdate.sessionResults();
                         logEvents.stream()
-                            .mapMulti((e, consumer) -> e.message().replace("\r", System.lineSeparator())
+                            .<String>mapMulti((e, consumer) -> e.message()
+                                .replaceAll("(?!^)(::\\{)", System.lineSeparator() + "::{")
+                                .replace("\r", System.lineSeparator())
                                 .lines()
                                 .forEach(consumer)
-                            ).forEach(message -> logConsumer.accept("[JOB LOG] " + message, false));
+                            ).forEach(message -> {
+                                if (message.startsWith("::{")) {
+                                    logConsumer.accept(message, false);
+                                } else {
+                                    logConsumer.accept("[JOB LOG] " + message, false);
+                                }
+                            });
                     } else {
                         throw CloudWatchLogsException.builder().message("Unknown event type").build();
                     }
