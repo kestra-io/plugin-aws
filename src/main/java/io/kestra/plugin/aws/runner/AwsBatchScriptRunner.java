@@ -244,7 +244,8 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                                 PutObjectRequest
                                     .builder()
                                     .bucket(renderedBucket)
-                                    .key(workingDirName + "/" + relativePath)
+                                    // Use path to eventually deduplicate leading '/'
+                                    .key(workingDirName + Path.of("/" + relativePath))
                                     .build()
                             )
                             .source(runContext.resolve(Path.of(relativePath)))
@@ -303,7 +304,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                             List.of("/bin/sh", "-c"),
                             null,
                             filesToUpload.stream()
-                                .map(relativePath -> "aws s3 cp " + s3WorkingDir + "/" + relativePath + " /" + workingDirName + "/" + relativePath)
+                                .map(relativePath -> "aws s3 cp " + s3WorkingDir + Path.of("/" + relativePath) + " /" + workingDirName + Path.of("/" + relativePath))
                                 .toList()
                         ))
                         .name(inputFilesContainerName),
