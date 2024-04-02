@@ -316,6 +316,9 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         int sideContainersMemoryAllocations = (hasFilesToUpload ? baseSideContainerMemory : 0) + (hasFilesToDownload ? baseSideContainerMemory : 0);
         float sideContainersCpuAllocations = (hasFilesToUpload ? baseSideContainerCpu : 0) + (hasFilesToDownload ? baseSideContainerCpu : 0);
 
+        Map<String, String> environment = Optional.ofNullable(commands.getEnv()).orElse(new HashMap<>());
+        environment.put("WORKING_DIR", "/" + workingDirName);
+
         TaskContainerProperties.Builder mainContainerBuilder = withResources(
             TaskContainerProperties.builder()
                 .image(commands.getContainerImage())
@@ -327,6 +330,11 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                         .options(Map.of("awslogs-stream-prefix", jobName))
                         .build()
                 )
+                .environment(
+                    environment.entrySet().stream()
+                        .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
+                        .toArray(KeyValuePair[]::new)
+                )
                 .essential(!hasFilesToDownload),
             Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
             Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
@@ -334,15 +342,6 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         if (hasFilesToUpload) {
             mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
-        }
-
-        if (commands.getEnv() != null) {
-            mainContainerBuilder
-                .environment(
-                    commands.getEnv().entrySet().stream()
-                        .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
-                        .toArray(KeyValuePair[]::new)
-                );
         }
 
         if (hasFilesToUpload || hasFilesToDownload) {
