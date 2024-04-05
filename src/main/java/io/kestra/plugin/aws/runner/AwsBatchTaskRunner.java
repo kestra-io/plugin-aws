@@ -4,7 +4,7 @@ import com.google.common.collect.Iterables;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.script.*;
+import io.kestra.core.models.tasks.runners.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
 import io.kestra.core.utils.IdUtils;
@@ -55,8 +55,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "AWS Batch script runner", description = """
-    Run a script in a container on an AWS Batch Compute Environment (Only Fargate or EC2 are supported; For EKS, Kubernetes Script Runner must be used).
+@Schema(title = "AWS Batch task runner", description = """
+    Run a script in a container on an AWS Batch Compute Environment (Only Fargate or EC2 are supported; For EKS, Kubernetes Task Runner must be used).
     Upon worker restart, this job will be requeued and executed again. Moreover, the existing job will be kept running and handled by AWS Batch till this issue (https://github.com/kestra-io/plugin-aws/issues/402) is handled.
     To use `inputFiles`, `outputFiles` and `namespaceFiles` properties, you must provide a `s3Bucket`.
     Doing so will upload the files to the bucket before running the script and download them after the script execution.
@@ -71,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     - SUBMITTED: 6
     - OTHER: -1""")
 @Plugin(examples = {}, beta = true)
-public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
+public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
         JobStatus.RUNNING, 2,
@@ -155,7 +155,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     private Duration waitUntilCompletion = Duration.ofHours(1);
 
     @Override
-    public RunnerResult run(RunContext runContext, ScriptCommands scriptCommands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
+    public RunnerResult run(RunContext runContext, TaskCommands taskCommands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.bucket != null;
 
         String renderedBucket = runContext.render(bucket);
@@ -170,7 +170,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
         }
 
         Logger logger = runContext.logger();
-        AbstractLogConsumer logConsumer = scriptCommands.getLogConsumer();
+        AbstractLogConsumer logConsumer = taskCommands.getLogConsumer();
 
         String renderedRegion = runContext.render(this.region);
         Region regionObject = Region.of(renderedRegion);
@@ -219,7 +219,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
             .type(JobDefinitionType.CONTAINER)
             .tags(ScriptService.labels(runContext, "kestra-", true, true))
             .platformCapabilities(platformCapability);
-        Path batchWorkingDirectory = (Path) this.additionalVars(runContext, scriptCommands).get(ScriptService.VAR_WORKING_DIR);
+        Path batchWorkingDirectory = (Path) this.additionalVars(runContext, taskCommands).get(ScriptService.VAR_WORKING_DIR);
 
         if (hasFilesToUpload) {
             try (S3TransferManager transferManager = transferManager(runContext)) {
@@ -272,7 +272,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         int baseSideContainerMemory = 128;
         float baseSideContainerCpu = 0.1f;
-        Map<String, Object> additionalVars = this.additionalVars(runContext, scriptCommands);
+        Map<String, Object> additionalVars = this.additionalVars(runContext, taskCommands);
         Object s3WorkingDir = additionalVars.get(ScriptService.VAR_BUCKET_PATH);
         Path batchOutputDirectory = (Path) additionalVars.get(ScriptService.VAR_OUTPUT_DIR);
         MountPoint volumeMount = MountPoint.builder()
@@ -307,8 +307,8 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
 
         TaskContainerProperties.Builder mainContainerBuilder = withResources(
             TaskContainerProperties.builder()
-                .image(scriptCommands.getContainerImage())
-                .command(scriptCommands.getCommands())
+                .image(taskCommands.getContainerImage())
+                .command(taskCommands.getCommands())
                 .name(mainContainerName)
                 .logConfiguration(
                     LogConfiguration.builder()
@@ -317,7 +317,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                         .build()
                 )
                 .environment(
-                    this.env(runContext, scriptCommands).entrySet().stream()
+                    this.env(runContext, taskCommands).entrySet().stream()
                         .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
                         .toArray(KeyValuePair[]::new)
                 )
@@ -452,7 +452,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                 JobStatus status = describeJobsResponse.get().jobs().get(0).status();
                 Integer exitCode = exitCodeByStatus.get(status);
                 logConsumer.accept("AWS Batch Job ended with status " + status.name() + ". Please check job with name " + jobName + " for more details.", true);
-                throw new ScriptException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
+                throw new TaskException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
             }
 
             if (hasS3Bucket) {
@@ -463,14 +463,14 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
                                     .bucket(renderedBucket)
                                     .key((batchWorkingDirectory + "/" + relativePath).substring(1))
                                     .build())
-                                .destination(scriptCommands.getWorkingDirectory().resolve(Path.of(relativePath.startsWith("/") ? relativePath.substring(1) : relativePath)))
+                                .destination(taskCommands.getWorkingDirectory().resolve(Path.of(relativePath.startsWith("/") ? relativePath.substring(1) : relativePath)))
                                 .build()
                         )).map(FileDownload::completionFuture)
                         .forEach(throwConsumer(CompletableFuture::get));
 
                     transferManager.downloadDirectory(DownloadDirectoryRequest.builder()
                             .bucket(renderedBucket)
-                            .destination(scriptCommands.getOutputDirectory())
+                            .destination(taskCommands.getOutputDirectory())
                             .listObjectsV2RequestTransformer(builder -> builder
                                 .prefix(batchOutputDirectory.toString().substring(1))
                             )
@@ -492,7 +492,7 @@ public class AwsBatchScriptRunner extends ScriptRunner implements AbstractS3, Ab
     }
 
     @Override
-    public Map<String, Object> runnerAdditionalVars(RunContext runContext, ScriptCommands scriptCommands) throws IllegalVariableEvaluationException {
+    public Map<String, Object> runnerAdditionalVars(RunContext runContext, TaskCommands taskCommands) throws IllegalVariableEvaluationException {
         Map<String, Object> additionalVars = new HashMap<>();
         Path batchWorkingDirectory = Path.of("/" + IdUtils.create());
         additionalVars.put(ScriptService.VAR_WORKING_DIR, batchWorkingDirectory);

@@ -1,7 +1,7 @@
 package io.kestra.plugin.aws.runner;
 
-import io.kestra.core.models.script.AbstractScriptRunnerTest;
-import io.kestra.core.models.script.ScriptRunner;
+import io.kestra.core.models.tasks.runners.AbstractTaskRunnerTest;
+import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.jupiter.api.Disabled;
@@ -10,7 +10,7 @@ import java.time.Duration;
 
 @MicronautTest
 @Disabled("Too costly to run on CI")
-public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
+public class AwsBatchTaskRunnerTest extends AbstractTaskRunnerTest {
     @Value("${kestra.aws.batch.accessKeyId}")
     private String accessKeyId;
 
@@ -22,8 +22,8 @@ public class AwsBatchScriptRunnerTest extends AbstractScriptRunnerTest {
 
 
     @Override
-    protected ScriptRunner scriptRunner() {
-        return AwsBatchScriptRunner.builder()
+    protected TaskRunner taskRunner() {
+        return AwsBatchTaskRunner.builder()
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
             .bucket(s3Bucket)
