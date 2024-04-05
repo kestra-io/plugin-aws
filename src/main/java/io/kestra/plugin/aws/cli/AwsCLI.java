@@ -4,7 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.script.ScriptService;
+import io.kestra.core.models.tasks.runners.ScriptService;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
