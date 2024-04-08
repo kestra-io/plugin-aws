@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.runner;
 
 import com.google.common.collect.Iterables;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.runners.*;
@@ -55,22 +56,84 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "AWS Batch task runner", description = """
-    Run a script in a container on an AWS Batch Compute Environment (Only Fargate or EC2 are supported; For EKS, Kubernetes Task Runner must be used).
-    Upon worker restart, this job will be requeued and executed again. Moreover, the existing job will be kept running and handled by AWS Batch till this issue (https://github.com/kestra-io/plugin-aws/issues/402) is handled.
-    To use `inputFiles`, `outputFiles` and `namespaceFiles` properties, you must provide a `s3Bucket`.
-    Doing so will upload the files to the bucket before running the script and download them after the script execution.
-    This runner will wait for the task to succeed or fail up to a max `waitUntilCompletion` duration.
-    It will return with an exit code according to the following mapping:
-    - SUCCEEDED: 0
-    - FAILED: 1
-    - RUNNING: 2
-    - RUNNABLE: 3
-    - PENDING: 4
-    - STARTING: 5
-    - SUBMITTED: 6
-    - OTHER: -1""")
-@Plugin(examples = {}, beta = true)
+@Schema(title = "Task runner that executes a task inside a job in AWS Batch.",
+    description = """
+        This task runner only support Fargate or EC2 as compute environment; for EKS, the Kubernetes task runner can be used.
+        This task runner is container-based so the `containerImage` property must be set.
+        
+To access the task's working directory, use the `{{workingDir}}` Pebble expression or the `WORKING_DIR` environment variable. Input files and namespace files will be available in this directory.
+
+        To generate output files you can either use the `outputFiles` task's property and create a file with the same name in the task's working directory, or create any file in the output directory which can be accessed by the `{{outputDir}}` Pebble expression or the `OUTPUT_DIR` environment variables.
+        
+        To use `inputFiles`, `outputFiles` or `namespaceFiles` properties, make sure to set the `bucket` property. The bucket serves as an intermediary storage layer for the task runner. Input and namespace files will be uploaded to the cloud storage bucket before the task run. Similarly, the task runner will store outputFiles in this bucket during the task run. In the end, the task runner will make those files available for download and preview from the UI by sending them to internal storage.
+        To make it easier to track where all files are stored, the task runner will generate a folder for each task run. You can access that folder using the `{{bucketPath}}` Pebble expression or the `BUCKET_PATH` environment variable.
+        
+        This task runner will return with an exit code according to the following mapping:
+        - SUCCEEDED: 0
+        - FAILED: 1
+        - RUNNING: 2
+        - RUNNABLE: 3
+        - PENDING: 4
+        - STARTING: 5
+        - SUBMITTED: 6
+        - OTHER: -1
+        
+        Note that when the Kestra Worker running this task is terminated, the batch job will still run until completion."""
+)
+@Plugin(
+    examples = {
+    @Example(
+        title = "Execute a Shell command.",
+        code = """
+            id: new-shell
+            namespace: myteam
+
+            tasks:
+              - id: shell
+                type: io.kestra.plugin.scripts.shell.Commands
+                containerImage: centos
+                taskRunner:
+                  type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                  accessKeyId: "{{vars.accessKeyId}}"
+                  secretKeyId: "{{vars.secretKeyId}}"
+                  region: "{{vars.region}}"
+                  computeEnvironmentArn: "{{vars.computeEnvironmentArn}}"
+                commands:
+                - echo "Hello World\"""",
+        full = true
+    ),
+    @Example(
+        title = "Pass input files to the task, execute a Shell command, then retrieve output files.",
+        code = """
+            id: new-shell-with-file
+            namespace: myteam
+            
+            inputs:
+              - id: file
+                type: FILE
+            
+            tasks:
+              - id: shell
+                type: io.kestra.plugin.scripts.shell.Commands
+                inputFiles:
+                  data.txt: "{{inputs.file}}"
+                outputFiles:
+                  - out.txt
+                containerImage: centos
+                taskRunner:
+                  type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                  accessKeyId: "{{vars.accessKeyId}}"
+                  secretKeyId: "{{vars.secretKeyId}}"
+                  region: "{{vars.region}}"
+                  computeEnvironmentArn: "{{vars.computeEnvironmentArn}}"
+                  bucket: "{{vars.bucket}}"
+                commands:
+                - cp {{workingDir}}/data.txt {{workingDir}}/out.txt""",
+        full = true
+    )
+},
+beta = true
+    )
 public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
