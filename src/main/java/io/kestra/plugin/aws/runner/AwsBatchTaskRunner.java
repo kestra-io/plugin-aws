@@ -91,7 +91,6 @@ To access the task's working directory, use the `{{workingDir}}` Pebble expressi
             tasks:
               - id: shell
                 type: io.kestra.plugin.scripts.shell.Commands
-                containerImage: centos
                 taskRunner:
                   type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
                   accessKeyId: "{{vars.accessKeyId}}"
