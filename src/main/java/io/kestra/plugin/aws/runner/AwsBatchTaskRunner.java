@@ -228,8 +228,9 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             throw new IllegalArgumentException("You must provide a S3Bucket to use `inputFiles` or `namespaceFiles`");
         }
         boolean hasFilesToDownload = !ListUtils.isEmpty(filesToDownload);
-        if (hasFilesToDownload && !hasS3Bucket) {
-            throw new IllegalArgumentException("You must provide a S3Bucket to use `outputFiles`");
+        boolean outputDirectoryEnabled = taskCommands.outputDirectoryEnabled();
+        if ((hasFilesToDownload || outputDirectoryEnabled) && !hasS3Bucket) {
+            throw new IllegalArgumentException("You must provide a S3Bucket to use `outputFiles` or `{{ outputDir }}`");
         }
 
         Logger logger = runContext.logger();
@@ -343,7 +344,12 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             .sourceVolume(kestraVolume)
             .build();
 
-        if (hasS3Bucket) {
+        if (hasFilesToUpload || outputDirectoryEnabled) {
+            Stream<String> commands = ListUtils.emptyOnNull(filesToUpload).stream()
+                    .map(relativePath -> "aws s3 cp " + s3WorkingDir + Path.of("/" + relativePath) + " " + batchWorkingDirectory + Path.of("/" + relativePath));
+            if (outputDirectoryEnabled) {
+                commands = Stream.concat(commands, Stream.of("mkdir " + batchOutputDirectory));
+            }
             containers.add(
                 withResources(
                     TaskContainerProperties.builder()
@@ -353,11 +359,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                         .command(ScriptService.scriptCommands(
                             List.of("/bin/sh", "-c"),
                             null,
-                            Stream.concat(
-                                ListUtils.emptyOnNull(filesToUpload).stream()
-                                    .map(relativePath -> "aws s3 cp " + s3WorkingDir + Path.of("/" + relativePath) + " " + batchWorkingDirectory + Path.of("/" + relativePath)),
-                                Stream.of("mkdir " + batchOutputDirectory)
-                            ).toList()
+                            commands.toList()
                         ))
                         .name(inputFilesContainerName),
                     baseSideContainerMemory,
@@ -368,6 +370,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
         int sideContainersMemoryAllocations = hasS3Bucket ? baseSideContainerMemory * 2 : 0;
         float sideContainersCpuAllocations = hasS3Bucket ? baseSideContainerCpu * 2 : 0;
 
+        boolean needsOutputFilesContainer = hasFilesToDownload || outputDirectoryEnabled;
         TaskContainerProperties.Builder mainContainerBuilder = withResources(
             TaskContainerProperties.builder()
                 .image(taskCommands.getContainerImage())
@@ -384,19 +387,24 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                         .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
                         .toArray(KeyValuePair[]::new)
                 )
-                .essential(!hasS3Bucket),
+                .essential(!needsOutputFilesContainer),
             Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
             Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
         );
 
-        if (hasS3Bucket) {
+        if (needsOutputFilesContainer) {
             mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
             mainContainerBuilder.mountPoints(volumeMount);
         }
 
         containers.add(mainContainerBuilder.build());
 
-        if (hasS3Bucket) {
+        if (needsOutputFilesContainer) {
+            Stream<String> commands = filesToDownload.stream()
+                    .map(relativePath -> "aws s3 cp " + batchWorkingDirectory + "/" + relativePath + " " + s3WorkingDir + Path.of("/" + relativePath));
+            if (outputDirectoryEnabled) {
+                commands = Stream.concat(commands, Stream.of("aws s3 cp " + batchOutputDirectory + "/ " + s3WorkingDir + "/" + batchWorkingDirectory.relativize(batchOutputDirectory) + "/ --recursive"));
+            }
             containers.add(
                 withResources(
                     TaskContainerProperties.builder()
@@ -405,11 +413,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                         .command(ScriptService.scriptCommands(
                             List.of("/bin/sh", "-c"),
                             null,
-                            Stream.concat(
-                                filesToDownload.stream()
-                                    .map(relativePath -> "aws s3 cp " + batchWorkingDirectory + "/" + relativePath + " " + s3WorkingDir + Path.of("/" + relativePath)),
-                                Stream.of("aws s3 cp " + batchOutputDirectory + "/ " + s3WorkingDir + "/" + batchWorkingDirectory.relativize(batchOutputDirectory) + "/ --recursive")
-                            ).toList()
+                            commands.toList()
                         ))
                         .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("SUCCESS").build())
                         .name(outputFilesContainerName),
@@ -518,7 +522,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                 throw new TaskException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
             }
 
-            if (hasS3Bucket) {
+            if (hasFilesToDownload || outputDirectoryEnabled) {
                 try (S3TransferManager transferManager = transferManager(runContext)) {
                     filesToDownload.stream().map(relativePath -> transferManager.downloadFile(
                             DownloadFileRequest.builder()
@@ -531,15 +535,17 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                         )).map(FileDownload::completionFuture)
                         .forEach(throwConsumer(CompletableFuture::get));
 
-                    transferManager.downloadDirectory(DownloadDirectoryRequest.builder()
-                            .bucket(renderedBucket)
-                            .destination(taskCommands.getOutputDirectory())
-                            .listObjectsV2RequestTransformer(builder -> builder
-                                .prefix(batchOutputDirectory.toString().substring(1))
-                            )
-                            .build())
-                        .completionFuture()
-                        .get();
+                    if (outputDirectoryEnabled) {
+                        transferManager.downloadDirectory(DownloadDirectoryRequest.builder()
+                                .bucket(renderedBucket)
+                                .destination(taskCommands.getOutputDirectory())
+                                .listObjectsV2RequestTransformer(builder -> builder
+                                    .prefix(batchOutputDirectory.toString().substring(1))
+                                )
+                                .build())
+                            .completionFuture()
+                            .get();
+                    }
                 }
             }
         } finally {
@@ -561,9 +567,12 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
         additionalVars.put(ScriptService.VAR_WORKING_DIR, batchWorkingDirectory);
 
         if (this.bucket != null) {
+            additionalVars.put(ScriptService.VAR_BUCKET_PATH, "s3://" + runContext.render(this.bucket) + batchWorkingDirectory);
+        }
+
+        if (taskCommands.outputDirectoryEnabled()) {
             Path batchOutputDirectory = batchWorkingDirectory.resolve(IdUtils.create());
             additionalVars.put(ScriptService.VAR_OUTPUT_DIR, batchOutputDirectory);
-            additionalVars.put(ScriptService.VAR_BUCKET_PATH, "s3://" + runContext.render(this.bucket) + batchWorkingDirectory);
         }
 
         return additionalVars;
