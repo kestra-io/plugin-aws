@@ -368,8 +368,20 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             );
         }
 
-        int sideContainersMemoryAllocations = hasS3Bucket ? baseSideContainerMemory * 2 : 0;
-        float sideContainersCpuAllocations = hasS3Bucket ? baseSideContainerCpu * 2 : 0;
+        int sideContainersAmount = 0;
+        if (outputDirectoryEnabled) {
+            sideContainersAmount = 2;
+        } else {
+            if (hasFilesToUpload) {
+                sideContainersAmount++;
+            }
+
+            if (hasFilesToDownload) {
+                sideContainersAmount++;
+            }
+        }
+        int sideContainersMemoryAllocations = baseSideContainerMemory * sideContainersAmount;
+        float sideContainersCpuAllocations = baseSideContainerCpu * sideContainersAmount;
 
         boolean needsOutputFilesContainer = hasFilesToDownload || outputDirectoryEnabled;
         TaskContainerProperties.Builder mainContainerBuilder = withResources(
