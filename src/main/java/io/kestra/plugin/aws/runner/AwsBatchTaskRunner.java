@@ -37,10 +37,7 @@ import software.amazon.awssdk.transfer.s3.model.*;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -213,7 +210,8 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
         ).build();
 
     @Schema(
-        title = "The maximum duration to wait for the job completion. AWS Batch will automatically timeout the job upon reaching such duration and the task will be failed."
+        title = "The maximum duration to wait for the job completion unless the task `timeout` property is set which will take precedence over this property.",
+        description = "AWS Batch will automatically timeout the job upon reaching such duration and the task will be failed."
     )
     @Builder.Default
     private Duration waitUntilCompletion = Duration.ofHours(1);
@@ -498,6 +496,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             cloudWatchLogsAsyncClient.startLiveTail(request, getStartLiveTailResponseStreamHandler(logConsumer));
 
             logger.debug("Submitting job to queue");
+            Duration waitDuration = Optional.ofNullable(taskCommands.getTimeout()).orElse(this.waitUntilCompletion);
             SubmitJobResponse submitJobResponse = client.submitJob(
                 SubmitJobRequest.builder()
                     .jobName(jobName)
@@ -505,7 +504,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                     .jobQueue(jobQueue)
                     .timeout(
                         JobTimeout.builder()
-                            .attemptDurationSeconds((int) this.waitUntilCompletion.toSeconds())
+                            .attemptDurationSeconds((int) waitDuration.toSeconds())
                             .build()
                     )
                     .build()
@@ -527,7 +526,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                     }
 
                     return status == JobStatus.SUCCEEDED;
-                }, Duration.ofMillis(500), this.waitUntilCompletion);
+                }, Duration.ofMillis(500), waitDuration);
             } catch (TimeoutException | RuntimeException e) {
                 JobStatus status = describeJobsResponse.get().jobs().get(0).status();
                 Integer exitCode = exitCodeByStatus.get(status);
