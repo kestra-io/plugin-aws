@@ -9,6 +9,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -20,8 +21,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -62,7 +61,6 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Schema(title = "The serializer/deserializer to use.")
     private SerdeType serdeType = SerdeType.STRING;
 
-
     @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -77,7 +75,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             var tempFile = runContext.tempFile(".ion").toFile();
 
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-                while (!this.ended(total, started)) {
+                do {
                     // TODO if we have a maxNumber we can pass the number to avoid too many network calls
                     var receiveRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
@@ -91,7 +89,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     }));
 
                     Thread.sleep(100);
-                }
+                } while (!this.ended(total, started));
 
                 runContext.metric(Counter.of("records", total.get(), "queue", queueUrl));
                 outputFile.flush();
@@ -113,7 +111,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             return true;
         }
 
-        return false;
+        return count.get() == 0;
     }
 
     @Builder
