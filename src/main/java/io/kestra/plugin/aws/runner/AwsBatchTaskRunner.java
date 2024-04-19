@@ -55,55 +55,60 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @NoArgsConstructor
 @Schema(title = "Task runner that executes a task inside a job in AWS Batch.",
     description = """
-        This task runner only support Fargate or EC2 as compute environment; for EKS, the Kubernetes task runner can be used.
-        This task runner is container-based so the `containerImage` property must be set.
-        
-To access the task's working directory, use the `{{workingDir}}` Pebble expression or the `WORKING_DIR` environment variable. Input files and namespace files will be available in this directory.
+This task runner only supports ECS Fargate or ECS EC2 as compute environment. 
+For EKS, use the [KubernetesTaskRunner](https://kestra.io/plugins/plugin-kubernetes/task-runners/runner/io.kestra.plugin.kubernetes.runner.kubernetestaskrunner). 
 
-        To generate output files you can either use the `outputFiles` task's property and create a file with the same name in the task's working directory, or create any file in the output directory which can be accessed by the `{{outputDir}}` Pebble expression or the `OUTPUT_DIR` environment variables.
-        
-        To use `inputFiles`, `outputFiles` or `namespaceFiles` properties, make sure to set the `bucket` property. The bucket serves as an intermediary storage layer for the task runner. Input and namespace files will be uploaded to the cloud storage bucket before the task run. Similarly, the task runner will store outputFiles in this bucket during the task run. In the end, the task runner will make those files available for download and preview from the UI by sending them to internal storage.
-        To make it easier to track where all files are stored, the task runner will generate a folder for each task run. You can access that folder using the `{{bucketPath}}` Pebble expression or the `BUCKET_PATH` environment variable.
-        
-        Warning, contrarily to other task runners, this task runner didn't run the task in the working directory but in the root directory. You must use the `{{workingDir}}` Pebble expression or the `WORKING_DIR` environment variable to access files.
-        
-        This task runner will return with an exit code according to the following mapping:
-        - SUCCEEDED: 0
-        - FAILED: 1
-        - RUNNING: 2
-        - RUNNABLE: 3
-        - PENDING: 4
-        - STARTING: 5
-        - SUBMITTED: 6
-        - OTHER: -1
-        
-        Note that when the Kestra Worker running this task is terminated, the batch job will still run until completion."""
+Make sure to set the `containerImage` property because this runner runs the task in a container.
+
+To access the task's working directory, use the `{{ workingDir }}` Pebble expression or the `WORKING_DIR` environment variable. 
+This directory will contain all input files and namespace files (if enabled).
+
+To generate output files you can either use the `outputFiles` task property and create a file with the same name in the task's working directory, or create any file in the output directory which can be accessed using the `{{ outputDir }}` Pebble expression or the `OUTPUT_DIR` environment variable.
+
+To use `inputFiles`, `outputFiles` or `namespaceFiles` properties, make sure to set the `bucket` property. The bucket serves as an intermediary storage layer for the task runner. Input and namespace files will be uploaded to the cloud storage bucket before the task run starts. Similarly, the task runner will store `outputFiles` in this bucket during the task run. In the end, the task runner will make those files available for download and preview from the UI by sending them to internal storage.
+
+To make it easier to track where all files are stored, the task runner will generate a folder for each task run. You can access that folder using the `{{bucketPath}}` Pebble expression or the `BUCKET_PATH` environment variable.
+
+Note that this task runner executes the task in the root directory. You need to use the `{{ workingDir }}` Pebble expression or the `WORKING_DIR` environment variable to access files in the task's working directory.
+
+This task runner will return with an exit code according to the following mapping:
+- SUCCEEDED: 0
+- FAILED: 1
+- RUNNING: 2
+- RUNNABLE: 3
+- PENDING: 4
+- STARTING: 5
+- SUBMITTED: 6
+- OTHER: -1
+
+When the Kestra Worker running this task is terminated, the batch job will still run until completion.
+To avoid zombie containers in ECS, you can set the `timeout` property on the task and kestra will terminate the batch job if the task is not completed within the specified duration."""
 )
 @Plugin(
     examples = {
     @Example(
-        title = "Execute a Shell command.",
+        title = "Execute a Shell command in a container on ECS Fargate.",
         code = """
-            id: new-shell
-            namespace: myteam
+            id: run_container
+            namespace: dev
 
             tasks:
               - id: shell
                 type: io.kestra.plugin.scripts.shell.Commands
                 taskRunner:
                   type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
-                  accessKeyId: "{{vars.accessKeyId}}"
-                  secretKeyId: "{{vars.secretKeyId}}"
-                  region: "{{vars.region}}"
-                  computeEnvironmentArn: "{{vars.computeEnvironmentArn}}"
+                  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                  region: "{{ vars.region }}"
+                  computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
                 commands:
                 - echo "Hello World\"""",
         full = true
     ),
     @Example(
-        title = "Pass input files to the task, execute a Shell command, then retrieve output files.",
+        title = "Pass input files to the task, execute a Shell command, then retrieve the output files.",
         code = """
-            id: new-shell-with-file
+            id: container_with_input_files
             namespace: myteam
             
             inputs:
@@ -114,19 +119,19 @@ To access the task's working directory, use the `{{workingDir}}` Pebble expressi
               - id: shell
                 type: io.kestra.plugin.scripts.shell.Commands
                 inputFiles:
-                  data.txt: "{{inputs.file}}"
+                  data.txt: "{{ inputs.file }}"
                 outputFiles:
                   - out.txt
                 containerImage: centos
                 taskRunner:
                   type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
-                  accessKeyId: "{{vars.accessKeyId}}"
-                  secretKeyId: "{{vars.secretKeyId}}"
-                  region: "{{vars.region}}"
-                  computeEnvironmentArn: "{{vars.computeEnvironmentArn}}"
-                  bucket: "{{vars.bucket}}"
+                  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                  region: "{{ vars.region }}"
+                  computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
+                  bucket: "{{ vars.bucket }}"
                 commands:
-                - cp {{workingDir}}/data.txt {{workingDir}}/out.txt""",
+                - cp {{ workingDir }}/data.txt {{ workingDir }}/out.txt""",
         full = true
     )
 },
@@ -161,42 +166,42 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
     private Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
 
     @Schema(
-        title = "Compute environment on which to run the job."
+        title = "Compute environment in which to run the job."
     )
     @NotNull
     @PluginProperty(dynamic = true)
     private String computeEnvironmentArn;
 
     @Schema(
-        title = "Job queue to use to submit jobs (ARN). If not specified, will create one which could lead to longer execution."
+        title = "Job queue to use to submit jobs (ARN). If not specified, the task runner will create a job queue — keep in mind that this can lead to a longer execution."
     )
     @PluginProperty(dynamic = true)
     private String jobQueueArn;
 
     @Schema(
-        title = "S3 Bucket to use to upload (`inputFiles` and `namespaceFiles`) and download (`outputFiles`) files.",
+        title = "S3 Bucket to upload (`inputFiles` and `namespaceFiles`) and download (`outputFiles`) files.",
         description = "It's mandatory to provide a bucket if you want to use such properties."
     )
     @PluginProperty(dynamic = true)
     private String bucket;
 
     @Schema(
-        title = "Execution role to use to run the job.",
-        description = "Mandatory if the compute environment is a Fargate one. See https://docs.aws.amazon.com/batch/latest/userguide/execution-IAM-role.html"
+        title = "Execution role for the AWS Batch job.",
+        description = "Mandatory if the compute environment is ECS Fargate. See the [AWS documentation](https://docs.aws.amazon.com/batch/latest/userguide/execution-IAM-role.html) for more details."
     )
     @PluginProperty(dynamic = true)
     private String executionRoleArn;
 
     @Schema(
         title = "Task role to use within the container.",
-        description = "Needed if you want to be authentified to AWS CLI within your container. Otherwise, you will need to authenticate by your own or not use it."
+        description = "Needed if you want to authenticate with AWS CLI within your container."
     )
     @PluginProperty(dynamic = true)
     private String taskRoleArn;
 
     @Schema(
-        title = "Container custom resources requests.",
-        description = "If using a Fargate compute environments, resources requests must match this table: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html"
+        title = "Custom resources for the ECS Fargate container.",
+        description = "See the [AWS documentation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html) for more details."
     )
     @PluginProperty
     @NotNull
@@ -211,7 +216,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
     @Schema(
         title = "The maximum duration to wait for the job completion unless the task `timeout` property is set which will take precedence over this property.",
-        description = "AWS Batch will automatically timeout the job upon reaching such duration and the task will be failed."
+        description = "AWS Batch will automatically timeout the job upon reaching that duration and the task will be marked as failed."
     )
     @Builder.Default
     private Duration waitUntilCompletion = Duration.ofHours(1);
@@ -224,12 +229,12 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
         boolean hasFilesToUpload = !ListUtils.isEmpty(filesToUpload);
         if (hasFilesToUpload && !hasS3Bucket) {
-            throw new IllegalArgumentException("You must provide a S3Bucket to use `inputFiles` or `namespaceFiles`");
+            throw new IllegalArgumentException("You must provide an S3 bucket in order to use `inputFiles` or `namespaceFiles`");
         }
         boolean hasFilesToDownload = !ListUtils.isEmpty(filesToDownload);
         boolean outputDirectoryEnabled = taskCommands.outputDirectoryEnabled();
         if ((hasFilesToDownload || outputDirectoryEnabled) && !hasS3Bucket) {
-            throw new IllegalArgumentException("You must provide a S3Bucket to use `outputFiles` or `{{ outputDir }}`");
+            throw new IllegalArgumentException("You must provide an S3 bucket in order to use `outputFiles` or `{{ outputDir }}`");
         }
 
         Logger logger = runContext.logger();
@@ -447,7 +452,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
         String jobQueue = runContext.render(this.jobQueueArn);
         if (jobQueue == null) {
-            logger.debug("Job queue not specified, creating a one-use job queue");
+            logger.debug("Job queue not specified, creating a job queue for the current job");
             CreateJobQueueResponse jobQueueResponse = client.createJobQueue(
                 CreateJobQueueRequest.builder()
                     .jobQueueName(IdUtils.create())
@@ -495,7 +500,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
             cloudWatchLogsAsyncClient.startLiveTail(request, getStartLiveTailResponseStreamHandler(logConsumer));
 
-            logger.debug("Submitting job to queue");
+            logger.debug("Submitting job to the job queue");
             Duration waitDuration = Optional.ofNullable(taskCommands.getTimeout()).orElse(this.waitUntilCompletion);
             SubmitJobResponse submitJobResponse = client.submitJob(
                 SubmitJobRequest.builder()
@@ -530,7 +535,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             } catch (TimeoutException | RuntimeException e) {
                 JobStatus status = describeJobsResponse.get().jobs().get(0).status();
                 Integer exitCode = exitCodeByStatus.get(status);
-                logConsumer.accept("AWS Batch Job ended with status " + status.name() + ". Please check job with name " + jobName + " for more details.", true);
+                logConsumer.accept("AWS Batch job finished with status " + status.name() + ". Please check the job with name " + jobName + " for more details.", true);
                 throw new TaskException(exitCode, logConsumer.getStdOutCount(), logConsumer.getStdErrCount());
             }
 
@@ -644,7 +649,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                         .build()
                 )).forEach(throwConsumer(CompletableFuture::get));
         } catch (Exception e) {
-            runContext.logger().warn("Error while cleaning up S3: {}", e.toString());
+            runContext.logger().warn("Error while cleaning up the S3 bucket: {}", e.toString());
         }
     }
 
