@@ -12,7 +12,6 @@ import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.RunnerType;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
-import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -156,7 +155,6 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         return envs;
     }
 
-    @Introspected
     public enum OutputFormat {
         JSON,
         TEXT,
