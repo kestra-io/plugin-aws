@@ -21,8 +21,8 @@ repositories {
     }
 }
 
-sourceCompatibility = 17
-targetCompatibility = 17
+sourceCompatibility = 21
+targetCompatibility = 21
 
 group "io.kestra.plugin"
 description 'AWS plugin for Kestra'
@@ -34,24 +34,24 @@ tasks.withType(JavaCompile) {
 }
 
 dependencies {
-    // lombok
+    // Lombok
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
     compileOnly "org.projectlombok:lombok:$lombokVersion"
 
-    // micronaut
-    // micronaut
-    annotationProcessor platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
-    annotationProcessor "io.micronaut:micronaut-inject-java"
-    annotationProcessor "io.micronaut.validation:micronaut-validation-processor"
-
+    // Micronaut
     compileOnly platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
-    compileOnly "io.micronaut:micronaut-inject"
-    compileOnly "io.micronaut.validation:micronaut-validation"
     compileOnly "io.micronaut.reactor:micronaut-reactor"
 
-    // kestra
+    // Kestra
+    annotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
     implementation group: "io.kestra.plugin", name: "plugin-script", version: kestraVersion
+
+    // Libs
+    implementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '3.0.0'
+
+    // Logs
+    compileOnly'org.slf4j:slf4j-api:2.0.13'
 
     // AWS libs: versions are managed by the Micronaut BOM
     api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
@@ -108,6 +108,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest-library:2.2"
     testImplementation 'org.mockito:mockito-junit-jupiter'
 
+    testAnnotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion

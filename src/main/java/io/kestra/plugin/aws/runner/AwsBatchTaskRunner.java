@@ -13,7 +13,6 @@ import io.kestra.core.utils.ListUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.s3.AbstractS3;
-import io.micronaut.core.annotation.Introspected;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
@@ -47,7 +46,6 @@ import java.util.stream.StreamSupport;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
-@Introspected
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
