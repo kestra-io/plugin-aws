@@ -28,11 +28,11 @@ public class AwsBatchTaskRunnerTest extends AbstractTaskRunnerTest {
             .secretKeyId(secretKeyId)
             .bucket(s3Bucket)
             .region("eu-west-3")
-            .computeEnvironmentArn("arn:aws:batch:eu-west-3:634784741179:compute-environment/FargateComputeEnvironment")
-            .executionRoleArn("arn:aws:iam::634784741179:role/AWS-Batch-Role-For-Fargate")
-            .taskRoleArn("arn:aws:iam::634784741179:role/S3-Within-AWS-Batch")
+            .computeEnvironmentArn("arn:aws:batch:eu-west-3:634784741179:compute-environment/kestraFargateEnvironment")
+            .executionRoleArn("arn:aws:iam::634784741179:role/kestraEcsTaskExecutionRole")
+            .taskRoleArn("arn:aws:iam::634784741179:role/ecsTaskRole")
             .waitUntilCompletion(Duration.ofMinutes(30))
-            .jobQueueArn("arn:aws:batch:eu-west-3:634784741179:job-queue/queue")
+            .jobQueueArn("arn:aws:batch:eu-west-3:634784741179:job-queue/kestraJobQueue")
             .build();
     }
 

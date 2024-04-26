@@ -260,13 +260,14 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
         String jobName = ScriptService.jobName(runContext);
 
+        String renderedComputeEnvironmentArn = runContext.render(this.computeEnvironmentArn);
         ComputeEnvironmentDetail computeEnvironmentDetail = client.describeComputeEnvironments(
                 DescribeComputeEnvironmentsRequest.builder()
-                    .computeEnvironments(computeEnvironmentArn)
+                    .computeEnvironments(renderedComputeEnvironmentArn)
                     .build()
             ).computeEnvironments().stream()
             .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + computeEnvironmentArn));
+            .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + renderedComputeEnvironmentArn));
 
         String kestraVolume = "kestra";
         if (computeEnvironmentDetail.containerOrchestrationType() != OrchestrationType.ECS) {
@@ -411,11 +412,10 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
         );
 
-        if (needsOutputFilesContainer) {
+        if (hasFilesToUpload || needsOutputFilesContainer) {
             mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
             mainContainerBuilder.mountPoints(volumeMount);
         }
-
         containers.add(mainContainerBuilder.build());
 
         if (needsOutputFilesContainer) {
@@ -463,7 +463,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                     .computeEnvironmentOrder(
                         ComputeEnvironmentOrder.builder()
                             .order(1)
-                            .computeEnvironment(runContext.render(this.computeEnvironmentArn))
+                            .computeEnvironment(renderedComputeEnvironmentArn)
                             .build()
                     )
                     .build()
