@@ -45,7 +45,7 @@ dependencies {
     // Kestra
     annotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
-    implementation group: "io.kestra.plugin", name: "plugin-script", version: kestraVersion
+    compileOnly group: "io.kestra", name: "script", version: kestraVersion
 
     // Libs
     implementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '3.0.0'
@@ -111,6 +111,7 @@ dependencies {
     testAnnotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
+    testImplementation group: "io.kestra", name: "script", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
