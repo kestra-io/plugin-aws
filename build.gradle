@@ -51,7 +51,7 @@ dependencies {
 
     // kestra
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
-    implementation group: "io.kestra.plugin", name: "plugin-script", version: kestraVersion
+    compileOnly group: "io.kestra", name: "script", version: kestraVersion
 
     // AWS libs: versions are managed by the Micronaut BOM
     api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
@@ -110,6 +110,7 @@ dependencies {
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
+    testImplementation group: "io.kestra", name: "script", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
