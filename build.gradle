@@ -48,6 +48,7 @@ dependencies {
     compileOnly "io.micronaut:micronaut-inject"
     compileOnly "io.micronaut.validation:micronaut-validation"
     compileOnly "io.micronaut.reactor:micronaut-reactor"
+    compileOnly "io.micronaut:micronaut-jackson-databind"
 
     // kestra
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
@@ -107,6 +108,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest:2.2"
     testImplementation "org.hamcrest:hamcrest-library:2.2"
     testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation "io.micronaut:micronaut-jackson-databind"
 
     testImplementation group: "io.kestra", name: "core", version: kestraVersion
     testImplementation group: "io.kestra", name: "core", version: kestraVersion, classifier: 'tests'
