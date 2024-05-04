@@ -37,8 +37,7 @@ import java.util.Optional;
                 "accessKeyId: \"<access-key>\"",
                 "secretKeyId: \"<secret-key>\"",
                 "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\"",
-                "maxRecords: 10"
+                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
             }
         )
     }
@@ -56,14 +55,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private String region;
 
     private String endpointOverride;
-
-    @PluginProperty
-    @Schema(title = "Max number of records, when reached the task will end.")
-    private Integer maxRecords;
-
-    @PluginProperty
-    @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
-    private Duration maxDuration;
 
     @Builder.Default
     @PluginProperty
@@ -91,8 +82,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .sessionToken(runContext.render(sessionToken))
             .region(runContext.render(region))
             .endpointOverride(runContext.render(endpointOverride))
-            .maxRecords(this.maxRecords)
-            .maxDuration(this.maxDuration)
             .serdeType(this.serdeType)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
