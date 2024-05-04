@@ -7,12 +7,18 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Schedulers;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import java.io.BufferedOutputStream;
@@ -20,6 +26,8 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -100,6 +108,83 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 .count(total.get())
                 .build();
         }
+    }
+
+    public Flux<Message> stream(RunContext runContext) throws Exception {
+        var queueUrl = runContext.render(getQueueUrl());
+
+        return Flux.<Message>create(
+            fluxSink -> {
+                try (SqsAsyncClient sqsClient = this.asyncClient(runContext)) {
+                    while (true) {
+                        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
+                            .queueUrl(queueUrl)
+                            .build();
+
+                        sqsClient.receiveMessage(receiveRequest)
+                            .whenComplete((messageResponse, throwable) -> {
+                                if (throwable != null) {
+                                    fluxSink.error(throwable);
+                                } else {
+                                    messageResponse.messages().forEach(message -> {
+                                        fluxSink.next(Message.builder().data(message.body()).build());
+                                    });
+                                    messageResponse.messages().forEach(message ->
+                                            sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                                                .queueUrl(queueUrl)
+                                                .receiptHandle(message.receiptHandle())
+                                                .build()
+                                            )
+                                    );
+                                }
+                            });
+
+                        Thread.sleep(100);
+                    }
+                } catch (Throwable e) {
+                    fluxSink.error(e);
+                } finally {
+                    fluxSink.complete();
+                }
+            },
+            FluxSink.OverflowStrategy.BUFFER
+        ).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    private void pollMessages(SqsAsyncClient sqsAsyncClient, String queueUrl, FluxSink<Object> sink, AtomicBoolean stopped) {
+        sqsAsyncClient.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+            .whenComplete((response, error) -> {
+                if (error != null) {
+                    sink.error(error);
+                    return;
+                }
+
+                if (!stopped.get()) {
+                    response.messages()
+                        .forEach(sqsMessage -> {
+                            Message message = Message.builder()
+                                .data(sqsMessage.body())
+                                .groupId(getAttributeValue(sqsMessage.messageAttributes(), "groupId"))
+                                .deduplicationId(getAttributeValue(sqsMessage.messageAttributes(), "deduplicationId"))
+                                .delaySeconds(getIntegerAttributeValue(sqsMessage.messageAttributes(), "delaySeconds"))
+                                .build();
+
+                            sink.next(message);
+                        });
+
+                    pollMessages(sqsAsyncClient, queueUrl, sink, stopped);
+                }
+            });
+    }
+
+    private String getAttributeValue(Map<String, MessageAttributeValue> messageAttributes, String attributeName) {
+        MessageAttributeValue attributeValue = messageAttributes.get(attributeName);
+        return attributeValue != null ? attributeValue.stringValue() : null;
+    }
+
+    private Integer getIntegerAttributeValue(Map<String, MessageAttributeValue> messageAttributes, String attributeName) {
+        MessageAttributeValue attributeValue = messageAttributes.get(attributeName);
+        return attributeValue != null ? Integer.parseInt(attributeValue.stringValue()) : null;
     }
 
     private boolean ended(AtomicInteger count, ZonedDateTime start) {

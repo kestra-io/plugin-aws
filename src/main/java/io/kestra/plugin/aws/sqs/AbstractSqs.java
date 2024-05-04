@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 @SuperBuilder
@@ -22,5 +23,10 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
     protected SqsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, SqsClient.builder()).build();
+    }
+
+    protected SqsAsyncClient asyncClient(final RunContext runContext) throws IllegalVariableEvaluationException {
+        final AwsClientConfig clientConfig = awsClientConfig(runContext);
+        return ConnectionUtils.configureAsyncClient(clientConfig, SqsAsyncClient.builder()).build();
     }
 }
