@@ -76,7 +76,7 @@ class RealtimeTriggerTest extends AbstractSqsTest {
             worker.run();
             scheduler.run();
 
-            repositoryLoader.load(Objects.requireNonNull(RealtimeTriggerTest.class.getClassLoader().getResource("flows/sqs")));
+            repositoryLoader.load(Objects.requireNonNull(RealtimeTriggerTest.class.getClassLoader().getResource("flows/sqs/realtime.yaml")));
 
             // publish two messages to trigger the flow
             Publish task = Publish.builder()
