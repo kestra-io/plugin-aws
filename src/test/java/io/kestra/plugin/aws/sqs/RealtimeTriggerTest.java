@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-//@Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
+@Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
 class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     private ApplicationContext applicationContext;
