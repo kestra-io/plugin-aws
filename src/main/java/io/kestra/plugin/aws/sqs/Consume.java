@@ -151,42 +151,6 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         ).subscribeOn(Schedulers.boundedElastic());
     }
 
-    private void pollMessages(SqsAsyncClient sqsAsyncClient, String queueUrl, FluxSink<Object> sink, AtomicBoolean stopped) {
-        sqsAsyncClient.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-            .whenComplete((response, error) -> {
-                if (error != null) {
-                    sink.error(error);
-                    return;
-                }
-
-                if (!stopped.get()) {
-                    response.messages()
-                        .forEach(sqsMessage -> {
-                            Message message = Message.builder()
-                                .data(sqsMessage.body())
-                                .groupId(getAttributeValue(sqsMessage.messageAttributes(), "groupId"))
-                                .deduplicationId(getAttributeValue(sqsMessage.messageAttributes(), "deduplicationId"))
-                                .delaySeconds(getIntegerAttributeValue(sqsMessage.messageAttributes(), "delaySeconds"))
-                                .build();
-
-                            sink.next(message);
-                        });
-
-                    pollMessages(sqsAsyncClient, queueUrl, sink, stopped);
-                }
-            });
-    }
-
-    private String getAttributeValue(Map<String, MessageAttributeValue> messageAttributes, String attributeName) {
-        MessageAttributeValue attributeValue = messageAttributes.get(attributeName);
-        return attributeValue != null ? attributeValue.stringValue() : null;
-    }
-
-    private Integer getIntegerAttributeValue(Map<String, MessageAttributeValue> messageAttributes, String attributeName) {
-        MessageAttributeValue attributeValue = messageAttributes.get(attributeName);
-        return attributeValue != null ? Integer.parseInt(attributeValue.stringValue()) : null;
-    }
-
     private boolean ended(AtomicInteger count, ZonedDateTime start) {
         if (this.maxRecords != null && count.get() >= this.maxRecords) {
             return true;
