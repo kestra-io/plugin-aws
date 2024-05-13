@@ -45,7 +45,7 @@ class PutEventsTest extends AbstractLocalStackTest {
         if (!from.getScheme().equals("kestra")) {
             throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
         }
-        try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
+        try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
             outputEntries = Flux.create(FileSerde.reader(inputStream, PutEvents.OutputEntry.class), FluxSink.OverflowStrategy.BUFFER).collectList().block();
         }
         return outputEntries;
@@ -151,7 +151,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             .region(localstack.getRegion())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .entries(runContext.putTempFile(tempFile).toString())
+            .entries(runContext.storage().putFile(tempFile).toString())
             .build();
 
 
