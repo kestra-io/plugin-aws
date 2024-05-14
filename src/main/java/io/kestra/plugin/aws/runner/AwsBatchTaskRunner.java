@@ -240,18 +240,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
 
         String renderedRegion = runContext.render(this.region);
         Region regionObject = Region.of(renderedRegion);
-        BatchClientBuilder batchClientBuilder = BatchClient.builder()
-            .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
-            .region(regionObject)
-            // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
-            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build());
-
-        if (this.endpointOverride != null) {
-            batchClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
-        }
-
-        BatchClient client = batchClientBuilder
-            .build();
+        BatchClient client = newBatchClient(runContext, regionObject);
 
         String jobName = ScriptService.jobName(runContext);
 
@@ -467,6 +456,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
             waitForQueueUpdate(client, jobQueueResponse);
 
             jobQueue = jobQueueResponse.jobQueueArn();
+
             logger.debug("Job queue created: {}", jobQueue);
         }
 
@@ -512,6 +502,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                     )
                     .build()
             );
+            onKill(() -> safelyKillJob(runContext, regionObject, submitJobResponse.jobId()));
             logger.debug("Job submitted: {}", submitJobResponse.jobName());
 
             final AtomicReference<DescribeJobsResponse> describeJobsResponse = new AtomicReference<>();
@@ -573,6 +564,20 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
         }
 
         return new RunnerResult(0, logConsumer);
+    }
+
+    private BatchClient newBatchClient(RunContext runContext, Region regionObject) throws IllegalVariableEvaluationException {
+        BatchClientBuilder batchClientBuilder = BatchClient.builder()
+            .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
+            .region(regionObject)
+            // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
+            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build());
+
+        if (this.endpointOverride != null) {
+            batchClientBuilder.endpointOverride(URI.create(runContext.render(this.endpointOverride)));
+        }
+
+        return batchClientBuilder.build();
     }
 
     @Override
@@ -741,6 +746,35 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                 .jobDefinition(jobDefArn)
                 .build()
         );
+    }
+
+    private void safelyKillJob(final RunContext runContext, final Region region, final String jobId) {
+        // Use a dedicated BatchClient, as the one used in the run method may be closed in the meantime.
+        try (BatchClient client = newBatchClient(runContext, region)) {
+            final DescribeJobsResponse response = client.describeJobs(
+                DescribeJobsRequest.builder()
+                    .jobs(jobId)
+                    .build()
+            );
+            if (response.hasJobs()) {
+                JobDetail jobDetail = response.jobs().get(0);
+                if (!jobDetail.isTerminated() && !jobDetail.isCancelled()) {
+                    try {
+                        client.terminateJob(TerminateJobRequest
+                            .builder()
+                            .jobId(jobId)
+                            .reason("Kestra task was killed.")
+                            .build()
+                        );
+                        runContext.logger().debug("Job terminated: {}", jobId);
+                    } catch (Exception e) {
+                        runContext.logger().warn("Failed to cancel job: {}", jobId);
+                    }
+                }
+            }
+        } catch (IllegalVariableEvaluationException e) {
+            throw new RuntimeException(e); // cannot happen here.
+        }
     }
 
     @Getter
