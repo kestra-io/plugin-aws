@@ -27,10 +27,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 
 @Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
-class TriggerTest extends AbstractSqsTest {
+class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     private ApplicationContext applicationContext;
 
@@ -50,7 +49,6 @@ class TriggerTest extends AbstractSqsTest {
     @Inject
     private RunContextFactory runContextFactory;
 
-
     @Test
     void flow() throws Exception {
         // mock flow listeners
@@ -68,17 +66,17 @@ class TriggerTest extends AbstractSqsTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(TriggerTest.class, execution -> {
+            executionQueue.receive(RealtimeTriggerTest.class, execution -> {
                 last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
+                assertThat(execution.getLeft().getFlowId(), is("realtime"));
             });
 
             worker.run();
             scheduler.run();
 
-            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/sqs/sqs-listen.yaml")));
+            repositoryLoader.load(Objects.requireNonNull(RealtimeTriggerTest.class.getClassLoader().getResource("flows/sqs/realtime.yaml")));
 
             // publish two messages to trigger the flow
             Publish task = Publish.builder()
@@ -89,8 +87,7 @@ class TriggerTest extends AbstractSqsTest {
                 .secretKeyId(localstack.getSecretKey())
                 .from(
                     List.of(
-                        Message.builder().data("Hello World").build(),
-                        Message.builder().data("Hello Kestra").delaySeconds(5).build()
+                        Message.builder().data("Hello World").build()
                     )
                 )
                 .build();
@@ -103,11 +100,8 @@ class TriggerTest extends AbstractSqsTest {
 
             queueCount.await(1, TimeUnit.MINUTES);
 
-            @SuppressWarnings("unchecked")
-            var count = (Integer) last.get().getTrigger().getVariables().get("count");
-            var uri = (String) last.get().getTrigger().getVariables().get("uri");
-            assertThat(count, is(2));
-            assertThat(uri, is(notNullValue()));
+            assertThat(last.get().getTrigger().getVariables().size(), is(1));
+            assertThat(last.get().getTrigger().getVariables().get("data"), is("Hello World"));
         }
     }
 

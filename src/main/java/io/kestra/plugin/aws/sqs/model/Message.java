@@ -14,7 +14,7 @@ import jakarta.validation.constraints.NotNull;
 @Getter
 @Builder
 @Jacksonized
-public class Message {
+public class Message implements io.kestra.core.models.tasks.Output {
     @Schema(title = "The message data.")
     @PluginProperty(dynamic = true)
     @NotNull
