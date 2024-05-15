@@ -135,7 +135,7 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
 },
 beta = true
     )
-public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
+public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
         JobStatus.RUNNING, 2,
