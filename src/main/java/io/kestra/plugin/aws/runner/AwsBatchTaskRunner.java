@@ -219,6 +219,13 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
     @Builder.Default
     private Duration waitUntilCompletion = Duration.ofHours(1);
 
+    @Schema(
+        title = "The frequency with which the TaskRunner checks whether the job is completed."
+    )
+    @Builder.Default
+    @PluginProperty
+    private final Duration completionCheckInterval = Duration.ofSeconds(1);
+
     @Override
     public RunnerResult run(RunContext runContext, TaskCommands taskCommands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.bucket != null;
@@ -520,7 +527,7 @@ public class AwsBatchTaskRunner extends TaskRunner implements AbstractS3, Abstra
                     }
 
                     return status == JobStatus.SUCCEEDED;
-                }, Duration.ofMillis(500), waitDuration);
+                }, completionCheckInterval, waitDuration);
             } catch (TimeoutException | RuntimeException e) {
                 JobStatus status = describeJobsResponse.get().jobs().get(0).status();
                 Integer exitCode = exitCodeByStatus.get(status);
