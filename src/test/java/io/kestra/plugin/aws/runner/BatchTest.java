@@ -10,7 +10,7 @@ import java.time.Duration;
 
 @MicronautTest
 @Disabled("Too costly to run on CI")
-public class AwsBatchTaskRunnerTest extends AbstractTaskRunnerTest {
+public class BatchTest extends AbstractTaskRunnerTest {
     @Value("${kestra.aws.batch.accessKeyId}")
     private String accessKeyId;
 
@@ -23,7 +23,7 @@ public class AwsBatchTaskRunnerTest extends AbstractTaskRunnerTest {
 
     @Override
     protected TaskRunner taskRunner() {
-        return AwsBatchTaskRunner.builder()
+        return Batch.builder()
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
             .bucket(s3Bucket)
