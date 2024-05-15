@@ -14,11 +14,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
-import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import java.io.BufferedOutputStream;
@@ -26,8 +23,6 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -113,7 +108,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     public Flux<Message> stream(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl());
 
-        return Flux.<Message>create(
+        return Flux.create(
             fluxSink -> {
                 try (SqsAsyncClient sqsClient = this.asyncClient(runContext)) {
                     while (true) {
@@ -146,9 +141,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 } finally {
                     fluxSink.complete();
                 }
-            },
-            FluxSink.OverflowStrategy.BUFFER
-        ).subscribeOn(Schedulers.boundedElastic());
+            });
     }
 
     private boolean ended(AtomicInteger count, ZonedDateTime start) {

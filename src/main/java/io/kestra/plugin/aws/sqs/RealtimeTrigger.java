@@ -5,7 +5,6 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.tasks.Output;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
@@ -16,11 +15,9 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -40,7 +37,8 @@ import java.util.Optional;
                 "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
             }
         )
-    }
+    },
+    beta = true
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
 
@@ -73,7 +71,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
-        Logger logger = runContext.logger();
 
         Consume task = Consume.builder()
             .queueUrl(runContext.render(queueUrl))
@@ -91,7 +88,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .build();
 
         return Flux.from(task.stream(conditionContext.getRunContext()))
-            .map(record -> TriggerService.generateRealtimeExecution(this, context, record))
-            .next();
+            .map(record -> TriggerService.generateRealtimeExecution(this, context, record));
     }
 }
