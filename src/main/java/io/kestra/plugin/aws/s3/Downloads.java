@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -15,6 +16,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import java.net.URI;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -40,7 +43,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Downloads multiple files from a S3 bucket."
 )
-public class Downloads extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface, ActionInterface {
+public class Downloads extends AbstractS3Object implements RunnableTask<Downloads.Output>, ListInterface, ActionInterface {
     private String prefix;
 
     private String delimiter;
@@ -72,7 +75,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
     private Copy.CopyObject moveTo;
 
     @Override
-    public List.Output run(RunContext runContext) throws Exception {
+    public Output run(RunContext runContext) throws Exception {
         List task = List.builder()
             .id(this.id)
             .type(List.class.getName())
@@ -113,6 +116,9 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
                 }))
                 .collect(Collectors.toList());
 
+            Map<String, URI> outputFiles = list.stream()
+                .map(obj -> new AbstractMap.SimpleEntry<>(obj.getKey(), obj.getUri()))
+                .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
 
             S3Service.performAction(
                 run.getObjects(),
@@ -124,10 +130,26 @@ public class Downloads extends AbstractS3Object implements RunnableTask<List.Out
                 this
             );
 
-            return List.Output
+            return Output
                 .builder()
                 .objects(list)
+                .outputFiles(outputFiles)
                 .build();
         }
+    }
+
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @JsonInclude
+        @Schema(
+            title = "The list of S3 objects."
+        )
+        private final java.util.List<S3Object> objects;
+
+        @Schema(
+            title = "The downloaded files as a map of from/to URIs."
+        )
+        private final Map<String, URI> outputFiles;
     }
 }
