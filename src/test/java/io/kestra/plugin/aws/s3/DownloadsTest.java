@@ -33,10 +33,11 @@ class DownloadsTest extends AbstractTest {
             .action(ActionInterface.Action.DELETE)
             .build();
 
-        List.Output run = task.run(runContext(task));
+        Downloads.Output run = task.run(runContext(task));
 
         assertThat(run.getObjects().size(), is(2));
         assertThat(run.getObjects().get(0).getUri().toString(), endsWith(".yml"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         List list = list().build();
         List.Output listOutput = list.run(runContext(list));
@@ -65,9 +66,10 @@ class DownloadsTest extends AbstractTest {
             )
             .build();
 
-        List.Output run = task.run(runContextFactory.of(Map.of("bucket", this.BUCKET)));
+        Downloads.Output run = task.run(runContextFactory.of(Map.of("bucket", this.BUCKET)));
 
         assertThat(run.getObjects().size(), is(2));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         List list = list().prefix("/tasks/s3-from").build();
         List.Output listOutput = list.run(runContext(list));
