@@ -105,45 +105,6 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
     }
 
-    public Flux<Message> stream(RunContext runContext) throws Exception {
-        var queueUrl = runContext.render(getQueueUrl());
-
-        return Flux.create(
-            fluxSink -> {
-                try (SqsAsyncClient sqsClient = this.asyncClient(runContext)) {
-                    while (true) {
-                        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .build();
-
-                        sqsClient.receiveMessage(receiveRequest)
-                            .whenComplete((messageResponse, throwable) -> {
-                                if (throwable != null) {
-                                    fluxSink.error(throwable);
-                                } else {
-                                    messageResponse.messages().forEach(message -> {
-                                        fluxSink.next(Message.builder().data(message.body()).build());
-                                    });
-                                    messageResponse.messages().forEach(message ->
-                                            sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                                .queueUrl(queueUrl)
-                                                .receiptHandle(message.receiptHandle())
-                                                .build()
-                                            )
-                                    );
-                                }
-                            });
-
-                        Thread.sleep(100);
-                    }
-                } catch (Throwable e) {
-                    fluxSink.error(e);
-                } finally {
-                    fluxSink.complete();
-                }
-            });
-    }
-
     private boolean ended(AtomicInteger count, ZonedDateTime start) {
         if (this.maxRecords != null && count.get() >= this.maxRecords) {
             return true;
