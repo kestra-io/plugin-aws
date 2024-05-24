@@ -220,7 +220,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
     private Duration waitUntilCompletion = Duration.ofHours(1);
 
     @Schema(
-        title = "The frequency with which the TaskRunner checks whether the job is completed."
+        title = "Determines how often Kestra should poll the container for completion. By default, the task runner checks every 5 seconds whether the job is completed. You can set this to a lower value (e.g. `PT0.1S` = every 100 milliseconds) for quick jobs and to a lower threshold (e.g. `PT1M` = every minute) for long-running jobs. Setting this property to a lower value will reduce the number of API calls Kestra makes to the remote service — keep that in mind in case you see API rate limit errors."
     )
     @Builder.Default
     @PluginProperty
