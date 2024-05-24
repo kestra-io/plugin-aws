@@ -10,7 +10,7 @@ def handler(event, context):
         if action == "error":
             logger.info("Will throw an Exception. Action: " + action)
             raise Exception("Error for client tests")
-        logger.info("Normal work - Unknow action: " + action)
+        logger.info("Normal work - Unknown action: " + action)
     else:
         logger.info("Normal work - All OK!")
     

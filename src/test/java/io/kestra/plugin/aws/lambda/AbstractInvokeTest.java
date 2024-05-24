@@ -5,6 +5,8 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 @MicronautTest
 @Testcontainers
 public class AbstractInvokeTest extends AbstractLocalStackTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokeTest.class);
 
     static final String FUNCTION_NAME = "Test-Lambda";
 
@@ -36,9 +40,7 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
 
 
     void createFunction(LambdaClient client) {
-        if (client.listFunctions().functions().stream()
-            .filter(config -> config.functionName().equals(FUNCTION_NAME))
-            .collect(Collectors.toList()).size() == 0) {
+        if (client.listFunctions().functions().stream().noneMatch(config -> config.functionName().equals(FUNCTION_NAME))) {
             LambdaWaiter waiter = client.waiter();
 
             InputStream is = getClass().getClassLoader().getResourceAsStream(FUNCTION_CODE);
@@ -48,8 +50,10 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
             FunctionCode code = FunctionCode.builder().zipFile(codeToUpload).build();
 
             CreateFunctionRequest functionRequest = CreateFunctionRequest.builder()
-                .functionName(FUNCTION_NAME).description("Created by the Lambda Java API")
-                .code(code).handler("test.handler")
+                .functionName(FUNCTION_NAME)
+                .description("Created by the Lambda Java API")
+                .code(code)
+                .handler("test.handler")
                 .role(FUNCTION_ROLE_ARN)
                 .runtime(Runtime.PYTHON3_9)
                 .build();
@@ -59,8 +63,8 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
             GetFunctionRequest getFunctionRequest =
                 GetFunctionRequest.builder().functionName(FUNCTION_NAME).build();
             WaiterResponse<GetFunctionResponse> waiterResponse =
-                waiter.waitUntilFunctionExists(getFunctionRequest);
-            waiterResponse.matched().response().ifPresent(System.out::println);
+                waiter.waitUntilFunctionActiveV2(getFunctionRequest);
+            waiterResponse.matched().response().ifPresent(s -> LOG.info("{}", s));
             // FYI ARN can be found as follows
             //functionArn = functionResponse.functionArn();
         }
