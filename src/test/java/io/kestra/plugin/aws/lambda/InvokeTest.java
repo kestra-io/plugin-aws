@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
+
+import io.kestra.core.models.executions.AbstractMetricEntry;
 import org.apache.http.entity.ContentType;
-import org.junit.Ignore;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -23,7 +25,6 @@ public class InvokeTest extends AbstractInvokeTest {
         this.context = runContextFactory.of();
     }
 
-    @Ignore
     @Test
     public void givenExistingLambda_whenInvoked_thenOutputOkMetricsOk() throws Exception {
         // Given
@@ -51,11 +52,11 @@ public class InvokeTest extends AbstractInvokeTest {
         assertTrue(output.getContentLength() > 10, "Output content length should have a value");
         assertTrue(
                 context.metrics().stream().filter(m -> m.getName().equals("file.size"))
-                        .map(m -> m.getValue()).findFirst().isPresent(),
+                        .map(AbstractMetricEntry::getValue).findFirst().isPresent(),
                 "Metric file.size should be present");
         assertTrue(
                 context.metrics().stream().filter(m -> m.getName().equals("duration"))
-                        .map(m -> m.getValue()).findFirst().isPresent(),
+                        .map(AbstractMetricEntry::getValue).findFirst().isPresent(),
                 "Metric duration should be present");
     }
 
