@@ -24,7 +24,7 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Wait for messages in a SQS queue.",
+    title = "Consume messages periodically from an SQS queue and create one execution per batch.",
     description = "Requires `maxDuration` or `maxRecords`."
 )
 @Plugin(

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "React to and consume for messages from an SQS queue."
+    title = "Consume a message in real-time from an SQS queue and create one execution per message."
 )
 @Plugin(
     examples = {
