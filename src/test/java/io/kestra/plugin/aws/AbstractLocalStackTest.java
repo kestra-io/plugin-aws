@@ -10,7 +10,7 @@ import org.testcontainers.utility.DockerImageName;
 @MicronautTest
 @Testcontainers
 public class AbstractLocalStackTest {
-    public static String LOCALSTACK_VERSION = "localstack/localstack:1.4.0";
+    public static String LOCALSTACK_VERSION = "localstack/localstack:3.4.0";
 
     protected static LocalStackContainer localstack;
 
