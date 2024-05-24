@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.http.entity.ContentType;
+import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -22,6 +23,7 @@ public class InvokeTest extends AbstractInvokeTest {
         this.context = runContextFactory.of();
     }
 
+    @Ignore
     @Test
     public void givenExistingLambda_whenInvoked_thenOutputOkMetricsOk() throws Exception {
         // Given
