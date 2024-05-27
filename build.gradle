@@ -56,7 +56,7 @@ dependencies {
     // AWS libs: versions are managed by the Micronaut BOM
     api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     api 'software.amazon.awssdk:cloudwatchlogs'
-    api 'software.amazon.awssdk:batch:2.25.14' // we can remove this after micronaut bump as long as it contains the RegisterJobDefinitionRequest.ecsProperties exists
+    api 'software.amazon.awssdk:batch:2.25.60' // we can remove this after micronaut bump as long as it contains the RegisterJobDefinitionRequest.ecsProperties exists
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
     api 'software.amazon.awssdk.crt:aws-crt:0.29.14' //used by s3-transfer-manager
