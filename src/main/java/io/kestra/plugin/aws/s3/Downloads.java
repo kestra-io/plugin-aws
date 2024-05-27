@@ -114,6 +114,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
 
                     return object.withUri(download.getRight());
                 }))
+                .filter(object -> !object.getKey().endsWith("/")) // filter directory
                 .collect(Collectors.toList());
 
             Map<String, URI> outputFiles = list.stream()
