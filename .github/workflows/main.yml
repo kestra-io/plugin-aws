@@ -12,11 +12,12 @@ on:
       - master
 
   workflow_dispatch:
-    skip-test:
-      description: 'Skip test'
-      required: false
-      type: string
-      default: "false"
+    inputs:
+      skip-test:
+        description: 'Skip test'
+        required: false
+        type: string
+        default: "false"
 
 jobs:
   check:
