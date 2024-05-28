@@ -42,8 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
             }
         )
-    },
-    beta = true
+    }
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
 
