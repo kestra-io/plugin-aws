@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 tasks:
                 - id: log
                   type: io.kestra.plugin.core.log.Log
-                  message: "{{ trigger.value }}"
+                  message: "{{ trigger.data }}"
 
                 triggers:
                 - id: realtime_trigger
