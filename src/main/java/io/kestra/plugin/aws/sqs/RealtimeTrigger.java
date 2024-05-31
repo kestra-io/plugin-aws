@@ -30,17 +30,30 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume a message in real-time from an SQS queue and create one execution per message."
+    title = "Consume a message in real-time from an SQS queue and create one execution per message.",
+    description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.aws.sqs.Trigger](https://kestra.io/plugins/plugin-aws/triggers/io.kestra.plugin.aws.sqs.trigger) instead."
 )
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
-            }
+            title = "Consume a message from an SQS queue in real-time.",
+            full = true,
+            code = """
+                id: sqs
+                namespace: dev
+
+                tasks:
+                - id: log
+                  type: io.kestra.plugin.core.log.Log
+                  message: "{{ trigger.value }}"
+
+                triggers:
+                - id: realtime_trigger
+                  type: io.kestra.plugin.aws.sqs.RealtimeTrigger
+                  accessKeyId: "<access-key>",
+                  secretKeyId: "<secret-key>",
+                  region: "eu-central-1",
+                  queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""                        
         )
     }
 )
