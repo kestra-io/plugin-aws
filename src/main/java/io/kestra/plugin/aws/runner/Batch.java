@@ -84,57 +84,56 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
 )
 @Plugin(
     examples = {
-    @Example(
-        title = "Execute a Shell command in a container on ECS Fargate.",
-        code = """
-            id: run_container
-            namespace: dev
-
-            tasks:
-              - id: shell
-                type: io.kestra.plugin.scripts.shell.Commands
-                taskRunner:
-                  type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
-                  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
-                  region: "{{ vars.region }}"
-                  computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
-                commands:
-                - echo "Hello World\"""",
-        full = true
-    ),
-    @Example(
-        title = "Pass input files to the task, execute a Shell command, then retrieve the output files.",
-        code = """
-            id: container_with_input_files
-            namespace: myteam
-            
-            inputs:
-              - id: file
-                type: FILE
-            
-            tasks:
-              - id: shell
-                type: io.kestra.plugin.scripts.shell.Commands
-                inputFiles:
-                  data.txt: "{{ inputs.file }}"
-                outputFiles:
-                  - out.txt
-                containerImage: centos
-                taskRunner:
-                  type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
-                  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
-                  region: "{{ vars.region }}"
-                  computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
-                  bucket: "{{ vars.bucket }}"
-                commands:
-                - cp {{ workingDir }}/data.txt {{ workingDir }}/out.txt""",
-        full = true
-    )
-},
-beta = true
-    )
+        @Example(
+            title = "Execute a Shell command in a container on ECS Fargate.",
+            code = """
+                id: run_container
+                namespace: dev
+    
+                tasks:
+                  - id: shell
+                    type: io.kestra.plugin.scripts.shell.Commands
+                    taskRunner:
+                      type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                      region: "{{ vars.region }}"
+                      computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
+                    commands:
+                    - echo "Hello World\"""",
+            full = true
+        ),
+        @Example(
+            title = "Pass input files to the task, execute a Shell command, then retrieve the output files.",
+            code = """
+                id: container_with_input_files
+                namespace: myteam
+                
+                inputs:
+                  - id: file
+                    type: FILE
+                
+                tasks:
+                  - id: shell
+                    type: io.kestra.plugin.scripts.shell.Commands
+                    inputFiles:
+                      data.txt: "{{ inputs.file }}"
+                    outputFiles:
+                      - out.txt
+                    containerImage: centos
+                    taskRunner:
+                      type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                      region: "{{ vars.region }}"
+                      computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
+                      bucket: "{{ vars.bucket }}"
+                    commands:
+                    - cp {{ workingDir }}/data.txt {{ workingDir }}/out.txt""",
+            full = true
+        )
+    }
+)
 public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionInterface, RemoteRunnerInterface {
     private static final Map<JobStatus, Integer> exitCodeByStatus = Map.of(
         JobStatus.FAILED, 1,
