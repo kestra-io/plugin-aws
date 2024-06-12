@@ -7,8 +7,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.FlowListeners;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
-import io.kestra.core.schedulers.DefaultScheduler;
-import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
+import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
@@ -27,9 +26,6 @@ import static org.hamcrest.Matchers.is;
 class TriggerTest extends AbstractTest {
     @Inject
     private ApplicationContext applicationContext;
-
-    @Inject
-    private SchedulerTriggerStateInterface triggerState;
 
     @Inject
     private FlowListeners flowListenersService;
@@ -53,10 +49,9 @@ class TriggerTest extends AbstractTest {
         // scheduler
         Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,
-                this.flowListenersService,
-                this.triggerState
+                this.flowListenersService
             )
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
@@ -119,10 +114,9 @@ class TriggerTest extends AbstractTest {
         // scheduler
         Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,
-                this.flowListenersService,
-                this.triggerState
+                this.flowListenersService
             )
         ) {
             upload("trigger/s3", bucket);
