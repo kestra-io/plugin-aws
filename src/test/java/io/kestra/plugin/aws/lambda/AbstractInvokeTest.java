@@ -3,7 +3,7 @@ package io.kestra.plugin.aws.lambda;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +18,7 @@ import software.amazon.awssdk.services.lambda.waiters.LambdaWaiter;
 import java.io.InputStream;
 import java.util.stream.Collectors;
 
-@MicronautTest
+@KestraTest
 @Testcontainers
 public class AbstractInvokeTest extends AbstractLocalStackTest {
 

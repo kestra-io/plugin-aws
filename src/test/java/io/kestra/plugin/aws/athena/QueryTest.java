@@ -3,7 +3,7 @@ package io.kestra.plugin.aws.athena;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContextFactory;
 import io.micronaut.context.annotation.Value;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,7 @@ import java.util.Map;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-@MicronautTest
+@KestraTest
 class QueryTest {
     @Value("${kestra.aws.access-key}")
     private String accessKey;

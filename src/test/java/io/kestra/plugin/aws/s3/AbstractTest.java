@@ -8,7 +8,7 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -21,7 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
 
-@MicronautTest
+@KestraTest
 @Testcontainers
 public abstract class AbstractTest extends AbstractLocalStackTest {
     @Inject

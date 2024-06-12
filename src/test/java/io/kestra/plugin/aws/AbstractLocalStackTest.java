@@ -1,13 +1,13 @@
 package io.kestra.plugin.aws;
 
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-@MicronautTest
+@KestraTest
 @Testcontainers
 public class AbstractLocalStackTest {
     public static String LOCALSTACK_VERSION = "localstack/localstack:3.4.0";

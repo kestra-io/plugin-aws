@@ -10,7 +10,7 @@ import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.kinesis.model.Record;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -42,7 +42,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-@MicronautTest
+@KestraTest
 @Testcontainers
 class PutRecordsTest {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
