@@ -7,12 +7,14 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.FlowListeners;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -57,7 +59,7 @@ class TriggerTest extends AbstractTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(executionWithError -> {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
                 Execution execution = executionWithError.getLeft();
 
                 if (execution.getFlowId().equals("s3-listen")) {
@@ -79,6 +81,7 @@ class TriggerTest extends AbstractTest {
                 assertThat(await, is(true));
             } finally {
                 worker.shutdown();
+                receive.blockLast();
             }
 
             @SuppressWarnings("unchecked")
@@ -102,7 +105,7 @@ class TriggerTest extends AbstractTest {
         // wait for execution
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        executionQueue.receive(executionWithError -> {
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
             Execution execution = executionWithError.getLeft();
 
             if (execution.getFlowId().equals("s3-listen-none-action")) {
@@ -131,6 +134,7 @@ class TriggerTest extends AbstractTest {
                 assertThat(await, is(true));
             } finally {
                 worker.shutdown();
+                receive.blockLast();
             }
 
             @SuppressWarnings("unchecked")

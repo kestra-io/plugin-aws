@@ -8,6 +8,7 @@ import io.kestra.core.runners.FlowListeners;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.micronaut.context.ApplicationContext;
@@ -16,13 +17,13 @@ import jakarta.inject.Named;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -58,12 +59,8 @@ class RealtimeTriggerTest extends AbstractSqsTest {
                 this.flowListenersService
             )
         ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
-
             // wait for execution
-            executionQueue.receive(execution -> {
-                last.set(execution.getLeft());
-
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 queueCount.countDown();
                 assertThat(execution.getLeft().getFlowId(), is("realtime"));
             });
@@ -93,10 +90,12 @@ class RealtimeTriggerTest extends AbstractSqsTest {
 
             task.run(runContext);
 
-            queueCount.await(1, TimeUnit.MINUTES);
+            boolean await = queueCount.await(1, TimeUnit.MINUTES);
+            assertThat(await, is(true));
 
-            assertThat(last.get().getTrigger().getVariables().size(), is(1));
-            assertThat(last.get().getTrigger().getVariables().get("data"), is("Hello World"));
+            Execution last = receive.blockLast();
+            assertThat(last.getTrigger().getVariables().size(), is(1));
+            assertThat(last.getTrigger().getVariables().get("data"), is("Hello World"));
         }
     }
 
