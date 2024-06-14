@@ -54,7 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Schema(title = "Task runner that executes a task inside a job in AWS Batch.",
     description = """
 This task runner only supports ECS Fargate or ECS EC2 as compute environment. 
-For EKS, use the [KubernetesTaskRunner](https://kestra.io/plugins/plugin-kubernetes/task-runners/runner/io.kestra.plugin.kubernetes.runner.kubernetestaskrunner). 
+For EKS, use the [Kubernetes Task Runner](https://kestra.io/plugins/plugin-kubernetes/task-runners/runner/io.kestra.plugin.kubernetes.runner.kubernetes). 
 
 Make sure to set the `containerImage` property because this runner runs the task in a container.
 
@@ -94,7 +94,7 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
                   - id: shell
                     type: io.kestra.plugin.scripts.shell.Commands
                     taskRunner:
-                      type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                      type: io.kestra.plugin.aws.runner.Batch
                       accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                       secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                       region: "{{ vars.region }}"
@@ -122,7 +122,7 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
                       - out.txt
                     containerImage: centos
                     taskRunner:
-                      type: io.kestra.plugin.aws.runner.AwsBatchTaskRunner
+                      type: io.kestra.plugin.aws.runner.Batch
                       accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                       secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                       region: "{{ vars.region }}"
