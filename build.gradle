@@ -35,24 +35,28 @@ tasks.withType(JavaCompile) {
 }
 
 dependencies {
+    // Platform
+    annotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
+    implementation enforcedPlatform("io.kestra:platform:$kestraVersion")
+    api enforcedPlatform("io.kestra:platform:$kestraVersion")
+
     // Lombok
-    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
-    compileOnly "org.projectlombok:lombok:$lombokVersion"
+    annotationProcessor "org.projectlombok:lombok"
+    compileOnly "org.projectlombok:lombok"
 
     // Micronaut
-    compileOnly platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     compileOnly "io.micronaut.reactor:micronaut-reactor"
 
     // Kestra
-    annotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
-    compileOnly group: "io.kestra", name: "core", version: kestraVersion
-    compileOnly group: "io.kestra", name: "script", version: kestraVersion
+    annotationProcessor group: "io.kestra", name: "processor"
+    compileOnly group: "io.kestra", name: "core"
+    compileOnly group: "io.kestra", name: "script"
 
     // Logs
-    compileOnly'org.slf4j:slf4j-api:2.0.13'
+    compileOnly'org.slf4j:slf4j-api'
 
     // AWS libs: versions are managed by the Micronaut BOM
-    api platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
+    api platform("io.micronaut.platform:micronaut-platform")
     api 'software.amazon.awssdk:cloudwatchlogs'
     api 'software.amazon.awssdk:batch:2.25.60' // we can remove this after micronaut bump as long as it contains the RegisterJobDefinitionRequest.ecsProperties exists
     api 'software.amazon.awssdk:s3'
@@ -88,31 +92,33 @@ testlogger {
 }
 
 dependencies {
-    // lombok
-    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
-    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+    // Platform
+    testAnnotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
+    testImplementation enforcedPlatform("io.kestra:platform:$kestraVersion")
 
-    testAnnotationProcessor platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
+    // lombok
+    testAnnotationProcessor "org.projectlombok:lombok"
+    testCompileOnly "org.projectlombok:lombok"
+
     testAnnotationProcessor "io.micronaut:micronaut-inject-java"
     testAnnotationProcessor "io.micronaut.validation:micronaut-validation-processor"
 
-    testImplementation platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
     testImplementation "io.micronaut.test:micronaut-test-junit5"
     testImplementation "io.micronaut.reactor:micronaut-reactor"
 
     // test
     testImplementation "org.junit.jupiter:junit-jupiter-engine"
-    testImplementation "org.hamcrest:hamcrest:2.2"
-    testImplementation "org.hamcrest:hamcrest-library:2.2"
+    testImplementation "org.hamcrest:hamcrest"
+    testImplementation "org.hamcrest:hamcrest-library"
     testImplementation 'org.mockito:mockito-junit-jupiter'
 
-    testAnnotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
-    testImplementation group: "io.kestra", name: "core", version: kestraVersion
-    testImplementation group: "io.kestra", name: "tests", version: kestraVersion
-    testImplementation group: "io.kestra", name: "script", version: kestraVersion
-    testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
-    testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
-    testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
+    testAnnotationProcessor group: "io.kestra", name: "processor"
+    testImplementation group: "io.kestra", name: "core"
+    testImplementation group: "io.kestra", name: "tests"
+    testImplementation group: "io.kestra", name: "script"
+    testImplementation group: "io.kestra", name: "storage-local"
+    testImplementation group: "io.kestra", name: "runner-memory"
+    testImplementation group: "io.kestra", name: "repository-memory"
 
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:1.19.8"
@@ -126,7 +132,7 @@ dependencies {
  * Allure Reports
  **********************************************************************************************************************/
 dependencies {
-    testImplementation platform("io.qameta.allure:allure-bom:2.27.0")
+    testAnnotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
     testImplementation "io.qameta.allure:allure-junit5"
 }
 
@@ -168,6 +174,11 @@ nexusPublishing {
             snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
         }
     }
+}
+
+tasks.withType(GenerateModuleMetadata).configureEach {
+    // Suppression this validation error as we want to enforce the Kestra platform
+    suppressedValidationErrors.add('enforced-platform')
 }
 
 jar {
