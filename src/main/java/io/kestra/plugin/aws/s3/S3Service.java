@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import org.apache.commons.io.FilenameUtils;
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 public class S3Service {
     public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest request) throws IOException, ExecutionException, InterruptedException {
         // s3 require non existing files
-        File tempFile = runContext.tempFile(runContext.fileExtension(request.key())).toFile();
+        File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(request.key())).toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
 

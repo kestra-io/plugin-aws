@@ -186,7 +186,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
     private File writeOutputFile(RunContext runContext, PutRecordsResponse putRecordsResponse, List<Record> records) throws IOException {
         // Create Output
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             Flux.fromIterable(records)
                 .zipWithIterable(putRecordsResponse.records(), (record, response) -> OutputEntry.builder()

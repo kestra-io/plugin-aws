@@ -145,7 +145,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     }
 
     private Pair<URI, Long> store(RunContext runContext, List<Map<String, AttributeValue>> items) throws IOException {
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         AtomicLong count = new AtomicLong();
 
         try (var output = new FileOutputStream(tempFile)) {

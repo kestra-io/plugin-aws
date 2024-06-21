@@ -253,7 +253,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             return Pair.of(null, 0L);
         }
 
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         AtomicLong count = new AtomicLong();
 
         try (var output = new FileOutputStream(tempFile)) {

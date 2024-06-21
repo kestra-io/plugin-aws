@@ -54,7 +54,7 @@ public class InvokeUnitTest {
     @BeforeEach
     public void setUp() throws IOException, IllegalVariableEvaluationException {
         given(context.storage()).willReturn(storage);
-        given(context.tempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
+        given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
         given(context.render(anyString())).willAnswer(new Answer<String>() {
             @Override

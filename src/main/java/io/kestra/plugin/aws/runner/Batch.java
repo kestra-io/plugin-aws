@@ -295,7 +295,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
                                     .key((batchWorkingDirectory + Path.of("/" + relativePath).toString()).substring(1))
                                     .build()
                             )
-                            .source(runContext.resolve(Path.of(relativePath)))
+                            .source(runContext.workingDir().resolve(Path.of(relativePath)))
                             .build()
                     ).map(transferManager::uploadFile)
                     .map(FileUpload::completionFuture)

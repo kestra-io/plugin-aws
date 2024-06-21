@@ -206,7 +206,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     Output handleContent(RunContext runContext, String functionArn, ContentType contentType,
             SdkBytes payload) {
         try (var dataStream = payload.asInputStream()) {
-            File tempFile = runContext.tempFile().toFile();
+            File tempFile = runContext.workingDir().createTempFile().toFile();
             // noinspection ResultOfMethodCallIgnored
             tempFile.delete();
 

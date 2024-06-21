@@ -141,7 +141,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             ))
             .build();
 
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             List.of(entry, entry2, entry3).forEach(throwConsumer(e -> FileSerde.write(stream, e)));
         }

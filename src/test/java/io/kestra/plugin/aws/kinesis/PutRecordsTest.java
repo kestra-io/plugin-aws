@@ -167,7 +167,7 @@ class PutRecordsTest {
             .data("record 3")
             .build();
 
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             List.of(record, record2, record3).forEach(throwConsumer(r -> FileSerde.write(stream, r)));
         }
@@ -220,7 +220,7 @@ class PutRecordsTest {
             .Data("record 3")
             .build();
 
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             List.of(record, record2, record3).forEach(throwConsumer(r -> FileSerde.write(stream, r)));
         }

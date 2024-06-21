@@ -312,7 +312,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 }
 
                 for (String renderedFrom : renderedFroms) {
-                    File tempFile = runContext.tempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
+                    File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
                     URI from = new URI(runContext.render(renderedFrom));
                     Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 

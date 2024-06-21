@@ -133,7 +133,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
     private File writeOutputFile(RunContext runContext, PutEventsResponse putEventsResponse, List<Entry> entryList) throws IOException {
         // Create Output
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             List<PutEventsResultEntry> responseEntries = putEventsResponse.entries();
             for (int i = 0; i < responseEntries.size(); i++) {
