@@ -75,7 +75,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         try (var sqsClient = this.client(runContext)) {
             var total = new AtomicInteger();
             var started = ZonedDateTime.now();
-            var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+            var tempFile = runContext.tempFile(".ion").toFile();
 
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
