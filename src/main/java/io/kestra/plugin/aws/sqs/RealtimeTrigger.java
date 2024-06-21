@@ -126,6 +126,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     while (isActive.get()) {
                         ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                             .queueUrl(queueUrl)
+                            // default read timeout is 30s, so we cannot use a bigger wait time, or we would need to increase the read timeout
+                            .waitTimeSeconds(30)
                             .build();
 
                         sqsClient.receiveMessage(receiveRequest)

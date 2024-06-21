@@ -75,12 +75,14 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         try (var sqsClient = this.client(runContext)) {
             var total = new AtomicInteger();
             var started = ZonedDateTime.now();
-            var tempFile = runContext.tempFile(".ion").toFile();
+            var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
 
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
-                    // TODO if we have a maxNumber we can pass the number to avoid too many network calls
-                    var receiveRequest = ReceiveMessageRequest.builder().queueUrl(queueUrl).build();
+                    var receiveRequest = ReceiveMessageRequest.builder()
+                        .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
+                        .queueUrl(queueUrl)
+                        .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
                         FileSerde.write(outputFile, serdeType.deserialize(m.body()));
