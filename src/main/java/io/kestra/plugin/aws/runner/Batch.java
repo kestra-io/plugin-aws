@@ -88,7 +88,7 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
             title = "Execute a Shell command in a container on ECS Fargate.",
             code = """
                 id: run_container
-                namespace: dev
+                namespace: company.team
     
                 tasks:
                   - id: shell
@@ -100,14 +100,14 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
                       region: "{{ vars.region }}"
                       computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
                     commands:
-                    - echo "Hello World\"""",
+                      - echo "Hello World\"""",
             full = true
         ),
         @Example(
             title = "Pass input files to the task, execute a Shell command, then retrieve the output files.",
             code = """
                 id: container_with_input_files
-                namespace: myteam
+                namespace: company.team
                 
                 inputs:
                   - id: file
@@ -129,7 +129,7 @@ To avoid zombie containers in ECS, you can set the `timeout` property on the tas
                       computeEnvironmentArn: "{{ vars.computeEnvironmentArn }}"
                       bucket: "{{ vars.bucket }}"
                     commands:
-                    - cp {{ workingDir }}/data.txt {{ workingDir }}/out.txt""",
+                      - cp {{ workingDir }}/data.txt {{ workingDir }}/out.txt""",
             full = true
         )
     }
