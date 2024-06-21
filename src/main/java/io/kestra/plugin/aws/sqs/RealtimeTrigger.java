@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
             full = true,
             code = """
                 id: sqs
-                namespace: dev
+                namespace: company.team
 
                 tasks:
                 - id: log
