@@ -73,7 +73,7 @@ public interface AbstractConnectionInterface {
 
     @Schema(
         title = "The endpoint with which the SDK should communicate.",
-        description = "This property should normally not be used except for local development."
+        description = "This property allows you to use a different S3 compatible storage backend."
     )
     @PluginProperty(dynamic = true)
     String getEndpointOverride();
