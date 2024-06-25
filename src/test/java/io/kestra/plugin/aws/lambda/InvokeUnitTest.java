@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.WorkingDir;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
@@ -49,11 +50,15 @@ public class InvokeUnitTest {
     @Mock(strictness = Strictness.LENIENT)
     private Storage storage;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private WorkingDir workingDir;
+
     private File tempFile;
 
     @BeforeEach
     public void setUp() throws IOException, IllegalVariableEvaluationException {
         given(context.storage()).willReturn(storage);
+        given(context.workingDir()).willReturn(workingDir);
         given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
         given(context.render(anyString())).willAnswer(new Answer<String>() {
