@@ -50,9 +50,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 triggers:
                 - id: realtime_trigger
                   type: io.kestra.plugin.aws.sqs.RealtimeTrigger
-                  accessKeyId: "<access-key>",
-                  secretKeyId: "<secret-key>",
-                  region: "eu-central-1",
+                  accessKeyId: "access_key"
+                  secretKeyId: "secret_key"
+                  region: "eu-central-1"
                   queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""                        
         )
     }
