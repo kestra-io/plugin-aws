@@ -226,14 +226,16 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
     private final Duration completionCheckInterval = Duration.ofSeconds(5);
 
     @Override
-    public RunnerResult run(RunContext runContext, TaskCommands taskCommands, List<String> filesToUpload, List<String> filesToDownload) throws Exception {
+    public RunnerResult run(RunContext runContext, TaskCommands taskCommands, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.bucket != null;
 
         String renderedBucket = runContext.render(bucket);
 
-        boolean hasFilesToUpload = !ListUtils.isEmpty(filesToUpload);
+        Logger logger = runContext.logger();
+        List<Path> relativeWorkingDirectoryFilesPaths = taskCommands.relativeWorkingDirectoryFilesPaths();
+        boolean hasFilesToUpload = !ListUtils.isEmpty(relativeWorkingDirectoryFilesPaths);
         if (hasFilesToUpload && !hasS3Bucket) {
-            throw new IllegalArgumentException("You must provide an S3 bucket in order to use `inputFiles` or `namespaceFiles`");
+            logger.warn("Working directory is not empty but no S3 bucket are specified. You must provide an S3 bucket in order to use `inputFiles` or `namespaceFiles`. Skipping importing files to runner.");
         }
         boolean hasFilesToDownload = !ListUtils.isEmpty(filesToDownload);
         boolean outputDirectoryEnabled = taskCommands.outputDirectoryEnabled();
@@ -241,7 +243,6 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
             throw new IllegalArgumentException("You must provide an S3 bucket in order to use `outputFiles` or `{{ outputDir }}`");
         }
 
-        Logger logger = runContext.logger();
         AbstractLogConsumer logConsumer = taskCommands.getLogConsumer();
 
         String renderedRegion = runContext.render(this.region);
@@ -285,7 +286,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
 
         if (hasFilesToUpload) {
             try (S3TransferManager transferManager = transferManager(runContext)) {
-                filesToUpload.stream().map(relativePath ->
+                relativeWorkingDirectoryFilesPaths.stream().map(relativePath ->
                         UploadFileRequest.builder()
                             .putObjectRequest(
                                 PutObjectRequest
@@ -295,7 +296,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
                                     .key((batchWorkingDirectory + Path.of("/" + relativePath).toString()).substring(1))
                                     .build()
                             )
-                            .source(runContext.workingDir().resolve(Path.of(relativePath)))
+                            .source(runContext.workingDir().resolve(relativePath))
                             .build()
                     ).map(transferManager::uploadFile)
                     .map(FileUpload::completionFuture)
@@ -343,7 +344,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
             .build();
 
         if (hasFilesToUpload || outputDirectoryEnabled) {
-            Stream<String> commands = ListUtils.emptyOnNull(filesToUpload).stream()
+            Stream<String> commands = ListUtils.emptyOnNull(relativeWorkingDirectoryFilesPaths).stream()
                     .map(relativePath -> "aws s3 cp " + s3WorkingDir + Path.of("/" + relativePath) + " " + batchWorkingDirectory + Path.of("/" + relativePath));
             if (outputDirectoryEnabled) {
                 commands = Stream.concat(commands, Stream.of("mkdir " + batchOutputDirectory));
