@@ -85,6 +85,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     @Builder.Default
     protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
 
+    // Default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout.
+    @PluginProperty
+    @Schema(title = "The duration for which the SQS client waits for a message.")
+    @Builder.Default
+    protected Duration waitTime = Duration.ofSeconds(20);
+
     @Builder.Default
     @Getter(AccessLevel.NONE)
     private final AtomicBoolean isActive = new AtomicBoolean(true);
@@ -126,8 +132,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     while (isActive.get()) {
                         ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                             .queueUrl(queueUrl)
-                            // default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout
-                            .waitTimeSeconds(20)
+                            .waitTimeSeconds((int)waitTime.toSeconds())
                             .build();
 
                         sqsClient.receiveMessage(receiveRequest)
