@@ -18,6 +18,7 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import reactor.core.CoreSubscriber;
@@ -53,7 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @NoArgsConstructor
 @Schema(title = "Task runner that executes a task inside a job in AWS Batch.",
     description = """
-This task runner only supports ECS Fargate or ECS EC2 as compute environment. 
+This task runner only supports ECS Fargate or ECS EC2 as compute environment.
 For EKS, use the [Kubernetes Task Runner](https://kestra.io/plugins/plugin-kubernetes/task-runners/runner/io.kestra.plugin.kubernetes.runner.kubernetes). 
 
 Make sure to set the `containerImage` property because this runner runs the task in a container.
@@ -69,6 +70,8 @@ To make it easier to track where all files are stored, the task runner will gene
 
 Note that this task runner executes the task in the root directory. You need to use the `{{ workingDir }}` Pebble expression or the `WORKING_DIR` environment variable to access files in the task's working directory.
 
+Note that when the Kestra Worker running this task is terminated, the batch job will still runs until completion, then after restarting, the Worker will resume processing on the existing job unless `resume` is set to false.
+
 This task runner will return with an exit code according to the following mapping:
 - SUCCEEDED: 0
 - FAILED: 1
@@ -79,7 +82,6 @@ This task runner will return with an exit code according to the following mappin
 - SUBMITTED: 6
 - OTHER: -1
 
-When the Kestra Worker running this task is terminated, the batch job will still run until completion.
 To avoid zombie containers in ECS, you can set the `timeout` property on the task and kestra will terminate the batch job if the task is not completed within the specified duration."""
 )
 @Plugin(
@@ -225,6 +227,22 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
     @PluginProperty
     private final Duration completionCheckInterval = Duration.ofSeconds(5);
 
+    @Schema(
+        title = "Whether the job should be deleted upon completion."
+    )
+    @NotNull
+    @Builder.Default
+    @PluginProperty
+    private final Boolean delete = true;
+
+    @Schema(
+        title = "Whether to reconnect to the current job if it already exists."
+    )
+    @NotNull
+    @Builder.Default
+    @PluginProperty
+    private final Boolean resume = true;
+
     @Override
     public RunnerResult run(RunContext runContext, TaskCommands taskCommands, List<String> filesToDownload) throws Exception {
         boolean hasS3Bucket = this.bucket != null;
@@ -247,233 +265,282 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
 
         String renderedRegion = runContext.render(this.region);
         Region regionObject = Region.of(renderedRegion);
+        String jobQueue = runContext.render(this.jobQueueArn);
+
         BatchClient client = newBatchClient(runContext, regionObject);
+        Duration waitDuration = Optional.ofNullable(taskCommands.getTimeout()).orElse(this.waitUntilCompletion);
+        Map<String, Object> additionalVars = this.additionalVars(runContext, taskCommands);
+        Path batchWorkingDirectory = (Path) additionalVars.get(ScriptService.VAR_WORKING_DIR);
+        Path batchOutputDirectory = (Path) additionalVars.get(ScriptService.VAR_OUTPUT_DIR);
 
-        String jobName = ScriptService.jobName(runContext);
+        String jobName = null;
+        String jobId = null;
+        String jobDefArn = null;
 
-        String renderedComputeEnvironmentArn = runContext.render(this.computeEnvironmentArn);
-        ComputeEnvironmentDetail computeEnvironmentDetail = client.describeComputeEnvironments(
-                DescribeComputeEnvironmentsRequest.builder()
-                    .computeEnvironments(renderedComputeEnvironmentArn)
-                    .build()
-            ).computeEnvironments().stream()
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + renderedComputeEnvironmentArn));
-
-        String kestraVolume = "kestra";
-        if (computeEnvironmentDetail.containerOrchestrationType() != OrchestrationType.ECS) {
-            throw new IllegalArgumentException("Only ECS compute environments are supported");
+        if (Boolean.TRUE.equals(resume) && jobQueue == null) {
+            logger.warn("Resuming jobs is only possible if there is a configured Job Queue.");
         }
 
-        PlatformCapability platformCapability = switch (computeEnvironmentDetail.computeResources().type()) {
-            case FARGATE:
-            case FARGATE_SPOT:
-                yield PlatformCapability.FARGATE;
-            case EC2:
-            case SPOT:
-                yield PlatformCapability.EC2;
-            default:
-                yield null;
-        };
-
-        String jobDefinitionName = IdUtils.create();
-        RegisterJobDefinitionRequest.Builder jobDefBuilder = RegisterJobDefinitionRequest.builder()
-            .jobDefinitionName(jobDefinitionName)
-            .type(JobDefinitionType.CONTAINER)
-            .tags(ScriptService.labels(runContext, "kestra-", true, true))
-            .platformCapabilities(platformCapability);
-        Path batchWorkingDirectory = (Path) this.additionalVars(runContext, taskCommands).get(ScriptService.VAR_WORKING_DIR);
-
-        if (hasFilesToUpload) {
-            try (S3TransferManager transferManager = transferManager(runContext)) {
-                relativeWorkingDirectoryFilesPaths.stream().map(relativePath ->
-                        UploadFileRequest.builder()
-                            .putObjectRequest(
-                                PutObjectRequest
-                                    .builder()
-                                    .bucket(renderedBucket)
-                                    // Use path to eventually deduplicate leading '/'
-                                    .key((batchWorkingDirectory + Path.of("/" + relativePath).toString()).substring(1))
-                                    .build()
-                            )
-                            .source(runContext.workingDir().resolve(relativePath))
-                            .build()
-                    ).map(transferManager::uploadFile)
-                    .map(FileUpload::completionFuture)
-                    .forEach(throwConsumer(CompletableFuture::get));
+        if (Boolean.TRUE.equals(resume) && jobQueue != null) {
+            // we list all jobs for this flow/task then check which one has the correct tags
+            String randomJobName = ScriptService.jobName(runContext);
+            String jobNameFilter = randomJobName.substring(0, randomJobName.lastIndexOf('-') + 1) + "*";
+            var listJobsRequest = ListJobsRequest.builder()
+                .jobQueue(jobQueue)
+                .filters(KeyValuesPair.builder().name("JOB_NAME").values(jobNameFilter).build())
+                .build();
+            var listJobsResponse = client.listJobs(listJobsRequest);
+            var maybeJobDefinition = listJobsResponse.jobSummaryList().stream()
+                .map(jobSummary -> {
+                    var describeJobDefinitionsResponse = client.describeJobDefinitions(builder -> builder.jobDefinitions(jobSummary.jobDefinition()));
+                    return describeJobDefinitionsResponse.jobDefinitions().isEmpty() ? null : Pair.of(jobSummary, describeJobDefinitionsResponse.jobDefinitions().getFirst());
+                })
+                .filter(pair -> pair != null && pair.getRight() != null && hasAllLabels(pair.getRight().tags(), runContext))
+                .findFirst();
+            if (maybeJobDefinition.isPresent()) {
+                logger.info("Job is resumed from an already running job {} for the definition ({})", maybeJobDefinition.get().getLeft().jobName(), maybeJobDefinition.get().getRight().jobDefinitionName());
+                jobName = maybeJobDefinition.get().getLeft().jobName();
+                jobId = maybeJobDefinition.get().getLeft().jobId();
+                jobDefArn = maybeJobDefinition.get().getRight().jobDefinitionName();
             }
         }
 
-        EcsTaskProperties.Builder taskPropertiesBuilder = EcsTaskProperties.builder()
-            .volumes(
-                Volume.builder()
-                    .name(kestraVolume)
-                    .build()
-            );
+        if (jobName == null) {
+            jobName = ScriptService.jobName(runContext);
+            String renderedComputeEnvironmentArn = runContext.render(this.computeEnvironmentArn);
+            ComputeEnvironmentDetail computeEnvironmentDetail = client.describeComputeEnvironments(
+                    DescribeComputeEnvironmentsRequest.builder()
+                        .computeEnvironments(renderedComputeEnvironmentArn)
+                        .build()
+                ).computeEnvironments().stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Compute environment not found: " + renderedComputeEnvironmentArn));
 
-        if (platformCapability == PlatformCapability.FARGATE) {
-            taskPropertiesBuilder
-                .networkConfiguration(
-                    NetworkConfiguration.builder()
-                        .assignPublicIp(AssignPublicIp.ENABLED)
+            String kestraVolume = "kestra";
+            if (computeEnvironmentDetail.containerOrchestrationType() != OrchestrationType.ECS) {
+                throw new IllegalArgumentException("Only ECS compute environments are supported");
+            }
+
+            PlatformCapability platformCapability = switch (computeEnvironmentDetail.computeResources().type()) {
+                case FARGATE:
+                case FARGATE_SPOT:
+                    yield PlatformCapability.FARGATE;
+                case EC2:
+                case SPOT:
+                    yield PlatformCapability.EC2;
+                default:
+                    yield null;
+            };
+
+            String jobDefinitionName = IdUtils.create();
+            RegisterJobDefinitionRequest.Builder jobDefBuilder = RegisterJobDefinitionRequest.builder()
+                .jobDefinitionName(jobDefinitionName)
+                .type(JobDefinitionType.CONTAINER)
+                .tags(ScriptService.labels(runContext, "kestra-", true, true))
+                .platformCapabilities(platformCapability);
+
+            if (hasFilesToUpload) {
+                try (S3TransferManager transferManager = transferManager(runContext)) {
+                    relativeWorkingDirectoryFilesPaths.stream().map(relativePath ->
+                            UploadFileRequest.builder()
+                                .putObjectRequest(
+                                    PutObjectRequest
+                                        .builder()
+                                        .bucket(renderedBucket)
+                                        // Use path to eventually deduplicate leading '/'
+                                        .key((batchWorkingDirectory + Path.of("/" + relativePath).toString()).substring(1))
+                                        .build()
+                                )
+                                .source(runContext.workingDir().resolve(relativePath))
+                                .build()
+                        ).map(transferManager::uploadFile)
+                        .map(FileUpload::completionFuture)
+                        .forEach(throwConsumer(CompletableFuture::get));
+                }
+            }
+
+            EcsTaskProperties.Builder taskPropertiesBuilder = EcsTaskProperties.builder()
+                .volumes(
+                    Volume.builder()
+                        .name(kestraVolume)
                         .build()
                 );
-        }
 
-        if (this.executionRoleArn != null) {
-            taskPropertiesBuilder.executionRoleArn(runContext.render(this.executionRoleArn));
-        }
+            if (platformCapability == PlatformCapability.FARGATE) {
+                taskPropertiesBuilder
+                    .networkConfiguration(
+                        NetworkConfiguration.builder()
+                            .assignPublicIp(AssignPublicIp.ENABLED)
+                            .build()
+                    );
+            }
 
-        if (this.taskRoleArn != null) {
-            taskPropertiesBuilder.taskRoleArn(runContext.render(this.taskRoleArn));
-        }
+            if (this.executionRoleArn != null) {
+                taskPropertiesBuilder.executionRoleArn(runContext.render(this.executionRoleArn));
+            }
 
-        List<TaskContainerProperties> containers = new ArrayList<>();
-        String inputFilesContainerName = "inputFiles";
-        String mainContainerName = "main";
-        String outputFilesContainerName = "outputFiles";
+            if (this.taskRoleArn != null) {
+                taskPropertiesBuilder.taskRoleArn(runContext.render(this.taskRoleArn));
+            }
 
-        int baseSideContainerMemory = 128;
-        float baseSideContainerCpu = 0.1f;
-        Map<String, Object> additionalVars = this.additionalVars(runContext, taskCommands);
-        Object s3WorkingDir = additionalVars.get(ScriptService.VAR_BUCKET_PATH);
-        Path batchOutputDirectory = (Path) additionalVars.get(ScriptService.VAR_OUTPUT_DIR);
-        MountPoint volumeMount = MountPoint.builder()
-            .containerPath(batchWorkingDirectory.toString())
-            .sourceVolume(kestraVolume)
-            .build();
+            List<TaskContainerProperties> containers = new ArrayList<>();
+            String inputFilesContainerName = "inputFiles";
+            String mainContainerName = "main";
+            String outputFilesContainerName = "outputFiles";
 
-        if (hasFilesToUpload || outputDirectoryEnabled) {
-            Stream<String> commands = ListUtils.emptyOnNull(relativeWorkingDirectoryFilesPaths).stream()
+            int baseSideContainerMemory = 128;
+            float baseSideContainerCpu = 0.1f;
+            Object s3WorkingDir = additionalVars.get(ScriptService.VAR_BUCKET_PATH);
+            MountPoint volumeMount = MountPoint.builder()
+                .containerPath(batchWorkingDirectory.toString())
+                .sourceVolume(kestraVolume)
+                .build();
+
+            if (hasFilesToUpload || outputDirectoryEnabled) {
+                Stream<String> commands = ListUtils.emptyOnNull(relativeWorkingDirectoryFilesPaths).stream()
                     .map(relativePath -> "aws s3 cp " + s3WorkingDir + Path.of("/" + relativePath) + " " + batchWorkingDirectory + Path.of("/" + relativePath));
+                if (outputDirectoryEnabled) {
+                    commands = Stream.concat(commands, Stream.of("mkdir " + batchOutputDirectory));
+                }
+                containers.add(
+                    withResources(
+                        TaskContainerProperties.builder()
+                            .image("ghcr.io/kestra-io/awsbatch:latest")
+                            .mountPoints(volumeMount)
+                            .essential(false)
+                            .command(ScriptService.scriptCommands(
+                                List.of("/bin/sh", "-c"),
+                                null,
+                                commands.toList()
+                            ))
+                            .name(inputFilesContainerName),
+                        baseSideContainerMemory,
+                        baseSideContainerCpu).build()
+                );
+            }
+
+            int sideContainersAmount = 0;
             if (outputDirectoryEnabled) {
-                commands = Stream.concat(commands, Stream.of("mkdir " + batchOutputDirectory));
+                sideContainersAmount = 2;
+            } else {
+                if (hasFilesToUpload) {
+                    sideContainersAmount++;
+                }
+
+                if (hasFilesToDownload) {
+                    sideContainersAmount++;
+                }
             }
-            containers.add(
-                withResources(
-                    TaskContainerProperties.builder()
-                        .image("ghcr.io/kestra-io/awsbatch:latest")
-                        .mountPoints(volumeMount)
-                        .essential(false)
-                        .command(ScriptService.scriptCommands(
-                            List.of("/bin/sh", "-c"),
-                            null,
-                            commands.toList()
-                        ))
-                        .name(inputFilesContainerName),
-                    baseSideContainerMemory,
-                    baseSideContainerCpu).build()
+            int sideContainersMemoryAllocations = baseSideContainerMemory * sideContainersAmount;
+            float sideContainersCpuAllocations = baseSideContainerCpu * sideContainersAmount;
+
+            boolean needsOutputFilesContainer = hasFilesToDownload || outputDirectoryEnabled;
+            TaskContainerProperties.Builder mainContainerBuilder = withResources(
+                TaskContainerProperties.builder()
+                    .image(taskCommands.getContainerImage())
+                    .command(taskCommands.getCommands())
+                    .name(mainContainerName)
+                    .logConfiguration(
+                        LogConfiguration.builder()
+                            .logDriver(LogDriver.AWSLOGS)
+                            .options(Map.of("awslogs-stream-prefix", jobName))
+                            .build()
+                    )
+                    .environment(
+                        this.env(runContext, taskCommands).entrySet().stream()
+                            .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
+                            .toArray(KeyValuePair[]::new)
+                    )
+                    .essential(!needsOutputFilesContainer),
+                Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
+                Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
             );
-        }
 
-        int sideContainersAmount = 0;
-        if (outputDirectoryEnabled) {
-            sideContainersAmount = 2;
-        } else {
-            if (hasFilesToUpload) {
-                sideContainersAmount++;
+            if (hasFilesToUpload || needsOutputFilesContainer) {
+                mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
+                mainContainerBuilder.mountPoints(volumeMount);
             }
+            containers.add(mainContainerBuilder.build());
 
-            if (hasFilesToDownload) {
-                sideContainersAmount++;
-            }
-        }
-        int sideContainersMemoryAllocations = baseSideContainerMemory * sideContainersAmount;
-        float sideContainersCpuAllocations = baseSideContainerCpu * sideContainersAmount;
-
-        boolean needsOutputFilesContainer = hasFilesToDownload || outputDirectoryEnabled;
-        TaskContainerProperties.Builder mainContainerBuilder = withResources(
-            TaskContainerProperties.builder()
-                .image(taskCommands.getContainerImage())
-                .command(taskCommands.getCommands())
-                .name(mainContainerName)
-                .logConfiguration(
-                    LogConfiguration.builder()
-                        .logDriver(LogDriver.AWSLOGS)
-                        .options(Map.of("awslogs-stream-prefix", jobName))
-                        .build()
-                )
-                .environment(
-                    this.env(runContext, taskCommands).entrySet().stream()
-                        .map(e -> KeyValuePair.builder().name(e.getKey()).value(e.getValue()).build())
-                        .toArray(KeyValuePair[]::new)
-                )
-                .essential(!needsOutputFilesContainer),
-            Integer.parseInt(resources.getRequest().getMemory()) - sideContainersMemoryAllocations,
-            Float.parseFloat(resources.getRequest().getCpu()) - sideContainersCpuAllocations
-        );
-
-        if (hasFilesToUpload || needsOutputFilesContainer) {
-            mainContainerBuilder.dependsOn(TaskContainerDependency.builder().containerName(inputFilesContainerName).condition("SUCCESS").build());
-            mainContainerBuilder.mountPoints(volumeMount);
-        }
-        containers.add(mainContainerBuilder.build());
-
-        if (needsOutputFilesContainer) {
-            Stream<String> commands = filesToDownload.stream()
+            if (needsOutputFilesContainer) {
+                Stream<String> commands = filesToDownload.stream()
                     .map(relativePath -> "aws s3 cp " + batchWorkingDirectory + "/" + relativePath + " " + s3WorkingDir + Path.of("/" + relativePath));
-            if (outputDirectoryEnabled) {
-                commands = Stream.concat(commands, Stream.of("aws s3 cp " + batchOutputDirectory + "/ " + s3WorkingDir + "/" + batchWorkingDirectory.relativize(batchOutputDirectory) + "/ --recursive"));
+                if (outputDirectoryEnabled) {
+                    commands = Stream.concat(commands, Stream.of("aws s3 cp " + batchOutputDirectory + "/ " + s3WorkingDir + "/" + batchWorkingDirectory.relativize(batchOutputDirectory) + "/ --recursive"));
+                }
+                containers.add(
+                    withResources(
+                        TaskContainerProperties.builder()
+                            .image("ghcr.io/kestra-io/awsbatch:latest")
+                            .mountPoints(volumeMount)
+                            .command(ScriptService.scriptCommands(
+                                List.of("/bin/sh", "-c"),
+                                null,
+                                commands.toList()
+                            ))
+                            .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("SUCCESS").build())
+                            .name(outputFilesContainerName),
+                        baseSideContainerMemory,
+                        baseSideContainerCpu).build()
+                );
             }
-            containers.add(
-                withResources(
-                    TaskContainerProperties.builder()
-                        .image("ghcr.io/kestra-io/awsbatch:latest")
-                        .mountPoints(volumeMount)
-                        .command(ScriptService.scriptCommands(
-                            List.of("/bin/sh", "-c"),
-                            null,
-                            commands.toList()
-                        ))
-                        .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("SUCCESS").build())
-                        .name(outputFilesContainerName),
-                    baseSideContainerMemory,
-                    baseSideContainerCpu).build()
+
+            taskPropertiesBuilder.containers(containers);
+
+            jobDefBuilder.ecsProperties(
+                EcsProperties.builder()
+                    .taskProperties(taskPropertiesBuilder.build())
+                    .build()
             );
-        }
 
-        taskPropertiesBuilder.containers(containers);
+            logger.debug("Registering job definition");
+            RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(jobDefBuilder.build());
+            jobDefArn = registerJobDefinitionResponse.jobDefinitionArn();
+            logger.debug("Job definition successfully registered: {}", jobDefinitionName);
 
-        jobDefBuilder.ecsProperties(
-            EcsProperties.builder()
-                .taskProperties(taskPropertiesBuilder.build())
-                .build()
-        );
+            if (jobQueue == null) {
+                logger.debug("Job queue not specified, creating a job queue for the current job");
+                CreateJobQueueResponse jobQueueResponse = client.createJobQueue(
+                    CreateJobQueueRequest.builder()
+                        .jobQueueName(IdUtils.create())
+                        .priority(10)
+                        .computeEnvironmentOrder(
+                            ComputeEnvironmentOrder.builder()
+                                .order(1)
+                                .computeEnvironment(renderedComputeEnvironmentArn)
+                                .build()
+                        )
+                        .build()
+                );
 
-        logger.debug("Registering job definition");
-        RegisterJobDefinitionResponse registerJobDefinitionResponse = client.registerJobDefinition(jobDefBuilder.build());
-        logger.debug("Job definition successfully registered: {}", jobDefinitionName);
+                waitForQueueUpdate(client, jobQueueResponse);
 
-        String jobQueue = runContext.render(this.jobQueueArn);
-        if (jobQueue == null) {
-            logger.debug("Job queue not specified, creating a job queue for the current job");
-            CreateJobQueueResponse jobQueueResponse = client.createJobQueue(
-                CreateJobQueueRequest.builder()
-                    .jobQueueName(IdUtils.create())
-                    .priority(10)
-                    .computeEnvironmentOrder(
-                        ComputeEnvironmentOrder.builder()
-                            .order(1)
-                            .computeEnvironment(renderedComputeEnvironmentArn)
+                jobQueue = jobQueueResponse.jobQueueArn();
+
+                logger.debug("Job queue created: {}", jobQueue);
+            }
+
+            logger.debug("Submitting job to the job queue");
+            SubmitJobResponse submitJobResponse = client.submitJob(
+                SubmitJobRequest.builder()
+                    .jobName(jobName)
+                    .jobDefinition(jobDefArn)
+                    .jobQueue(jobQueue)
+                    .timeout(
+                        JobTimeout.builder()
+                            .attemptDurationSeconds((int) waitDuration.toSeconds())
                             .build()
                     )
                     .build()
             );
-
-            waitForQueueUpdate(client, jobQueueResponse);
-
-            jobQueue = jobQueueResponse.jobQueueArn();
-
-            logger.debug("Job queue created: {}", jobQueue);
+            jobId = submitJobResponse.jobId();
         }
-
-        String jobDefArn = registerJobDefinitionResponse.jobDefinitionArn();
 
         CloudWatchLogsAsyncClient cloudWatchLogsAsyncClient =
             CloudWatchLogsAsyncClient.builder()
-                .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
-                .region(regionObject)
-                .build();
+            .credentialsProvider(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)))
+            .region(regionObject)
+            .build();
         try {
             String logGroupName = "/aws/batch/job";
             String logGroupArn = getLogGroupArn(cloudWatchLogsAsyncClient, logGroupName, renderedRegion);
@@ -495,29 +562,16 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
 
             cloudWatchLogsAsyncClient.startLiveTail(request, getStartLiveTailResponseStreamHandler(logConsumer));
 
-            logger.debug("Submitting job to the job queue");
-            Duration waitDuration = Optional.ofNullable(taskCommands.getTimeout()).orElse(this.waitUntilCompletion);
-            SubmitJobResponse submitJobResponse = client.submitJob(
-                SubmitJobRequest.builder()
-                    .jobName(jobName)
-                    .jobDefinition(jobDefArn)
-                    .jobQueue(jobQueue)
-                    .timeout(
-                        JobTimeout.builder()
-                            .attemptDurationSeconds((int) waitDuration.toSeconds())
-                            .build()
-                    )
-                    .build()
-            );
-            onKill(() -> safelyKillJob(runContext, regionObject, submitJobResponse.jobId()));
-            logger.debug("Job submitted: {}", submitJobResponse.jobName());
+            final String theJobId = jobId;
+            onKill(() -> safelyKillJob(runContext, regionObject, theJobId));
+            logger.debug("Job submitted: {}", jobName);
 
             final AtomicReference<DescribeJobsResponse> describeJobsResponse = new AtomicReference<>();
             try {
                 Await.until(() -> {
                     describeJobsResponse.set(client.describeJobs(
                         DescribeJobsRequest.builder()
-                            .jobs(submitJobResponse.jobId())
+                            .jobs(theJobId)
                             .build()
                     ));
 
@@ -562,12 +616,15 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
                 }
             }
         } finally {
-            cleanupBatchResources(client, jobQueue, jobDefArn);
+            if (Boolean.TRUE.equals(delete)) {
+                cleanupBatchResources(client, jobQueue, jobDefArn);
+                if (hasS3Bucket) {
+                    cleanupS3Resources(runContext, batchWorkingDirectory);
+                }
+            }
+
             // Manual close after cleanup to make sure we get all remaining logs
             cloudWatchLogsAsyncClient.close();
-            if (hasS3Bucket) {
-                cleanupS3Resources(runContext, batchWorkingDirectory);
-            }
         }
 
         return new RunnerResult(0, logConsumer);
@@ -782,6 +839,11 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
         } catch (IllegalVariableEvaluationException e) {
             throw new RuntimeException(e); // cannot happen here.
         }
+    }
+
+    private boolean hasAllLabels(Map<String, String> labelsMap, RunContext runContext) {
+        Map<String, String> labels = ScriptService.labels(runContext, "kestra-", true, true);
+        return labelsMap.entrySet().containsAll(labels.entrySet());
     }
 
     @Getter
