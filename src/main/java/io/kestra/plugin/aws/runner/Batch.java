@@ -463,11 +463,6 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
             containers.add(mainContainerBuilder.build());
 
             if (needsOutputFilesContainer) {
-                Stream<String> commands = filesToDownload.stream()
-                    .map(relativePath -> "aws s3 cp " + batchWorkingDirectory + "/" + relativePath + " " + s3WorkingDir + Path.of("/" + relativePath));
-                if (outputDirectoryEnabled) {
-                    commands = Stream.concat(commands, Stream.of("aws s3 cp " + batchOutputDirectory + "/ " + s3WorkingDir + "/" + batchWorkingDirectory.relativize(batchOutputDirectory) + "/ --recursive"));
-                }
                 containers.add(
                     withResources(
                         TaskContainerProperties.builder()
@@ -476,7 +471,7 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
                             .command(ScriptService.scriptCommands(
                                 List.of("/bin/sh", "-c"),
                                 null,
-                                commands.toList()
+                                List.of("aws s3 cp " + batchWorkingDirectory + "/ " + s3WorkingDir + "/ --recursive")
                             ))
                             .dependsOn(TaskContainerDependency.builder().containerName(mainContainerName).condition("SUCCESS").build())
                             .name(outputFilesContainerName),
@@ -591,16 +586,15 @@ public class Batch extends TaskRunner implements AbstractS3, AbstractConnectionI
 
             if (hasFilesToDownload || outputDirectoryEnabled) {
                 try (S3TransferManager transferManager = transferManager(runContext)) {
-                    filesToDownload.stream().map(relativePath -> transferManager.downloadFile(
-                            DownloadFileRequest.builder()
-                                .getObjectRequest(GetObjectRequest.builder()
-                                    .bucket(renderedBucket)
-                                    .key((batchWorkingDirectory + "/" + relativePath).substring(1))
-                                    .build())
-                                .destination(taskCommands.getWorkingDirectory().resolve(Path.of(relativePath.startsWith("/") ? relativePath.substring(1) : relativePath)))
-                                .build()
-                        )).map(FileDownload::completionFuture)
-                        .forEach(throwConsumer(CompletableFuture::get));
+                    transferManager.downloadDirectory(DownloadDirectoryRequest.builder()
+                            .bucket(renderedBucket)
+                            .destination(taskCommands.getOutputDirectory())
+                            .listObjectsV2RequestTransformer(builder -> builder
+                                .prefix(batchWorkingDirectory.toString().substring(1))
+                            )
+                            .build())
+                        .completionFuture()
+                        .get();
 
                     if (outputDirectoryEnabled) {
                         transferManager.downloadDirectory(DownloadDirectoryRequest.builder()
