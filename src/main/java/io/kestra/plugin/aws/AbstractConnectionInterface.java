@@ -13,28 +13,28 @@ public interface AbstractConnectionInterface {
 
     @Schema(
         title = "Access Key Id in order to connect to AWS.",
-        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(dynamic = true)
     String getAccessKeyId();
 
     @Schema(
         title = "Secret Key Id in order to connect to AWS.",
-        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(dynamic = true)
     String getSecretKeyId();
 
     @Schema(
         title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
-        description = "If no connection is defined, we will use the `DefaultCredentialsProvider` to fetch the value."
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(dynamic = true)
     String getSessionToken();
 
     @Schema(
         title = "AWS STS Role.",
-        description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. Otherwise, the `StaticCredentialsProvider` will be used with the provided Access Key Id and Secret Key."
+        description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(dynamic = true)
     String getStsRoleArn();
@@ -47,7 +47,8 @@ public interface AbstractConnectionInterface {
     String getStsRoleExternalId();
 
     @Schema(
-        title = "AWS STS Session name. This property is only used when an `stsRoleArn` is defined."
+        title = "AWS STS Session name.",
+        description = "This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(dynamic = true)
     String getStsRoleSessionName();
