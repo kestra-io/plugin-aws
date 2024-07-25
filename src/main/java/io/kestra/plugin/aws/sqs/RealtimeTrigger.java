@@ -91,6 +91,21 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     @Builder.Default
     protected Duration waitTime = Duration.ofSeconds(20);
 
+    @PluginProperty
+    @Schema(
+        title = "The maximum number of messages returned from request made to SQS.",
+        description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (however, fewer messages might be returned). Valid values: 1 to 10."
+    )
+    @Builder.Default
+    protected Integer maxNumberOfMessage = 5;
+
+    @PluginProperty
+    @Schema(
+        title = "The maximum number of attempts used by the SQS client's retry strategy."
+    )
+    @Builder.Default
+    protected Integer clientRetryMaxAttempts = 3;
+
     @Builder.Default
     @Getter(AccessLevel.NONE)
     private final AtomicBoolean isActive = new AtomicBoolean(true);
@@ -128,11 +143,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
         return Flux.create(
             fluxSink -> {
-                try (SqsAsyncClient sqsClient = task.asyncClient(runContext)) {
+                try (SqsAsyncClient sqsClient = task.asyncClient(runContext, clientRetryMaxAttempts)) {
                     while (isActive.get()) {
                         ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                             .queueUrl(queueUrl)
                             .waitTimeSeconds((int)waitTime.toSeconds())
+                            .maxNumberOfMessages(maxNumberOfMessage)
                             .build();
 
                         sqsClient.receiveMessage(receiveRequest)

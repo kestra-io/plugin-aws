@@ -8,6 +8,7 @@ import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.awscore.client.builder.AwsSyncClientBuilder;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -15,6 +16,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 import java.net.URI;
+import java.time.Duration;
 
 public class ConnectionUtils {
     /**
@@ -112,7 +114,30 @@ public class ConnectionUtils {
     public static <C extends AwsClient, B extends AwsClientBuilder<B, C> & AwsAsyncClientBuilder<B, C>> B configureAsyncClient(
         final AbstractConnection.AwsClientConfig clientConfig, final B builder) {
 
-        builder.credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
+        builder
+            // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
+            .httpClientBuilder(serviceDefaults -> NettyNioAsyncHttpClient.builder().build())
+            .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
+        return configureClient(clientConfig, builder);
+    }
+
+    /**
+     * Configures and returns the given {@link AwsAsyncClientBuilder}.
+     */
+    public static <C extends AwsClient, B extends AwsClientBuilder<B, C> & AwsAsyncClientBuilder<B, C>> B configureAsyncClient(
+        final int maxConcurrency,
+        final Duration connectionAcquisitionTimeout,
+        final AbstractConnection.AwsClientConfig clientConfig, final B builder) {
+
+        builder
+            // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
+            .httpClientBuilder(serviceDefaults -> NettyNioAsyncHttpClient
+                .builder()
+                .maxConcurrency(maxConcurrency)
+                .connectionAcquisitionTimeout(connectionAcquisitionTimeout)
+                .build()
+            )
+            .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
         return configureClient(clientConfig, builder);
     }
 
