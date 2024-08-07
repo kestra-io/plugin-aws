@@ -14,7 +14,6 @@ import io.kestra.plugin.aws.sqs.model.Message;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import reactor.core.publisher.Flux;
@@ -28,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-@Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
 class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     private ApplicationContext applicationContext;
@@ -85,8 +83,6 @@ class RealtimeTriggerTest extends AbstractSqsTest {
                 .build();
 
             var runContext = runContextFactory.of();
-            var client = task.client(runContext);
-            createQueue(client);
 
             task.run(runContext);
 

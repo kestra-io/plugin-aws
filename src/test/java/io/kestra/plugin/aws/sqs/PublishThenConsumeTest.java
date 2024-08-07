@@ -2,7 +2,6 @@ package io.kestra.plugin.aws.sqs;
 
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
@@ -11,7 +10,6 @@ import java.util.List;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-@Disabled("Issue with LocalStack, see https://github.com/localstack/localstack/issues/8267")
 class PublishThenConsumeTest extends AbstractSqsTest {
     @Test
     void runText() throws Exception {
@@ -30,9 +28,6 @@ class PublishThenConsumeTest extends AbstractSqsTest {
                 )
             )
             .build();
-
-        var client = publish.client(runContext);
-        createQueue(client);
 
         var publishOutput = publish.run(runContext);
         assertThat(publishOutput.getMessagesCount(), is(2));
@@ -69,9 +64,6 @@ class PublishThenConsumeTest extends AbstractSqsTest {
                 )
             )
             .build();
-
-        var client = publish.client(runContext);
-        createQueue(client);
 
         var publishOutput = publish.run(runContext);
         assertThat(publishOutput.getMessagesCount(), is(2));
