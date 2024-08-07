@@ -9,10 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.retries.api.BackoffStrategy;
-import software.amazon.awssdk.retries.api.RetryStrategy;
-import software.amazon.awssdk.retries.internal.BaseRetryStrategy;
-import software.amazon.awssdk.retries.internal.DefaultStandardRetryStrategy;
+import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClientBuilder;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -53,14 +50,11 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
         );
 
         clientBuilder = clientBuilder.overrideConfiguration(builder ->
-            builder.retryStrategy(DefaultStandardRetryStrategy
-                .builder()
-                .maxAttempts(retryMaxAttempts)
-                .backoffStrategy(BackoffStrategy.exponentialDelay(
-                    RETRY_STRATEGY_BACKOFF_BASE_DELAY,
-                    RETRY_STRATEGY_BACKOFF_MAX_DELAY
-                ))
-                .build()
+            builder.retryStrategy(
+                AwsRetryStrategy.standardRetryStrategy()
+                    .toBuilder()
+                    .maxAttempts(retryMaxAttempts)
+                    .build()
             )
         );
         return clientBuilder.build();
