@@ -188,7 +188,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Map<String, String> tagging;
 
     @Schema(
-        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
+        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB. For some S3 endpoints such as CloudFlare R2, you may need to set this value to `true`."
     )
     @PluginProperty
     @Builder.Default

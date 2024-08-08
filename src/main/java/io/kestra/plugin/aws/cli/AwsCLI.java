@@ -31,10 +31,25 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Execute AWS commands."
+    title = "Automate AWS services with the AWS CLI."
 )
 @Plugin(
     examples = {
+        @Example(
+            title = "Run a simple AWS CLI command and capture the output.",
+            full = true,
+            code = """
+                id: myflow
+                namespace: company.team
+                tasks:
+                  - id: hello
+                    type: io.kestra.plugin.aws.cli.AwsCLI
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                    region: "us-east-1"
+                    commands:
+                      - aws sts get-caller-identity | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'"""
+        ),
         @Example(
             title = "Create a simple S3 bucket.",
             code = {
