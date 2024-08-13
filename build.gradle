@@ -58,10 +58,9 @@ dependencies {
     // AWS libs: versions are managed by the Micronaut BOM
     api platform("io.micronaut.platform:micronaut-platform")
     api 'software.amazon.awssdk:cloudwatchlogs'
-    api 'software.amazon.awssdk:batch:2.26.16' // we can remove this after micronaut bump as long as it contains the RegisterJobDefinitionRequest.ecsProperties exists
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
-    api 'software.amazon.awssdk.crt:aws-crt:0.29.19' //used by s3-transfer-manager
+    api 'software.amazon.awssdk.crt:aws-crt:0.30.6' //used by s3-transfer-manager
     api 'software.amazon.awssdk:apache-client'
     api 'software.amazon.awssdk:dynamodb'
     api 'software.amazon.awssdk:sns'
@@ -122,11 +121,11 @@ dependencies {
     testImplementation group: "io.kestra", name: "repository-memory"
 
     // testcontainers
-    testImplementation "org.testcontainers:testcontainers:1.20.0"
-    testImplementation "org.testcontainers:junit-jupiter:1.20.0"
-    testImplementation "org.testcontainers:localstack:1.20.0"
+    testImplementation "org.testcontainers:testcontainers:1.20.1"
+    testImplementation "org.testcontainers:junit-jupiter:1.20.1"
+    testImplementation "org.testcontainers:localstack:1.20.1"
     // Localstack module misses SDK v1 classes that are mandatory, see https://github.com/testcontainers/testcontainers-java/issues/1442#issuecomment-694342883
-    testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.730'
+    testImplementation 'com.amazonaws:aws-java-sdk-s3:1.12.767'
 }
 
 /**********************************************************************************************************************\
