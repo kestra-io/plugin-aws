@@ -85,7 +85,7 @@ class PutRecordsTest {
             throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
         }
         try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-            outputEntries = Flux.create(FileSerde.reader(inputStream, PutRecords.OutputEntry.class), FluxSink.OverflowStrategy.BUFFER).collectList().block();
+            outputEntries = FileSerde.readAll(inputStream, PutRecords.OutputEntry.class).collectList().block();
         }
         return outputEntries;
     }

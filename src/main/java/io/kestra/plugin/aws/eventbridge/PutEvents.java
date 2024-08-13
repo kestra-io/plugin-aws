@@ -21,8 +21,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
@@ -176,7 +174,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                return Flux.create(FileSerde.reader(inputStream, Entry.class), FluxSink.OverflowStrategy.BUFFER)
+                return FileSerde.readAll(inputStream, Entry.class)
                     .collectList().block();
             }
         } else if (entries instanceof List) {
