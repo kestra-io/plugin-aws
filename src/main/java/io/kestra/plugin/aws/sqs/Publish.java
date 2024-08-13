@@ -77,7 +77,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
 
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                    flowable = Flux.create(FileSerde.reader(inputStream, Message.class), FluxSink.OverflowStrategy.BUFFER);
+                    flowable = FileSerde.readAll(inputStream, Message.class);
                     resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
                     count = resultFlowable.reduce(Integer::sum).block();

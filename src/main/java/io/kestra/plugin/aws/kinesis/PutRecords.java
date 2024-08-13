@@ -23,7 +23,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
@@ -173,7 +172,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
             try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                return Flux.create(FileSerde.reader(inputStream, Record.class), FluxSink.OverflowStrategy.BUFFER)
+                return FileSerde.readAll(inputStream, Record.class)
                     .collectList().block();
             }
         } else if (records instanceof List) {

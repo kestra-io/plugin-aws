@@ -17,18 +17,19 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -146,19 +147,15 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     private Pair<URI, Long> store(RunContext runContext, List<Map<String, AttributeValue>> items) throws IOException {
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-        AtomicLong count = new AtomicLong();
 
-        try (var output = new FileOutputStream(tempFile)) {
-            items.forEach(throwConsumer(attributes -> {
-                count.incrementAndGet();
-                FileSerde.write(output, objectMapFrom(attributes));
-            }));
+        try (var output = new BufferedWriter(new FileWriter(tempFile), FileSerde.BUFFER_SIZE)) {
+            var flux = Flux.fromIterable(items).map(attributes -> objectMapFrom(attributes));
+            Mono<Long> longMono = FileSerde.writeAll(output, flux);
+            return Pair.of(
+                runContext.storage().putFile(tempFile),
+                longMono.block()
+            );
         }
-
-        return Pair.of(
-            runContext.storage().putFile(tempFile),
-            count.get()
-        );
     }
 
     private Pair<List<Object>, Long> fetch(List<Map<String, AttributeValue>> items) {

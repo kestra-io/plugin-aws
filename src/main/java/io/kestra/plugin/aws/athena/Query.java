@@ -17,12 +17,12 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
@@ -254,19 +254,14 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         }
 
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-        AtomicLong count = new AtomicLong();
 
-        try (var output = new FileOutputStream(tempFile)) {
-            results.forEach(throwConsumer(row -> {
-                count.incrementAndGet();
-                FileSerde.write(output, map(columnInfo, row));
-            }));
+        try (var output = new BufferedWriter(new FileWriter(tempFile), FileSerde.BUFFER_SIZE)) {
+            Mono<Long> longMono = FileSerde.writeAll(output, Flux.fromIterable(results));
+            return Pair.of(
+                runContext.storage().putFile(tempFile),
+                longMono.block()
+            );
         }
-
-        return Pair.of(
-            runContext.storage().putFile(tempFile),
-            count.get()
-        );
     }
 
     private Map<String, Object> map(List<ColumnInfo> columnInfo, Row row) {
