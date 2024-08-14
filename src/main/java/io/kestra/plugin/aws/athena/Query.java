@@ -256,10 +256,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
 
         try (var output = new BufferedWriter(new FileWriter(tempFile), FileSerde.BUFFER_SIZE)) {
-            Mono<Long> longMono = FileSerde.writeAll(output, Flux.fromIterable(results));
+            Long count = FileSerde.writeAll(output, Flux.fromIterable(results)).block();
             return Pair.of(
                 runContext.storage().putFile(tempFile),
-                longMono.block()
+                count
             );
         }
     }
