@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -105,12 +106,14 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             title = "The bucket name"
         )
         @PluginProperty(dynamic = true)
+        @NotNull
         String bucket;
 
         @Schema(
             title = "The bucket key"
         )
         @PluginProperty(dynamic = true)
+        @NotNull
         String key;
     }
 

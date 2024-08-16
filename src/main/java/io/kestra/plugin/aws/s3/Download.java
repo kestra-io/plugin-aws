@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.lang3.tuple.Pair;
@@ -43,6 +44,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         title = "The key of a file to download."
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String key;
 
     @Schema(
