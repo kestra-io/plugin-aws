@@ -8,6 +8,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
@@ -57,6 +58,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         anyOf = {List.class, String.class}
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private Object from;
 
     @Schema(
@@ -64,6 +66,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         description = "a full key (with filename) or the directory path if from is multiple files."
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String key;
 
     @Schema(

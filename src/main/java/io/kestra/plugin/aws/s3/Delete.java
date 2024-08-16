@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -38,6 +39,7 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
         title = "The key to delete."
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String key;
 
     @Schema(
