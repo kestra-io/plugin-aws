@@ -83,8 +83,8 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
 
             } else if (this.from instanceof List) {
                 flowable = Flux
-                    .fromArray(((List<Message>) this.from).toArray())
-                    .cast(Message.class);
+                    .fromIterable((List<?>) this.from)
+                    .map(map -> JacksonMapper.toMap(map, Message.class));
 
                 resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 

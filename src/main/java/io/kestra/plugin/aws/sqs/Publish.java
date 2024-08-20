@@ -22,6 +22,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
+
 import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -85,8 +87,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
 
             } else if (this.from instanceof List) {
                 flowable = Flux
-                    .fromArray(((List<Message>) this.from).toArray())
-                    .cast(Message.class);
+                    .fromIterable((List<?>) this.from)
+                    .map(map -> JacksonMapper.toMap(map, Message.class));
 
                 resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
