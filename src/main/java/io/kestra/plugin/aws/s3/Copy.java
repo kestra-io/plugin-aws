@@ -22,17 +22,24 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "from:",
-                "  bucket: \"my-bucket\"",
-                "  key: \"path/to/file\"",
-                "to:",
-                "  bucket: \"my-bucket2\"",
-                "  key: \"path/to/file2\"",
-            }
+            full = true,
+            code = """
+                id: aws_s3_copy
+                namespace: company.name
+
+                tasks:
+                  - id: copy
+                    type: io.kestra.plugin.aws.s3.Copy
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    from:
+                      bucket: "my-bucket"
+                      key: "path/to/file"
+                    to:
+                      bucket: "my-bucket2"
+                      key: "path/to/file2"
+                """
         )
     }
 )

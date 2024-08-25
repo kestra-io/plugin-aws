@@ -33,13 +33,20 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\"",
-                "prefix: \"sub-dir\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_delete_list
+                namespace: company.name
+
+                tasks:
+                  - id: delete_list
+                    type: io.kestra.plugin.aws.s3.DeleteList
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                """
         )
     }
 )

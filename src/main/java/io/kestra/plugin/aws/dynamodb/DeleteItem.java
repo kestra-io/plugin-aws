@@ -29,14 +29,21 @@ import java.util.Map;
     examples = {
         @Example(
             title = "Delete an item by its key.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "key: ",
-                "   id: \"1\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamodb_delete_item
+                namespace: company.name
+
+                tasks:
+                  - id: delete_item
+                    type: io.kestra.plugin.aws.dynamodb.DeleteItem
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    key: 
+                       id: "1"
+                """
         )
     }
 )

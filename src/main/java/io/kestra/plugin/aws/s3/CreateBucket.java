@@ -23,12 +23,19 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
     examples = {
         @Example(
             title = "Create a new bucket with some options",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_create_bucket
+                namespace: company.name
+
+                tasks:
+                  - id: create_bucket
+                    type: io.kestra.plugin.aws.s3.CreateBucket
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+            """
         )
     }
 )

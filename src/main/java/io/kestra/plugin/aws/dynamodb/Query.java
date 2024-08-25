@@ -27,28 +27,42 @@ import jakarta.validation.constraints.NotNull;
     examples = {
         @Example(
             title = "Query items from a table.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "keyConditionExpression: id = :id",
-                "expressionAttributeValues:",
-                "  :id: \"1\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamo_db_query
+                namespace: company.name
+
+                tasks:
+                  - id: query
+                    type: io.kestra.plugin.aws.dynamodb.Query
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    keyConditionExpression: id = :id
+                    expressionAttributeValues:
+                      :id: "1"
+            """
         ),
         @Example(
             title = "Query items from a table with a filter expression.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "keyConditionExpression: id = :id",
-                "expressionAttributeValues:",
-                "  :id: \"1\"",
-                "  :lastname: \"Doe\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamo_db_query
+                namespace: company.name
+
+                tasks:
+                  - id: query
+                    type: io.kestra.plugin.aws.dynamodb.Query
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    keyConditionExpression: id = :id
+                    expressionAttributeValues:
+                      :id: "1"
+                      :lastname: "Doe"
+                """
         )
     }
 )

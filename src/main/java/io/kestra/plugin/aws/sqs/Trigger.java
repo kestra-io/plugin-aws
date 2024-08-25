@@ -30,13 +30,25 @@ import java.util.Optional;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\"",
-                "maxRecords: 10"
-            }
+            full = true,
+            code = """
+                id: sqs
+                namespace: company.team
+
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
+
+                triggers:
+                  - id: trigger
+                    type: io.kestra.plugin.aws.sqs.Trigger
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                    maxRecords: 10
+            """
         )
     }
 )

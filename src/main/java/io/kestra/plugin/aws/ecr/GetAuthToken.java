@@ -24,19 +24,26 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Retrieve AWS ECR authorization token to push Docker images to Amazon ECR, or pull images from that container registry."
+    title = "Retrieve AWS ECR authorization token to push Docker images to Amazon ECR, or pull images from that container registry."
 )
 @Plugin(
-        examples = {
-                @Example(
-                        title = "Retrieve the AWS ECR authorization token.",
-                        code = {
-                            "accessKeyId: \"<access-key>\"",
-                            "secretKeyId: \"<secret-key>\"",
-                            "region: \"eu-central-1\""
-                        }
-                )
-        }
+    examples = {
+        @Example(
+            title = "Retrieve the AWS ECR authorization token.",
+            full = true,
+            code = """
+                id: aws_ecr_get_auth_token
+                namespace: company.name
+
+                tasks:
+                  - id: get_auth_token
+                    type: io.kestra.plugin.aws.ecr.GetAuthToken
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                """
+        )
+    }
 )
 public class GetAuthToken extends AbstractConnection implements RunnableTask<GetAuthToken.TokenOutput> {
 

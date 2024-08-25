@@ -21,13 +21,20 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\"",
-                "key: \"path/to/file\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_delete
+                namespace: company.name
+
+                tasks:
+                  - id: delete
+                    type: io.kestra.plugin.aws.s3.Delete
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    key: "path/to/file"
+                """
         )
     }
 )

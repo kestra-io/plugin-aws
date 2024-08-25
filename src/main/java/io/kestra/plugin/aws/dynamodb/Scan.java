@@ -26,24 +26,38 @@ import java.util.Map;
     examples = {
         @Example(
             title = "Scan all items from a table.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamo_db_scan
+                namespace: company.name
+
+                tasks:
+                  - id: scan
+                    type: io.kestra.plugin.aws.dynamodb.Scan
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                """
         ),
         @Example(
             title = "Scan items from a table with a filter expression.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "filterExpression: \"lastname = :lastname\"",
-                "expressionAttributeValues:",
-                "  :lastname: \"Doe\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamo_db_scan
+                namespace: company.name
+
+                tasks:
+                  - id: scan
+                    type: io.kestra.plugin.aws.dynamodb.Scan
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    filterExpression: "lastname = :lastname"
+                    expressionAttributeValues:
+                      :lastname: "Doe"
+                """
         )
     }
 )

@@ -37,14 +37,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "from: \"{{ inputs.file }}\"",
-                "bucket: \"my-bucket\"",
-                "key: \"path/to/file\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_upload
+                namespace: company.name
+
+                tasks:
+                  - id: upload
+                    type: io.kestra.plugin.aws.s3.Upload
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    from: "{{ inputs.file }}"
+                    bucket: "my-bucket"
+                    key: "path/to/file"
+                """
         )
     }
 )

@@ -39,16 +39,23 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\"",
-                "from:",
-                "- data: Hello World",
-                "- data: Hello Kestra",
-                "  delaySeconds: 5"
-            }
+            full = true,
+            code = """
+                id: aws_sqs_publish
+                namespace: company.name
+
+                tasks:
+                  - id: publish
+                    type: io.kestra.plugin.aws.sqs.Publish
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                    from:
+                    - data: Hello World
+                    - data: Hello Kestra
+                      delaySeconds: 5
+                """
         )
     }
 )
