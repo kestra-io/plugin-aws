@@ -16,4 +16,10 @@ public abstract class AbstractS3Object extends AbstractConnection implements Abs
     protected String requestPayer;
 
     protected String bucket;
+
+    static {
+        // Initializing CRT will download the S3 native library into /tmp.
+        // With Java Security enabled, we need to do it early so it is done out of a task execution.
+        S3Service.initCrt();
+    }
 }

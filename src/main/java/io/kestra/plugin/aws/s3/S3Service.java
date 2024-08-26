@@ -9,6 +9,7 @@ import io.kestra.plugin.aws.s3.models.S3Object;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import software.amazon.awssdk.crt.CRT;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -27,6 +28,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class S3Service {
+
+    public static void initCrt() {
+        // This will init CRT and loads the native library
+        CRT.getArchIdentifier();
+    }
+
     public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest request) throws IOException, ExecutionException, InterruptedException {
         // s3 require non existing files
         File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(request.key())).toFile();
