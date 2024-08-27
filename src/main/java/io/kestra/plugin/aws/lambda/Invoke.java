@@ -52,25 +52,39 @@ import java.util.Optional;
     examples = {
         @Example(
             title = "Invoke given Lambda function and wait for its completion.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "functionArn: \"arn:aws:lambda:eu-central-1:123456789012:function:my-function\""
-            }
+            full = true,
+            code = """
+                id: aws_lambda_invoke
+                namespace: company.name
+
+                tasks:
+                  - id: invoke
+                    type: io.kestra.plugin.aws.lambda.Invoke
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
+                """
         ),
         @Example(
             title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "functionArn: \"arn:aws:lambda:eu-central-1:123456789012:function:my-function\"",
-                "functionPayload:",
-                "    id: 1",
-                "    firstname: \"John\"",
-                "    lastname: \"Doe\""
-            }
+            full = true,
+            code = """
+                id: aws_lambda_invoke
+                namespace: company.name
+
+                tasks:
+                  - id: invoke
+                    type: io.kestra.plugin.aws.lambda.Invoke
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
+                    functionPayload:
+                        id: 1
+                        firstname: "John"
+                        lastname: "Doe"
+                """
         )
     },
     metrics = {

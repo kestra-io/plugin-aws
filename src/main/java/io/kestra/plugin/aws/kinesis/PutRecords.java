@@ -48,28 +48,42 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "streamName: \"mystream\"",
-                "records:",
-                "  - data: \"user sign-in event\"",
-                "    explicitHashKey: \"optional hash value overriding the partition key\"",
-                "    partitionKey: \"user1\"",
-                "  - data: \"user sign-out event\"",
-                "    partitionKey: \"user1\""
-            }
+            full = true,
+            code = """
+                id: aws_kinesis_put_records
+                namespace: company.name
+
+                tasks:
+                  - id: put_records
+                    type: io.kestra.plugin.aws.kinesis.PutRecords
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    streamName: "mystream"
+                    records:
+                      - data: "user sign-in event"
+                        explicitHashKey: "optional hash value overriding the partition key"
+                        partitionKey: "user1"
+                      - data: "user sign-out event"
+                        partitionKey: "user1"
+                """
         ),
         @Example(
             title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "streamName: \"mystream\"",
-                "records: kestra:///myfile.ion"
-            }
+            full = true,
+            code = """
+                id: aws_kinesis_put_records
+                namespace: company.name
+
+                tasks:
+                  - id: put_records
+                    type: io.kestra.plugin.aws.kinesis.PutRecords
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    streamName: "mystream"
+                    records: kestra:///myfile.ion 
+                """
         )
     }
 )

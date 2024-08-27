@@ -26,13 +26,20 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\"",
-                "key: \"path/to/file\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_download
+                namespace: company.name
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.aws.s3.Download
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    key: "path/to/file"
+                """
         )
     }
 )

@@ -20,13 +20,20 @@ import software.amazon.awssdk.services.s3.S3Client;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\"",
-                "prefix: \"sub-dir\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_list
+                namespace: company.name
+
+                tasks:
+                  - id: list
+                    type: io.kestra.plugin.aws.s3.List
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                """
         )
     }
 )

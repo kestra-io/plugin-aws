@@ -39,10 +39,10 @@ import java.util.Map;
             title = "Run a simple AWS CLI command and capture the output.",
             full = true,
             code = """
-                id: myflow
+                id: aws_cli
                 namespace: company.team
                 tasks:
-                  - id: hello
+                  - id: cli
                     type: io.kestra.plugin.aws.cli.AwsCLI
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
@@ -52,23 +52,37 @@ import java.util.Map;
         ),
         @Example(
             title = "Create a simple S3 bucket.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "commands:",
-                "  - aws s3 mb s3://test-bucket"
-            }
+            full = true,
+            code = """
+                id: aws_cli
+                namespace: company.name
+
+                tasks:
+                  - id: cli
+                    type: io.kestra.plugin.aws.cli.AwsCLI
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    commands:
+                      - aws s3 mb s3://test-bucket
+                """
         ),
         @Example(
             title = "List all S3 buckets as the task's output.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "commands:",
-                "  - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
-            }
+            full = true,
+            code = """
+                id: aws_cli
+                namespace: company.name
+
+                tasks:
+                  - id: cli
+                    type: io.kestra.plugin.aws.cli.AwsCLI
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    commands:
+                      - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'
+                """
         )
     }
 )

@@ -55,15 +55,22 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Plugin(
     examples = {
         @Example(
+            full = true,
             code = {
                 """
-                accessKeyId: "<access-key>"
-                secretKeyId: "<secret-key>"
-                region: "eu-central-1"
-                database: my_database
-                outputLocation: s3://some-s3-bucket
-                query: |
-                  select * from cloudfront_logs limit 10
+                id: aws_athena_query
+                namespace: company.name
+
+                tasks:
+                  - id: query
+                    type: io.kestra.plugin.aws.athena.Query
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    database: my_database
+                    outputLocation: s3://some-s3-bucket
+                    query: |
+                      select * from cloudfront_logs limit 10
                 """
             }
         )

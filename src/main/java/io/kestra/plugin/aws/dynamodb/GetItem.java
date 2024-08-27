@@ -25,14 +25,21 @@ import java.util.Map;
     examples = {
         @Example(
             title = "Get an item by its key.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "key: ",
-                "   id: \"1\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamodb_get_item
+                namespace: company.name
+
+                tasks:
+                  - id: get_item
+                    type: io.kestra.plugin.aws.dynamodb.GetItem
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    key: 
+                       id: "1"
+                """
         )
     }
 )

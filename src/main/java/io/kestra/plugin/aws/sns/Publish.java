@@ -37,16 +37,23 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "topicArn: \"arn:aws:sns:eu-central-1:000000000000:MessageTopic\"",
-                "from:",
-                "- data: Hello World",
-                "- data: Hello Kestra",
-                "  subject: Kestra"
-            }
+            full = true,
+            code = """
+                id: aws_sns_publish
+                namespace: company.name
+
+                tasks:
+                  - id: publish
+                    type: io.kestra.plugin.aws.sns.Publish
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    topicArn: "arn:aws:sns:eu-central-1:000000000000:MessageTopic"
+                    from:
+                    - data: Hello World
+                    - data: Hello Kestra
+                      subject: Kestra
+                """
         )
     }
 )

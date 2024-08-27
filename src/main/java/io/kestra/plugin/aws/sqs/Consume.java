@@ -39,12 +39,19 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "queueUrl: \"https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue\""
-            }
+            full = true,
+            code = """
+                id: aws_sqs_consume
+                namespace: company.name
+
+                tasks:
+                  - id: consume
+                    type: io.kestra.plugin.aws.sqs.Consume
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                """
         )
     }
 )

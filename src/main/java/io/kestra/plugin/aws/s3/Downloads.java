@@ -30,13 +30,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "bucket: \"my-bucket\"",
-                "prefix: \"sub-dir\""
-            }
+            full = true,
+            code = """
+                id: aws_s3_downloads
+                namespace: company.name
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.aws.s3.Downloads
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                """
         )
     }
 )

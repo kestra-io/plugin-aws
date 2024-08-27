@@ -29,26 +29,40 @@ import java.util.Map;
     examples = {
         @Example(
             title = "Put an item in map form into a table.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "item:",
-                "  id: 1",
-                "  firstname: \"John\"",
-                "  lastname: \"Doe\"",
-            }
+            full = true,
+            code = """
+                id: aws_dynamodb_put_item
+                namespace: company.name
+
+                tasks:
+                  - id: put_item
+                    type: io.kestra.plugin.aws.dynamodb.PutItem
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    item:
+                      id: 1
+                      firstname: "John"
+                      lastname: "Doe"
+                """
         ),
         @Example(
             title = "Put an item in JSON string form into a table.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "tableName: \"persons\"",
-                "item: \"{{ outputs.task_id.data | json }}\""
-            }
+            full = true,
+            code = """
+                id: aws_dynamodb_put_item
+                namespace: company.name
+
+                tasks:
+                  - id: put_item
+                    type: io.kestra.plugin.aws.dynamodb.PutItem
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    item: "{{ outputs.task_id.data | json }}"
+                """
         )
     }
 )

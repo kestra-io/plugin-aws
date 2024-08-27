@@ -46,32 +46,46 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "entries:",
-                "  - eventBusName: \"events\"",
-                "    source: \"Kestra\"",
-                "    detailType: \"my_object\"",
-                "    detail:",
-                "      message: \"hello from EventBridge and Kestra\"",
-            }
+            full = true,
+            code = """
+                id: aws_event_bridge_put_events
+                namespace: company.name
+
+                tasks:
+                  - id: put_events
+                    type: io.kestra.plugin.aws.eventbridge.PutEvents
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    entries:
+                      - eventBusName: "events"
+                        source: "Kestra"
+                        detailType: "my_object"
+                        detail:
+                          message: "hello from EventBridge and Kestra"
+                """
         ),
         @Example(
             title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules.",
-            code = {
-                "accessKeyId: \"<access-key>\"",
-                "secretKeyId: \"<secret-key>\"",
-                "region: \"eu-central-1\"",
-                "entries:",
-                "  - eventBusName: \"events\"",
-                "    source: \"Kestra\"",
-                "    detailType: \"my_object\"",
-                "    detail: \"{\\\"message\\\": \\\"hello from EventBridge and Kestra\\\"}\"",
-                "    resources:",
-                "      - \"arn:aws:iam::123456789012:user/johndoe\"",
-            }
+            full = true,
+            code = """
+                id: aws_event_bridge_put_events
+                namespace: company.name
+
+                tasks:
+                  - id: put_events
+                    type: io.kestra.plugin.aws.eventbridge.PutEvents
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    entries:
+                      - eventBusName: "events"
+                        source: "Kestra"
+                        detailType: "my_object"
+                        detail: "{\"message\": \"hello from EventBridge and Kestra\"}"
+                        resources:
+                          - "arn:aws:iam::123456789012:user/johndoe"
+                """
         )
     }
 )
