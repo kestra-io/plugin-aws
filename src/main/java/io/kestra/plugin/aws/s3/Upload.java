@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_s3_upload
-                namespace: company.name
+                namespace: company.team
 
                 inputs:
                   - id: myfile
