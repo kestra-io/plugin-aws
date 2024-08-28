@@ -42,13 +42,17 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 id: aws_s3_upload
                 namespace: company.name
 
+                inputs:
+                  - id: myfile
+                    type: FILE
+            
                 tasks:
                   - id: upload
                     type: io.kestra.plugin.aws.s3.Upload
                     accessKeyId: "<access-key>"
                     secretKeyId: "<secret-key>"
                     region: "eu-central-1"
-                    from: "{{ inputs.file }}"
+                    from: "{{ inputs.myfile }}"
                     bucket: "my-bucket"
                     key: "path/to/file"
                 """
