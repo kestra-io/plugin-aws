@@ -36,67 +36,69 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             title = "Wait for a list of files on a s3 bucket and iterate through the files.",
             full = true,
-            code = {
-                "id: s3-listen",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: each",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
-                "    value: \"{{ trigger.objects | jq('.[].uri') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.aws.s3.Trigger",
-                "    interval: \"PT5M\"",
-                "    accessKeyId: \"<access-key>\"",
-                "    secretKeyId: \"<secret-key>\"",
-                "    region: \"eu-central-1\"",
-                "    bucket: \"my-bucket\"",
-                "    prefix: \"sub-dir\"",
-                "    action: MOVE",
-                "    moveTo: ",
-                "      key: archive",
-            }
+            code = """
+                id: s3_listen
+                namespace: company.team
+                
+                tasks:
+                  - id: each
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value }}"
+                    value: "{{ trigger.objects | jq('.[].uri') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.aws.s3.Trigger
+                    interval: "PT5M"
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                    action: MOVE
+                    moveTo:
+                      key: archive
+                      bucket: "new-bucket"
+                """
         ),
         @Example(
             title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering.",
             full = true,
-            code = {
-                "id: s3-listen",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: each",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
-                "      - id: delete",
-                "        type: io.kestra.plugin.aws.s3.Delete",
-                "        accessKeyId: \"<access-key>\"",
-                "        secretKeyId: \"<secret-key>\"",
-                "        region: \"eu-central-1\"",
-                "        bucket: \"my-bucket\"",
-                "        key: \"{{ taskrun.value }}\"",
-                "    value: \"{{ trigger.objects | jq('.[].key') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.aws.s3.Trigger",
-                "    interval: \"PT5M\"",
-                "    accessKeyId: \"<access-key>\"",
-                "    secretKeyId: \"<secret-key>\"",
-                "    region: \"eu-central-1\"",
-                "    bucket: \"my-bucket\"",
-                "    prefix: \"sub-dir\"",
-                "    action: NONE",
-            }
+            code = """
+                id: s3_listen
+                namespace: company.team
+                
+                tasks:
+                  - id: each
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value }}"
+            
+                      - id: delete
+                        type: io.kestra.plugin.aws.s3.Delete
+                        accessKeyId: "<access-key>"
+                        secretKeyId: "<secret-key>"
+                        region: "eu-central-1"
+                        bucket: "my-bucket"
+                        key: "{{ taskrun.value }}"
+                    value: "{{ trigger.objects | jq('.[].key') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.aws.s3.Trigger
+                    interval: "PT5M"
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                    action: NONE
+            """
         )
     }
 )
