@@ -85,7 +85,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                     flowable = FileSerde.readAll(inputStream, Message.class);
                     resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 
-                    count = resultFlowable.reduce(Integer::sum).block();
+                    count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
                 }
 
             } else if (this.from instanceof List) {
@@ -95,7 +95,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
 
                 resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
 
-                count = resultFlowable.reduce(Integer::sum).block();
+                count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
                 snsClient.publish(msg.to(PublishRequest.builder().topicArn(topicArn), runContext));

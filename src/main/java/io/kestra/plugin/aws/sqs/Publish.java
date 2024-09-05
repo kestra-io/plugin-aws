@@ -89,7 +89,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                     flowable = FileSerde.readAll(inputStream, Message.class);
                     resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
-                    count = resultFlowable.reduce(Integer::sum).block();
+                    count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
                 }
 
             } else if (this.from instanceof List) {
@@ -99,7 +99,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
 
                 resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
 
-                count = resultFlowable.reduce(Integer::sum).block();
+                count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
             } else {
                 var msg = JacksonMapper.toMap(this.from, Message.class);
                 sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
