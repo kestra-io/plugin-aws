@@ -24,7 +24,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
             full = true,
             code = """
                 id: aws_s3_delete
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: delete

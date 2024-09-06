@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
             full = true,
             code = """
                 id: aws_s3_create_bucket
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: create_bucket

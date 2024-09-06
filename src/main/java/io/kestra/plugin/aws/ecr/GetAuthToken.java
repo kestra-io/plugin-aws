@@ -33,7 +33,7 @@ import java.util.List;
             full = true,
             code = """
                 id: aws_ecr_get_auth_token
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: get_auth_token

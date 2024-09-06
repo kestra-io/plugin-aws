@@ -55,7 +55,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_cli
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: cli
@@ -72,7 +72,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_cli
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: cli

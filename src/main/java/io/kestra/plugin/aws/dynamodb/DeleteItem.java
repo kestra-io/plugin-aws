@@ -32,7 +32,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamodb_delete_item
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: delete_item

@@ -28,7 +28,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamodb_get_item
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: get_item

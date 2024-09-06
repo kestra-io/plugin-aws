@@ -32,7 +32,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamodb_put_item
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_item
@@ -52,7 +52,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamodb_put_item
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_item
