@@ -29,7 +29,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_s3_download
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: download

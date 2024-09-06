@@ -30,7 +30,7 @@ import jakarta.validation.constraints.NotNull;
             full = true,
             code = """
                 id: aws_dynamo_db_query
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: query
@@ -49,7 +49,7 @@ import jakarta.validation.constraints.NotNull;
             full = true,
             code = """
                 id: aws_dynamo_db_query
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: query

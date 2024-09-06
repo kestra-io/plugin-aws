@@ -51,7 +51,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_kinesis_put_records
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_records
@@ -73,7 +73,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_kinesis_put_records
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_records

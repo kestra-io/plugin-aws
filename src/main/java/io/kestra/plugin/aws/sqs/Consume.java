@@ -42,7 +42,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             full = true,
             code = """
                 id: aws_sqs_consume
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: consume

@@ -59,7 +59,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             code = {
                 """
                 id: aws_athena_query
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: query

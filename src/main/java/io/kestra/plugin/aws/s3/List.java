@@ -23,7 +23,7 @@ import software.amazon.awssdk.services.s3.S3Client;
             full = true,
             code = """
                 id: aws_s3_list
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: list

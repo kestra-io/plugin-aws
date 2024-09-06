@@ -49,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_event_bridge_put_events
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_events
@@ -70,7 +70,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_event_bridge_put_events
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: put_events

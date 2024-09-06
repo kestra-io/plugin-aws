@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             code = """
                 id: aws_sns_publish
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: publish

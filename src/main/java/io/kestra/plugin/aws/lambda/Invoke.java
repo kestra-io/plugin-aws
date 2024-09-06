@@ -55,7 +55,7 @@ import java.util.Optional;
             full = true,
             code = """
                 id: aws_lambda_invoke
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: invoke
@@ -71,7 +71,7 @@ import java.util.Optional;
             full = true,
             code = """
                 id: aws_lambda_invoke
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: invoke

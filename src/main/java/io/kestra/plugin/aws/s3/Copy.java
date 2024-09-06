@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
             full = true,
             code = """
                 id: aws_s3_copy
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: copy

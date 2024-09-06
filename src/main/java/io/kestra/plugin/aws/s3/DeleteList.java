@@ -36,7 +36,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             full = true,
             code = """
                 id: aws_s3_delete_list
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: delete_list

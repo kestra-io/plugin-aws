@@ -29,7 +29,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamo_db_scan
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: scan
@@ -45,7 +45,7 @@ import java.util.Map;
             full = true,
             code = """
                 id: aws_dynamo_db_scan
-                namespace: company.name
+                namespace: company.team
 
                 tasks:
                   - id: scan
