@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ class DownloadsTest extends AbstractTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .action(ActionInterface.Action.DELETE)
             .build();
 
@@ -58,7 +59,7 @@ class DownloadsTest extends AbstractTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .action(ActionInterface.Action.MOVE)
             .moveTo(Copy.CopyObject.builder()
                 .key("/tasks/s3-move")

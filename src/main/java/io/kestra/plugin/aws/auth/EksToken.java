@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.auth;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.EncryptedString;
@@ -32,6 +34,25 @@ import java.util.Base64;
 @Schema(
     title = "Fetch an OAuth access token for EKS cluster."
 )
+@Plugin(
+    examples = {
+        @Example(
+            full = true,
+            code = """
+                id: aws_eks_oauth_token
+                namespace: company.team
+
+                tasks:
+                  - id: get_eks_token
+                    type: io.kestra.plugin.aws.auth.EksToken
+                    accessKeyId: "<access-key>"
+                    secretKeyId: "<secret-key>"
+                    region: "eu-central-1"
+                    clusterName: "my-cluster"
+                """
+        )
+    }
+)
 public class EksToken extends AbstractConnection implements RunnableTask<EksToken.Output> {
 
     @Schema(title = "EKS cluster name.")
@@ -46,7 +67,10 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Override
     public Output run(RunContext runContext) throws Exception {
         try {
-            final Region awsRegion = Region.of(this.getRegion());
+            if(this.getRegion() == null) {
+                throw new RuntimeException("Region is required");
+            }
+            final Region awsRegion = Region.of(this.getRegion().as(runContext, String.class));
 
             SdkHttpFullRequest requestToSign = SdkHttpFullRequest
                 .builder()

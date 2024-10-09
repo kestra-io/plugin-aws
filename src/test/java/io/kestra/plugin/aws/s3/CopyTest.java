@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.IdUtils;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -21,7 +22,7 @@ class CopyTest extends AbstractTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .from(Copy.CopyObjectFrom.builder()
                 .bucket(this.BUCKET)
                 .key(upload)

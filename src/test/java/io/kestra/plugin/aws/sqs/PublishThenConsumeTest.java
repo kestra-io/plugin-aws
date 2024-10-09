@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var publish = Publish.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
             .queueUrl(queueUrl())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .from(
@@ -35,7 +36,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var consume = Consume.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
             .queueUrl(queueUrl())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .maxRecords(2)
@@ -52,7 +53,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var publish = Publish.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
             .queueUrl(queueUrl())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .from(
@@ -71,7 +72,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var consume = Consume.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
             .queueUrl(queueUrl())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .serdeType(SerdeType.JSON)

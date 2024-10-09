@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.kinesis;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
@@ -122,7 +123,7 @@ class PutRecordsTest {
             .build();
         var put = PutRecords.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .streamName("streamName")
@@ -174,7 +175,7 @@ class PutRecordsTest {
 
         var put = PutRecords.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .records(runContext.storage().putFile(tempFile).toString())
@@ -227,7 +228,7 @@ class PutRecordsTest {
 
         var put = PutRecords.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .records(runContext.storage().putFile(tempFile).toString())

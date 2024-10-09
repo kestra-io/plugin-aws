@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.ecr;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
@@ -30,7 +31,7 @@ public class GetAuthTokenTest extends AbstractLocalStackTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .build();
 
         GetAuthToken.TokenOutput output = query.run(runContext);

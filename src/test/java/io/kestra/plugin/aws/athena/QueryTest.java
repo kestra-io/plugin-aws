@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.athena;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContextFactory;
 import io.micronaut.context.annotation.Value;
@@ -36,7 +37,7 @@ class QueryTest {
         var query = Query.builder()
             .id("hello")
             .type(Query.class.getName())
-            .region("eu-west-3")
+            .region(Property.of("eu-west-3"))
             .accessKeyId(accessKey)
             .secretKeyId(secretKey)
             .database("units")

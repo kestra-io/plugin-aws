@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import com.google.common.io.CharStreams;
+import io.kestra.core.models.property.Property;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -30,7 +31,7 @@ class AllTest extends AbstractTest{
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .prefix("tasks/aws/upload/")
             .build();
 
@@ -45,7 +46,7 @@ class AllTest extends AbstractTest{
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .key(key)
             .build();
         Download.Output run = download.run(runContext(download));
@@ -64,7 +65,7 @@ class AllTest extends AbstractTest{
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .key(key)
             .build();
         Delete.Output deleteOutput = delete.run(runContext(delete));

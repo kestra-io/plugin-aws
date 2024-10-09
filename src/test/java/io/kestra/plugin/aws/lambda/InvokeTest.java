@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.lambda;
 
 import io.kestra.core.models.executions.AbstractMetricEntry;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ public class InvokeTest extends AbstractInvokeTest {
             .functionArn(FUNCTION_NAME)
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .build();
@@ -65,7 +66,7 @@ public class InvokeTest extends AbstractInvokeTest {
             .functionArn("Fake_ARN")
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .build();
@@ -93,7 +94,7 @@ public class InvokeTest extends AbstractInvokeTest {
             .functionPayload(params)
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .build();

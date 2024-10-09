@@ -22,7 +22,7 @@ class EksTokenTest {
     void run() throws Exception {
         EksToken task = EksToken.builder()
             .clusterName(Property.of("kestra"))
-            .region("eu-west-1")
+            .region(Property.of("eu-west-1"))
             .build();
 
         EksToken.Output output = task.run(runContextFactory.of(Collections.emptyMap()));

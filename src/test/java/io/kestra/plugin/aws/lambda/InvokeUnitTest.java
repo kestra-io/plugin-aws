@@ -18,6 +18,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.Optional;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.storages.Storage;
 import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.AfterEach;
@@ -82,7 +83,7 @@ public class InvokeUnitTest {
             .type(InvokeUnitTest.class.getName())
             .accessKeyId("test_accessKeyId")
             .secretKeyId("test_secretKeyId")
-            .region("test_region")
+            .region(Property.of("test_region"))
             .build();        
     }
 

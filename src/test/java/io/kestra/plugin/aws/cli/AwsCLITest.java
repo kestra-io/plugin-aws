@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.cli;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
@@ -42,7 +43,7 @@ public class AwsCLITest extends AbstractLocalStackTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
             .commands(List.of(
                 "echo \"::{\\\"outputs\\\":{" +
