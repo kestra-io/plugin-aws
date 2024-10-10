@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.eventbridge;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
@@ -84,7 +85,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             .build();
         var put = PutEvents.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .entries(List.of(entry, entry2, entry3))
@@ -148,7 +149,7 @@ class PutEventsTest extends AbstractLocalStackTest {
 
         var put = PutEvents.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .entries(runContext.storage().putFile(tempFile).toString())
@@ -190,7 +191,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             .build();
         var put = PutEvents.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .entries(List.of(entry, entry, entry))
@@ -220,7 +221,7 @@ class PutEventsTest extends AbstractLocalStackTest {
             .build();
         var put = PutEvents.builder()
             .endpointOverride(localstack.getEndpoint().toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .entries(List.of(entry, entry, entry))

@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import jakarta.annotation.Nullable;
 import lombok.*;
@@ -14,7 +15,7 @@ import java.time.Duration;
 @NoArgsConstructor
 public abstract class AbstractConnection extends Task implements AbstractConnectionInterface {
 
-    protected String region;
+    protected Property<String> region;
     protected String endpointOverride;
     protected Boolean compatibilityMode;
 

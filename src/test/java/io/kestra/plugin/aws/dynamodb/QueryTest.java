@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.dynamodb;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class QueryTest extends AbstractDynamoDbTest {
 
         var query = Query.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")
@@ -48,7 +49,7 @@ class QueryTest extends AbstractDynamoDbTest {
 
         var query = Query.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")
@@ -76,7 +77,7 @@ class QueryTest extends AbstractDynamoDbTest {
 
         var query = Query.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")
@@ -103,7 +104,7 @@ class QueryTest extends AbstractDynamoDbTest {
 
         var query = Query.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")
@@ -131,7 +132,7 @@ class QueryTest extends AbstractDynamoDbTest {
 
         var query = Query.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")

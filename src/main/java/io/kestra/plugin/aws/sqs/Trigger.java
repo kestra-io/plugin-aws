@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
@@ -62,7 +63,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private String sessionToken;
 
-    private String region;
+    private Property<String> region;
 
     private String endpointOverride;
 
@@ -101,7 +102,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .accessKeyId(runContext.render(accessKeyId))
             .secretKeyId(runContext.render(secretKeyId))
             .sessionToken(runContext.render(sessionToken))
-            .region(runContext.render(region))
+            .region(region)
             .endpointOverride(runContext.render(endpointOverride))
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)

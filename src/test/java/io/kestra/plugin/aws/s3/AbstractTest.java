@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import com.google.common.collect.ImmutableMap;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
@@ -49,7 +50,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -80,7 +81,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .from(source.toString())
             .key(dir + "/" + out + ".yml")
             .build();
@@ -97,7 +98,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
-            .region(localstack.getRegion());
+            .region(Property.of(localstack.getRegion()));
     }
 
     protected RunContext runContext(Task task) {

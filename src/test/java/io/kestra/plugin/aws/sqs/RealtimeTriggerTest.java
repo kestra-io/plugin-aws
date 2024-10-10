@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
@@ -72,7 +73,7 @@ class RealtimeTriggerTest extends AbstractSqsTest {
             Publish task = Publish.builder()
                 .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
                 .queueUrl(queueUrl())
-                .region(localstack.getRegion())
+                .region(Property.of(localstack.getRegion()))
                 .accessKeyId(localstack.getAccessKey())
                 .secretKeyId(localstack.getSecretKey())
                 .from(

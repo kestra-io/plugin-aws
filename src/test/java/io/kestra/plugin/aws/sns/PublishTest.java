@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sns;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.sns.model.Message;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -17,7 +18,7 @@ class PublishTest extends AbstractSnsTest {
         var publish = Publish.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SNS).toString())
             .topicArn(TOPIC_ARN)
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .from(

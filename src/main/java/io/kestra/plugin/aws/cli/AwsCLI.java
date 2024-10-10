@@ -186,7 +186,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             envs.put("AWS_SECRET_ACCESS_KEY", runContext.render(this.secretKeyId));
         }
         if (this.region != null) {
-            envs.put("AWS_DEFAULT_REGION", runContext.render(this.region));
+            envs.put("AWS_DEFAULT_REGION", this.region.as(runContext, String.class));
         }
         if (this.sessionToken != null) {
             envs.put("AWS_SESSION_TOKEN", runContext.render(this.sessionToken));

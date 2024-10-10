@@ -2,6 +2,7 @@ package io.kestra.plugin.aws;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -69,8 +70,7 @@ public interface AbstractConnectionInterface {
     @Schema(
         title = "AWS region with which the SDK should communicate."
     )
-    @PluginProperty(dynamic = true)
-    String getRegion();
+    Property<String> getRegion();
 
     @Schema(
         title = "The endpoint with which the SDK should communicate.",
@@ -94,7 +94,7 @@ public interface AbstractConnectionInterface {
             runContext.render(this.getStsRoleSessionName()),
             runContext.render(this.getStsEndpointOverride()),
             getStsRoleSessionDuration(),
-            runContext.render(this.getRegion()),
+            this.getRegion() == null ? null : this.getRegion().as(runContext, String.class),
             runContext.render(this.getEndpointOverride())
         );
     }

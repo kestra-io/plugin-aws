@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import io.kestra.core.models.property.Property;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -17,7 +18,7 @@ class GetItemTest extends AbstractDynamoDbTest {
 
         var get = GetItem.builder()
             .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
-            .region(localstack.getRegion())
+            .region(Property.of(localstack.getRegion()))
             .accessKeyId(localstack.getAccessKey())
             .secretKeyId(localstack.getSecretKey())
             .tableName("persons")

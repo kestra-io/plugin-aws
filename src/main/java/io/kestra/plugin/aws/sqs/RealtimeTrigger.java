@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
@@ -67,7 +68,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     private String sessionToken;
 
-    private String region;
+    private Property<String> region;
 
     private String endpointOverride;
 
@@ -123,7 +124,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .accessKeyId(runContext.render(accessKeyId))
             .secretKeyId(runContext.render(secretKeyId))
             .sessionToken(runContext.render(sessionToken))
-            .region(runContext.render(region))
+            .region(region)
             .endpointOverride(runContext.render(endpointOverride))
             .serdeType(this.serdeType)
             .stsRoleArn(this.stsRoleArn)
