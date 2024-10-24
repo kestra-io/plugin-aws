@@ -90,6 +90,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             .endpointOverride(this.endpointOverride)
             .accessKeyId(this.accessKeyId)
             .secretKeyId(this.secretKeyId)
+            .sessionToken(this.sessionToken)
             .requestPayer(this.requestPayer)
             .bucket(this.bucket)
             .prefix(this.prefix)
