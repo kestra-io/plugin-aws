@@ -57,7 +57,7 @@ public class InvokeUnitTest {
     private File tempFile;
 
     @BeforeEach
-    public void setUp() throws IOException, IllegalVariableEvaluationException {
+    void setUp() throws IOException, IllegalVariableEvaluationException {
         given(context.storage()).willReturn(storage);
         given(context.workingDir()).willReturn(workingDir);
         given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
@@ -88,7 +88,7 @@ public class InvokeUnitTest {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         if (tempFile != null && tempFile.exists()) {
             tempFile.delete();
         }
@@ -96,24 +96,24 @@ public class InvokeUnitTest {
     }
 
     @Test
-    public void testParseContentType_NoContentType_Binary() {
+    void testParseContentType_NoContentType_Binary() {
         assertEquals(ContentType.APPLICATION_OCTET_STREAM, invoke.parseContentType(Optional.empty()), "Should be binary");
     }
    
     @Test
-    public void testParseContentType_BadContent_Binary() {
+    void testParseContentType_BadContent_Binary() {
         assertEquals(ContentType.APPLICATION_OCTET_STREAM, invoke.parseContentType(Optional.of("fake/type")), "Should be binary");
     }
     
     @Test
-    public void testParseContentType_JSON() {
+    void testParseContentType_JSON() {
         assertEquals(ContentType.APPLICATION_JSON.getMimeType().toString(),
                 invoke.parseContentType(Optional.of("application/json")).getMimeType().toString(),
                 "Should be JSON");
     }
 
     @Test
-    public void testReadError_NotJsonType(@Mock SdkBytes bytes) {
+    void testReadError_NotJsonType(@Mock SdkBytes bytes) {
         assertThrows(LambdaInvokeException.class, () -> {
             invoke.handleError(invoke.getFunctionArn(), ContentType.APPLICATION_OCTET_STREAM, bytes);
             }, "Should throw an error"
@@ -121,7 +121,7 @@ public class InvokeUnitTest {
     }
 
     @Test
-    public void testReadError_FromJsonMessage(@Mock SdkBytes bytes) {
+    void testReadError_FromJsonMessage(@Mock SdkBytes bytes) {
         String errorText = "'path'";
         given(bytes.asUtf8String()).willReturn(
                 "{\"errorMessage\": \"" + errorText + "\", \"errorType\": \"KeyError\"}");
@@ -133,7 +133,7 @@ public class InvokeUnitTest {
     }
 
     @Test
-    public void testHandleContent_SaveFile_ReturnOutput(@Mock SdkBytes bytes) throws IOException {
+    void testHandleContent_SaveFile_ReturnOutput(@Mock SdkBytes bytes) throws IOException {
         //val json = "{\"data\": \"some value\", \"author\": \"The User\"}";
         var data = "some raw data";
         given(bytes.asInputStream()).willReturn(new ByteArrayInputStream(data.getBytes()));
@@ -157,7 +157,7 @@ public class InvokeUnitTest {
 
     // ******** BDD usecases ******** 
     @Test
-    public void givenFunctionArnNoParams_whenInvokeLambda_thenOutputWithFile(
+    void givenFunctionArnNoParams_whenInvokeLambda_thenOutputWithFile(
                 @Mock LambdaClient awsLambda,
                 @Mock InvokeResponse awsResponse,
                 @Mock SdkHttpResponse awsHttpResponse,
