@@ -16,7 +16,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -64,6 +63,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
 
     protected URI storagePut(String path) throws URISyntaxException, IOException {
         return storageInterface.put(
+            null,
             null,
             new URI("/" + (path != null ? path : IdUtils.create())),
             new FileInputStream(file())

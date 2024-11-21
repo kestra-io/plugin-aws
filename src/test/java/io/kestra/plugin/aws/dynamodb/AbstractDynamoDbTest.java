@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
@@ -16,9 +15,6 @@ public abstract class AbstractDynamoDbTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-
-    @Inject
-    protected StorageInterface storageInterface;
 
     void createTable(RunContext runContext, AbstractDynamoDb dynamoDb) throws IllegalVariableEvaluationException {
         try (var dynamoDbClient = dynamoDb.client(runContext)) {

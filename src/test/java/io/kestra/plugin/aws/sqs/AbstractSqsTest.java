@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
@@ -20,9 +19,6 @@ public class AbstractSqsTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-
-    @Inject
-    protected StorageInterface storageInterface;
 
     @BeforeEach
     void beforeEach() {

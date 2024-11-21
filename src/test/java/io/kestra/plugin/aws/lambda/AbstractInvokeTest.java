@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.lambda;
 
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
@@ -16,7 +15,6 @@ import software.amazon.awssdk.services.lambda.model.*;
 import software.amazon.awssdk.services.lambda.waiters.LambdaWaiter;
 
 import java.io.InputStream;
-import java.util.stream.Collectors;
 
 @KestraTest
 @Testcontainers
@@ -32,11 +30,6 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-
-    @Inject
-    protected StorageInterface storageInterface;
-
-    protected String functionArn;
 
 
     void createFunction(LambdaClient client) {
