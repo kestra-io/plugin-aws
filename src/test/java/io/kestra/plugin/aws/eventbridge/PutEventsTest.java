@@ -4,7 +4,6 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 import io.kestra.core.junit.annotations.KestraTest;
@@ -15,8 +14,6 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,8 +33,6 @@ class PutEventsTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-    @Inject
-    protected StorageInterface storageInterface;
 
     private static List<PutEvents.OutputEntry> getOutputEntries(PutEvents put, RunContext runContext) throws Exception {
         var output = put.run(runContext);

@@ -8,7 +8,6 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.kinesis.model.Record;
 import io.kestra.core.junit.annotations.KestraTest;
@@ -23,8 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -52,8 +49,6 @@ class PutRecordsTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-    @Inject
-    protected StorageInterface storageInterface;
 
     @BeforeAll
     static void startLocalstack() throws IllegalVariableEvaluationException, InterruptedException {

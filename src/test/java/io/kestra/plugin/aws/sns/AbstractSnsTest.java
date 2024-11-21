@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.sns;
 
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
@@ -16,9 +15,6 @@ public class AbstractSnsTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-
-    @Inject
-    protected StorageInterface storageInterface;
 
     void createTopic(SnsClient client) {
         if (!client.listTopics().topics().contains(TOPIC_ARN)) {
