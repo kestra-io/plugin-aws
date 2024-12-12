@@ -10,7 +10,6 @@ import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
-import io.kestra.plugin.scripts.exec.scripts.models.RunnerType;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.runner.docker.Docker;
@@ -21,6 +20,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,8 +140,33 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
     private List<String> outputFiles;
 
+    private CredentialSource stsCredentialSource;
+
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
+        List<String> allCommands = new ArrayList<>(this.commands);
+
+        // hack for missing env vars supports: https://github.com/aws/aws-cli/issues/5639
+        if (this.stsRoleArn != null) {
+            allCommands.add("aws configure set role_arn " + runContext.render(this.stsRoleArn));
+        }
+
+        if (this.stsRoleSessionName != null) {
+            allCommands.add("aws configure set role_session_name " + runContext.render(this.stsRoleSessionName));
+        }
+
+        if (this.stsRoleExternalId != null) {
+            allCommands.add("aws configure set external_id " + runContext.render(this.stsRoleExternalId));
+        }
+
+        if (this.stsRoleSessionDuration != null) {
+            allCommands.add("aws configure set duration_seconds " + stsRoleSessionDuration.getSeconds());
+        }
+
+        if (this.stsCredentialSource != null) {
+            allCommands.add("aws configure set credential_source " + this.stsCredentialSource.value);
+        }
+
         CommandsWrapper commands = new CommandsWrapper(runContext)
             .withWarningOnStdErr(true)
             .withDockerOptions(injectDefaults(getDocker()))
@@ -151,7 +176,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
                 ScriptService.scriptCommands(
                     List.of("/bin/sh", "-c"),
                     null,
-                    this.commands)
+                    allCommands)
             )
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
@@ -165,7 +190,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         if (original == null) {
             return null;
         }
-        
+
         var builder = original.toBuilder();
         if (original.getImage() == null) {
             builder.image(DEFAULT_IMAGE);
@@ -179,18 +204,23 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
     private Map<String, String> getEnv(RunContext runContext) throws IllegalVariableEvaluationException {
         Map<String, String> envs = new HashMap<>();
+
         if (this.accessKeyId != null) {
             envs.put("AWS_ACCESS_KEY_ID", runContext.render(this.accessKeyId));
         }
+
         if (this.secretKeyId != null) {
             envs.put("AWS_SECRET_ACCESS_KEY", runContext.render(this.secretKeyId));
         }
+
         if (this.region != null) {
             envs.put("AWS_DEFAULT_REGION", this.region.as(runContext, String.class));
         }
+
         if (this.sessionToken != null) {
             envs.put("AWS_SESSION_TOKEN", runContext.render(this.sessionToken));
         }
+
         if (this.endpointOverride != null) {
             envs.put("AWS_ENDPOINT_URL", runContext.render(this.endpointOverride));
         }
@@ -202,6 +232,18 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         }
 
         return envs;
+    }
+
+    public enum CredentialSource {
+        ENVIRONMENT("Environment"),
+        EC2_INSTANCE_METADATA("Ec2InstanceMetadata"),
+        ECS_CONTAINER("EcsContainer");
+
+        private final String value;
+
+        CredentialSource(String value) {
+            this.value = value;
+        }
     }
 
     public enum OutputFormat {
