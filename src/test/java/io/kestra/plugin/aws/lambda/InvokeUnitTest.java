@@ -9,16 +9,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContextProperty;
 import io.kestra.core.storages.Storage;
 import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.AfterEach;
@@ -49,6 +52,9 @@ public class InvokeUnitTest {
     private RunContext context;
 
     @Mock(strictness = Strictness.LENIENT)
+    private RunContextProperty runContextProperty;
+
+    @Mock(strictness = Strictness.LENIENT)
     private Storage storage;
 
     @Mock(strictness = Strictness.LENIENT)
@@ -56,18 +62,30 @@ public class InvokeUnitTest {
 
     private File tempFile;
 
+    private String testValue;
+
     @BeforeEach
     void setUp() throws IOException, IllegalVariableEvaluationException {
         given(context.storage()).willReturn(storage);
         given(context.workingDir()).willReturn(workingDir);
         given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
-        given(context.render(anyString())).willAnswer(new Answer<String>() {
+        given(context.render(any(Property.class))).willAnswer(new Answer<RunContextProperty<String>>() {
             @Override
-            public String answer(InvocationOnMock invocation) throws Throwable {
-                return invocation.getArgument(0, String.class).toString();
+            public RunContextProperty<String> answer(InvocationOnMock invocation) throws Throwable {
+                testValue = invocation.getArgument(0, Property.class).toString();
+                return runContextProperty;
             }
         });
+        given(runContextProperty.as(String.class)).willAnswer(new Answer<Optional<String>>() {
+            @Override
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.of(testValue);
+            }
+        });
+
+        given(runContextProperty.asMap(any(), any())).willAnswer((Answer<Map>) invocation -> Collections.emptyMap());
+
         given(storage.putFile(any(File.class))).willAnswer(new Answer<URI>() {
             @Override
             public URI answer(InvocationOnMock invocation) throws Throwable {
@@ -77,8 +95,8 @@ public class InvokeUnitTest {
         });
 
         invoke = Invoke.builder()
-            .functionArn("test_function_arn")
-            .functionPayload(null) // w/o paramters now
+            .functionArn(Property.of("test_function_arn"))
+            .functionPayload(Property.of((Map.of()))) // w/o paramters now
             .id(InvokeUnitTest.class.getSimpleName())
             .type(InvokeUnitTest.class.getName())
             .accessKeyId(Property.of("test_accessKeyId"))
@@ -115,7 +133,7 @@ public class InvokeUnitTest {
     @Test
     void testReadError_NotJsonType(@Mock SdkBytes bytes) {
         assertThrows(LambdaInvokeException.class, () -> {
-            invoke.handleError(invoke.getFunctionArn(), ContentType.APPLICATION_OCTET_STREAM, bytes);
+            invoke.handleError(invoke.getFunctionArn().toString(), ContentType.APPLICATION_OCTET_STREAM, bytes);
             }, "Should throw an error"
         );
     }
@@ -126,7 +144,7 @@ public class InvokeUnitTest {
         given(bytes.asUtf8String()).willReturn(
                 "{\"errorMessage\": \"" + errorText + "\", \"errorType\": \"KeyError\"}");
         Throwable throwable = assertThrows(LambdaInvokeException.class, () -> {
-            invoke.handleError(invoke.getFunctionArn(), ContentType.APPLICATION_JSON, bytes);
+            invoke.handleError(invoke.getFunctionArn().toString(), ContentType.APPLICATION_JSON, bytes);
         }, "Should throw an error");
         assertTrue(throwable.getMessage().indexOf(errorText) > 0,
                 "Exception message should contain an original message");
@@ -138,7 +156,7 @@ public class InvokeUnitTest {
         var data = "some raw data";
         given(bytes.asInputStream()).willReturn(new ByteArrayInputStream(data.getBytes()));
 
-        Output res = invoke.handleContent(context, invoke.getFunctionArn(), ContentType.APPLICATION_OCTET_STREAM, bytes);
+        Output res = invoke.handleContent(context, invoke.getFunctionArn().toString(), ContentType.APPLICATION_OCTET_STREAM, bytes);
 
         checkOutput(data, res);
     }

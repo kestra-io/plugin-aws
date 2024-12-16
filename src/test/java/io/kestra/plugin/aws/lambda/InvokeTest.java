@@ -29,7 +29,7 @@ public class InvokeTest extends AbstractInvokeTest {
         // Given
         var invoke = Invoke.builder()
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn(FUNCTION_NAME)
+            .functionArn(Property.of(FUNCTION_NAME))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
             .region(Property.of(localstack.getRegion()))
@@ -63,7 +63,7 @@ public class InvokeTest extends AbstractInvokeTest {
         // Given
         var invoke = Invoke.builder()
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn("Fake_ARN")
+            .functionArn(Property.of("Fake_ARN"))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
             .region(Property.of(localstack.getRegion()))
@@ -90,8 +90,8 @@ public class InvokeTest extends AbstractInvokeTest {
         params.put("action", "error");
         var invoke = Invoke.builder()
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn(FUNCTION_NAME)
-            .functionPayload(params)
+            .functionArn(Property.of(FUNCTION_NAME))
+            .functionPayload(Property.of(params))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
             .region(Property.of(localstack.getRegion()))

@@ -10,6 +10,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
@@ -98,22 +99,23 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
     @Schema(title = "The Lambda function name.")
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String functionArn;
+    private Property<String> functionArn;
 
     @Schema(
         title = "Function request payload.",
         description = "Request payload. It's a map of string -> object."
-    )    
-    @PluginProperty(dynamic = true)
-    private Map<String, Object> functionPayload;
+    )
+    private Property<Map<String, Object>> functionPayload;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
-        var functionArn = runContext.render(this.functionArn);
-        var requestPayload = this.functionPayload != null ? runContext.render(this.functionPayload) : null;
+        var functionArn = runContext.render(this.functionArn).as(String.class).orElseThrow();
+        var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ?
+            null :
+            runContext.render(this.functionPayload).asMap(String.class, Object.class);
+
         try (var lambda = client(runContext)) {
             var builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
@@ -205,7 +207,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             log.debug("Lambda function error for {}: response type: {}, response payload: {}",
                     functionArn, contentType, errorPayload);
         }
-        if (errorPayload != null 
+        if (errorPayload != null
                 && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
             throw new LambdaInvokeException(
                     "Lambda Invoke task responded with error for function: " + functionArn
@@ -229,7 +231,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             runContext.metric(Counter.of("file.size", size));
             var uri = runContext.storage().putFile(tempFile);
             if (log.isDebugEnabled()) {
-                log.debug("Lambda invokation task completed {}: response type: {}, file: `{}", 
+                log.debug("Lambda invokation task completed {}: response type: {}, file: `{}",
                         functionArn, contentType, uri);
             }
             return Output.builder()
