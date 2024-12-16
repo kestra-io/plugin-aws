@@ -22,8 +22,8 @@ class DeleteItemTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .key(Map.of("id", "1"))
+            .tableName(Property.of("persons"))
+            .key(Property.of(Map.of("id", "1")))
             .build();
 
         createTable(runContext, delete);

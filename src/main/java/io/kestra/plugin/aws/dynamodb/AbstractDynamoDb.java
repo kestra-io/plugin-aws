@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
@@ -40,9 +41,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @NoArgsConstructor
 public abstract class AbstractDynamoDb extends AbstractConnection {
     @Schema(title = "The DynamoDB table name.")
-    @PluginProperty(dynamic = true)
     @NotNull
-    protected String tableName;
+    protected Property<String> tableName;
 
     protected DynamoDbClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
@@ -109,7 +109,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return AttributeValue.fromS(value.toString());
     }
 
-    protected FetchOutput fetchOutputs(List<Map<String, AttributeValue>> items, FetchType fetchType, RunContext runContext) throws IOException {
+    protected FetchOutput fetchOutputs(List<Map<String, AttributeValue>> items, FetchType fetchType, RunContext runContext) throws IOException, IllegalVariableEvaluationException {
         var outputBuilder = FetchOutput.builder();
         switch (fetchType) {
             case FETCH:
@@ -139,7 +139,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
         runContext.metric(Counter.of(
             "records", output.getSize(),
-            "tableName", getTableName()
+            "tableName", runContext.render(getTableName()).as(String.class).orElseThrow()
         ));
 
         return output;

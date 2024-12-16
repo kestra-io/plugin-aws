@@ -25,10 +25,10 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .keyConditionExpression("id = :id")
-            .expressionAttributeValues(Map.of(":id", "1"))
-            .fetchType(FetchType.FETCH)
+            .tableName(Property.of("persons"))
+            .keyConditionExpression(Property.of("id = :id"))
+            .expressionAttributeValues(Property.of(Map.of(":id", "1")))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, query);
@@ -52,11 +52,11 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .keyConditionExpression("id = :id")
-            .filterExpression("lastname = :lastname")
-            .expressionAttributeValues(Map.of(":id", "1", ":lastname", "Doe"))
-            .fetchType(FetchType.FETCH)
+            .tableName(Property.of("persons"))
+            .keyConditionExpression(Property.of("id = :id"))
+            .filterExpression(Property.of("lastname = :lastname"))
+            .expressionAttributeValues(Property.of(Map.of(":id", "1", ":lastname", "Doe")))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, query);
@@ -80,10 +80,10 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .keyConditionExpression("id = :id")
-            .expressionAttributeValues(Map.of(":id", "1"))
-            .fetchType(FetchType.FETCH)
+            .tableName(Property.of("persons"))
+            .keyConditionExpression(Property.of("id = :id"))
+            .expressionAttributeValues(Property.of(Map.of(":id", "1")))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, query);
@@ -107,10 +107,10 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .keyConditionExpression("id = :id")
-            .expressionAttributeValues(Map.of(":id", "1"))
-            .fetchType(FetchType.FETCH_ONE)
+            .tableName(Property.of("persons"))
+            .keyConditionExpression(Property.of("id = :id"))
+            .expressionAttributeValues(Property.of(Map.of(":id", "1")))
+            .fetchType(Property.of(FetchType.FETCH_ONE))
             .build();
 
         createTable(runContext, query);
@@ -135,10 +135,10 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .tableName("persons")
-            .keyConditionExpression("id = :id")
-            .expressionAttributeValues(Map.of(":id", "1"))
-            .fetchType(FetchType.STORE)
+            .tableName(Property.of("persons"))
+            .keyConditionExpression(Property.of("id = :id"))
+            .expressionAttributeValues(Property.of(Map.of(":id", "1")))
+            .fetchType(Property.of(FetchType.STORE))
             .build();
 
         createTable(runContext, query);

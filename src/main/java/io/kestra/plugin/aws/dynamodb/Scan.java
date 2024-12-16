@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
@@ -71,52 +72,49 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
             + "NONE do nothing."
     )
     @Builder.Default
-    @PluginProperty
-    private FetchType fetchType = FetchType.STORE;
+    private Property<FetchType> fetchType = Property.of(FetchType.STORE);
 
     @Schema(
         title = "Maximum numbers of returned results."
     )
-    @PluginProperty
-    private Integer limit;
+    private Property<Integer> limit;
 
     @Schema(
         title = "Scan filter expression.",
         description = "When used, `expressionAttributeValues` property must also be provided."
     )
-    @PluginProperty(dynamic = true)
-    private String filterExpression;
+    private Property<String> filterExpression;
 
     @Schema(
         title = "Scan expression attributes.",
         description = "It's a map of string -> object."
     )
-    @PluginProperty(dynamic = true)
-    private Map<String, Object> expressionAttributeValues;
+    private Property<Map<String, Object>> expressionAttributeValues;
 
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
             var scanBuilder = ScanRequest.builder()
-                .tableName(runContext.render(this.getTableName()));
+                .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow());
 
             if(limit != null) {
-                scanBuilder.limit(limit);
+                scanBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
             }
             if(filterExpression != null){
-                if(expressionAttributeValues == null){
+                var attributes = runContext.render(expressionAttributeValues).asMap(String.class, Object.class);
+                if(attributes.isEmpty()){
                     throw new IllegalArgumentException("'expressionAttributeValues' must be provided when 'filterExpression' is used");
                 }
-                scanBuilder.filterExpression(runContext.render(filterExpression));
-                scanBuilder.expressionAttributeValues(valueMapFrom(expressionAttributeValues));
+                scanBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
+                scanBuilder.expressionAttributeValues(valueMapFrom(attributes));
             }
 
 
             var scan = scanBuilder.build();
             var items = dynamoDb.scan(scan).items();
 
-            return this.fetchOutputs(items, this.fetchType, runContext);
+            return this.fetchOutputs(items, runContext.render(this.fetchType).as(FetchType.class).orElseThrow(), runContext);
         }
     }
 }
