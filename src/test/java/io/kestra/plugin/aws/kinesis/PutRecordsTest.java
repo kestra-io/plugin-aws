@@ -121,7 +121,7 @@ class PutRecordsTest {
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
-            .streamName("streamName")
+            .streamName(Property.of("streamName"))
             .records(List.of(record, record2, record3))
             .build();
 
@@ -174,7 +174,7 @@ class PutRecordsTest {
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName("streamName")
+            .streamName(Property.of("streamName"))
             .build();
 
 
@@ -227,7 +227,7 @@ class PutRecordsTest {
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName("streamName")
+            .streamName(Property.of("streamName"))
             .build();
 
 

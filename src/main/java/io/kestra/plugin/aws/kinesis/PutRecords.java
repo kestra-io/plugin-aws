@@ -11,6 +11,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.flows.State;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -82,7 +83,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     secretKeyId: "<secret-key>"
                     region: "eu-central-1"
                     streamName: "mystream"
-                    records: kestra:///myfile.ion 
+                    records: kestra:///myfile.ion
                 """
         )
     }
@@ -94,28 +95,25 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
-    @PluginProperty
     @NotNull
     @Schema(
         title = "Mark the task as failed when sending a record is unsuccessful.",
         description = "If true, the task will fail when any record fails to be sent."
     )
     @Builder.Default
-    private boolean failOnUnsuccessfulRecords = true;
+    private Property<Boolean> failOnUnsuccessfulRecords = Property.of(true);
 
-    @PluginProperty(dynamic = true)
     @Schema(
         title = "The name of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
-    private String streamName;
+    private Property<String> streamName;
 
-    @PluginProperty(dynamic = true)
     @Schema(
         title = "The ARN of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
-    private String streamArn;
+    private Property<String> streamArn;
 
     @PluginProperty(dynamic = true)
     @Schema(
@@ -135,7 +133,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         PutRecordsResponse putRecordsResponse = putRecords(runContext, records);
 
         // Fail if failOnUnsuccessfulRecords
-        if (failOnUnsuccessfulRecords && putRecordsResponse.failedRecordCount() > 0) {
+        if (runContext.render(failOnUnsuccessfulRecords).as(Boolean.class).orElseThrow() && putRecordsResponse.failedRecordCount() > 0) {
             var logger = runContext.logger();
             logger.error("Response show {} record failed: {}", putRecordsResponse.failedRecordCount(), putRecordsResponse);
             throw new RuntimeException(String.format("Response show %d record failed: %s", putRecordsResponse.failedRecordCount(), putRecordsResponse));
@@ -159,10 +157,12 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         try (KinesisClient client = client(runContext)) {
             PutRecordsRequest.Builder builder = PutRecordsRequest.builder();
 
-            if (!Strings.isNullOrEmpty(streamArn)) {
-                builder.streamARN(streamArn);
-            } else if (!Strings.isNullOrEmpty(streamName)) {
-                builder.streamName(streamName);
+            var renderedStreamArn = runContext.render(streamArn).as(String.class).orElse(null);
+            var renderedStreamName = runContext.render(streamName).as(String.class).orElse(null);
+            if (!Strings.isNullOrEmpty(renderedStreamArn)) {
+                builder.streamARN(renderedStreamArn);
+            } else if (!Strings.isNullOrEmpty(renderedStreamName)) {
+                builder.streamName(renderedStreamName);
             } else {
                 throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
             }
