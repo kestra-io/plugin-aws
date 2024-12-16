@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
@@ -62,27 +63,26 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     @Schema(
         title = "Whether to delete the source file after download."
     )
-    @PluginProperty
     @Builder.Default
-    private Boolean delete = false;
+    private Property<Boolean> delete = Property.of(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (S3Client client = this.client(runContext)) {
             CopyObjectRequest.Builder builder = CopyObjectRequest.builder()
-                .sourceBucket(runContext.render(this.from.bucket))
-                .sourceKey(runContext.render(this.from.key))
-                .destinationBucket(runContext.render(this.to.bucket != null ? this.to.bucket : this.from.bucket))
-                .destinationKey(runContext.render(this.to.key != null ? this.to.key : this.from.key));
+                .sourceBucket(runContext.render(this.from.bucket).as(String.class).orElseThrow())
+                .sourceKey(runContext.render(this.from.key).as(String.class).orElseThrow())
+                .destinationBucket(runContext.render(this.to.bucket != null ? this.to.bucket : this.from.bucket).as(String.class).orElseThrow())
+                .destinationKey(runContext.render(this.to.key != null ? this.to.key : this.from.key).as(String.class).orElseThrow());
 
             if (this.from.versionId != null) {
-                builder.sourceVersionId(runContext.render(this.from.versionId));
+                builder.sourceVersionId(runContext.render(this.from.versionId).as(String.class).orElseThrow());
             }
 
             CopyObjectRequest request = builder.build();
             CopyObjectResponse response = client.copyObject(request);
 
-            if (this.delete) {
+            if (runContext.render(this.delete).as(Boolean.class).orElseThrow()) {
                 Delete.builder()
                     .id(this.id)
                     .type(Delete.class.getName())
@@ -96,8 +96,8 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .stsRoleSessionDuration(this.stsRoleSessionDuration)
                     .stsRoleArn(this.stsRoleArn)
                     .stsEndpointOverride(this.stsEndpointOverride)
-                    .bucket(request.sourceBucket())
-                    .key(request.sourceKey())
+                    .bucket(Property.of(request.sourceBucket()))
+                    .key(Property.of(request.sourceKey()))
                     .build()
                     .run(runContext);
             }
@@ -118,16 +118,14 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         @Schema(
             title = "The bucket name"
         )
-        @PluginProperty(dynamic = true)
         @NotNull
-        String bucket;
+        Property<String> bucket;
 
         @Schema(
             title = "The bucket key"
         )
-        @PluginProperty(dynamic = true)
         @NotNull
-        String key;
+        Property<String> key;
     }
 
     @SuperBuilder(toBuilder = true)
@@ -137,8 +135,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         @Schema(
             title = "The specific version of the object."
         )
-        @PluginProperty(dynamic = true)
-        private String versionId;
+        private Property<String> versionId;
     }
 
     @SuperBuilder

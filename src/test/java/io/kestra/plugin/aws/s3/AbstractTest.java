@@ -45,7 +45,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
         CreateBucket createBucket = CreateBucket.builder()
             .id(AllTest.class.getSimpleName())
             .type(CreateBucket.class.getName())
-            .bucket(bucket)
+            .bucket(Property.of(bucket))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
@@ -77,24 +77,24 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
         Upload upload = Upload.builder()
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .bucket(bucket)
+            .bucket(Property.of(bucket))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
             .from(source.toString())
-            .key(dir + "/" + out + ".yml")
+            .key(Property.of(dir + "/" + out + ".yml"))
             .build();
         upload.run(runContext(upload));
 
-        return upload.getKey();
+        return upload.getKey().toString();
     }
 
     protected List.ListBuilder<?, ?> list() {
         return List.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
-            .bucket(this.BUCKET)
+            .bucket(Property.of(this.BUCKET))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))

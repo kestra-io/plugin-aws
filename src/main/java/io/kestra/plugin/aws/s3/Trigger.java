@@ -117,29 +117,29 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     protected Property<String> endpointOverride;
 
-    protected String requestPayer;
+    protected Property<String> requestPayer;
 
-    protected String bucket;
+    protected Property<String> bucket;
 
-    private String prefix;
+    private Property<String> prefix;
 
-    private String delimiter;
+    private Property<String> delimiter;
 
-    private String marker;
+    private Property<String> marker;
 
-    private String encodingType;
-
-    @Builder.Default
-    private Integer maxKeys = 1000;
-
-    private String expectedBucketOwner;
-
-    protected String regexp;
+    private Property<String> encodingType;
 
     @Builder.Default
-    protected final Filter filter = Filter.BOTH;
+    private Property<Integer> maxKeys = Property.of(1000);
 
-    private ActionInterface.Action action;
+    private Property<String> expectedBucketOwner;
+
+    protected Property<String> regexp;
+
+    @Builder.Default
+    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+
+    private Property<ActionInterface.Action> action;
 
     private Copy.CopyObject moveTo;
 
@@ -204,7 +204,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .requestPayer(this.requestPayer)
                     .bucket(this.bucket)
-                    .key(object.getKey())
+                    .key(Property.of(object.getKey()))
                     .build();
                 Download.Output downloadOutput = download.run(runContext);
 

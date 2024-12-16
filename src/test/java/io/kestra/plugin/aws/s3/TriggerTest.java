@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
@@ -43,7 +44,7 @@ class TriggerTest extends AbstractTest {
     void deleteAction() throws Exception {
         String bucket = "trigger-test";
         this.createBucket(bucket);
-        List listTask = list().bucket(bucket).build();
+        List listTask = list().bucket(Property.of(bucket)).build();
 
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
@@ -100,7 +101,7 @@ class TriggerTest extends AbstractTest {
     void noneAction() throws Exception {
         String bucket = "trigger-none-action-test";
         this.createBucket(bucket);
-        List listTask = list().bucket(bucket).build();
+        List listTask = list().bucket(Property.of(bucket)).build();
 
         // wait for execution
         CountDownLatch queueCount = new CountDownLatch(1);

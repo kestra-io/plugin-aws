@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -41,22 +42,22 @@ class ListTest extends AbstractTest {
 
         // Dir listing
         task = list()
-            .filter(ListInterface.Filter.FILES)
-            .prefix("/tasks/s3/" + dir + "/sub")
+            .filter(Property.of(ListInterface.Filter.FILES))
+            .prefix(Property.of("/tasks/s3/" + dir + "/sub"))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));
 
         // prefix
         task = list()
-            .prefix("/tasks/s3/" + dir + "/sub")
+            .prefix(Property.of("/tasks/s3/" + dir + "/sub"))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));
 
         // regexp
         task = list()
-            .regexp("/tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/"))
+            .regexp(Property.of("/tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/")))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));

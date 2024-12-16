@@ -26,12 +26,12 @@ class DownloadsTest extends AbstractTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
-            .bucket(this.BUCKET)
+            .bucket(Property.of(this.BUCKET))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
-            .action(ActionInterface.Action.DELETE)
+            .action(Property.of(ActionInterface.Action.DELETE))
             .build();
 
         Downloads.Output run = task.run(runContext(task));
@@ -55,14 +55,14 @@ class DownloadsTest extends AbstractTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
-            .bucket("{{bucket}}")
+            .bucket(new Property<>("{{bucket}}"))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
-            .action(ActionInterface.Action.MOVE)
+            .action(Property.of(ActionInterface.Action.MOVE))
             .moveTo(Copy.CopyObject.builder()
-                .key("/tasks/s3-move")
+                .key(Property.of("/tasks/s3-move"))
                 .build()
             )
             .build();
@@ -72,11 +72,11 @@ class DownloadsTest extends AbstractTest {
         assertThat(run.getObjects().size(), is(2));
         assertThat(run.getOutputFiles().size(), is(2));
 
-        List list = list().prefix("/tasks/s3-from").build();
+        List list = list().prefix(Property.of("/tasks/s3-from")).build();
         List.Output listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(0));
 
-        list = list().prefix("/tasks/s3-move").build();
+        list = list().prefix(Property.of("/tasks/s3-move")).build();
         listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(2));
     }

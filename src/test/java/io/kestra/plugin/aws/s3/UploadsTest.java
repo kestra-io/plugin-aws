@@ -24,13 +24,13 @@ class UploadsTest extends AbstractTest{
         Upload upload = Upload.builder()
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .bucket(this.BUCKET)
+            .bucket(Property.of(this.BUCKET))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
             .from(java.util.List.of(source1.toString(), source2.toString(), source3.toString(), source4.toString()))
-            .key(IdUtils.create() + "/")
+            .key(Property.of(IdUtils.create() + "/"))
             .build();
         upload.run(runContext(upload));
 
@@ -38,7 +38,7 @@ class UploadsTest extends AbstractTest{
         List list = List.builder()
             .id(UploadsTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .bucket(this.BUCKET)
+            .bucket(Property.of(this.BUCKET))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))

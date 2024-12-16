@@ -52,33 +52,32 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     title = "Downloads multiple files from a S3 bucket."
 )
 public class Downloads extends AbstractS3Object implements RunnableTask<Downloads.Output>, ListInterface, ActionInterface {
-    private String prefix;
+    private Property<String> prefix;
 
-    private String delimiter;
+    private Property<String> delimiter;
 
-    private String marker;
+    private Property<String> marker;
 
-    private String encodingType;
+    private Property<String> encodingType;
 
     @Builder.Default
-    private Integer maxKeys = 1000;
+    private Property<Integer> maxKeys = Property.of(1000);
 
     @Schema(
         title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
     )
-    @PluginProperty
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.of(false);
 
 
-    private String expectedBucketOwner;
+    private Property<String> expectedBucketOwner;
 
-    protected String regexp;
+    protected Property<String> regexp;
 
     @Builder.Default
-    protected final Filter filter = Filter.BOTH;
+    protected final Property<Filter> filter = Property.of(Filter.BOTH);
 
-    private ActionInterface.Action action;
+    private Property<ActionInterface.Action> action;
 
     private Copy.CopyObject moveTo;
 
@@ -116,7 +115,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 .stream()
                 .map(throwFunction(object -> {
                     GetObjectRequest.Builder builder = GetObjectRequest.builder()
-                        .bucket(runContext.render(bucket))
+                        .bucket(runContext.render(bucket).as(String.class).orElseThrow())
                         .key(object.getKey());
 
                     Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());

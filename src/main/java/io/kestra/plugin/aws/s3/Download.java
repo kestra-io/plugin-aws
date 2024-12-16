@@ -51,27 +51,24 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     @Schema(
         title = "The key of a file to download."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String key;
+    private Property<String> key;
 
     @Schema(
         title = "The specific version of the object."
     )
-    @PluginProperty(dynamic = true)
-    protected String versionId;
+    protected Property<String> versionId;
 
     @Schema(
         title = "If set to true, the task will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which better integrates with S3-compatible services but restricts uploads and downloads to 2GB."
     )
-    @PluginProperty
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.of(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String bucket = runContext.render(this.bucket);
-        String key = runContext.render(this.key);
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        String key = runContext.render(this.key).as(String.class).orElseThrow();
 
         try (S3AsyncClient client = this.asyncClient(runContext)) {
             GetObjectRequest.Builder builder = GetObjectRequest.builder()
@@ -79,11 +76,11 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 .key(key);
 
             if (this.versionId != null) {
-                builder.versionId(runContext.render(this.versionId));
+                builder.versionId(runContext.render(this.versionId).as(String.class).orElseThrow());
             }
 
             if (this.requestPayer != null) {
-                builder.requestPayer(runContext.render(this.requestPayer));
+                builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
             }
 
             Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());

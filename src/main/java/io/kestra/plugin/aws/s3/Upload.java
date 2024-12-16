@@ -77,142 +77,121 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         title = "The key where to upload the file.",
         description = "a full key (with filename) or the directory path if from is multiple files."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String key;
+    private Property<String> key;
 
     @Schema(
         title = "A map of metadata to store with the object in S3."
     )
-    @PluginProperty(dynamic = true)
-    private Map<String, String> metadata;
+    private Property<Map<String, String>> metadata;
 
     @Schema(
         title = "Can be used to specify caching behavior along the request/response chain."
     )
-    @PluginProperty(dynamic = true)
-    private String cacheControl;
+    private Property<String> cacheControl;
 
     @Schema(
         title = "A standard MIME type describing the format of the contents."
     )
-    @PluginProperty(dynamic = true)
-    private String contentType;
+    private Property<String> contentType;
 
     @Schema(
         title = "Specifies what content encodings have been applied to the object.",
         description = "And thus, what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
     )
-    @PluginProperty(dynamic = true)
-    private String contentEncoding;
+    private Property<String> contentEncoding;
 
     @Schema(
         title = "Specifies presentational information for the object."
     )
-    @PluginProperty(dynamic = true)
-    private String contentDisposition;
+    private Property<String> contentDisposition;
 
     @Schema(
         title = "The language the content is in."
     )
-    @PluginProperty(dynamic = true)
-    private String contentLanguage;
+    private Property<String> contentLanguage;
 
     @Schema(
         title = "The size of the body in bytes.",
         description = "This parameter is useful when the size of the body cannot be determined automatically."
     )
-    @PluginProperty
-    private Long contentLength;
+    private Property<Long> contentLength;
 
     @Schema(
         title = "The date and time after which the object is no longer cacheable."
     )
-    @PluginProperty(dynamic = true)
-    private String expires;
+    private Property<String> expires;
 
     @Schema(
         title = "The canned ACL to apply to the object."
     )
-    @PluginProperty(dynamic = true)
-    private String acl;
+    private Property<String> acl;
 
     @Schema(
         title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."
     )
-    @PluginProperty
-    private StorageClass storageClass;
+    private Property<StorageClass> storageClass;
 
     @Schema(
         title = "The server-side encryption algorithm used when storing this object in Amazon S3.",
         description = "For example, AES256, aws:kms, aws:kms:dsse"
     )
-    @PluginProperty
-    private ServerSideEncryption serverSideEncryption;
+    private Property<ServerSideEncryption> serverSideEncryption;
 
     @Schema(
         title = "Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).",
         description = "Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS."
     )
-    @PluginProperty
-    private Boolean bucketKeyEnabled;
+    private Property<Boolean> bucketKeyEnabled;
 
     @Schema(
         title = "Indicates the algorithm used to create the checksum for the object when using the SDK."
     )
-    @PluginProperty
-    private ChecksumAlgorithm checksumAlgorithm;
+    private Property<ChecksumAlgorithm> checksumAlgorithm;
 
     @Schema(
         title = "The account ID of the expected bucket owner.",
         description = "If the bucket is owned by a different account, the request fails " +
             "with the HTTP status code `403 Forbidden` (access denied)."
     )
-    @PluginProperty(dynamic = true)
-    private String expectedBucketOwner;
+    private Property<String> expectedBucketOwner;
 
     @Schema(
         title = "The Object Lock mode that you want to apply to this object."
     )
-    @PluginProperty
-    private ObjectLockMode objectLockMode;
+    private Property<ObjectLockMode> objectLockMode;
 
     @Schema(
         title = "Specifies whether a legal hold will be applied to this object."
     )
-    @PluginProperty
-    private ObjectLockLegalHoldStatus objectLockLegalHoldStatus;
+    private Property<ObjectLockLegalHoldStatus> objectLockLegalHoldStatus;
 
     @Schema(
         title = "The date and time when you want this object's Object Lock to expire. "
     )
-    @PluginProperty(dynamic = true)
-    private String objectLockRetainUntilDate;
+    private Property<String> objectLockRetainUntilDate;
 
     @Schema(
         title = "The checksum data integrity check to verify that the data received is the same data that was originally sent.",
         description = "Must be used in pair with `checksumAlgorithm` to defined the expect algorithm of these values"
     )
-    @PluginProperty(dynamic = true)
-    private String checksum;
+    private Property<String> checksum;
 
     @Schema(
         title = "The tag-set for the object."
     )
-    @PluginProperty
-    private Map<String, String> tagging;
+    private Property<Map<String, String>> tagging;
 
     @Schema(
         title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB. For some S3 endpoints such as CloudFlare R2, you may need to set this value to `true`."
     )
-    @PluginProperty
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.of(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String bucket = runContext.render(this.bucket);
-        String key = runContext.render(this.key);
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        String key = runContext.render(this.key).as(String.class).orElseThrow();
 
         try (S3AsyncClient client = this.asyncClient(runContext)) {
             PutObjectRequest.Builder builder = PutObjectRequest
@@ -221,86 +200,88 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 .key(key);
 
             if (this.requestPayer != null) {
-                builder.requestPayer(runContext.render(this.requestPayer));
+                builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
             }
 
             if (this.metadata != null) {
-                builder.metadata(runContext.renderMap(this.metadata));
+                builder.metadata(runContext.render(this.metadata).asMap(String.class, String.class));
             }
 
             if (this.cacheControl != null) {
-                builder.cacheControl(runContext.render(this.cacheControl));
+                builder.cacheControl(runContext.render(this.cacheControl).as(String.class).orElseThrow());
             }
 
             if (this.contentType != null) {
-                builder.contentType(runContext.render(this.contentType));
+                builder.contentType(runContext.render(this.contentType).as(String.class).orElseThrow());
             }
 
             if (this.contentEncoding != null) {
-                builder.contentEncoding(runContext.render(this.contentEncoding));
+                builder.contentEncoding(runContext.render(this.contentEncoding).as(String.class).orElseThrow());
             }
 
             if (this.contentDisposition != null) {
-                builder.contentDisposition(runContext.render(this.contentDisposition));
+                builder.contentDisposition(runContext.render(this.contentDisposition).as(String.class).orElseThrow());
             }
 
             if (this.contentLanguage != null) {
-                builder.contentLanguage(runContext.render(this.contentLanguage));
+                builder.contentLanguage(runContext.render(this.contentLanguage).as(String.class).orElseThrow());
             }
 
             if (this.contentLength != null) {
-                builder.contentLength(this.contentLength);
+                builder.contentLength(runContext.render(this.contentLength).as(Long.class).orElseThrow());
             }
 
             if (this.expires != null) {
-                builder.expires(Instant.parse(runContext.render(this.expires)));
+                builder.expires(Instant.parse(runContext.render(this.expires).as(String.class).orElseThrow()));
             }
 
             if (this.acl != null) {
-                builder.acl(runContext.render(this.acl));
+                builder.acl(runContext.render(this.acl).as(String.class).orElseThrow());
             }
 
             if (this.storageClass != null) {
-                builder.storageClass(this.storageClass);
+                builder.storageClass(runContext.render(this.storageClass).as(StorageClass.class).orElseThrow());
             }
 
             if (this.serverSideEncryption != null) {
-                builder.serverSideEncryption(this.serverSideEncryption);
+                builder.serverSideEncryption(runContext.render(this.serverSideEncryption).as(ServerSideEncryption.class).orElseThrow());
             }
 
             if (this.bucketKeyEnabled != null) {
-                builder.bucketKeyEnabled(this.bucketKeyEnabled);
+                builder.bucketKeyEnabled(runContext.render(this.bucketKeyEnabled).as(Boolean.class).orElseThrow());
             }
 
             if (this.checksumAlgorithm != null) {
-                builder.checksumAlgorithm(this.checksumAlgorithm);
-                switch (this.checksumAlgorithm) {
-                    case SHA1 -> builder.checksumSHA1(runContext.render(this.checksum));
-                    case SHA256 -> builder.checksumSHA256(runContext.render(this.checksum));
-                    case CRC32 -> builder.checksumCRC32(runContext.render(this.checksum));
-                    case CRC32_C -> builder.checksumCRC32C(runContext.render(this.checksum));
+                var renderedAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumAlgorithm.class).orElseThrow();
+                var sum = runContext.render(this.checksum).as(String.class).orElse(null);
+                builder.checksumAlgorithm(renderedAlgorithm);
+                switch (renderedAlgorithm) {
+                    case SHA1 -> builder.checksumSHA1(sum);
+                    case SHA256 -> builder.checksumSHA256(sum);
+                    case CRC32 -> builder.checksumCRC32(sum);
+                    case CRC32_C -> builder.checksumCRC32C(sum);
                 }
             }
 
             if (this.expectedBucketOwner != null) {
-                builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner));
+                builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
             }
 
             if (this.objectLockMode != null) {
-                builder.objectLockMode(this.objectLockMode);
+                builder.objectLockMode(runContext.render(this.objectLockMode).as(ObjectLockMode.class).orElseThrow());
             }
 
             if (this.objectLockLegalHoldStatus != null) {
-                builder.objectLockLegalHoldStatus(this.objectLockLegalHoldStatus);
+                builder.objectLockLegalHoldStatus(runContext.render(this.objectLockLegalHoldStatus).as(ObjectLockLegalHoldStatus.class).orElseThrow());
             }
 
             if (this.objectLockRetainUntilDate != null) {
-                builder.objectLockRetainUntilDate(Instant.parse(runContext.render(this.objectLockRetainUntilDate)));
+                builder.objectLockRetainUntilDate(Instant.parse(runContext.render(this.objectLockRetainUntilDate).as(String.class).orElseThrow()));
             }
 
             if (this.tagging != null) {
                 builder.tagging(Tagging.builder()
-                    .tagSet(runContext.renderMap(this.tagging)
+                    .tagSet(runContext.render(this.tagging).asMap(String.class, String.class)
                         .entrySet()
                         .stream()
                         .map(e -> Tag.builder()

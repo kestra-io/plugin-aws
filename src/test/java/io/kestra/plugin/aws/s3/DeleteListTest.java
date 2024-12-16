@@ -21,7 +21,7 @@ class DeleteListTest extends AbstractTest {
         DeleteList task = DeleteList.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
-            .bucket(this.BUCKET)
+            .bucket(Property.of(this.BUCKET))
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))

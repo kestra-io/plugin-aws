@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
@@ -41,23 +42,23 @@ import software.amazon.awssdk.services.s3.S3Client;
     title = "List keys on a S3 bucket."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
-    private String prefix;
+    private Property<String> prefix;
 
-    private String delimiter;
+    private Property<String> delimiter;
 
-    private String marker;
+    private Property<String> marker;
 
-    private String encodingType;
-
-    @Builder.Default
-    private Integer maxKeys = 1000;
-
-    private String expectedBucketOwner;
-
-    protected String regexp;
+    private Property<String> encodingType;
 
     @Builder.Default
-    protected final Filter filter = Filter.BOTH;
+    private Property<Integer> maxKeys = Property.of(1000);
+
+    private Property<String> expectedBucketOwner;
+
+    protected Property<String> regexp;
+
+    @Builder.Default
+    protected final Property<Filter> filter = Property.of(Filter.BOTH);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -69,9 +70,9 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
             runContext.logger().debug(
                 "Found '{}' keys on {} with regexp='{}', prefix={}",
                 list.size(),
-                runContext.render(bucket),
-                runContext.render(regexp),
-                runContext.render(prefix)
+                runContext.render(bucket).as(String.class).orElseThrow(),
+                runContext.render(regexp).as(String.class).orElse(null),
+                runContext.render(prefix).as(String.class).orElse(null)
             );
 
             return Output.builder()
