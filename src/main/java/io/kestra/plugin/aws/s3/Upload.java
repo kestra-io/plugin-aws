@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
@@ -45,7 +46,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 inputs:
                   - id: myfile
                     type: FILE
-            
+
                 tasks:
                   - id: upload
                     type: io.kestra.plugin.aws.s3.Upload
@@ -206,7 +207,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     )
     @PluginProperty
     @Builder.Default
-    private Boolean compatibilityMode = false;
+    private Property<Boolean> compatibilityMode = Property.of(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

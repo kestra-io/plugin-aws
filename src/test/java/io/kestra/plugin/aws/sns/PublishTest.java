@@ -16,11 +16,11 @@ class PublishTest extends AbstractSnsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SNS).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SNS).toString()))
             .topicArn(TOPIC_ARN)
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build(),

@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                   accessKeyId: "access_key"
                   secretKeyId: "secret_key"
                   region: "eu-central-1"
-                  queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""                        
+                  queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""
         )
     }
 )
@@ -62,15 +62,15 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     private String queueUrl;
 
-    private String accessKeyId;
+    private Property<String> accessKeyId;
 
-    private String secretKeyId;
+    private Property<String> secretKeyId;
 
-    private String sessionToken;
+    private Property<String> sessionToken;
 
     private Property<String> region;
 
-    private String endpointOverride;
+    private Property<String> endpointOverride;
 
     @Builder.Default
     @PluginProperty
@@ -79,12 +79,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private SerdeType serdeType = SerdeType.STRING;
 
     // Configuration for AWS STS AssumeRole
-    protected String stsRoleArn;
-    protected String stsRoleExternalId;
-    protected String stsRoleSessionName;
-    protected String stsEndpointOverride;
+    protected Property<String> stsRoleArn;
+    protected Property<String> stsRoleExternalId;
+    protected Property<String> stsRoleSessionName;
+    protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     // Default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout.
     @PluginProperty
@@ -121,11 +121,11 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
         Consume task = Consume.builder()
             .queueUrl(runContext.render(queueUrl))
-            .accessKeyId(runContext.render(accessKeyId))
-            .secretKeyId(runContext.render(secretKeyId))
-            .sessionToken(runContext.render(sessionToken))
+            .accessKeyId(accessKeyId)
+            .secretKeyId(secretKeyId)
+            .sessionToken(sessionToken)
             .region(region)
-            .endpointOverride(runContext.render(endpointOverride))
+            .endpointOverride(endpointOverride)
             .serdeType(this.serdeType)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)

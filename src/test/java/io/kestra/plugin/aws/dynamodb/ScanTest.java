@@ -21,10 +21,10 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .filterExpression("lastname = :lastname")
             .expressionAttributeValues(Map.of(":lastname", "Doe"))
@@ -48,10 +48,10 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .fetchType(FetchType.FETCH)
             .build();
@@ -73,10 +73,10 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .filterExpression("lastname = :lastname and firstname = :firstname")
             .expressionAttributeValues(Map.of(":lastname", "Doe", ":firstname", "Jane"))
@@ -100,10 +100,10 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .filterExpression("lastname = :lastname")
             .expressionAttributeValues(Map.of(":lastname", "Doe"))
@@ -128,10 +128,10 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .filterExpression("lastname = :lastname")
             .expressionAttributeValues(Map.of(":lastname", "Doe"))

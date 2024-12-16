@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Output;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchType;
@@ -49,7 +50,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     title = "Query an Athena table.",
     description = """
         The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
-        Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html). 
+        Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html).
         Complex data types like array, map and struct will be converted to a string."""
 )
 @Plugin(
@@ -78,26 +79,22 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 )
 public class Query extends AbstractConnection implements RunnableTask<Query.QueryOutput> {
     @Schema(title = "Athena catalog.")
-    @PluginProperty(dynamic = true)
-    private String catalog;
+    private Property<String> catalog;
 
     @Schema(title = "Athena database.")
     @NotNull
-    @PluginProperty(dynamic = true)
-    private String database;
+    private Property<String> database;
 
     @Schema(
         title = "Athena output location.",
         description = "The query results will be stored in this output location. Must be an existing S3 bucket."
     )
     @NotNull
-    @PluginProperty(dynamic = true)
-    private String outputLocation;
+    private Property<String> outputLocation;
 
     @Schema(title = "Athena SQL query.")
     @NotNull
-    @PluginProperty(dynamic = true)
-    private String query;
+    private Property<String> query;
 
     @Schema(
         title = "The way you want to store the data.",
@@ -107,15 +104,13 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             + "NONE does nothing — in this case, the task submits the query without waiting for its completion."
     )
     @NotNull
-    @PluginProperty
     @Builder.Default
-    private FetchType fetchType = FetchType.STORE;
+    private Property<FetchType> fetchType = Property.of(FetchType.STORE);
 
     @Schema(title = "Whether to skip the first row which is usually the header.")
     @NotNull
-    @PluginProperty
     @Builder.Default
-    private boolean skipHeader = true;
+    private Property<Boolean> skipHeader = Property.of(true);
 
 
     private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -125,23 +120,24 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     public QueryOutput run(RunContext runContext) throws Exception {
         // The QueryExecutionContext allows us to set the database.
         var queryExecutionContext = QueryExecutionContext.builder()
-            .catalog(catalog != null ? runContext.render(catalog) : null)
-            .database(runContext.render(database))
+            .catalog(catalog != null ? runContext.render(catalog).as(String.class).orElseThrow() : null)
+            .database(runContext.render(database).as(String.class).orElseThrow())
             .build();
 
         // The result configuration specifies where the results of the query should go.
         var resultConfiguration = ResultConfiguration.builder()
-            .outputLocation(runContext.render(outputLocation))
+            .outputLocation(runContext.render(outputLocation).as(String.class).orElseThrow())
             .build();
 
         var startQueryExecutionRequest = StartQueryExecutionRequest.builder()
-            .queryString(runContext.render(query))
+            .queryString(runContext.render(query).as(String.class).orElseThrow())
             .queryExecutionContext(queryExecutionContext)
             .resultConfiguration(resultConfiguration)
             .build();
 
         try (var client = client(runContext)) {
             var startQueryExecution = client.startQueryExecution(startQueryExecutionRequest);
+            var fetchType = runContext.render(this.fetchType).as(FetchType.class).orElseThrow();
             runContext.logger().info("Query created with Athena execution identifier {}", startQueryExecution.queryExecutionId());
             if (fetchType == FetchType.NONE) {
                 return QueryOutput.builder().queryExecutionId(startQueryExecution.queryExecutionId()).build();
@@ -179,7 +175,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 .build();
             var getQueryResultsResults = client.getQueryResults(getQueryResult);
             List<Row> results = getQueryResultsResults.resultSet().rows();
-            if (skipHeader && results != null && !results.isEmpty()) {
+            if (runContext.render(skipHeader).as(Boolean.class).orElseThrow() && results != null && !results.isEmpty()) {
                 // we skip the first row, this is usually needed as by default Athena returns the header as the first row
                 results = results.subList(1, results.size());
             }

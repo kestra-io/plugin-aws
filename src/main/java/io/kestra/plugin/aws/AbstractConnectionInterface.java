@@ -16,56 +16,48 @@ public interface AbstractConnectionInterface {
         title = "Access Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(dynamic = true)
-    String getAccessKeyId();
+    Property<String> getAccessKeyId();
 
     @Schema(
         title = "Secret Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(dynamic = true)
-    String getSecretKeyId();
+    Property<String> getSecretKeyId();
 
     @Schema(
         title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(dynamic = true)
-    String getSessionToken();
+    Property<String> getSessionToken();
 
     @Schema(
         title = "AWS STS Role.",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(dynamic = true)
-    String getStsRoleArn();
+    Property<String> getStsRoleArn();
 
     @Schema(
         title = "AWS STS External Id.",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
-    @PluginProperty(dynamic = true)
-    String getStsRoleExternalId();
+    Property<String> getStsRoleExternalId();
 
     @Schema(
         title = "AWS STS Session name.",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
-    @PluginProperty(dynamic = true)
-    String getStsRoleSessionName();
+    Property<String> getStsRoleSessionName();
 
     @Schema(
         title = "AWS STS Session duration.",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
-    @PluginProperty
-    Duration getStsRoleSessionDuration();
+    Property<Duration> getStsRoleSessionDuration();
 
     @Schema(
         title = "The AWS STS endpoint with which the SDKClient should communicate."
     )
-    @PluginProperty(dynamic = true)
-    String getStsEndpointOverride();
+    Property<String> getStsEndpointOverride();
 
     @Schema(
         title = "AWS region with which the SDK should communicate."
@@ -76,26 +68,24 @@ public interface AbstractConnectionInterface {
         title = "The endpoint with which the SDK should communicate.",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
-    @PluginProperty(dynamic = true)
-    String getEndpointOverride();
+    Property<String> getEndpointOverride();
 
-    @PluginProperty(dynamic = true)
-    default Boolean getCompatibilityMode() {
-        return false;
+    default Property<Boolean> getCompatibilityMode() {
+        return Property.of(false);
     }
 
     default AbstractConnection.AwsClientConfig awsClientConfig(final RunContext runContext) throws IllegalVariableEvaluationException {
         return new AbstractConnection.AwsClientConfig(
-            runContext.render(this.getAccessKeyId()),
-            runContext.render(this.getSecretKeyId()),
-            runContext.render(this.getSessionToken()),
-            runContext.render(this.getStsRoleArn()),
-            runContext.render(this.getStsRoleExternalId()),
-            runContext.render(this.getStsRoleSessionName()),
-            runContext.render(this.getStsEndpointOverride()),
-            getStsRoleSessionDuration(),
-            this.getRegion() == null ? null : this.getRegion().as(runContext, String.class),
-            runContext.render(this.getEndpointOverride())
+            runContext.render(this.getAccessKeyId()).as(String.class).orElse(null),
+            runContext.render(this.getSecretKeyId()).as(String.class).orElse(null),
+            runContext.render(this.getSessionToken()).as(String.class).orElse(null),
+            runContext.render(this.getStsRoleArn()).as(String.class).orElse(null),
+            runContext.render(this.getStsRoleExternalId()).as(String.class).orElse(null),
+            runContext.render(this.getStsRoleSessionName()).as(String.class).orElse(null),
+            runContext.render(this.getStsEndpointOverride()).as(String.class).orElse(null),
+            runContext.render(this.getStsRoleSessionDuration()).as(Duration.class).orElse(null),
+            runContext.render(this.getRegion()).as(String.class).orElse(null),
+            runContext.render(this.getEndpointOverride()).as(String.class).orElse(null)
         );
     }
 }

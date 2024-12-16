@@ -46,9 +46,9 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(CreateBucket.class.getName())
             .bucket(bucket)
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
             .build();
 
@@ -78,9 +78,9 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(bucket)
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
             .from(source.toString())
             .key(dir + "/" + out + ".yml")
@@ -95,9 +95,9 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .bucket(this.BUCKET)
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()));
     }
 

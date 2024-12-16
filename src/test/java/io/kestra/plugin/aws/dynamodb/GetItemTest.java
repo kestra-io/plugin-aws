@@ -17,10 +17,10 @@ class GetItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var get = GetItem.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .key(Map.of("id", "1"))
             .build();

@@ -21,10 +21,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .keyConditionExpression("id = :id")
             .expressionAttributeValues(Map.of(":id", "1"))
@@ -48,10 +48,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .keyConditionExpression("id = :id")
             .filterExpression("lastname = :lastname")
@@ -76,10 +76,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .keyConditionExpression("id = :id")
             .expressionAttributeValues(Map.of(":id", "1"))
@@ -103,10 +103,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .keyConditionExpression("id = :id")
             .expressionAttributeValues(Map.of(":id", "1"))
@@ -131,10 +131,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .tableName("persons")
             .keyConditionExpression("id = :id")
             .expressionAttributeValues(Map.of(":id", "1"))

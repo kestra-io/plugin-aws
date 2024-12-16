@@ -42,7 +42,7 @@ import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 
 @ExtendWith(MockitoExtension.class)
 public class InvokeUnitTest {
-    
+
     private Invoke invoke;
 
     @Mock(strictness = Strictness.LENIENT)
@@ -81,10 +81,10 @@ public class InvokeUnitTest {
             .functionPayload(null) // w/o paramters now
             .id(InvokeUnitTest.class.getSimpleName())
             .type(InvokeUnitTest.class.getName())
-            .accessKeyId("test_accessKeyId")
-            .secretKeyId("test_secretKeyId")
+            .accessKeyId(Property.of("test_accessKeyId"))
+            .secretKeyId(Property.of("test_secretKeyId"))
             .region(Property.of("test_region"))
-            .build();        
+            .build();
     }
 
     @AfterEach
@@ -99,12 +99,12 @@ public class InvokeUnitTest {
     void testParseContentType_NoContentType_Binary() {
         assertEquals(ContentType.APPLICATION_OCTET_STREAM, invoke.parseContentType(Optional.empty()), "Should be binary");
     }
-   
+
     @Test
     void testParseContentType_BadContent_Binary() {
         assertEquals(ContentType.APPLICATION_OCTET_STREAM, invoke.parseContentType(Optional.of("fake/type")), "Should be binary");
     }
-    
+
     @Test
     void testParseContentType_JSON() {
         assertEquals(ContentType.APPLICATION_JSON.getMimeType().toString(),
@@ -155,13 +155,13 @@ public class InvokeUnitTest {
                 "Content type must mach");
     }
 
-    // ******** BDD usecases ******** 
+    // ******** BDD usecases ********
     @Test
     void givenFunctionArnNoParams_whenInvokeLambda_thenOutputWithFile(
                 @Mock LambdaClient awsLambda,
                 @Mock InvokeResponse awsResponse,
                 @Mock SdkHttpResponse awsHttpResponse,
-                @Mock SdkBytes payload) 
+                @Mock SdkBytes payload)
                 throws IllegalVariableEvaluationException, IOException {
         //Given: functionArn and no input params, AWS Lambda clinet mocked for the expected behaviour
         var data = "some raw data";
@@ -171,16 +171,16 @@ public class InvokeUnitTest {
         given(awsResponse.sdkHttpResponse()).willReturn(awsHttpResponse);
         given(awsResponse.payload()).willReturn(payload);
         given(awsLambda.invoke(any(InvokeRequest.class))).willReturn(awsResponse);
-        
+
         // Mock AbstractLambdaInvoke.client() to return the mocked AWS client
         var spyInvoke = spy(invoke);
         doReturn(awsLambda).when(spyInvoke).client(any());
-        
-        // When 
+
+        // When
         Output res = assertDoesNotThrow(() -> {
             return spyInvoke.run(context);
         }, "No exception should be thrown");
-        
+
         // Then
         checkOutput(data, res);
     }

@@ -57,15 +57,15 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private String queueUrl;
 
-    private String accessKeyId;
+    private Property<String> accessKeyId;
 
-    private String secretKeyId;
+    private Property<String> secretKeyId;
 
-    private String sessionToken;
+    private Property<String> sessionToken;
 
     private Property<String> region;
 
-    private String endpointOverride;
+    private Property<String> endpointOverride;
 
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
@@ -85,12 +85,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private SerdeType serdeType = SerdeType.STRING;
 
     // Configuration for AWS STS AssumeRole
-    protected String stsRoleArn;
-    protected String stsRoleExternalId;
-    protected String stsRoleSessionName;
-    protected String stsEndpointOverride;
+    protected Property<String> stsRoleArn;
+    protected Property<String> stsRoleExternalId;
+    protected Property<String> stsRoleSessionName;
+    protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -99,11 +99,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         Consume task = Consume.builder()
             .queueUrl(runContext.render(queueUrl))
-            .accessKeyId(runContext.render(accessKeyId))
-            .secretKeyId(runContext.render(secretKeyId))
-            .sessionToken(runContext.render(sessionToken))
+            .accessKeyId(accessKeyId)
+            .secretKeyId(secretKeyId)
+            .sessionToken(sessionToken)
             .region(region)
-            .endpointOverride(runContext.render(endpointOverride))
+            .endpointOverride(endpointOverride)
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)
             .serdeType(this.serdeType)

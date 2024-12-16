@@ -20,6 +20,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -148,19 +149,19 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
         // hack for missing env vars supports: https://github.com/aws/aws-cli/issues/5639
         if (this.stsRoleArn != null) {
-            allCommands.add("aws configure set role_arn " + runContext.render(this.stsRoleArn));
+            allCommands.add("aws configure set role_arn " + runContext.render(this.stsRoleArn).as(String.class).orElseThrow());
         }
 
         if (this.stsRoleSessionName != null) {
-            allCommands.add("aws configure set role_session_name " + runContext.render(this.stsRoleSessionName));
+            allCommands.add("aws configure set role_session_name " + runContext.render(this.stsRoleSessionName).as(String.class).orElseThrow());
         }
 
         if (this.stsRoleExternalId != null) {
-            allCommands.add("aws configure set external_id " + runContext.render(this.stsRoleExternalId));
+            allCommands.add("aws configure set external_id " + runContext.render(this.stsRoleExternalId).as(String.class).orElseThrow());
         }
 
         if (this.stsRoleSessionDuration != null) {
-            allCommands.add("aws configure set duration_seconds " + stsRoleSessionDuration.getSeconds());
+            allCommands.add("aws configure set duration_seconds " + runContext.render(stsRoleSessionDuration).as(Duration.class).orElseThrow().getSeconds());
         }
 
         if (this.stsCredentialSource != null) {
@@ -206,23 +207,23 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         Map<String, String> envs = new HashMap<>();
 
         if (this.accessKeyId != null) {
-            envs.put("AWS_ACCESS_KEY_ID", runContext.render(this.accessKeyId));
+            envs.put("AWS_ACCESS_KEY_ID", runContext.render(this.accessKeyId).as(String.class).orElseThrow());
         }
 
         if (this.secretKeyId != null) {
-            envs.put("AWS_SECRET_ACCESS_KEY", runContext.render(this.secretKeyId));
+            envs.put("AWS_SECRET_ACCESS_KEY", runContext.render(this.secretKeyId).as(String.class).orElseThrow());
         }
 
         if (this.region != null) {
-            envs.put("AWS_DEFAULT_REGION", this.region.as(runContext, String.class));
+            envs.put("AWS_DEFAULT_REGION", runContext.render(this.region).as(String.class).orElseThrow());
         }
 
         if (this.sessionToken != null) {
-            envs.put("AWS_SESSION_TOKEN", runContext.render(this.sessionToken));
+            envs.put("AWS_SESSION_TOKEN", runContext.render(this.sessionToken).as(String.class).orElseThrow());
         }
 
         if (this.endpointOverride != null) {
-            envs.put("AWS_ENDPOINT_URL", runContext.render(this.endpointOverride));
+            envs.put("AWS_ENDPOINT_URL", runContext.render(this.endpointOverride).as(String.class).orElseThrow());
         }
 
         envs.put("AWS_DEFAULT_OUTPUT", this.outputFormat.toString());

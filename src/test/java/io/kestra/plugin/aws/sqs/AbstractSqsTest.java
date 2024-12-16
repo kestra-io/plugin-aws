@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.junit.annotations.KestraTest;
