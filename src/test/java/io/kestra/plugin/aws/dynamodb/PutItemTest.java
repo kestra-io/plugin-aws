@@ -16,11 +16,11 @@ class PutItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var put = PutItem.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
             .item(Map.of(
                 "id", "1",
                 "firstname", "John",
@@ -40,11 +40,11 @@ class PutItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var put = PutItem.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
             .item("{\"id\": \"1\", \"firstname\": \"Jane\", \"lastname\": \"Doe\"}")
             .build();
 

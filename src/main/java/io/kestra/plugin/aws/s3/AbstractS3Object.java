@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.AbstractConnection;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -13,9 +14,9 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractS3Object extends AbstractConnection implements AbstractS3ObjectInterface {
-    protected String requestPayer;
+    protected Property<String> requestPayer;
 
-    protected String bucket;
+    protected Property<String> bucket;
 
     static {
         // Initializing CRT will download the S3 native library into /tmp.

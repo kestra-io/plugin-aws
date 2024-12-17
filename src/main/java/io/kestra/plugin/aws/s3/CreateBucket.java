@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
@@ -46,91 +47,79 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
     @Schema(
         description = "The S3 bucket name to create."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String bucket;
+    private Property<String> bucket;
 
     @Schema(
         description = "Allows grantee the read, write, read ACP, and write ACP permissions on the bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String grantFullControl;
+    private Property<String> grantFullControl;
 
     @Schema(
         title = "Allows grantee to list the objects in the bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String grantRead;
+    private Property<String> grantRead;
 
     @Schema(
         title = "Allows grantee to list the ACL for the applicable bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String grantReadACP;
+    private Property<String> grantReadACP;
 
     @Schema(
         title = "Allows grantee to create, overwrite, and delete any object in the bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String grantWrite;
+    private Property<String> grantWrite;
 
     @Schema(
         title = "Allows grantee to write the ACL for the applicable bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String grantWriteACP;
+    private Property<String> grantWriteACP;
 
     @Schema(
         title = "The canned ACL to apply to the bucket."
     )
-    @PluginProperty(dynamic = true)
-    private String acl;
+    private Property<String> acl;
 
     @Schema(
         title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
     )
-    @PluginProperty
-    private Boolean objectLockEnabledForBucket;
+    private Property<Boolean> objectLockEnabledForBucket;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String bucket = runContext.render(this.bucket);
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
 
         try (S3Client client = this.client(runContext)) {
             CreateBucketRequest.Builder builder = CreateBucketRequest.builder()
                 .bucket(bucket);
 
             if (grantFullControl != null) {
-                builder.grantFullControl(runContext.render(this.grantFullControl));
+                builder.grantFullControl(runContext.render(this.grantFullControl).as(String.class).orElseThrow());
             }
 
             if (grantRead != null) {
-                builder.grantRead(runContext.render(this.grantRead));
+                builder.grantRead(runContext.render(this.grantRead).as(String.class).orElseThrow());
             }
 
             if (grantReadACP != null) {
-                builder.grantReadACP(runContext.render(this.grantReadACP));
+                builder.grantReadACP(runContext.render(this.grantReadACP).as(String.class).orElseThrow());
             }
 
             if (grantWrite != null) {
-                builder.grantWrite(runContext.render(this.grantWrite));
+                builder.grantWrite(runContext.render(this.grantWrite).as(String.class).orElseThrow());
             }
 
 
             if (grantWriteACP != null) {
-                builder.grantWriteACP(runContext.render(this.grantWriteACP));
+                builder.grantWriteACP(runContext.render(this.grantWriteACP).as(String.class).orElseThrow());
             }
 
             if (acl != null) {
-                builder.acl(runContext.render(this.acl));
+                builder.acl(runContext.render(this.acl).as(String.class).orElseThrow());
             }
 
             if (objectLockEnabledForBucket != null) {
-                builder.objectLockEnabledForBucket(this.objectLockEnabledForBucket);
-            }
-
-            if (objectLockEnabledForBucket != null) {
-                builder.objectLockEnabledForBucket(this.objectLockEnabledForBucket);
+                builder.objectLockEnabledForBucket(runContext.render(this.objectLockEnabledForBucket).as(Boolean.class).orElseThrow());
             }
 
             CreateBucketResponse response = client.createBucket(builder.build());

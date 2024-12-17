@@ -117,11 +117,11 @@ class PutRecordsTest {
             .data("record 3")
             .build();
         var put = PutRecords.builder()
-            .endpointOverride(localstack.getEndpoint().toString())
+            .endpointOverride(Property.of(localstack.getEndpoint().toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .streamName("streamName")
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .streamName(Property.of("streamName"))
             .records(List.of(record, record2, record3))
             .build();
 
@@ -169,12 +169,12 @@ class PutRecordsTest {
         }
 
         var put = PutRecords.builder()
-            .endpointOverride(localstack.getEndpoint().toString())
+            .endpointOverride(Property.of(localstack.getEndpoint().toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName("streamName")
+            .streamName(Property.of("streamName"))
             .build();
 
 
@@ -222,12 +222,12 @@ class PutRecordsTest {
         }
 
         var put = PutRecords.builder()
-            .endpointOverride(localstack.getEndpoint().toString())
+            .endpointOverride(Property.of(localstack.getEndpoint().toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName("streamName")
+            .streamName(Property.of("streamName"))
             .build();
 
 

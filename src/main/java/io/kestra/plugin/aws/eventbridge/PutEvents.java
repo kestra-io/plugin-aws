@@ -10,6 +10,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.flows.State;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -96,14 +97,13 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
-    @PluginProperty(dynamic = false)
     @NotNull
     @Schema(
         title = "Mark the task as failed when sending an event is unsuccessful.",
         description = "If true, the task will fail when any event fails to be sent."
     )
     @Builder.Default
-    private boolean failOnUnsuccessfulEvents = true;
+    private Property<Boolean> failOnUnsuccessfulEvents = Property.of(true);
 
     @PluginProperty(dynamic = true)
     @NotNull
@@ -129,7 +129,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         runContext.metric(Counter.of("entryCount", entryList.size()));
 
         // Fail if failOnUnsuccessfulEvents
-        if (failOnUnsuccessfulEvents && putEventsResponse.failedEntryCount() > 0) {
+        if (runContext.render(failOnUnsuccessfulEvents).as(Boolean.class).orElseThrow() && putEventsResponse.failedEntryCount() > 0) {
             var logger = runContext.logger();
             logger.error("Response show {} event failed: {}", putEventsResponse.failedEntryCount(), putEventsResponse);
             throw new RuntimeException(String.format("Response show %d event failed: %s", putEventsResponse.failedEntryCount(), putEventsResponse));

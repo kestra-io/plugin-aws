@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
@@ -54,23 +55,23 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     title = "Delete a list of keys on a S3 bucket."
 )
 public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteList.Output>, ListInterface {
-    private String prefix;
+    private Property<String> prefix;
 
-    private String delimiter;
+    private Property<String> delimiter;
 
-    private String marker;
+    private Property<String> marker;
 
-    private String encodingType;
-
-    @Builder.Default
-    private Integer maxKeys = 1000;
-
-    private String expectedBucketOwner;
-
-    protected String regexp;
+    private Property<String> encodingType;
 
     @Builder.Default
-    protected final Filter filter = Filter.BOTH;
+    private Property<Integer> maxKeys = Property.of(1000);
+
+    private Property<String> expectedBucketOwner;
+
+    protected Property<String> regexp;
+
+    @Builder.Default
+    protected final Property<Filter> filter = Property.of(Filter.BOTH);
 
     @Min(2)
     @Schema(
@@ -82,14 +83,13 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     @Schema(
         title = "raise an error if the file is not found"
     )
-    @PluginProperty(dynamic = true)
     @Builder.Default
-    private final Boolean errorOnEmpty = false;
+    private final Property<Boolean> errorOnEmpty = Property.of(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
-        String bucket = runContext.render(this.bucket);
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
 
 
         try (S3Client client = this.client(runContext)) {
@@ -122,11 +122,11 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
             runContext.metric(Counter.of("count", finalResult.getLeft()));
             runContext.metric(Counter.of("size", finalResult.getRight()));
 
-            if (errorOnEmpty && finalResult.getLeft() == 0) {
+            if (runContext.render(errorOnEmpty).as(Boolean.class).orElseThrow() && finalResult.getLeft() == 0) {
                 throw new NoSuchElementException("Unable to find any files to delete on " +
-                    runContext.render(this.bucket) + " " +
-                    "with regexp='" + runContext.render(this.regexp) + "', " +
-                    "prefix='" + runContext.render(this.prefix) + "'"
+                    runContext.render(this.bucket).as(String.class).orElseThrow() + " " +
+                    "with regexp='" + runContext.render(this.regexp).as(String.class).orElse(null) + "', " +
+                    "prefix='" + runContext.render(this.prefix).as(String.class).orElse(null) + "'"
                 );
             }
 

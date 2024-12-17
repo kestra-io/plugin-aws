@@ -1,20 +1,18 @@
 package io.kestra.plugin.aws.sqs;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
@@ -57,24 +55,21 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 )
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
 
-    @PluginProperty
     @Schema(title = "Maximum number of records; when reached, the task will end.")
-    private Integer maxRecords;
+    private Property<Integer> maxRecords;
 
-    @PluginProperty
     @Schema(title = "Maximum duration in the Duration ISO format, after that the task will end.")
-    private Duration maxDuration;
+    private Property<Duration> maxDuration;
 
     @Builder.Default
-    @PluginProperty
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
-    private SerdeType serdeType = SerdeType.STRING;
+    private Property<SerdeType> serdeType = Property.of(SerdeType.STRING);
 
     @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var queueUrl = runContext.render(getQueueUrl());
+        var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         if (this.maxDuration == null && this.maxRecords == null) {
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
         }
@@ -92,7 +87,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                         .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
-                        FileSerde.write(outputFile, serdeType.deserialize(m.body()));
+                        FileSerde.write(outputFile, runContext.render(serdeType).as(SerdeType.class).orElseThrow().deserialize(m.body()));
                         sqsClient.deleteMessage(DeleteMessageRequest.builder()
                             .queueUrl(queueUrl)
                             .receiptHandle(m.receiptHandle()).build()
@@ -101,7 +96,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     }));
 
                     Thread.sleep(100);
-                } while (!this.ended(total, started));
+                } while (!this.ended(total, started, runContext));
 
                 runContext.metric(Counter.of("records", total.get(), "queue", queueUrl));
                 outputFile.flush();
@@ -114,12 +109,14 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
     }
 
-    private boolean ended(AtomicInteger count, ZonedDateTime start) {
-        if (this.maxRecords != null && count.get() >= this.maxRecords) {
+    private boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
+        var max = runContext.render(this.maxRecords).as(Integer.class);
+        if (max.isPresent() && count.get() >= max.get()) {
             return true;
         }
 
-        if (this.maxDuration != null && ZonedDateTime.now().toEpochSecond() > start.plus(this.maxDuration).toEpochSecond()) {
+        var duration = runContext.render(this.maxDuration).as(Duration.class);
+        if (duration.isPresent() && ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond()) {
             return true;
         }
 

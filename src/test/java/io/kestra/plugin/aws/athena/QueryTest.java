@@ -38,12 +38,12 @@ class QueryTest {
             .id("hello")
             .type(Query.class.getName())
             .region(Property.of("eu-west-3"))
-            .accessKeyId(accessKey)
-            .secretKeyId(secretKey)
-            .database("units")
-            .fetchType(FetchType.FETCH)
-            .outputLocation("s3://kestra-unit-test")
-            .query("select * from types")
+            .accessKeyId(Property.of(accessKey))
+            .secretKeyId(Property.of(secretKey))
+            .database(Property.of("units"))
+            .fetchType(Property.of(FetchType.FETCH))
+            .outputLocation(Property.of("s3://kestra-unit-test"))
+            .query(Property.of("select * from types"))
             .build();
 
         var output = query.run(runContext);

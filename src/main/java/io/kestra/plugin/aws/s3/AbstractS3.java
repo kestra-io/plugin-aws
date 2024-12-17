@@ -20,7 +20,7 @@ public interface AbstractS3 extends AbstractConnectionInterface {
 
     default S3AsyncClient asyncClient(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AbstractConnection.AwsClientConfig clientConfig = awsClientConfig(runContext);
-        if (this.getCompatibilityMode()) {
+        if (runContext.render(this.getCompatibilityMode()).as(Boolean.class).orElse(false)) {
             return ConnectionUtils.configureAsyncClient(clientConfig, S3AsyncClient.builder()).build();
         } else {
             S3CrtAsyncClientBuilder s3ClientBuilder = S3AsyncClient.crtBuilder()

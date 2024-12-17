@@ -17,11 +17,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
-            .queueUrl(queueUrl())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.of(queueUrl()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build(),
@@ -34,12 +34,12 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
-            .queueUrl(queueUrl())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.of(queueUrl()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .maxRecords(2)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .maxRecords(Property.of(2))
             .build();
 
         var consumeOutput = consume.run(runContextFactory.of());
@@ -51,11 +51,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
-            .queueUrl(queueUrl())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.of(queueUrl()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .from(
                 List.of(
                     Message.builder().data("""
@@ -70,13 +70,13 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString())
-            .queueUrl(queueUrl())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.of(queueUrl()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .serdeType(SerdeType.JSON)
-            .maxRecords(2)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .serdeType(Property.of(SerdeType.JSON))
+            .maxRecords(Property.of(2))
             .build();
 
         var consumeOutput = consume.run(runContextFactory.of());

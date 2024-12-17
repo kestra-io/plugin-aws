@@ -70,18 +70,18 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
             if(this.getRegion() == null) {
                 throw new RuntimeException("Region is required");
             }
-            final Region awsRegion = Region.of(this.getRegion().as(runContext, String.class));
+            final Region awsRegion = Region.of(runContext.render(this.getRegion()).as(String.class).orElseThrow());
 
             SdkHttpFullRequest requestToSign = SdkHttpFullRequest
                 .builder()
                 .method(SdkHttpMethod.GET)
                 .uri(getStsRegionalEndpointUri(runContext, awsRegion))
-                .appendHeader("x-k8s-aws-id", this.clusterName.as(runContext, String.class))
+                .appendHeader("x-k8s-aws-id", runContext.render(this.clusterName).as(String.class).orElseThrow())
                 .appendRawQueryParameter("Action", "GetCallerIdentity")
                 .appendRawQueryParameter("Version", "2011-06-15")
                 .build();
 
-            ZonedDateTime expirationDate = ZonedDateTime.now().plusSeconds(expirationDuration.as(runContext, Long.class));
+            ZonedDateTime expirationDate = ZonedDateTime.now().plusSeconds(runContext.render(expirationDuration).as(Long.class).orElseThrow());
             Aws4PresignerParams presignerParams = Aws4PresignerParams.builder()
                 .awsCredentials(ConnectionUtils.credentialsProvider(this.awsClientConfig(runContext)).resolveCredentials())
                 .signingRegion(awsRegion)

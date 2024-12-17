@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
@@ -26,7 +27,7 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
     private static final Duration RETRY_STRATEGY_BACKOFF_BASE_DELAY = Duration.ofMillis(50);
     private static final Duration RETRY_STRATEGY_BACKOFF_MAX_DELAY = Duration.ofMillis(300);
 
-    private String queueUrl;
+    private Property<String> queueUrl;
 
     protected SqsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);

@@ -69,7 +69,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     @SuppressWarnings("unchecked")
     @Override
     public Publish.Output run(RunContext runContext) throws Exception {
-        var topicArn = runContext.render(getTopicArn());
+        var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
             Integer count;
             Flux<Message> flowable;

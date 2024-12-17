@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -45,15 +46,13 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
     @Schema(
         title = "The key to delete."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String key;
+    private Property<String> key;
 
     @Schema(
         title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
     )
-    @PluginProperty
-    private Boolean bypassGovernanceRetention;
+    private Property<Boolean> bypassGovernanceRetention;
 
     @Schema(
         title = "The concatenation of the authentication device's serial number, a space, and the value that is displayed on " +
@@ -61,19 +60,17 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
         description = "Required to permanently delete a versioned object if versioning is configured " +
             "with MFA delete enabled."
     )
-    @PluginProperty(dynamic = true)
-    private String mfa;
+    private Property<String> mfa;
 
     @Schema(
         description = "Sets the value of the RequestPayer property for this object."
     )
-    @PluginProperty(dynamic = true)
-    private String requestPayer;
+    private Property<String> requestPayer;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String bucket = runContext.render(this.bucket);
-        String key = runContext.render(this.key);
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        String key = runContext.render(this.key).as(String.class).orElseThrow();
 
         try (S3Client client = client(runContext)) {
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
@@ -81,15 +78,15 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
                 .key(key);
 
             if (this.bypassGovernanceRetention != null) {
-                builder.bypassGovernanceRetention(this.bypassGovernanceRetention);
+                builder.bypassGovernanceRetention(runContext.render(this.bypassGovernanceRetention).as(Boolean.class).orElseThrow());
             }
 
             if (this.mfa != null) {
-                builder.mfa(runContext.render(this.mfa));
+                builder.mfa(runContext.render(this.mfa).as(String.class).orElseThrow());
             }
 
             if (this.requestPayer != null) {
-                builder.requestPayer(runContext.render(this.requestPayer));
+                builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
             }
 
             DeleteObjectResponse response = client.deleteObject(builder.build());

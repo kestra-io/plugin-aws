@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -41,7 +42,7 @@ import java.util.Map;
                     secretKeyId: "<secret-key>"
                     region: "eu-central-1"
                     tableName: "persons"
-                    key: 
+                    key:
                        id: "1"
                 """
         )
@@ -52,16 +53,16 @@ public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOut
         title = "The DynamoDB item key.",
         description = "The DynamoDB item identifier."
     )
-    @PluginProperty
-    private Map<String, Object> key;
+    private Property<Map<String, Object>> key;
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
-            Map<String, AttributeValue> key = valueMapFrom(getKey());
+            var renderedKey = runContext.render(this.key).asMap(String.class, Object.class);
+            Map<String, AttributeValue> key = valueMapFrom(renderedKey);
 
             var deleteRequest = DeleteItemRequest.builder()
-                .tableName(runContext.render(this.getTableName()))
+                .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow())
                 .key(key)
                 .build();
 

@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,7 +38,7 @@ import java.util.Map;
                     secretKeyId: "<secret-key>"
                     region: "eu-central-1"
                     tableName: "persons"
-                    key: 
+                    key:
                        id: "1"
                 """
         )
@@ -48,16 +49,15 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
         title = "The DynamoDB item key.",
         description = "The DynamoDB item identifier."
     )
-    @PluginProperty(dynamic = true)
-    private Map<String, Object> key;
+    private Property<Map<String, Object>> key;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
-            Map<String, AttributeValue> key = valueMapFrom(runContext.render(this.key));
+            Map<String, AttributeValue> key = valueMapFrom(runContext.render(this.key).asMap(String.class, Object.class));
 
             var getRequest = GetItemRequest.builder()
-                .tableName(runContext.render(this.tableName))
+                .tableName(runContext.render(this.tableName).as(String.class).orElseThrow())
                 .key(key)
                 .build();
 

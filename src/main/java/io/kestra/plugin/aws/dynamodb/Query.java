@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.dynamodb;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
@@ -75,56 +76,51 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
             + "NONE do nothing."
     )
     @Builder.Default
-    @PluginProperty
-    private FetchType fetchType = FetchType.STORE;
+    private Property<FetchType> fetchType = Property.of(FetchType.STORE);
 
     @Schema(
         title = "Maximum numbers of returned results."
     )
-    @PluginProperty
-    private Integer limit;
+    private Property<Integer> limit;
 
     @Schema(
         title = "Query key condition expression."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String keyConditionExpression;
+    private Property<String> keyConditionExpression;
 
     @Schema(
         title = "Query expression attributes.",
         description = "It's a map of string -> object."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private Map<String, Object> expressionAttributeValues;
+    private Property<Map<String, Object>> expressionAttributeValues;
 
     @Schema(
         title = "Query filter expression.",
         description = "Query filter expression."
     )
-    @PluginProperty(dynamic = true)
-    private String filterExpression;
+    private Property<String> filterExpression;
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
             var queryBuilder = QueryRequest.builder()
-                .tableName(runContext.render(this.getTableName()))
-                .keyConditionExpression(runContext.render(keyConditionExpression))
-                .expressionAttributeValues(valueMapFrom(expressionAttributeValues));
+                .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow())
+                .keyConditionExpression(runContext.render(keyConditionExpression).as(String.class).orElseThrow())
+                .expressionAttributeValues(valueMapFrom(runContext.render(expressionAttributeValues).asMap(String.class, Object.class)));
 
             if(limit != null) {
-                queryBuilder.limit(limit);
+                queryBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
             }
             if(filterExpression != null){
-                queryBuilder.filterExpression(runContext.render(filterExpression));
+                queryBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
             }
 
             var query = queryBuilder.build();
             var items = dynamoDb.query(query).items();
 
-            return this.fetchOutputs(items, this.fetchType, runContext);
+            return this.fetchOutputs(items, runContext.render(this.fetchType).as(FetchType.class).orElseThrow(), runContext);
         }
     }
 }

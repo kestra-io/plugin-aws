@@ -21,14 +21,14 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
-            .filterExpression("lastname = :lastname")
-            .expressionAttributeValues(Map.of(":lastname", "Doe"))
-            .fetchType(FetchType.FETCH)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
+            .filterExpression(Property.of("lastname = :lastname"))
+            .expressionAttributeValues(Property.of(Map.of(":lastname", "Doe")))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, scan);
@@ -48,12 +48,12 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
-            .fetchType(FetchType.FETCH)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, scan);
@@ -73,14 +73,14 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
-            .filterExpression("lastname = :lastname and firstname = :firstname")
-            .expressionAttributeValues(Map.of(":lastname", "Doe", ":firstname", "Jane"))
-            .fetchType(FetchType.FETCH)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
+            .filterExpression(Property.of("lastname = :lastname and firstname = :firstname"))
+            .expressionAttributeValues(Property.of(Map.of(":lastname", "Doe", ":firstname", "Jane")))
+            .fetchType(Property.of(FetchType.FETCH))
             .build();
 
         createTable(runContext, scan);
@@ -100,14 +100,14 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
-            .filterExpression("lastname = :lastname")
-            .expressionAttributeValues(Map.of(":lastname", "Doe"))
-            .fetchType(FetchType.FETCH_ONE)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
+            .filterExpression(Property.of("lastname = :lastname"))
+            .expressionAttributeValues(Property.of(Map.of(":lastname", "Doe")))
+            .fetchType(Property.of(FetchType.FETCH_ONE))
             .build();
 
         createTable(runContext, scan);
@@ -128,14 +128,14 @@ class ScanTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var scan = Scan.builder()
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.of(localstack.getRegion()))
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
-            .tableName("persons")
-            .filterExpression("lastname = :lastname")
-            .expressionAttributeValues(Map.of(":lastname", "Doe"))
-            .fetchType(FetchType.STORE)
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .tableName(Property.of("persons"))
+            .filterExpression(Property.of("lastname = :lastname"))
+            .expressionAttributeValues(Property.of(Map.of(":lastname", "Doe")))
+            .fetchType(Property.of(FetchType.STORE))
             .build();
 
         createTable(runContext, scan);

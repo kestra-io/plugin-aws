@@ -84,7 +84,7 @@ public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput
             var item = valueMapFrom(fields);
 
             var putRequest = PutItemRequest.builder()
-                .tableName(runContext.render(this.tableName))
+                .tableName(runContext.render(this.tableName).as(String.class).orElseThrow())
                 .item(item)
                 .build();
             dynamoDb.putItem(putRequest);

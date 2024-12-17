@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: s3_listen
                 namespace: company.team
-                
+
                 tasks:
                   - id: each
                     type: io.kestra.plugin.core.flow.ForEach
@@ -49,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.aws.s3.Trigger
@@ -71,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: s3_listen
                 namespace: company.team
-                
+
                 tasks:
                   - id: each
                     type: io.kestra.plugin.core.flow.ForEach
@@ -80,7 +80,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value }}"
-            
+
                       - id: delete
                         type: io.kestra.plugin.aws.s3.Delete
                         accessKeyId: "<access-key>"
@@ -88,7 +88,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         region: "eu-central-1"
                         bucket: "my-bucket"
                         key: "{{ taskrun.value }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.aws.s3.Trigger
@@ -107,49 +107,49 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    protected String accessKeyId;
+    protected Property<String> accessKeyId;
 
-    protected String secretKeyId;
+    protected Property<String> secretKeyId;
 
-    protected String sessionToken;
+    protected Property<String> sessionToken;
 
     protected Property<String> region;
 
-    protected String endpointOverride;
+    protected Property<String> endpointOverride;
 
-    protected String requestPayer;
+    protected Property<String> requestPayer;
 
-    protected String bucket;
+    protected Property<String> bucket;
 
-    private String prefix;
+    private Property<String> prefix;
 
-    private String delimiter;
+    private Property<String> delimiter;
 
-    private String marker;
+    private Property<String> marker;
 
-    private String encodingType;
-
-    @Builder.Default
-    private Integer maxKeys = 1000;
-
-    private String expectedBucketOwner;
-
-    protected String regexp;
+    private Property<String> encodingType;
 
     @Builder.Default
-    protected final Filter filter = Filter.BOTH;
+    private Property<Integer> maxKeys = Property.of(1000);
 
-    private ActionInterface.Action action;
+    private Property<String> expectedBucketOwner;
+
+    protected Property<String> regexp;
+
+    @Builder.Default
+    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+
+    private Property<ActionInterface.Action> action;
 
     private Copy.CopyObject moveTo;
 
     // Configuration for AWS STS AssumeRole
-    protected String stsRoleArn;
-    protected String stsRoleExternalId;
-    protected String stsRoleSessionName;
-    protected String stsEndpointOverride;
+    protected Property<String> stsRoleArn;
+    protected Property<String> stsRoleExternalId;
+    protected Property<String> stsRoleSessionName;
+    protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -204,7 +204,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .requestPayer(this.requestPayer)
                     .bucket(this.bucket)
-                    .key(object.getKey())
+                    .key(Property.of(object.getKey()))
                     .build();
                 Download.Output downloadOutput = download.run(runContext);
 

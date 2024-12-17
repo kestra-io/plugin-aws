@@ -19,33 +19,33 @@ class CopyTest extends AbstractTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(List.class.getName())
-            .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString())
-            .accessKeyId(localstack.getAccessKey())
-            .secretKeyId(localstack.getSecretKey())
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
             .region(Property.of(localstack.getRegion()))
             .from(Copy.CopyObjectFrom.builder()
-                .bucket(this.BUCKET)
-                .key(upload)
+                .bucket(Property.of(this.BUCKET))
+                .key(Property.of(upload))
                 .build()
             )
             .to(Copy.CopyObject.builder()
-                .key(move)
+                .key(Property.of(move))
                 .build()
             )
-            .delete(delete)
+            .delete(Property.of(delete))
             .build();
 
         Copy.Output run = task.run(runContext(task));
         assertThat(run.getKey(), is(move));
 
         // list
-        List list = list().prefix(move).build();
+        List list = list().prefix(Property.of(move)).build();
 
         List.Output listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(1));
 
         // original is here
-        list = list().prefix(upload).build();
+        list = list().prefix(Property.of(upload)).build();
 
         listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(delete ? 0 : 1));

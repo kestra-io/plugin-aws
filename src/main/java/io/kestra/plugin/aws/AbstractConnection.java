@@ -16,21 +16,21 @@ import java.time.Duration;
 public abstract class AbstractConnection extends Task implements AbstractConnectionInterface {
 
     protected Property<String> region;
-    protected String endpointOverride;
-    protected Boolean compatibilityMode;
+    protected Property<String> endpointOverride;
+    protected Property<Boolean> compatibilityMode;
 
     // Configuration for StaticCredentialsProvider
-    protected String accessKeyId;
-    protected String secretKeyId;
-    protected String sessionToken;
+    protected Property<String> accessKeyId;
+    protected Property<String> secretKeyId;
+    protected Property<String> sessionToken;
 
     // Configuration for AWS STS AssumeRole
-    protected String stsRoleArn;
-    protected String stsRoleExternalId;
-    protected String stsRoleSessionName;
-    protected String stsEndpointOverride;
+    protected Property<String> stsRoleArn;
+    protected Property<String> stsRoleExternalId;
+    protected Property<String> stsRoleSessionName;
+    protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Duration stsRoleSessionDuration = AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION;
+    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     /**
      * Common AWS Client configuration properties.
