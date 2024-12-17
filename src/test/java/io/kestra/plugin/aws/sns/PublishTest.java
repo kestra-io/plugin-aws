@@ -17,7 +17,7 @@ class PublishTest extends AbstractSnsTest {
 
         var publish = Publish.builder()
             .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SNS).toString()))
-            .topicArn(TOPIC_ARN)
+            .topicArn(Property.of(TOPIC_ARN))
             .region(Property.of(localstack.getRegion()))
             .accessKeyId(Property.of(localstack.getAccessKey()))
             .secretKeyId(Property.of(localstack.getSecretKey()))
