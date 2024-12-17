@@ -72,7 +72,7 @@ class RealtimeTriggerTest extends AbstractSqsTest {
             // publish two messages to trigger the flow
             Publish task = Publish.builder()
                 .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-                .queueUrl(queueUrl())
+                .queueUrl(Property.of(queueUrl()))
                 .region(Property.of(localstack.getRegion()))
                 .accessKeyId(Property.of(localstack.getAccessKey()))
                 .secretKeyId(Property.of(localstack.getSecretKey()))

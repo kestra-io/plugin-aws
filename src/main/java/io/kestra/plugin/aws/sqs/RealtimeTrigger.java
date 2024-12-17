@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
 
-    private String queueUrl;
+    private Property<String> queueUrl;
 
     private Property<String> accessKeyId;
 
@@ -73,10 +73,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private Property<String> endpointOverride;
 
     @Builder.Default
-    @PluginProperty
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
-    private SerdeType serdeType = SerdeType.STRING;
+    private Property<SerdeType> serdeType = Property.of(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole
     protected Property<String> stsRoleArn;
@@ -87,25 +86,22 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     // Default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout.
-    @PluginProperty
     @Schema(title = "The duration for which the SQS client waits for a message.")
     @Builder.Default
-    protected Duration waitTime = Duration.ofSeconds(20);
+    protected Property<Duration> waitTime = Property.of(Duration.ofSeconds(20));
 
-    @PluginProperty
     @Schema(
         title = "The maximum number of messages returned from request made to SQS.",
         description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (however, fewer messages might be returned). Valid values: 1 to 10."
     )
     @Builder.Default
-    protected Integer maxNumberOfMessage = 5;
+    protected Property<Integer> maxNumberOfMessage = Property.of(5);
 
-    @PluginProperty
     @Schema(
         title = "The maximum number of attempts used by the SQS client's retry strategy."
     )
     @Builder.Default
-    protected Integer clientRetryMaxAttempts = 3;
+    protected Property<Integer> clientRetryMaxAttempts = Property.of(3);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
@@ -120,7 +116,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         RunContext runContext = conditionContext.getRunContext();
 
         Consume task = Consume.builder()
-            .queueUrl(runContext.render(queueUrl))
+            .queueUrl(queueUrl)
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
             .sessionToken(sessionToken)
@@ -140,16 +136,16 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     public Flux<Message> publisher(final Consume task,
                                    final RunContext runContext) throws Exception {
-        var queueUrl = runContext.render(getQueueUrl());
+        var renderedQueueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
 
         return Flux.create(
             fluxSink -> {
-                try (SqsAsyncClient sqsClient = task.asyncClient(runContext, clientRetryMaxAttempts)) {
+                try (SqsAsyncClient sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
                     while (isActive.get()) {
                         ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .waitTimeSeconds((int)waitTime.toSeconds())
-                            .maxNumberOfMessages(maxNumberOfMessage)
+                            .queueUrl(renderedQueueUrl)
+                            .waitTimeSeconds((int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds())
+                            .maxNumberOfMessages(runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow())
                             .build();
 
                         sqsClient.receiveMessage(receiveRequest)
@@ -162,7 +158,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                                     });
                                     messageResponse.messages().forEach(message ->
                                         sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                            .queueUrl(queueUrl)
+                                            .queueUrl(renderedQueueUrl)
                                             .receiptHandle(message.receiptHandle())
                                             .build()
                                         )

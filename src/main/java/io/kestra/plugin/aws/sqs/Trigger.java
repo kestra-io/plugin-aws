@@ -55,7 +55,7 @@ import java.util.Optional;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, SqsConnectionInterface {
 
-    private String queueUrl;
+    private Property<String> queueUrl;
 
     private Property<String> accessKeyId;
 
@@ -70,19 +70,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @PluginProperty
     @Schema(title = "Max number of records, when reached the task will end.")
-    private Integer maxRecords;
+    private Property<Integer> maxRecords;
 
-    @PluginProperty
     @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
-    private Duration maxDuration;
+    private Property<Duration> maxDuration;
 
     @Builder.Default
-    @PluginProperty
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
-    private SerdeType serdeType = SerdeType.STRING;
+    private Property<SerdeType> serdeType = Property.of(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole
     protected Property<String> stsRoleArn;
@@ -98,7 +95,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Logger logger = runContext.logger();
 
         Consume task = Consume.builder()
-            .queueUrl(runContext.render(queueUrl))
+            .queueUrl(queueUrl)
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
             .sessionToken(sessionToken)

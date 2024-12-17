@@ -72,7 +72,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @SuppressWarnings("unchecked")
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var queueUrl = runContext.render(getQueueUrl());
+        var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
             Integer count;
             Flux<Message> flowable;
