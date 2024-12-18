@@ -17,12 +17,16 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
@@ -148,30 +152,26 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             .maxNumberOfMessages(runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow())
                             .build();
 
-                        sqsClient.receiveMessage(receiveRequest)
-                            .whenComplete((messageResponse, throwable) -> {
-                                if (throwable != null) {
-                                    fluxSink.error(throwable);
-                                } else {
-                                    messageResponse.messages().forEach(message -> {
-                                        fluxSink.next(Message.builder().data(message.body()).build());
-                                    });
-                                    messageResponse.messages().forEach(message ->
-                                        sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                            .queueUrl(renderedQueueUrl)
-                                            .receiptHandle(message.receiptHandle())
-                                            .build()
-                                        )
-                                    );
-                                }
-                            });
+                        final CompletableFuture<ReceiveMessageResponse> future = sqsClient.receiveMessage(receiveRequest);
+
                         try {
-                            Thread.sleep(100);
+                            ReceiveMessageResponse response = future.get();
+                            response.messages().forEach(message -> fluxSink.next(Message.builder().data(message.body()).build()));
+
+                            response.messages().forEach(message ->
+                                sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                                    .queueUrl(renderedQueueUrl)
+                                    .receiptHandle(message.receiptHandle())
+                                    .build()
+                                )
+                            );
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             isActive.set(false); // proactively stop polling
                         }
                     }
+                } catch (ExecutionException e) {
+                    fluxSink.error(e.getCause() != null ? e.getCause() : e);
                 } catch (Throwable e) {
                     fluxSink.error(e);
                 } finally {
