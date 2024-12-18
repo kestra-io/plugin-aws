@@ -92,7 +92,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     @Schema(
         title = "The maximum number of messages returned from request made to SQS.",
-        description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (however, fewer messages might be returned). Valid values: 1 to 10."
+        description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (fewer messages might be returned). Valid values: 1 to 10. Setting this value to 1 would increase your AWS cost and latency because it requires more API requests to SQS. **Note that Realtime Triggers always create one execution per message, regardless of the value of this property.**"
     )
     @Builder.Default
     protected Property<Integer> maxNumberOfMessage = Property.of(5);
