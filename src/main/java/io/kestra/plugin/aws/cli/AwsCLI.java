@@ -4,6 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.runners.ScriptService;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.models.tasks.runners.TaskRunner;
@@ -139,7 +140,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
     private Object inputFiles;
 
-    private List<String> outputFiles;
+    private Property<List<String>> outputFiles;
 
     private CredentialSource stsCredentialSource;
 
@@ -168,6 +169,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             allCommands.add("aws configure set credential_source " + this.stsCredentialSource.value);
         }
 
+        var renderedOutputFiles = runContext.render(outputFiles).asList(String.class);
+
         CommandsWrapper commands = new CommandsWrapper(runContext)
             .withWarningOnStdErr(true)
             .withDockerOptions(injectDefaults(getDocker()))
@@ -182,7 +185,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
-            .withOutputFiles(outputFiles);
+            .withOutputFiles(renderedOutputFiles.isEmpty() ? null : renderedOutputFiles);
 
         return commands.run();
     }
