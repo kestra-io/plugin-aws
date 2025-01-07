@@ -72,6 +72,7 @@ dependencies {
     api 'software.amazon.awssdk:sts'
     api 'software.amazon.awssdk:ecr'
     api 'software.amazon.awssdk:netty-nio-client'
+    api 'software.amazon.awssdk:emr'
 }
 
 
