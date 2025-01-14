@@ -113,9 +113,11 @@ public class CreateCluster extends AbstractEmrTask implements RunnableTask<Creat
     @Builder.Default
     private Property<String> serviceRole = Property.of("EMR_DefaultRole");
 
+    @NotNull
     @Schema(title = "Master Instance Type.", description = "EC2 instance type for master instances.")
     private Property<String> masterInstanceType;
 
+    @NotNull
     @Schema(title = "Slave Instance Type.", description = "EC2 instance type for slave instances.")
     private Property<String> slaveInstanceType;
 
@@ -124,6 +126,7 @@ public class CreateCluster extends AbstractEmrTask implements RunnableTask<Creat
     private Property<Boolean> keepJobFlowAliveWhenNoSteps = Property.of(false);
 
     @Schema(title = "Instance count.")
+    @NotNull
     private Property<Integer> instanceCount;
 
     @Schema(title = "EC2 Key name.", description = "The name of the Amazon EC2 key pair that can be used to connect to the master node using SSH as the user called \"hadoop\".")
