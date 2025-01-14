@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.emr.models;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -10,6 +11,8 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -26,8 +29,8 @@ public class StepConfig {
     @Schema(title = "Main class.", description = "The name of the main class in the specified Java file. If not specified, the JAR file should specify a Main-Class in its manifest file.")
     private Property<String> mainClass;
 
-    @Schema(title = "Arguments." , description = "A list of command line arguments passed to the JAR file's main function when executed.")
-    private Property<List<String>> arguments;
+    @Schema(title = "Commands." , description = "A list of commands that will be passed to the JAR file's main function when executed.")
+    private Property<List<String>> commands;
 
     @Schema(title = "Step configuration name.", description = "Ex: \"Run Spark job\"")
     @NotNull
@@ -44,9 +47,19 @@ public class StepConfig {
             .hadoopJarStep(throwConsumer(hadoopJarStepBuilder ->
                 hadoopJarStepBuilder.jar(runContext.render(this.jar).as(String.class).orElseThrow())
                     .mainClass(runContext.render(this.mainClass).as(String.class).orElse(null))
-                    .args(runContext.render(this.arguments).asList(String.class))
+                    .args(commandToAwsArguments(runContext.render(this.commands).asList(String.class)))
                     .build()))
             .build();
+    }
+
+    @VisibleForTesting
+    static List<String> commandToAwsArguments(List<String> commands) {
+        return commands.isEmpty() ? null : commands.stream()
+            .map(command -> Arrays.stream(command.split(" ")).toList())
+            .reduce(new ArrayList<>(), (acc, command) -> {
+                acc.addAll(command);
+                return acc;
+            });
     }
 
     public enum Action {

@@ -84,15 +84,9 @@ class EmrIntegrationTest {
     private StepConfig createPythonSparkJob() {
         return StepConfig.builder()
             .jar(Property.of("command-runner.jar"))
-            .arguments(Property.of(
-                List.of(
-                    "spark-submit",
-                    "s3://" + bucketName + "/health_violations.py",
-                    "--data_source",
-                    "s3://" + bucketName + "/food_establishment_data.csv",
-                    "--output_uri",
-                    "s3://" + bucketName + "/test-emr-output"
-                )
+            .commands(Property.of(
+                List.of("spark-submit s3://" + bucketName + "/health_violations.py --data_source s3://"
+                    + bucketName + "/food_establishment_data.csv --output_uri s3://" + bucketName + "/test-emr-output")
             ))
             .name(Property.of("TEST SPARK JOB UNIT TEST"))
             .actionOnFailure(Property.of(StepConfig.Action.CONTINUE))

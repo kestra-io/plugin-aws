@@ -49,13 +49,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         - name: Spark_job_test
                           jar: "command-runner.jar"
                           actionOnFailure: CONTINUE
-                          arguments:
-                            - "spark-submit"
-                            - "s3://my-bucket/health_violations.py"
-                            - "--data_source"
-                            - "s3://my-bucket/food_establishment_data.csv"
-                            - "--output_uri"
-                            - "s3://my-bucket/test-emr-output"
+                          commands:
+                            - spark-submit s3://mybucket/health_violations.py --data_source s3://mybucket/food_establishment_data.csv --output_uri s3://mybucket/test-emr-output
                 """
         )
     }
