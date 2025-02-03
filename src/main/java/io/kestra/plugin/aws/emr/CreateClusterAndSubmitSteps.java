@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: create_cluster
-                    type: io.kestra.plugin.aws.emr.CreateCluster
+                    type: io.kestra.plugin.aws.emr.CreateClusterAndSubmitSteps
                     accessKeyId: <access-key>
                     secretKeyId: <secret-key>
                     region: eu-west-3
@@ -64,7 +64,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class CreateCluster extends AbstractEmrTask implements RunnableTask<CreateCluster.Output> {
+public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements RunnableTask<CreateClusterAndSubmitSteps.Output> {
 
     @Schema(title = "Cluster Name.")
     @NotNull
