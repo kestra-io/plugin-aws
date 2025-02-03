@@ -32,7 +32,7 @@ class EmrIntegrationTest {
 
     @Test
     void createCluster() throws Exception {
-        CreateCluster createCluster = CreateCluster.builder()
+        CreateClusterAndSubmitSteps createCluster = CreateClusterAndSubmitSteps.builder()
             .accessKeyId(Property.of(accessKeyId))
             .secretKeyId(Property.of(secretKeyId))
             .sessionToken(Property.of(sessionToken))
@@ -50,7 +50,7 @@ class EmrIntegrationTest {
             .keepJobFlowAliveWhenNoSteps(Property.of(true))
             .build();
 
-        CreateCluster.Output output = createCluster.run(runContextFactory.of());
+        CreateClusterAndSubmitSteps.Output output = createCluster.run(runContextFactory.of());
         assertNotNull(output.getJobFlowId());
     }
 
@@ -69,7 +69,7 @@ class EmrIntegrationTest {
 
     @Test
     void addStepsToCluster() throws Exception {
-        AddJobFlowsSteps addJobFlowsSteps = AddJobFlowsSteps.builder()
+        SubmitSteps addJobFlowsSteps = SubmitSteps.builder()
             .accessKeyId(Property.of(accessKeyId))
             .secretKeyId(Property.of(secretKeyId))
             .sessionToken(Property.of(sessionToken))

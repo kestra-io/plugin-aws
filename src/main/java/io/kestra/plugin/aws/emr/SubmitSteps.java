@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: add_steps_emr
-                    type: io.kestra.plugin.aws.emr.AddJobFlowsSteps
+                    type: io.kestra.plugin.aws.emr.SubmitSteps
                     accessKeyId: "<access-key>"
                     secretKeyId: "<secret-key>"
                     region: "eu-west-3"
@@ -55,7 +55,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class AddJobFlowsSteps extends AbstractEmrTask implements RunnableTask<VoidOutput> {
+public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOutput> {
     @Schema(title = "Cluster ID.")
     @NotNull
     private Property<String> clusterId;
