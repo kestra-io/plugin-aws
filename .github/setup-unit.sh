@@ -1,0 +1,1 @@
+echo $AWS_APPLICATION | base64 -d > src/test/resources/application-test.yml
