@@ -10,7 +10,7 @@ To set up the credentials in the task, you can use:
 - Or the `stsRoleArn`,  `stsRoleExternalII` and `stsRoleSessionName` properties for STS assume role credentials.
 
 When defining credentials in the task, this is a best practice to use [secrets](https://kestra.io/docs/concepts/secret).
-Check the blueprints such as [this one](https://kestra.io/blueprints/118-extract-data-from-an-api-and-load-it-to-s3-on-schedule-(every-friday-afternoon)),
+Check the blueprints such as [this one](https://kestra.io/blueprints/api-to-s3),
 showing how you can reference secrets in your AWS tasks.
 
 The [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is an AWS credentials provider chain
