@@ -146,7 +146,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
 
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {
-        List<String> allCommands = new ArrayList<>(this.commands);
+        List<String> allCommands = new ArrayList<>();
 
         // hack for missing env vars supports: https://github.com/aws/aws-cli/issues/5639
         if (this.stsRoleArn != null) {
@@ -168,6 +168,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         if (this.stsCredentialSource != null) {
             allCommands.add("aws configure set credential_source " + this.stsCredentialSource.value);
         }
+
+        allCommands.addAll(this.commands);
 
         var renderedOutputFiles = runContext.render(outputFiles).asList(String.class);
 
