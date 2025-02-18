@@ -9,6 +9,7 @@ import io.kestra.core.models.tasks.runners.ScriptService;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
@@ -94,9 +95,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     @Schema(
         title = "The AWS commands to run."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    @NotEmpty
     protected List<String> commands;
 
     @Schema(
@@ -178,12 +177,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withDockerOptions(injectDefaults(getDocker()))
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withCommands(
-                ScriptService.scriptCommands(
-                    List.of("/bin/sh", "-c"),
-                    null,
-                    allCommands)
-            )
+            .withInterpreter(Property.of(List.of("/bin/sh", "-c")))
+            .withCommands(new Property<>(JacksonMapper.ofJson().writeValueAsString(allCommands)))
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
