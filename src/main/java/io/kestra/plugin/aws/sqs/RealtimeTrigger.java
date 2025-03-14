@@ -41,8 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Plugin(
     examples = {
         @Example(
-            title = "Consume a message from an SQS queue in real-time.",
             full = true,
+            title = "Consume a message from an SQS queue in real-time.",
             code = """
                 id: sqs
                 namespace: company.team
@@ -55,11 +55,45 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 triggers:
                 - id: realtime_trigger
                   type: io.kestra.plugin.aws.sqs.RealtimeTrigger
-                  accessKeyId: "access_key"
-                  secretKeyId: "secret_key"
-                  region: "eu-central-1"
+                  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                  region: "{{ secret('AWS_DEFAULT_REGION') }}"
                   queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""
+        ),
+        @Example(
+            full = true,
+            title = "Use AWS SQS Realtime Trigger to push events into DynamoDB",
+            code = """
+                id: sqs_realtime_trigger
+                namespace: company.team
+                
+                tasks:
+                  - id: insert_into_dynamoDB
+                    type: io.kestra.plugin.aws.dynamodb.PutItem
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: eu-central-1
+                    tableName: orders
+                    item:
+                      order_id: "{{ trigger.data | jq('.order_id') | first }}"
+                      customer_name: "{{ trigger.data | jq('.customer_name') | first }}"
+                      customer_email: "{{ trigger.data | jq('.customer_email') | first }}"
+                      product_id: "{{ trigger.data | jq('.product_id') | first }}"
+                      price: "{{ trigger.data | jq('.price') | first }}"
+                      quantity: "{{ trigger.data | jq('.quantity') | first }}"
+                      total: "{{ trigger.data | jq('.total') | first }}"
+                
+                triggers:
+                  - id: realtime_trigger
+                    type: io.kestra.plugin.aws.sqs.RealtimeTrigger
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: eu-central-1
+                    queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/orders
+                    serdeType: JSON
+            """
         )
+            
     }
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
