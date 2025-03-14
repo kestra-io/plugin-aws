@@ -66,7 +66,7 @@ import java.util.Map;
         ),
         @Example(
             full = true,
-            title = "Add multiple items to a DynamoDB table"
+            title = "Add multiple items to a DynamoDB table",
             code = """
                 id: add_items_to_dynamodb
                 namespace: company.team
