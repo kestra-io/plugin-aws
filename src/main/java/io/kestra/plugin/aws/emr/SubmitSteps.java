@@ -32,7 +32,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "",
+            title = "Add a job step to an existing AWS EMR cluster",
             full = true,
             code = """
                 id: aws_emr_add_emr_job_steps
@@ -41,8 +41,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: add_steps_emr
                     type: io.kestra.plugin.aws.emr.SubmitSteps
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-west-3"
                     clusterId: j-XXXXXXXXXXXX
                     steps:
