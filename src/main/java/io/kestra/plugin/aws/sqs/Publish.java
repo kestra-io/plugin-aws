@@ -40,6 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             full = true,
+            title = "Publish a message to an SQS queue",
             code = """
                 id: aws_sqs_publish
                 namespace: company.team
@@ -47,15 +48,38 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: publish
                     type: io.kestra.plugin.aws.sqs.Publish
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
-                    region: "eu-central-1"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
                     queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
                     from:
                     - data: Hello World
                     - data: Hello Kestra
                       delaySeconds: 5
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Publish an input to an SQS queue",
+            code = """
+                id: sqs_publish_message
+                namespace: company.team
+                
+                inputs:
+                  - id: message
+                    type: STRING
+                    defaults: Hi from Kestra!
+                
+                tasks:
+                  - id: publish_message
+                    type: io.kestra.plugin.aws.sqs.Publish
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    queueUrl: https://sqs.eu-central-1.amazonaws.com/123456789/kestra
+                    from:
+                      data: "{{ inputs.message }}"
+            """
         )
     }
 )
