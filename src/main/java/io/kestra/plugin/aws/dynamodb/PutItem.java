@@ -63,6 +63,39 @@ import java.util.Map;
                     tableName: "persons"
                     item: "{{ outputs.task_id.data | json }}"
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Add multiple items to a DynamoDB table"
+            code = """
+                id: add_items_to_dynamodb
+                namespace: company.team
+                
+                tasks:
+                  - id: first_item_as_map
+                    type: io.kestra.plugin.aws.dynamodb.PutItem
+                    item:
+                      id: 1
+                      flow: "{{ flow.id }}"
+                      task: "{{ task.id }}"
+                
+                  - id: second_item_as_json
+                    type: io.kestra.plugin.aws.dynamodb.PutItem
+                    item: |
+                      {
+                          "id": 2,
+                          "flow": "{{ flow.id }}",
+                          "task": "{{ task.id }}"
+                      }
+                
+                pluginDefaults:
+                  - type: io.kestra.plugin.aws.dynamodb.PutItem
+                    values:
+                      tableName: demo
+                      region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+            """
         )
     }
 )
