@@ -86,6 +86,26 @@ import java.util.Map;
                     commands:
                       - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'
                 """
+        ),
+        @Example(
+            full = true,
+            title = "List clusters on AWS using the AWS CLI",
+            code = """
+                id: awscli-list-ecs-clusters
+                namespace: company.team
+                
+                tasks:
+                  - id: awscli
+                    type: io.kestra.plugin.aws.cli.AwsCLI
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                    region: us-east-1
+                    outputFiles:
+                      - output.json
+                    commands:
+                      - aws ecs list-clusters --query 'clusterArns[*]'
+                      - aws ecs list-clusters > output.json
+            """
         )
     }
 )
