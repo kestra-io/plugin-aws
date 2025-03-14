@@ -38,6 +38,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             full = true,
+            title = """
+            Send an SMS message using AWS SNS
+            """,
             code = """
                 id: aws_sns_publish
                 namespace: company.team
@@ -45,15 +48,41 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: publish
                     type: io.kestra.plugin.aws.sns.Publish
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
-                    region: "eu-central-1"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
                     topicArn: "arn:aws:sns:eu-central-1:000000000000:MessageTopic"
                     from:
                     - data: Hello World
                     - data: Hello Kestra
                       subject: Kestra
                 """
+        ),
+        @Example(
+            full = true,
+            title = """
+            Send an SMS message using AWS SNS based on a runtime-specific input
+            """,
+            code = """
+                id: send_sms
+                namespace: company.team
+                
+                inputs:
+                  - id: sms_text
+                    type: STRING
+                    defaults: Hello from Kestra and AWS SNS!
+                
+                tasks:
+                  - id: send_sms
+                    type: io.kestra.plugin.aws.sns.Publish
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    topicArn: arn:aws:sns:eu-central-1:123456789:kestra
+                    from:
+                      data: |
+                        {{ inputs.sms_text }}
+            """
         )
     }
 )
