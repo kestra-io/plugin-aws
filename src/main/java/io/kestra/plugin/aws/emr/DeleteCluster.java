@@ -40,8 +40,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 tasks:
                   - id: delete_cluster
                     type: io.kestra.plugin.aws.emr.DeleteCluster
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY') }}"
                     region: "eu-central-1"
                     clusterIds:
                         - j-XYXYXYXYXYXY
