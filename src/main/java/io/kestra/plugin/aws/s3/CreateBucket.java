@@ -26,16 +26,25 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
             title = "Create a new bucket with some options",
             full = true,
             code = """
-                id: aws_s3_create_bucket
-                namespace: company.team
+            id: aws_s3_create_bucket
+            namespace: company.team
 
-                tasks:
-                  - id: create_bucket
-                    type: io.kestra.plugin.aws.s3.CreateBucket
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
-                    region: "eu-central-1"
-                    bucket: "my-bucket"
+            inputs:
+              - id: bucket
+                type: STRING
+                defaults: my-bucket
+
+              - id: region
+                type: STRING
+                defaults: eu-central-1
+            
+            tasks:
+              - id: create_bucket
+                type: io.kestra.plugin.aws.s3.CreateBucket
+                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                region: "{{ inputs.region }}"
+                bucket: "{{ inputs.bucket }}"
             """
         )
     }
