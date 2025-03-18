@@ -48,7 +48,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: bucket
                     type: STRING
                     defaults: my-bucket
-            
+
                   - id: myfile
                     type: FILE
 
@@ -69,21 +69,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: upload_file_to_s3
                 namespace: company.team
-                
+
                 inputs:
                   - id: bucket
                     type: STRING
                     defaults: my-bucket
-                
+
                   - id: file_url
                     type: STRING
                     defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
-                
+
                 tasks:
                   - id: download_file
                     type: io.kestra.plugin.core.http.Download
                     uri: "{{ inputs.file_url }}"
-                
+
                   - id: upload_to_s3
                     type: io.kestra.plugin.aws.s3.Upload
                     from: "{{ outputs.download_file.uri }}"
@@ -105,7 +105,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         description = "Can be a single file, a list of files or json array.",
         anyOf = {List.class, String.class}
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
     private Object from;
 
