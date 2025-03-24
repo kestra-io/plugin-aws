@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -70,7 +69,19 @@ public interface AbstractConnectionInterface {
     )
     Property<String> getEndpointOverride();
 
+    @Schema(
+        title = "Enable compatibility mode.",
+        description = "Use it to connect to S3 bucket with S3 compatible services that didn't support the new transport client."
+    )
     default Property<Boolean> getCompatibilityMode() {
+        return Property.of(false);
+    }
+
+    @Schema(
+        title = "Force path style access.",
+        description = "Must only be used when `compatibilityMode` is enabled."
+    )
+    default Property<Boolean> getForcePathStyle()  {
         return Property.of(false);
     }
 

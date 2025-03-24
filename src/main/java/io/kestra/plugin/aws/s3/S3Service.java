@@ -65,8 +65,7 @@ public class S3Service {
         Copy.CopyObject moveTo,
         RunContext runContext,
         AbstractS3ObjectInterface abstractS3Object,
-        AbstractConnectionInterface abstractS3,
-        AbstractConnectionInterface abstractConnection
+        AbstractConnectionInterface abstractS3
     ) throws Exception {
         var renderedAction = runContext.render(action).as(ActionInterface.Action.class).orElseThrow();
         if (renderedAction == ActionInterface.Action.DELETE) {
@@ -76,15 +75,17 @@ public class S3Service {
                     .type(Delete.class.getName())
                     .region(abstractS3.getRegion())
                     .endpointOverride(abstractS3.getEndpointOverride())
-                    .accessKeyId(abstractConnection.getAccessKeyId())
-                    .secretKeyId(abstractConnection.getSecretKeyId())
+                    .compatibilityMode(abstractS3.getCompatibilityMode())
+                    .forcePathStyle(abstractS3.getForcePathStyle())
+                    .accessKeyId(abstractS3.getAccessKeyId())
+                    .secretKeyId(abstractS3.getSecretKeyId())
                     .key(Property.of(object.getKey()))
                     .bucket(abstractS3Object.getBucket())
-                    .stsRoleArn(abstractConnection.getStsRoleArn())
-                    .stsRoleExternalId(abstractConnection.getStsRoleExternalId())
-                    .stsRoleSessionName(abstractConnection.getStsRoleSessionName())
-                    .stsRoleSessionDuration(abstractConnection.getStsRoleSessionDuration())
-                    .stsEndpointOverride(abstractConnection.getStsEndpointOverride())
+                    .stsRoleArn(abstractS3.getStsRoleArn())
+                    .stsRoleExternalId(abstractS3.getStsRoleExternalId())
+                    .stsRoleSessionName(abstractS3.getStsRoleSessionName())
+                    .stsRoleSessionDuration(abstractS3.getStsRoleSessionDuration())
+                    .stsEndpointOverride(abstractS3.getStsEndpointOverride())
                     .build();
                 delete.run(runContext);
             }
@@ -95,13 +96,15 @@ public class S3Service {
                     .type(Copy.class.getName())
                     .region(abstractS3.getRegion())
                     .endpointOverride(abstractS3.getEndpointOverride())
-                    .accessKeyId(abstractConnection.getAccessKeyId())
-                    .secretKeyId(abstractConnection.getSecretKeyId())
-                    .stsRoleArn(abstractConnection.getStsRoleArn())
-                    .stsRoleExternalId(abstractConnection.getStsRoleExternalId())
-                    .stsRoleSessionName(abstractConnection.getStsRoleSessionName())
-                    .stsRoleSessionDuration(abstractConnection.getStsRoleSessionDuration())
-                    .stsEndpointOverride(abstractConnection.getStsEndpointOverride())
+                    .compatibilityMode(abstractS3.getCompatibilityMode())
+                    .forcePathStyle(abstractS3.getForcePathStyle())
+                    .accessKeyId(abstractS3.getAccessKeyId())
+                    .secretKeyId(abstractS3.getSecretKeyId())
+                    .stsRoleArn(abstractS3.getStsRoleArn())
+                    .stsRoleExternalId(abstractS3.getStsRoleExternalId())
+                    .stsRoleSessionName(abstractS3.getStsRoleSessionName())
+                    .stsRoleSessionDuration(abstractS3.getStsRoleSessionDuration())
+                    .stsEndpointOverride(abstractS3.getStsEndpointOverride())
                     .from(Copy.CopyObjectFrom.builder()
                         .bucket(abstractS3Object.getBucket())
                         .key(Property.of(object.getKey()))
