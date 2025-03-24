@@ -10,6 +10,11 @@ public class Owner {
     String displayName;
 
     public static Owner of(software.amazon.awssdk.services.s3.model.Owner object) {
+        // this can happen in compatible S3 services
+        if (object == null) {
+            return null;
+        }
+
         return Owner.builder()
             .id(object.id())
             .displayName(object.displayName())

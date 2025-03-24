@@ -218,7 +218,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             this.moveTo,
             runContext,
             this,
-            this,
             this
         );
 

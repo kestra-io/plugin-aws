@@ -18,6 +18,7 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
     protected Property<String> region;
     protected Property<String> endpointOverride;
     protected Property<Boolean> compatibilityMode;
+    protected Property<Boolean> forcePathStyle;
 
     // Configuration for StaticCredentialsProvider
     protected Property<String> accessKeyId;

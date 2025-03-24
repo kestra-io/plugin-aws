@@ -135,7 +135,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 this.moveTo,
                 runContext,
                 this,
-                this,
                 this
             );
 

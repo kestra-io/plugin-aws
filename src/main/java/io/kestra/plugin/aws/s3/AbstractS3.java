@@ -15,14 +15,22 @@ import java.net.URI;
 public interface AbstractS3 extends AbstractConnectionInterface {
     default S3Client client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AbstractConnection.AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, S3Client.builder()).build();
+        return ConnectionUtils.configureSyncClient(clientConfig, S3Client.builder())
+            .forcePathStyle(runContext.render(this.getForcePathStyle()).as(Boolean.class).orElse(false))
+            .build();
     }
 
     default S3AsyncClient asyncClient(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AbstractConnection.AwsClientConfig clientConfig = awsClientConfig(runContext);
         if (runContext.render(this.getCompatibilityMode()).as(Boolean.class).orElse(false)) {
-            return ConnectionUtils.configureAsyncClient(clientConfig, S3AsyncClient.builder()).build();
+            return ConnectionUtils.configureAsyncClient(clientConfig, S3AsyncClient.builder())
+                .forcePathStyle(runContext.render(this.getForcePathStyle()).as(Boolean.class).orElse(false))
+                .build();
         } else {
+            if (runContext.render(this.getForcePathStyle()).as(Boolean.class).orElse(false)) {
+                throw new IllegalArgumentException("'forcePathStyle' must be used in conjunction with 'compatibilityMode'");
+            }
+
             S3CrtAsyncClientBuilder s3ClientBuilder = S3AsyncClient.crtBuilder()
                 .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
 
