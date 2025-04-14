@@ -31,7 +31,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from a SQS queue.",
+    title = "Consume messages from an AWS SQS queue.",
     description = "Requires `maxDuration` or `maxRecords`."
 )
 @Plugin(

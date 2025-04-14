@@ -100,7 +100,8 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table. If an item with the same key already exists, the element will be updated."
+    title = "Put an item into a DynamoDB table.", 
+    description = "If an item with the same key already exists, the element will be updated."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(

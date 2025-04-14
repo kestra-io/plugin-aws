@@ -22,7 +22,7 @@ import jakarta.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query items from a table."
+    title = "Query items from a DynamoDB table."
 )
 @Plugin(
     examples = {

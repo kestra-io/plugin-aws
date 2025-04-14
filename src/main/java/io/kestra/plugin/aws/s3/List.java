@@ -39,7 +39,7 @@ import software.amazon.awssdk.services.s3.S3Client;
     }
 )
 @Schema(
-    title = "List keys on a S3 bucket."
+    title = "List keys of an S3 bucket."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
     private Property<String> prefix;

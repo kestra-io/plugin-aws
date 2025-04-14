@@ -52,7 +52,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 @Schema(
-    title = "Delete a list of keys on a S3 bucket."
+    title = "Delete a list of objects in an S3 bucket."
 )
 public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteList.Output>, ListInterface {
     private Property<String> prefix;

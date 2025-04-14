@@ -25,7 +25,7 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages periodically from an SQS queue and create one execution per batch.",
+    title = "Trigger a flow on periodic message consumption from an AWS SQS queue, creating one execution per batch.",
     description = "Requires `maxDuration` or `maxRecords`.\nNote that you don't need an extra task to consume the message from the event trigger. The trigger will automatically consume messages and you can retrieve their content in your flow using the `{{ trigger.uri }}` variable. If you would like to consume each message from an SQS queue in real-time and create one execution per message, you can use the [io.kestra.plugin.aws.sqs.RealtimeTrigger](https://kestra.io/plugins/plugin-aws/triggers/io.kestra.plugin.aws.sqs.realtimetrigger) instead."
 )
 @Plugin(

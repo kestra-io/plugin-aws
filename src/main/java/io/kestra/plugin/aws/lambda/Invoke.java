@@ -48,7 +48,9 @@ import java.util.Optional;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Invoke Lambda function and wait for its completion.")
+@Schema(
+    title = "Invoke an AWS Lambda function."
+)
 @Plugin(
     examples = {
         @Example(

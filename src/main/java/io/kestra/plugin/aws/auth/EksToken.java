@@ -32,7 +32,7 @@ import java.util.Base64;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Fetch an OAuth access token for EKS cluster."
+    title = "Fetch an OAuth access token for an AWS EKS cluster."
 )
 @Plugin(
     examples = {

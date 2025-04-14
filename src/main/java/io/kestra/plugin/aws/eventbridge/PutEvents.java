@@ -91,7 +91,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Send multiple custom events to Amazon EventBridge so that they can be matched to rules."
+    title = "Send custom events to Amazon EventBridge for rule matching."
 )
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()

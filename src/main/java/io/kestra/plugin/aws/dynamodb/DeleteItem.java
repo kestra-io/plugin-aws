@@ -24,7 +24,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete an item from a table."
+    title = "Delete an item from a DynamoDB table."
 )
 @Plugin(
     examples = {

@@ -89,7 +89,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Send multiple records to Amazon Kinesis Data Streams."
+    title = "Send records to Amazon Kinesis Data Streams."
 )
 public class PutRecords extends AbstractConnection implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()

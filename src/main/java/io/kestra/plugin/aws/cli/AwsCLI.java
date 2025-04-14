@@ -34,7 +34,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Automate AWS services with the AWS CLI."
+    title = "Run AWS CLI commands."
 )
 @Plugin(
     examples = {

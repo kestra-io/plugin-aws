@@ -26,7 +26,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Terminate one or multiple EMR cluster."
+    title = "Terminate one or multiple AWS EMR cluster."
 )
 @Plugin(
     examples = {
