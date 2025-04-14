@@ -47,11 +47,11 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query an Athena table.",
+    title = "Query an Amazon Athena table.",
     description = """
         The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
-        Row conversion is based on the types listed [here](https://docs.aws.amazon.com/athena/latest/ug/data-types.html).
-        Complex data types like array, map and struct will be converted to a string."""
+        Row conversion is based on the types listed in [Athena Data Types](https://docs.aws.amazon.com/athena/latest/ug/data-types.html).
+        Complex data types like array, map, and struct will be converted to a string."""
 )
 @Plugin(
     examples = {

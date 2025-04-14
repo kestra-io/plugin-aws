@@ -27,7 +27,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Create an EMR Cluster, submit steps to be processed, then get the cluster ID as an output."
+    title = "Create an AWS EMR cluster, submit steps, and retrieve the cluster ID."
 )
 @Plugin(
     examples = {

@@ -34,7 +34,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to an SQS queue."
+    title = "Publish a message to an AWS SQS queue."
 )
 @Plugin(
     examples = {

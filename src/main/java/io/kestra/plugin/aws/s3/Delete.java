@@ -40,7 +40,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
     }
 )
 @Schema(
-    title = "Delete a file in a S3 bucket."
+    title = "Delete a file in an S3 bucket."
 )
 public class Delete extends AbstractS3Object implements RunnableTask<Delete.Output> {
     @Schema(

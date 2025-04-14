@@ -32,7 +32,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to a SNS topic."
+    title = "Publish a message to an AWS SNS topic."
 )
 @Plugin(
     examples = {

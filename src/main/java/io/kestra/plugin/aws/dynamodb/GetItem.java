@@ -20,7 +20,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get an item from a table."
+    title = "Get an item from a DynamoDB table."
 )
 @Plugin(
     examples = {

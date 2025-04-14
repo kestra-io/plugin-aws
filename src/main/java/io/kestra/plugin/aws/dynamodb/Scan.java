@@ -21,7 +21,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Scan items from a table."
+    title = "Scan items from a DynamoDB table."
 )
 @Plugin(
     examples = {

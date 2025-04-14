@@ -27,7 +27,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Add steps on an existing EMR cluster."
+    title = "Add steps to an existing AWS EMR cluster."
 )
 @Plugin(
     examples = {

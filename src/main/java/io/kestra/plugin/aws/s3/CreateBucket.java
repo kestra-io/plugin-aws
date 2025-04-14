@@ -50,7 +50,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
     }
 )
 @Schema(
-    title = "Create a bucket"
+    title = "Create an S3 bucket."
 )
 public class CreateBucket extends AbstractConnection implements AbstractS3, RunnableTask<CreateBucket.Output> {
     @Schema(
