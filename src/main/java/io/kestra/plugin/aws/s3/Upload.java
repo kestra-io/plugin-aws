@@ -27,6 +27,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -67,7 +68,38 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             title = "Download a file and upload it to S3",
             code = """
-                id: upload_file_to_s3
+                    id: upload_file_to_s3
+                    namespace: company.team
+
+                    inputs:
+                      - id: bucket
+                        type: STRING
+                        defaults: my-bucket
+
+                      - id: file_url
+                        type: STRING
+                        defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
+
+                    tasks:
+                      - id: download_file
+                        type: io.kestra.plugin.core.http.Download
+                        uri: "{{ inputs.file_url }}"
+
+                      - id: upload_to_s3
+                        type: io.kestra.plugin.aws.s3.Upload
+                        from: "{{ outputs.download_file.uri }}"
+                        key: powerplant/global_power_plant_database.zip
+                        bucket: "{{ inputs.bucket }}"
+                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a JSON array",
+            code = """
+                id: upload_multiple_files_from_json_array
                 namespace: company.team
 
                 inputs:
@@ -75,29 +107,66 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     type: STRING
                     defaults: my-bucket
 
-                  - id: file_url
-                    type: STRING
-                    defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
-
                 tasks:
-                  - id: download_file
+                  - id: download_file1
                     type: io.kestra.plugin.core.http.Download
-                    uri: "{{ inputs.file_url }}"
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
 
-                  - id: upload_to_s3
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_files_to_s3
                     type: io.kestra.plugin.aws.s3.Upload
-                    from: "{{ outputs.download_file.uri }}"
-                    key: powerplant/global_power_plant_database.zip
+                    from: |
+                      [
+                        "{{ outputs.download_file1.uri }}",
+                        "{{ outputs.download_file2.uri }}"
+                      ]
+                    key: "path/to/files"
                     bucket: "{{ inputs.bucket }}"
                     region: "{{ secret('AWS_DEFAULT_REGION') }}"
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-            """
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a Collection",
+            code = """
+        id: upload_multiple_files_to_s3
+        namespace: company.team
+
+        inputs:
+          - id: bucket
+            type: STRING
+            defaults: my-bucket
+
+        tasks:
+          - id: download_file1
+            type: io.kestra.plugin.core.http.Download
+            uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+          - id: download_file2
+            type: io.kestra.plugin.core.http.Download
+            uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+          - id: upload_multiple_to_s3
+            type: io.kestra.plugin.aws.s3.Upload
+            from:
+              - "{{ outputs.download_file1.uri }}"
+              - "{{ outputs.download_file2.uri }}"
+            key: "path/to/files"
+            bucket: "{{ inputs.bucket }}"
+            region: "{{ secret('AWS_DEFAULT_REGION') }}"
+            accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+            secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+        """
         )
     }
 )
 @Schema(
-    title = "Upload a file to a S3 bucket."
+    title = "Upload a file(s) to a S3 bucket."
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
     @Schema(
@@ -336,11 +405,16 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
                 String[] renderedFroms;
                 if (this.from instanceof Collection<?> fromURIs) {
-                    renderedFroms = fromURIs.stream().map(throwFunction(from -> runContext.render((String) from))).toArray(String[]::new);
-                } else if (this.from instanceof String) {
-                    renderedFroms = new String[]{runContext.render((String) this.from)};
-                } else {
+                    renderedFroms = fromURIs.stream()
+                        .map(throwFunction(from -> runContext.render((String) from)))
+                        .toArray(String[]::new);
+                } else if (this.from instanceof String && Pattern.compile("^\\s*\\[.*]\\s*$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
                     renderedFroms = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
+                    if (renderedFroms.length == 0) {
+                        throw new IllegalArgumentException("No files to upload: empty array provided in 'from' property");
+                    }
+                } else {
+                    renderedFroms = new String[]{runContext.render((String) this.from)};
                 }
 
                 for (String renderedFrom : renderedFroms) {
