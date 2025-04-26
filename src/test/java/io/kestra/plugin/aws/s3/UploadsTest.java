@@ -152,4 +152,28 @@ class UploadsTest extends AbstractTest {
 
         assertThat(exception.getMessage(), is("No files to upload: the 'from' property contains an empty collection or array"));
     }
+
+    @Test
+    void run_emptyCollection() throws Exception {
+        this.createBucket();
+
+        Upload upload = Upload.builder()
+            .id("EmptyCollectionTest")
+            .type(Upload.class.getName())
+            .bucket(Property.of(this.BUCKET))
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .region(Property.of(localstack.getRegion()))
+            .from(java.util.Collections.emptyList())
+            .key(Property.of(IdUtils.create() + "/"))
+            .build();
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> upload.run(runContext(upload))
+        );
+
+        assertThat(exception.getMessage(), is("No files to upload: the 'from' property contains an empty collection or array"));
+    }
 }
