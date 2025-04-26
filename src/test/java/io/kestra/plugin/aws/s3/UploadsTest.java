@@ -150,6 +150,6 @@ class UploadsTest extends AbstractTest {
             () -> upload.run(runContext(upload))
         );
 
-        assertThat(exception.getMessage(), is("No files to upload: empty array provided in 'from' property"));
+        assertThat(exception.getMessage(), is("No files to upload: the 'from' property contains an empty collection or array"));
     }
 }

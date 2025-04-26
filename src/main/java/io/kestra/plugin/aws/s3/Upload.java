@@ -134,34 +134,34 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             title = "Upload multiple files to S3 using a Collection",
             code = """
-        id: upload_multiple_files_to_s3
-        namespace: company.team
+                id: upload_multiple_files_to_s3
+                namespace: company.team
 
-        inputs:
-          - id: bucket
-            type: STRING
-            defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-        tasks:
-          - id: download_file1
-            type: io.kestra.plugin.core.http.Download
-            uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
 
-          - id: download_file2
-            type: io.kestra.plugin.core.http.Download
-            uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
 
-          - id: upload_multiple_to_s3
-            type: io.kestra.plugin.aws.s3.Upload
-            from:
-              - "{{ outputs.download_file1.uri }}"
-              - "{{ outputs.download_file2.uri }}"
-            key: "path/to/files"
-            bucket: "{{ inputs.bucket }}"
-            region: "{{ secret('AWS_DEFAULT_REGION') }}"
-            accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-            secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-        """
+                  - id: upload_multiple_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from:
+                      - "{{ outputs.download_file1.uri }}"
+                      - "{{ outputs.download_file2.uri }}"
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         )
     }
 )
@@ -410,11 +410,12 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                         .toArray(String[]::new);
                 } else if (this.from instanceof String && Pattern.compile("^\\s*\\[.*]\\s*$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
                     renderedFroms = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
-                    if (renderedFroms.length == 0) {
-                        throw new IllegalArgumentException("No files to upload: empty array provided in 'from' property");
-                    }
                 } else {
                     renderedFroms = new String[]{runContext.render((String) this.from)};
+                }
+
+                if (renderedFroms.length == 0) {
+                    throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
                 }
 
                 for (String renderedFrom : renderedFroms) {
