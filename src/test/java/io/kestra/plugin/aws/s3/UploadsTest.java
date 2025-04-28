@@ -9,7 +9,7 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import java.net.URI;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UploadsTest extends AbstractTest {
@@ -34,7 +34,15 @@ class UploadsTest extends AbstractTest {
             .from(java.util.List.of(source1.toString(), source2.toString(), source3.toString(), source4.toString()))
             .key(Property.of(IdUtils.create() + "/"))
             .build();
-        upload.run(runContext(upload));
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        // Verify MultiFileUploadOutput
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), is(notNullValue()));
+        assertThat(uploadOutput.getETags(), is(notNullValue()));
+        assertThat(uploadOutput.getETags().size(), is(4));
+        assertThat(uploadOutput.getETags().keySet(), hasItems("1.yml", "2.yml", "3.yml", "4.yml"));
 
         // list
         List list = List.builder()
@@ -71,7 +79,13 @@ class UploadsTest extends AbstractTest {
             .from(source.toString())
             .key(Property.of(IdUtils.create() + "/single.yml"))
             .build();
-        upload.run(runContext(upload));
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        // Verify Upload.Output
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), is(notNullValue()));
+        assertThat(uploadOutput.getETag(), is(notNullValue()));
 
         List list = List.builder()
             .id("SingleStringListTest")
@@ -109,7 +123,15 @@ class UploadsTest extends AbstractTest {
             .from(jsonArray)
             .key(Property.of(IdUtils.create() + "/"))
             .build();
-        upload.run(runContext(upload));
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        // Verify MultiFileUploadOutput
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), is(notNullValue()));
+        assertThat(uploadOutput.getETags(), is(notNullValue()));
+        assertThat(uploadOutput.getETags().size(), is(2));
+        assertThat(uploadOutput.getETags().keySet(), hasItems("1.yml", "2.yml"));
 
         List list = List.builder()
             .id("JsonArrayStringListTest")

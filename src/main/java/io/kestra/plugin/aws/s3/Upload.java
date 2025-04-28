@@ -9,6 +9,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -26,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -400,9 +402,11 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 );
             }
 
+            Map<String, String> fileTags = new HashMap<>();
+            Map<String, String> fileVersions = new HashMap<>();
+
             // use the transfer manager for uploading an S3 file will end up using 8MB upload parts.
             try (S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
-
                 String[] renderedFroms;
                 if (this.from instanceof Collection<?> fromURIs) {
                     renderedFroms = fromURIs.stream()
@@ -418,15 +422,12 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                     throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
                 }
 
-                for (String renderedFrom : renderedFroms) {
+                // Handle single file upload case directly
+                if (renderedFroms.length == 1) {
+                    String renderedFrom = renderedFroms[0];
                     File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
                     URI from = new URI(runContext.render(renderedFrom));
                     Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                    // if multiple files, it's a dir
-                    if (renderedFroms.length > 1) {
-                        builder.key(Path.of(key, FilenameUtils.getName(renderedFrom)).toString());
-                    }
 
                     PutObjectRequest putObjectRequest = builder.build();
 
@@ -437,30 +438,65 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
                     runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-                    // wait for the upload
+                    // Wait for the upload
                     PutObjectResponse response = upload.completionFuture().get().response();
 
                     runContext.metric(Counter.of("file.count", 1));
                     runContext.metric(Counter.of("file.size", tempFile.length()));
 
-                    if (renderedFroms.length == 1) {
-                        return Output
-                            .builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .eTag(response.eTag())
-                            .versionId(response.versionId())
-                            .build();
+                    return Output
+                        .builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .eTag(response.eTag())
+                        .versionId(response.versionId())
+                        .build();
+                }
+                // Handle multiple files case
+                else {
+                    for (String renderedFrom : renderedFroms) {
+                        File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
+                        URI from = new URI(runContext.render(renderedFrom));
+                        Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+                        String fileName = FilenameUtils.getName(renderedFrom);
+
+                        // Set key for each file in the directory
+                        builder.key(Path.of(key, fileName).toString());
+
+                        PutObjectRequest putObjectRequest = builder.build();
+
+                        FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
+                            .putObjectRequest(putObjectRequest)
+                            .source(tempFile)
+                            .build());
+
+                        runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
+
+                        // Wait for the upload
+                        PutObjectResponse response = upload.completionFuture().get().response();
+
+                        fileTags.put(fileName, response.eTag());
+
+                        if (response.versionId() != null) {
+                            fileVersions.put(fileName, response.versionId());
+                        }
+
+                        runContext.metric(Counter.of("file.count", 1));
+                        runContext.metric(Counter.of("file.size", tempFile.length()));
                     }
+
+                    return Output
+                        .builder()
+                        .key(key)
+                        .bucket(bucket)
+                        .eTags(fileTags)
+                        .versionIds(fileVersions.isEmpty() ? null : fileVersions)
+                        .build();
                 }
             }
 
-            return Output
-                .builder()
-                .bucket(bucket)
-                .build();
         }
-
     }
 
     @SuperBuilder
@@ -468,5 +504,11 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
         private final String bucket;
         private final String key;
+        @Nullable
+        private final Map<String, String> eTags;
+        @Nullable
+        private final Map<String, String> versionIds;
     }
+
+
 }
