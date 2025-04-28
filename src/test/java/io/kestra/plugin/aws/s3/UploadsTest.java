@@ -96,7 +96,7 @@ class UploadsTest extends AbstractTest {
         URI source1 = storagePut("1.yml");
         URI source2 = storagePut("2.yml");
 
-        String jsonArray = "[\n  \"" + source1.toString() + "\",\n  \"" + source2.toString() + "\"\n]\n";
+        String jsonArray = "\n[\n  \"" + source1.toString() + "\",\n  \"" + source2.toString() + "\"\n]\n";
 
         Upload upload = Upload.builder()
             .id("JsonArrayStringTest")

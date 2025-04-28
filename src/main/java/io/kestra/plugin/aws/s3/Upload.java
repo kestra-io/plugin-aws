@@ -408,7 +408,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                     renderedFroms = fromURIs.stream()
                         .map(throwFunction(from -> runContext.render((String) from)))
                         .toArray(String[]::new);
-                } else if (this.from instanceof String && Pattern.compile("^\\s*\\[.*]\\s*$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
+                } else if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
                     renderedFroms = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
                 } else {
                     renderedFroms = new String[]{runContext.render((String) this.from)};
