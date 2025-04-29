@@ -9,7 +9,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -167,8 +166,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
+
 @Schema(
-    title = "Upload a file(s) to a S3 bucket."
+    title = "Upload a file(s) to a S3 bucket.",
+    description = "Uploads single or multiple files to an Amazon S3 bucket."
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
     @Schema(
@@ -502,11 +503,28 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @SuperBuilder
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
+        @Schema(
+            title = "The S3 bucket name",
+            description = "The name of the bucket where the file(s) were uploaded"
+        )
         private final String bucket;
+
+        @Schema(
+            title = "The S3 object key",
+            description = "The key (path) where the file(s) were uploaded in the bucket"
+        )
         private final String key;
-        @Nullable
+
+        @Schema(
+            title = "ETags of the uploaded files",
+            description = "A map of file names to their corresponding ETags returned by S3. Returned only for multiple file uploads."
+        )
         private final Map<String, String> eTags;
-        @Nullable
+
+        @Schema(
+            title = "Version IDs of the uploaded files",
+            description = "A map of file names to their corresponding version IDs (if bucket versioning is enabled). Returned only for multiple file uploads."
+        )
         private final Map<String, String> versionIds;
     }
 
