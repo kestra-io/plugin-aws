@@ -301,202 +301,212 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
         String key = runContext.render(this.key).as(String.class).orElseThrow();
 
-        try (S3AsyncClient client = this.asyncClient(runContext)) {
-            PutObjectRequest.Builder builder = PutObjectRequest
-                .builder()
-                .bucket(bucket)
-                .key(key);
+        try (S3AsyncClient client = this.asyncClient(runContext);
+             S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
 
-            if (this.requestPayer != null) {
-                builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
+            String[] filesToUpload = parseFromProperty(runContext);
+
+            if (filesToUpload.length == 0) {
+                throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
             }
 
-            if (this.metadata != null) {
-                builder.metadata(runContext.render(this.metadata).asMap(String.class, String.class));
+            return filesToUpload.length == 1
+                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload[0])
+                : uploadMultipleFiles(runContext, transferManager, bucket, key, filesToUpload);
+        }
+    }
+
+    private String[] parseFromProperty(RunContext runContext) throws Exception {
+        if (this.from instanceof Collection<?> fromURIs) {
+            return fromURIs.stream()
+                .map(throwFunction(from -> runContext.render((String) from)))
+                .toArray(String[]::new);
+        } else if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
+            return JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
+        } else {
+            return new String[]{runContext.render((String) this.from)};
+        }
+    }
+
+    private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
+                                    String bucket, String key, String renderedFrom) throws Exception {
+        File tempFile = copyFileToTemp(runContext, renderedFrom);
+
+        PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, key);
+
+        runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
+
+        FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
+            .putObjectRequest(putObjectRequest)
+            .source(tempFile)
+            .build());
+
+        PutObjectResponse response = upload.completionFuture().get().response();
+
+        recordMetrics(runContext, tempFile);
+
+        return Output.builder()
+            .bucket(bucket)
+            .key(key)
+            .eTag(response.eTag())
+            .versionId(response.versionId())
+            .build();
+    }
+
+    private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
+                                       String bucket, String baseKey, String[] renderedFroms) throws Exception {
+        Map<String, String> fileTags = new HashMap<>();
+        Map<String, String> fileVersions = new HashMap<>();
+
+        for (String renderedFrom : renderedFroms) {
+            File tempFile = copyFileToTemp(runContext, renderedFrom);
+            String fileName = FilenameUtils.getName(renderedFrom);
+            String fileKey = Path.of(baseKey, fileName).toString();
+
+            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, fileKey);
+
+            runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
+
+            FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
+                .putObjectRequest(putObjectRequest)
+                .source(tempFile)
+                .build());
+
+            PutObjectResponse response = upload.completionFuture().get().response();
+
+            fileTags.put(fileName, response.eTag());
+            if (response.versionId() != null) {
+                fileVersions.put(fileName, response.versionId());
             }
 
-            if (this.cacheControl != null) {
-                builder.cacheControl(runContext.render(this.cacheControl).as(String.class).orElseThrow());
-            }
+            recordMetrics(runContext, tempFile);
+        }
 
-            if (this.contentType != null) {
-                builder.contentType(runContext.render(this.contentType).as(String.class).orElseThrow());
-            }
+        return Output.builder()
+            .key(baseKey)
+            .bucket(bucket)
+            .eTags(fileTags)
+            .versionIds(fileVersions.isEmpty() ? null : fileVersions)
+            .build();
+    }
 
-            if (this.contentEncoding != null) {
-                builder.contentEncoding(runContext.render(this.contentEncoding).as(String.class).orElseThrow());
-            }
+    private File copyFileToTemp(RunContext runContext, String renderedFrom) throws Exception {
+        File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
+        URI from = new URI(runContext.render(renderedFrom));
+        Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        return tempFile;
+    }
 
-            if (this.contentDisposition != null) {
-                builder.contentDisposition(runContext.render(this.contentDisposition).as(String.class).orElseThrow());
-            }
+    private void recordMetrics(RunContext runContext, File file) {
+        runContext.metric(Counter.of("file.count", 1));
+        runContext.metric(Counter.of("file.size", file.length()));
+    }
 
-            if (this.contentLanguage != null) {
-                builder.contentLanguage(runContext.render(this.contentLanguage).as(String.class).orElseThrow());
-            }
+    private PutObjectRequest createPutObjectRequest(RunContext runContext, String bucket, String key) throws Exception {
+        PutObjectRequest.Builder builder = PutObjectRequest.builder()
+            .bucket(bucket)
+            .key(key);
 
-            if (this.contentLength != null) {
-                builder.contentLength(runContext.render(this.contentLength).as(Long.class).orElseThrow());
-            }
+        applyRequestOptions(runContext, builder);
 
-            if (this.expires != null) {
-                builder.expires(Instant.parse(runContext.render(this.expires).as(String.class).orElseThrow()));
-            }
+        return builder.build();
+    }
 
-            if (this.acl != null) {
-                builder.acl(runContext.render(this.acl).as(String.class).orElseThrow());
-            }
+    private void applyRequestOptions(RunContext runContext, PutObjectRequest.Builder builder) throws Exception {
+        if (this.requestPayer != null) {
+            builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
+        }
 
-            if (this.storageClass != null) {
-                builder.storageClass(runContext.render(this.storageClass).as(StorageClass.class).orElseThrow());
-            }
+        if (this.metadata != null) {
+            builder.metadata(runContext.render(this.metadata).asMap(String.class, String.class));
+        }
 
-            if (this.serverSideEncryption != null) {
-                builder.serverSideEncryption(runContext.render(this.serverSideEncryption).as(ServerSideEncryption.class).orElseThrow());
-            }
+        if (this.cacheControl != null) {
+            builder.cacheControl(runContext.render(this.cacheControl).as(String.class).orElseThrow());
+        }
 
-            if (this.bucketKeyEnabled != null) {
-                builder.bucketKeyEnabled(runContext.render(this.bucketKeyEnabled).as(Boolean.class).orElseThrow());
-            }
+        if (this.contentType != null) {
+            builder.contentType(runContext.render(this.contentType).as(String.class).orElseThrow());
+        }
 
-            if (this.checksumAlgorithm != null) {
-                var renderedAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumAlgorithm.class).orElseThrow();
-                var sum = runContext.render(this.checksum).as(String.class).orElse(null);
-                builder.checksumAlgorithm(renderedAlgorithm);
-                switch (renderedAlgorithm) {
-                    case SHA1 -> builder.checksumSHA1(sum);
-                    case SHA256 -> builder.checksumSHA256(sum);
-                    case CRC32 -> builder.checksumCRC32(sum);
-                    case CRC32_C -> builder.checksumCRC32C(sum);
-                }
-            }
+        if (this.contentEncoding != null) {
+            builder.contentEncoding(runContext.render(this.contentEncoding).as(String.class).orElseThrow());
+        }
 
-            if (this.expectedBucketOwner != null) {
-                builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
-            }
+        if (this.contentDisposition != null) {
+            builder.contentDisposition(runContext.render(this.contentDisposition).as(String.class).orElseThrow());
+        }
 
-            if (this.objectLockMode != null) {
-                builder.objectLockMode(runContext.render(this.objectLockMode).as(ObjectLockMode.class).orElseThrow());
-            }
+        if (this.contentLanguage != null) {
+            builder.contentLanguage(runContext.render(this.contentLanguage).as(String.class).orElseThrow());
+        }
 
-            if (this.objectLockLegalHoldStatus != null) {
-                builder.objectLockLegalHoldStatus(runContext.render(this.objectLockLegalHoldStatus).as(ObjectLockLegalHoldStatus.class).orElseThrow());
-            }
+        if (this.contentLength != null) {
+            builder.contentLength(runContext.render(this.contentLength).as(Long.class).orElseThrow());
+        }
 
-            if (this.objectLockRetainUntilDate != null) {
-                builder.objectLockRetainUntilDate(Instant.parse(runContext.render(this.objectLockRetainUntilDate).as(String.class).orElseThrow()));
-            }
+        if (this.expires != null) {
+            builder.expires(Instant.parse(runContext.render(this.expires).as(String.class).orElseThrow()));
+        }
 
-            if (this.tagging != null) {
-                builder.tagging(Tagging.builder()
-                    .tagSet(runContext.render(this.tagging).asMap(String.class, String.class)
-                        .entrySet()
-                        .stream()
-                        .map(e -> Tag.builder()
-                            .key(e.getKey())
-                            .value(e.getValue())
-                            .build()
-                        )
-                        .toList()
+        if (this.acl != null) {
+            builder.acl(runContext.render(this.acl).as(String.class).orElseThrow());
+        }
+
+        if (this.storageClass != null) {
+            builder.storageClass(runContext.render(this.storageClass).as(StorageClass.class).orElseThrow());
+        }
+
+        if (this.serverSideEncryption != null) {
+            builder.serverSideEncryption(runContext.render(this.serverSideEncryption).as(ServerSideEncryption.class).orElseThrow());
+        }
+
+        if (this.bucketKeyEnabled != null) {
+            builder.bucketKeyEnabled(runContext.render(this.bucketKeyEnabled).as(Boolean.class).orElseThrow());
+        }
+
+        if (this.checksumAlgorithm != null) {
+            var renderedAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumAlgorithm.class).orElseThrow();
+            var sum = runContext.render(this.checksum).as(String.class).orElse(null);
+            builder.checksumAlgorithm(renderedAlgorithm);
+            switch (renderedAlgorithm) {
+                case SHA1 -> builder.checksumSHA1(sum);
+                case SHA256 -> builder.checksumSHA256(sum);
+                case CRC32 -> builder.checksumCRC32(sum);
+                case CRC32_C -> builder.checksumCRC32C(sum);
+            }
+        }
+
+        if (this.expectedBucketOwner != null) {
+            builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
+        }
+
+        if (this.objectLockMode != null) {
+            builder.objectLockMode(runContext.render(this.objectLockMode).as(ObjectLockMode.class).orElseThrow());
+        }
+
+        if (this.objectLockLegalHoldStatus != null) {
+            builder.objectLockLegalHoldStatus(runContext.render(this.objectLockLegalHoldStatus).as(ObjectLockLegalHoldStatus.class).orElseThrow());
+        }
+
+        if (this.objectLockRetainUntilDate != null) {
+            builder.objectLockRetainUntilDate(Instant.parse(runContext.render(this.objectLockRetainUntilDate).as(String.class).orElseThrow()));
+        }
+
+        if (this.tagging != null) {
+            builder.tagging(Tagging.builder()
+                .tagSet(runContext.render(this.tagging).asMap(String.class, String.class)
+                    .entrySet()
+                    .stream()
+                    .map(e -> Tag.builder()
+                        .key(e.getKey())
+                        .value(e.getValue())
+                        .build()
                     )
-                    .build()
-                );
-            }
-
-            Map<String, String> fileTags = new HashMap<>();
-            Map<String, String> fileVersions = new HashMap<>();
-
-            // use the transfer manager for uploading an S3 file will end up using 8MB upload parts.
-            try (S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
-                String[] renderedFroms;
-                if (this.from instanceof Collection<?> fromURIs) {
-                    renderedFroms = fromURIs.stream()
-                        .map(throwFunction(from -> runContext.render((String) from)))
-                        .toArray(String[]::new);
-                } else if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
-                    renderedFroms = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
-                } else {
-                    renderedFroms = new String[]{runContext.render((String) this.from)};
-                }
-
-                if (renderedFroms.length == 0) {
-                    throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
-                }
-
-                // Handle single file upload case directly
-                if (renderedFroms.length == 1) {
-                    String renderedFrom = renderedFroms[0];
-                    File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
-                    URI from = new URI(runContext.render(renderedFrom));
-                    Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                    PutObjectRequest putObjectRequest = builder.build();
-
-                    FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-                        .putObjectRequest(putObjectRequest)
-                        .source(tempFile)
-                        .build());
-
-                    runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
-
-                    // Wait for the upload
-                    PutObjectResponse response = upload.completionFuture().get().response();
-
-                    runContext.metric(Counter.of("file.count", 1));
-                    runContext.metric(Counter.of("file.size", tempFile.length()));
-
-                    return Output
-                        .builder()
-                        .bucket(bucket)
-                        .key(key)
-                        .eTag(response.eTag())
-                        .versionId(response.versionId())
-                        .build();
-                }
-                // Handle multiple files case
-                else {
-                    for (String renderedFrom : renderedFroms) {
-                        File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
-                        URI from = new URI(runContext.render(renderedFrom));
-                        Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                        String fileName = FilenameUtils.getName(renderedFrom);
-
-                        // Set key for each file in the directory
-                        builder.key(Path.of(key, fileName).toString());
-
-                        PutObjectRequest putObjectRequest = builder.build();
-
-                        FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-                            .putObjectRequest(putObjectRequest)
-                            .source(tempFile)
-                            .build());
-
-                        runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
-
-                        // Wait for the upload
-                        PutObjectResponse response = upload.completionFuture().get().response();
-
-                        fileTags.put(fileName, response.eTag());
-
-                        if (response.versionId() != null) {
-                            fileVersions.put(fileName, response.versionId());
-                        }
-
-                        runContext.metric(Counter.of("file.count", 1));
-                        runContext.metric(Counter.of("file.size", tempFile.length()));
-                    }
-
-                    return Output
-                        .builder()
-                        .key(key)
-                        .bucket(bucket)
-                        .eTags(fileTags)
-                        .versionIds(fileVersions.isEmpty() ? null : fileVersions)
-                        .build();
-                }
-            }
-
+                    .toList()
+                )
+                .build()
+            );
         }
     }
 
