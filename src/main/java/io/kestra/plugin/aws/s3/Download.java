@@ -113,107 +113,128 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
 
-        // Single file mode - when specific key is provided, and we're not trying to use filtering options
-        boolean isSingleFileMode = this.key != null &&
-            (this.prefix == null && this.delimiter == null && this.regexp == null);
-
-        if (isSingleFileMode) {
-            String key = runContext.render(this.key).as(String.class).orElseThrow();
-
-            try (S3AsyncClient client = this.asyncClient(runContext)) {
-                GetObjectRequest.Builder builder = GetObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(key);
-
-                if (this.versionId != null) {
-                    builder.versionId(runContext.render(this.versionId).as(String.class).orElseThrow());
-                }
-
-                if (this.requestPayer != null) {
-                    builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
-                }
-
-                if (this.expectedBucketOwner != null) {
-                    builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
-                }
-
-                Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
-
-                return Output.builder()
-                    .uri(download.getRight())
-                    .eTag(download.getLeft().eTag())
-                    .contentLength(download.getLeft().contentLength())
-                    .contentType(download.getLeft().contentType())
-                    .metadata(download.getLeft().metadata())
-                    .versionId(download.getLeft().versionId())
-                    .build();
-            }
+        if (isSingleFileMode()) {
+            return downloadSingleFile(runContext, bucket);
+        } else if (isValidMultipleFilesMode()) {
+            return downloadMultipleFiles(runContext, bucket);
         } else {
-            // Multiple files mode - using any combination of filtering parameters
-            List listTask = List.builder()
-                .id(this.id)
-                .type(List.class.getName())
-                .region(this.region)
-                .endpointOverride(this.endpointOverride)
-                .accessKeyId(this.accessKeyId)
-                .secretKeyId(this.secretKeyId)
-                .sessionToken(this.sessionToken)
-                .requestPayer(this.requestPayer)
-                .bucket(this.bucket)
-                .prefix(this.prefix)
-                .delimiter(this.delimiter)
-                .marker(this.marker)
-                .maxKeys(this.maxKeys)
-                .expectedBucketOwner(this.expectedBucketOwner)
-                .regexp(this.regexp)
-                .filter(Property.of(ListInterface.Filter.FILES))
-                .stsRoleArn(this.stsRoleArn)
-                .stsRoleSessionName(this.stsRoleSessionName)
-                .stsRoleExternalId(this.stsRoleExternalId)
-                .stsRoleSessionDuration(this.stsRoleSessionDuration)
-                .stsEndpointOverride(this.stsEndpointOverride)
-                .build();
-
-            List.Output listResult = listTask.run(runContext);
-
-            if (listResult.getObjects().isEmpty()) {
-                runContext.logger().warn("No objects found matching the filter criteria");
-            }
-
-            Map<String, URI> uris = new HashMap<>();
-            Map<String, Long> contentLengths = new HashMap<>();
-            Map<String, String> contentTypes = new HashMap<>();
-            Map<String, Map<String, String>> metadataMap = new HashMap<>();
-
-            try (S3AsyncClient client = this.asyncClient(runContext)) {
-                for (S3Object object : listResult.getObjects()) {
-                    GetObjectRequest.Builder builder = GetObjectRequest.builder()
-                        .bucket(bucket)
-                        .key(object.getKey());
-
-                    if (this.requestPayer != null) {
-                        builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
-                    }
-
-                    if (this.expectedBucketOwner != null) {
-                        builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
-                    }
-
-                    Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
-                    uris.put(object.getKey(), download.getRight());
-                    contentLengths.put(object.getKey(), download.getLeft().contentLength());
-                    contentTypes.put(object.getKey(), download.getLeft().contentType());
-                    metadataMap.put(object.getKey(), download.getLeft().metadata());
-                }
-
-                return Output.builder()
-                    .uris(uris)
-                    .contentLengths(contentLengths)
-                    .contentTypes(contentTypes)
-                    .metadatas(metadataMap)
-                    .build();
-            }
+            throw new IllegalArgumentException("Invalid configuration: either specify 'key' for single file download or at least one filtering parameter (prefix, delimiter, regexp) for multiple files download");
         }
+    }
+
+    private boolean isValidMultipleFilesMode() {
+        return this.prefix != null || this.delimiter != null || this.regexp != null;
+    }
+
+    private boolean isSingleFileMode() {
+        return this.key != null &&
+            (this.prefix == null && this.delimiter == null && this.regexp == null);
+    }
+
+    private Output downloadSingleFile(RunContext runContext, String bucket) throws Exception {
+        String key = runContext.render(this.key).as(String.class).orElseThrow();
+
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
+            GetObjectRequest request = buildGetObjectRequest(runContext, bucket, key);
+            Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
+
+            return Output.builder()
+                .uri(download.getRight())
+                .eTag(download.getLeft().eTag())
+                .contentLength(download.getLeft().contentLength())
+                .contentType(download.getLeft().contentType())
+                .metadata(download.getLeft().metadata())
+                .versionId(download.getLeft().versionId())
+                .build();
+        }
+    }
+
+    private GetObjectRequest buildGetObjectRequest(RunContext runContext, String bucket, String key) throws Exception {
+        GetObjectRequest.Builder builder = GetObjectRequest.builder()
+            .bucket(bucket)
+            .key(key);
+
+        if (this.versionId != null) {
+            builder.versionId(runContext.render(this.versionId).as(String.class).orElseThrow());
+        }
+
+        if (this.requestPayer != null) {
+            builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
+        }
+
+        if (this.expectedBucketOwner != null) {
+            builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
+        }
+
+        return builder.build();
+    }
+
+    private Output downloadMultipleFiles(RunContext runContext, String bucket) throws Exception {
+        List.Output listResult = getObjectsList(runContext);
+
+        if (listResult.getObjects().isEmpty()) {
+            runContext.logger().warn("No objects found matching the filter criteria");
+        }
+
+        Map<String, URI> uris = new HashMap<>();
+        Map<String, Long> contentLengths = new HashMap<>();
+        Map<String, String> contentTypes = new HashMap<>();
+        Map<String, Map<String, String>> metadataMap = new HashMap<>();
+        Map<String, String> versionIds = new HashMap<>();
+
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
+            for (S3Object object : listResult.getObjects()) {
+                GetObjectRequest request = buildGetObjectRequest(runContext, bucket, object.getKey());
+                Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
+
+                String key = object.getKey();
+                uris.put(key, download.getRight());
+                contentLengths.put(key, download.getLeft().contentLength());
+                contentTypes.put(key, download.getLeft().contentType());
+                metadataMap.put(key, download.getLeft().metadata());
+
+
+                if (download.getLeft().versionId() != null) {
+                    versionIds.put(key, download.getLeft().versionId());
+                }
+            }
+
+            return Output.builder()
+                .uris(uris)
+                .contentLengths(contentLengths)
+                .contentTypes(contentTypes)
+                .metadatas(metadataMap)
+                .versionIds(versionIds.isEmpty() ? null : versionIds)
+                .build();
+        }
+    }
+
+    private List.Output getObjectsList(RunContext runContext) throws Exception {
+        List listTask = List.builder()
+            .id(this.id)
+            .type(List.class.getName())
+            .region(this.region)
+            .endpointOverride(this.endpointOverride)
+            .accessKeyId(this.accessKeyId)
+            .secretKeyId(this.secretKeyId)
+            .sessionToken(this.sessionToken)
+            .requestPayer(this.requestPayer)
+            .bucket(this.bucket)
+            .prefix(this.prefix)
+            .delimiter(this.delimiter)
+            .marker(this.marker)
+            .maxKeys(this.maxKeys)
+            .expectedBucketOwner(this.expectedBucketOwner)
+            .regexp(this.regexp)
+            .filter(Property.of(ListInterface.Filter.FILES))
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
+            .stsEndpointOverride(this.stsEndpointOverride)
+            .build();
+
+        return listTask.run(runContext);
     }
 
     @SuperBuilder
@@ -255,5 +276,10 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             title = "Map of object keys to their S3 metadata (multiple files mode only)"
         )
         private final Map<String, Map<String, String>> metadatas;
+
+        @Schema(
+            title = "Map of object keys to their version IDs (multiple files mode only)"
+        )
+        private final Map<String, String> versionIds;
     }
 }

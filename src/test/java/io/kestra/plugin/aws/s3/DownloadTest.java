@@ -9,6 +9,7 @@ import java.net.URI;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DownloadTest extends AbstractTest {
 
@@ -82,7 +83,15 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputFolder1 = downloadFolder1.run(runContext(downloadFolder1));
-        assertThat(outputFolder1.getUris().size(), is(3)); // a1.txt, a2.txt, b1.json
+        assertThat(outputFolder1.getUris().size(), is(3));
+
+        assertThat(outputFolder1.getUris().keySet(), hasItems(
+            containsString("a1.txt"),
+            containsString("a2.txt"),
+            containsString("b1.json")
+        ));
+
+
 
         // Test 2: Download only from folder1 with delimiter (only direct files in folder1)
         Download downloadFolder1Direct = Download.builder()
@@ -98,8 +107,10 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputFolder1Direct = downloadFolder1Direct.run(runContext(downloadFolder1Direct));
-        assertThat(outputFolder1Direct.getUris().size(), is(1)); // only b1.json
-
+        assertThat(outputFolder1Direct.getUris().size(), is(1));
+        assertThat(outputFolder1Direct.getUris().keySet(), hasItems(
+            containsString("b1.json")
+        ));
         // Test 3: Use regexp to filter only .txt files from the entire hierarchy
         Download downloadTxtFiles = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-txtFiles")
@@ -114,16 +125,14 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputTxtFiles = downloadTxtFiles.run(runContext(downloadTxtFiles));
-        assertThat(outputTxtFiles.getUris().size(), is(2)); // a1.txt, a2.txt
+        assertThat(outputTxtFiles.getUris().size(), is(2));
 
-        // Verify the downloaded files have correct keys
         assertThat(outputTxtFiles.getUris().keySet(), hasItems(
             containsString("a1.txt"),
             containsString("a2.txt")
         ));
     }
 
-    // Helper method to upload a single file to a specific location
     private void uploadFile(URI source, String key) throws Exception {
         Upload upload = Upload.builder()
             .id(DownloadTest.class.getSimpleName())
@@ -137,5 +146,31 @@ class DownloadTest extends AbstractTest {
             .key(Property.of(key))
             .build();
         upload.run(runContext(upload));
+    }
+
+    @Test
+    void testInvalidConfiguration() throws Exception {
+        this.createBucket();
+
+        Download invalidDownload = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-invalid")
+            .type(Download.class.getName())
+            .bucket(Property.of(this.BUCKET))
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .region(Property.of(localstack.getRegion()))
+            .build();
+
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> invalidDownload.run(runContext(invalidDownload))
+        );
+
+        assertThat(
+            exception.getMessage(),
+            containsString("Invalid configuration: either specify 'key' for single file download or at least one filtering parameter")
+        );
     }
 }
