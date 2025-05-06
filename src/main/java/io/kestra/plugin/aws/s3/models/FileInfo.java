@@ -34,4 +34,9 @@ public class FileInfo {
         title = "The version ID of the file"
     )
     private String versionId;
+
+    @Schema(
+            title = "An ETag is an opaque identifier assigned by a web server to a specific version of a resource found at a URL."
+    )
+    private String eTag;
 }

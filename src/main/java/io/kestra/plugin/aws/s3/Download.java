@@ -190,6 +190,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                     .contentLength(download.getLeft().contentLength())
                     .contentType(download.getLeft().contentType())
                     .metadata(download.getLeft().metadata())
+                    .eTag(download.getLeft().eTag())
                     .versionId(download.getLeft().versionId())
                     .build());
             }
