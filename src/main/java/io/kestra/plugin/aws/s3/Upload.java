@@ -8,6 +8,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -260,7 +261,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = "The account ID of the expected bucket owner.",
         description = "If the bucket is owned by a different account, the request fails " +
-            "with the HTTP status code `403 Forbidden` (access denied)."
+                      "with the HTTP status code `403 Forbidden` (access denied)."
     )
     private Property<String> expectedBucketOwner;
 
@@ -355,8 +356,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
                                        String bucket, String baseKey, String[] renderedFroms) throws Exception {
-        Map<String, String> fileTags = new HashMap<>();
-        Map<String, String> fileVersions = new HashMap<>();
+        Map<String, FileInfo> fileInfoMap = new HashMap<>();
 
         for (String renderedFrom : renderedFroms) {
             File tempFile = copyFileToTemp(runContext, renderedFrom);
@@ -374,10 +374,14 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
             PutObjectResponse response = upload.completionFuture().get().response();
 
-            fileTags.put(fileName, response.eTag());
-            if (response.versionId() != null) {
-                fileVersions.put(fileName, response.versionId());
-            }
+
+            FileInfo fileInfo = FileInfo.builder()
+                .eTag(response.eTag())
+                .versionId(response.versionId())
+                .contentLength(tempFile.length())
+                .build();
+
+            fileInfoMap.put(fileName, fileInfo);
 
             recordMetrics(runContext, tempFile);
         }
@@ -385,8 +389,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         return Output.builder()
             .key(baseKey)
             .bucket(bucket)
-            .eTags(fileTags)
-            .versionIds(fileVersions.isEmpty() ? null : fileVersions)
+            .files(fileInfoMap)
             .build();
     }
 
@@ -526,16 +529,10 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         private final String key;
 
         @Schema(
-            title = "ETags of the uploaded files",
-            description = "A map of file names to their corresponding ETags returned by S3. Returned only for multiple file uploads."
+            title = "Information about uploaded files",
+            description = "A map of file names to their corresponding file information. Returned only for multiple file uploads."
         )
-        private final Map<String, String> eTags;
-
-        @Schema(
-            title = "Version IDs of the uploaded files",
-            description = "A map of file names to their corresponding version IDs (if bucket versioning is enabled). Returned only for multiple file uploads."
-        )
-        private final Map<String, String> versionIds;
+        private final Map<String, FileInfo> files;
     }
 
 

@@ -40,9 +40,9 @@ class UploadsTest extends AbstractTest {
         // Verify MultiFileUploadOutput
         assertThat(uploadOutput.getBucket(), is(this.BUCKET));
         assertThat(uploadOutput.getKey(), is(notNullValue()));
-        assertThat(uploadOutput.getETags(), is(notNullValue()));
-        assertThat(uploadOutput.getETags().size(), is(4));
-        assertThat(uploadOutput.getETags().keySet(), hasItems("1.yml", "2.yml", "3.yml", "4.yml"));
+        assertThat(uploadOutput.getFiles(), is(notNullValue()));
+        assertThat(uploadOutput.getFiles().size(), is(4));
+        assertThat(uploadOutput.getFiles().keySet(), hasItems("1.yml", "2.yml", "3.yml", "4.yml"));
 
         // list
         List list = List.builder()
@@ -126,12 +126,11 @@ class UploadsTest extends AbstractTest {
 
         Upload.Output uploadOutput = upload.run(runContext(upload));
 
-        // Verify MultiFileUploadOutput
         assertThat(uploadOutput.getBucket(), is(this.BUCKET));
         assertThat(uploadOutput.getKey(), is(notNullValue()));
-        assertThat(uploadOutput.getETags(), is(notNullValue()));
-        assertThat(uploadOutput.getETags().size(), is(2));
-        assertThat(uploadOutput.getETags().keySet(), hasItems("1.yml", "2.yml"));
+        assertThat(uploadOutput.getFiles(), is(notNullValue()));
+        assertThat(uploadOutput.getFiles().size(), is(2));
+        assertThat(uploadOutput.getFiles().keySet(), hasItems("1.yml", "2.yml"));
 
         List list = List.builder()
             .id("JsonArrayStringListTest")
