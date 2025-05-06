@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -176,11 +177,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             runContext.logger().warn("No objects found matching the filter criteria");
         }
 
-        Map<String, URI> uris = new HashMap<>();
-        Map<String, Long> contentLengths = new HashMap<>();
-        Map<String, String> contentTypes = new HashMap<>();
-        Map<String, Map<String, String>> metadataMap = new HashMap<>();
-        Map<String, String> versionIds = new HashMap<>();
+        Map<String, FileInfo> files = new HashMap<>();
 
         try (S3AsyncClient client = this.asyncClient(runContext)) {
             for (S3Object object : listResult.getObjects()) {
@@ -188,23 +185,17 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
                 String key = object.getKey();
-                uris.put(key, download.getRight());
-                contentLengths.put(key, download.getLeft().contentLength());
-                contentTypes.put(key, download.getLeft().contentType());
-                metadataMap.put(key, download.getLeft().metadata());
-
-
-                if (download.getLeft().versionId() != null) {
-                    versionIds.put(key, download.getLeft().versionId());
-                }
+                files.put(key, FileInfo.builder()
+                    .uri(download.getRight())
+                    .contentLength(download.getLeft().contentLength())
+                    .contentType(download.getLeft().contentType())
+                    .metadata(download.getLeft().metadata())
+                    .versionId(download.getLeft().versionId())
+                    .build());
             }
 
             return Output.builder()
-                .uris(uris)
-                .contentLengths(contentLengths)
-                .contentTypes(contentTypes)
-                .metadatas(metadataMap)
-                .versionIds(versionIds.isEmpty() ? null : versionIds)
+                .files(files)
                 .build();
         }
     }
@@ -258,28 +249,9 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         private final Map<String, String> metadata;
 
         @Schema(
-            title = "Map of object keys to their downloaded file URIs in Kestra's storage (multiple files mode only)"
+            title = "Map of object keys to their complete file information (multiple files mode only)"
         )
-        private final Map<String, URI> uris;
+        private final Map<String, FileInfo> files;
 
-        @Schema(
-            title = "Map of object keys to their file sizes in bytes (multiple files mode only)"
-        )
-        private final Map<String, Long> contentLengths;
-
-        @Schema(
-            title = "Map of object keys to their MIME types (multiple files mode only)"
-        )
-        private final Map<String, String> contentTypes;
-
-        @Schema(
-            title = "Map of object keys to their S3 metadata (multiple files mode only)"
-        )
-        private final Map<String, Map<String, String>> metadatas;
-
-        @Schema(
-            title = "Map of object keys to their version IDs (multiple files mode only)"
-        )
-        private final Map<String, String> versionIds;
     }
 }

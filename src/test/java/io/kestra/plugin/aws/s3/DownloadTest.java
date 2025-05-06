@@ -83,15 +83,13 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputFolder1 = downloadFolder1.run(runContext(downloadFolder1));
-        assertThat(outputFolder1.getUris().size(), is(3));
+        assertThat(outputFolder1.getFiles().size(), is(3));
 
-        assertThat(outputFolder1.getUris().keySet(), hasItems(
+        assertThat(outputFolder1.getFiles().keySet(), hasItems(
             containsString("a1.txt"),
             containsString("a2.txt"),
             containsString("b1.json")
         ));
-
-
 
         // Test 2: Download only from folder1 with delimiter (only direct files in folder1)
         Download downloadFolder1Direct = Download.builder()
@@ -107,10 +105,11 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputFolder1Direct = downloadFolder1Direct.run(runContext(downloadFolder1Direct));
-        assertThat(outputFolder1Direct.getUris().size(), is(1));
-        assertThat(outputFolder1Direct.getUris().keySet(), hasItems(
+        assertThat(outputFolder1Direct.getFiles().size(), is(1));
+        assertThat(outputFolder1Direct.getFiles().keySet(), hasItems(
             containsString("b1.json")
         ));
+
         // Test 3: Use regexp to filter only .txt files from the entire hierarchy
         Download downloadTxtFiles = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-txtFiles")
@@ -125,9 +124,9 @@ class DownloadTest extends AbstractTest {
             .build();
 
         Download.Output outputTxtFiles = downloadTxtFiles.run(runContext(downloadTxtFiles));
-        assertThat(outputTxtFiles.getUris().size(), is(2));
+        assertThat(outputTxtFiles.getFiles().size(), is(2));
 
-        assertThat(outputTxtFiles.getUris().keySet(), hasItems(
+        assertThat(outputTxtFiles.getFiles().keySet(), hasItems(
             containsString("a1.txt"),
             containsString("a2.txt")
         ));
