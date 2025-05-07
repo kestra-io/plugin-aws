@@ -21,7 +21,7 @@ public class FileInfo {
     private Long contentLength;
 
     @Schema(
-        title = "The MIME type of the file"
+            title = "The MIME type of the file"
     )
     private String contentType;
 
