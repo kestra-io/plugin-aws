@@ -11,12 +11,12 @@ import java.util.Map;
 @Getter
 public class FileInfo {
     @Schema(
-            title = "The URI of the downloaded file in Kestra's storage"
+        title = "The URI of the downloaded file in Kestra's storage"
     )
     private URI uri;
 
     @Schema(
-            title = "The size of the file in bytes"
+        title = "The size of the file in bytes"
     )
     private Long contentLength;
 
@@ -26,12 +26,12 @@ public class FileInfo {
     private String contentType;
 
     @Schema(
-            title = "The metadata of the file"
+        title = "The metadata of the file"
     )
     private Map<String, String> metadata;
 
     @Schema(
-            title = "The version ID of the file"
+        title = "The version ID of the file"
     )
     private String versionId;
 
