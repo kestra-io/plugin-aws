@@ -8,18 +8,20 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
+import io.kestra.plugin.aws.glue.model.Output;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
-import io.kestra.plugin.aws.glue.GetJobRun.Output;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 
 @SuperBuilder
 @ToString
@@ -42,14 +44,14 @@ import java.util.concurrent.atomic.AtomicReference;
                   - id: start
                     type: io.kestra.plugin.aws.glue.StartJobRun
                     jobName: my-glue-job
-                    timeout: 3600
+                    maxDuration: 3600
                     wait: true
                     interval: 100
                 """
         )
     }
 )
-public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJobRun.Output> {
+public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
     @Schema(title = "The name of the Glue job to run.")
     @NotNull
@@ -72,17 +74,17 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJob
     private Property<Boolean> wait = Property.of(true);
 
     @Schema(
-        title = "Timeout for waiting for job completion (in minutes)"
+        title = "Timeout for waiting for job completion."
     )
     @PluginProperty
-    private Property<Integer> timeout;
+    private Property<Duration> maxDuration;
 
     @Schema(
-        title = "Interval between status checks (in milliseconds)"
+        title = "Interval between status checks."
     )
     @Builder.Default
     @PluginProperty
-    private Property<Integer> interval = Property.of(100);
+    private Property<Duration> interval = Property.of(Duration.ofMillis(100));
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
@@ -90,10 +92,17 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJob
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String jobRunId = startJob(runContext, glueClient, jobNameValue);
 
+            GetJobRunRequest getJobRunRequest = createGetJobRunRequest(jobNameValue, jobRunId);
+
             AtomicReference<JobRun> currentJobRun = new AtomicReference<>();
+            GetJobRunResponse initialResponse = glueClient.getJobRun(getJobRunRequest);
+            JobRun initialJobRun = initialResponse.jobRun();
+            currentJobRun.set(initialJobRun);
+
+            runContext.logger().info("Initial job state: {}", initialJobRun.jobRunStateAsString());
 
             if (runContext.render(this.wait).as(Boolean.class).orElse(true)) {
-                waitForJobCompletion(runContext, glueClient, jobNameValue, jobRunId, currentJobRun);
+                waitForJobCompletion(runContext, glueClient, getJobRunRequest, currentJobRun);
             }
 
             return buildOutput(jobNameValue, jobRunId, currentJobRun.get());
@@ -104,9 +113,9 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJob
         StartJobRunRequest.Builder requestBuilder = StartJobRunRequest.builder()
             .jobName(jobNameValue);
 
-
-        if (timeout != null) {
-            requestBuilder.timeout(runContext.render(this.timeout).as(Integer.class).orElseThrow());
+        if (this.maxDuration != null) {
+            Duration duration = runContext.render(this.maxDuration).as(Duration.class).orElseThrow();
+            requestBuilder.timeout((int) duration.toMinutes());
         }
 
         addArgumentsIfProvided(runContext, requestBuilder);
@@ -128,48 +137,41 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJob
         }
     }
 
-    private void waitForJobCompletion(RunContext runContext, GlueClient glueClient, String jobNameValue,
-                                      String jobRunId, AtomicReference<JobRun> currentJobRun) throws IllegalVariableEvaluationException {
+    private void waitForJobCompletion(RunContext runContext, GlueClient glueClient,
+                                      GetJobRunRequest getJobRunRequest,
+                                      AtomicReference<JobRun> currentJobRun) throws IllegalVariableEvaluationException {
         runContext.logger().debug("Waiting for job completion...");
-
-        Duration intervalDuration = Duration.ofMillis(runContext.render(this.interval).as(Integer.class).orElseThrow());
+        Duration intervalDuration = runContext.render(this.interval).as(Duration.class).orElseThrow();
 
         Await.until(
-            () -> pollAndUpdateJobState(glueClient, jobNameValue, jobRunId, currentJobRun),
+            () -> pollAndUpdateJobState(glueClient, getJobRunRequest, runContext, currentJobRun),
             intervalDuration
         );
-
-        logJobCompletionStatus(runContext, currentJobRun.get());
     }
 
-    private boolean pollAndUpdateJobState(GlueClient glueClient, String jobNameValue, String jobRunId, AtomicReference<JobRun> currentJobRun) {
-        GetJobRunRequest getJobRunRequest = GetJobRunRequest.builder()
-            .jobName(jobNameValue)
-            .runId(jobRunId)
-            .build();
-
+    private boolean pollAndUpdateJobState(GlueClient glueClient, GetJobRunRequest getJobRunRequest,
+                                          RunContext runContext, AtomicReference<JobRun> currentJobRun) {
         GetJobRunResponse jobRunResponse = glueClient.getJobRun(getJobRunRequest);
         JobRun jobRun = jobRunResponse.jobRun();
 
-        if (jobRun != null) {
-            currentJobRun.set(jobRun);
-        }
+        currentJobRun.set(jobRun);
 
-        String state = jobRun != null ? jobRun.jobRunStateAsString() : "";
-        return !state.equals("STARTING") && !state.equals("RUNNING");
+        var state = jobRun.jobRunState();
+        logJobCompletionStatus(runContext, jobRun);
+
+        return !state.equals(JobRunState.STARTING) && !state.equals(JobRunState.RUNNING) &&
+               !state.equals(JobRunState.WAITING);
     }
 
     private void logJobCompletionStatus(RunContext runContext, JobRun jobRun) {
-        if (jobRun != null && !jobRun.jobRunStateAsString().equals("SUCCEEDED")) {
-            runContext.logger().warn("Glue job completed with non-success state: {}", jobRun.jobRunStateAsString());
-            if (jobRun.errorMessage() != null && !jobRun.errorMessage().isEmpty()) {
-                runContext.logger().warn("Error message: {}", jobRun.errorMessage());
-            }
+        runContext.logger().info("Job state: {}", jobRun.jobRunStateAsString());
+        if (jobRun.executionTime() != null) {
+            runContext.logger().info("Execution time: {} seconds", jobRun.executionTime());
         }
     }
 
     private Output buildOutput(String jobNameValue, String jobRunId, JobRun jobRun) {
-        return GetJobRun.Output.builder()
+        return Output.builder()
             .jobName(jobNameValue)
             .jobRunId(jobRunId)
             .state(jobRun.jobRunStateAsString())
@@ -181,9 +183,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<GetJob
             .executionTime(jobRun.executionTime())
             .timeout(jobRun.timeout())
             .attempt(jobRun.attempt())
-            .errorMessage(jobRun.errorMessage() != null ?
-                jobRun.errorMessage() : null)
+            .errorMessage(jobRun.errorMessage())
             .build();
     }
-
 }

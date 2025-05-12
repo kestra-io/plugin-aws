@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.glue.model.Output;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -15,6 +16,8 @@ import software.amazon.awssdk.services.glue.model.*;
 
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+
+import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 
 @SuperBuilder
 @ToString
@@ -61,7 +64,7 @@ import java.util.Comparator;
         )
     }
 )
-public class GetJobRun extends AbstractGlueTask implements RunnableTask<GetJobRun.Output> {
+public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> {
     @Schema(
         title = "The name of the Glue job."
     )
@@ -100,7 +103,6 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<GetJobRu
                     throw new IllegalArgumentException("No job runs found for job: " + jobNameValue);
                 }
 
-                // Find the most recent job run
                 JobRun latestRun = jobRunsResponse.jobRuns().stream()
                     .max(Comparator.comparing(JobRun::startedOn))
                     .orElseThrow(() -> new IllegalArgumentException("Failed to determine latest job run"));
@@ -109,10 +111,7 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<GetJobRu
                 runContext.logger().info("Using latest job run with ID: {}", runIdValue);
             }
 
-            GetJobRunRequest request = GetJobRunRequest.builder()
-                .jobName(jobNameValue)
-                .runId(runIdValue)
-                .build();
+            GetJobRunRequest request = createGetJobRunRequest(jobNameValue, runIdValue);
 
             GetJobRunResponse response = glueClient.getJobRun(request);
 
@@ -140,37 +139,4 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<GetJobRu
         }
     }
 
-    @Builder
-    @Getter
-    public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The name of the job")
-        private final String jobName;
-
-        @Schema(title = "The ID of the job run")
-        private final String jobRunId;
-
-        @Schema(title = "The current state of the job run")
-        private final String state;
-
-        @Schema(title = "When the job run was started")
-        private final ZonedDateTime startedOn;
-
-        @Schema(title = "When the job run was completed, if applicable")
-        private final ZonedDateTime completedOn;
-
-        @Schema(title = "The last time the job run was modified")
-        private final ZonedDateTime lastModifiedOn;
-
-        @Schema(title = "The execution time of the job in seconds")
-        private final Integer executionTime;
-
-        @Schema(title = "The timeout configuration for the job in minutes")
-        private final Integer timeout;
-
-        @Schema(title = "The attempt number for this job run")
-        private final Integer attempt;
-
-        @Schema(title = "The error message if the job failed")
-        private final String errorMessage;
-    }
 }
