@@ -74,7 +74,10 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
     private Property<Boolean> wait = Property.of(true);
 
     @Schema(
-        title = "Timeout for waiting for job completion."
+        title = "Timeout for waiting for job completion.",
+        description = "If the job does not complete within this duration, the task will fail. " +
+                      "Defaults are 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
+                      "and no job timeout is defaulted for a Glue Streaming job."
     )
     @PluginProperty
     private Property<Duration> maxDuration;
@@ -103,6 +106,11 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
 
             if (runContext.render(this.wait).as(Boolean.class).orElse(true)) {
                 waitForJobCompletion(runContext, glueClient, getJobRunRequest, currentJobRun);
+            }
+
+            if (!currentJobRun.get().jobRunState().equals(JobRunState.SUCCEEDED)) {
+                throw new RuntimeException("Job terminated with state: " + currentJobRun.get().jobRunStateAsString() +
+                                           (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : ""));
             }
 
             return buildOutput(jobNameValue, jobRunId, currentJobRun.get());
@@ -152,22 +160,16 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
     private boolean pollAndUpdateJobState(GlueClient glueClient, GetJobRunRequest getJobRunRequest,
                                           RunContext runContext, AtomicReference<JobRun> currentJobRun) {
         GetJobRunResponse jobRunResponse = glueClient.getJobRun(getJobRunRequest);
-        JobRun jobRun = jobRunResponse.jobRun();
 
+        JobRun jobRun = jobRunResponse.jobRun();
         currentJobRun.set(jobRun);
 
+        runContext.logger().info("Job state: {}, Execution time: {} seconds", jobRun.jobRunStateAsString(), jobRun.executionTime());
+
         var state = jobRun.jobRunState();
-        logJobCompletionStatus(runContext, jobRun);
 
         return !state.equals(JobRunState.STARTING) && !state.equals(JobRunState.RUNNING) &&
                !state.equals(JobRunState.WAITING);
-    }
-
-    private void logJobCompletionStatus(RunContext runContext, JobRun jobRun) {
-        runContext.logger().info("Job state: {}", jobRun.jobRunStateAsString());
-        if (jobRun.executionTime() != null) {
-            runContext.logger().info("Execution time: {} seconds", jobRun.executionTime());
-        }
     }
 
     private Output buildOutput(String jobNameValue, String jobRunId, JobRun jobRun) {
