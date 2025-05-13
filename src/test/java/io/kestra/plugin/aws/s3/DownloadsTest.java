@@ -13,9 +13,6 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 class DownloadsTest extends AbstractTest {
-    @Inject
-    private RunContextFactory runContextFactory;
-
     @Test
     void delete() throws Exception {
         this.createBucket();

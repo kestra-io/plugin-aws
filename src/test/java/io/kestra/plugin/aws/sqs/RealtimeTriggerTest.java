@@ -42,9 +42,6 @@ class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     protected LocalFlowRepositoryLoader repositoryLoader;
 
-    @Inject
-    private RunContextFactory runContextFactory;
-
     @Test
     void flow() throws Exception {
         // mock flow listeners
