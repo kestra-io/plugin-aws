@@ -81,7 +81,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         title = "Interval between status checks."
     )
     @Builder.Default
-    private Property<Duration> interval = Property.of(Duration.ofMillis(100));
+    private Property<Duration> interval = Property.of(Duration.ofMillis(1000));
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
