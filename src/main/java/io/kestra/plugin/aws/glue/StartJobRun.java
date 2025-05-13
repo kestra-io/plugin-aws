@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.glue;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -55,14 +54,12 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
 
     @Schema(title = "The name of the Glue job to run.")
     @NotNull
-    @PluginProperty
     private Property<String> jobName;
 
     @Schema(
         title = "The job arguments used for this job run.",
         description = "These are key-value string pairs passed to the job."
     )
-    @PluginProperty
     private Property<Map<String, String>> arguments;
 
     @Schema(
@@ -70,7 +67,6 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         description = "If true, the task will periodically check the job status until it completes."
     )
     @Builder.Default
-    @PluginProperty
     private Property<Boolean> wait = Property.of(true);
 
     @Schema(
@@ -79,14 +75,12 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
                       "Defaults are 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
                       "and no job timeout is defaulted for a Glue Streaming job."
     )
-    @PluginProperty
     private Property<Duration> maxDuration;
 
     @Schema(
         title = "Interval between status checks."
     )
     @Builder.Default
-    @PluginProperty
     private Property<Duration> interval = Property.of(Duration.ofMillis(100));
 
     @Override
@@ -108,8 +102,9 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
                 waitForJobCompletion(runContext, glueClient, getJobRunRequest, currentJobRun);
             }
 
-            if (!currentJobRun.get().jobRunState().equals(JobRunState.SUCCEEDED)) {
-                throw new RuntimeException("Job terminated with state: " + currentJobRun.get().jobRunStateAsString() +
+            if (!currentJobRun.get().jobRunState().equals(JobRunState.SUCCEEDED) && !currentJobRun.get().jobRunState().equals(JobRunState.RUNNING)
+                && !currentJobRun.get().jobRunState().equals(JobRunState.WAITING) && !currentJobRun.get().jobRunState().equals(JobRunState.STARTING)) {
+                throw new RuntimeException("Job state: " + currentJobRun.get().jobRunStateAsString() +
                                            (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : ""));
             }
 
