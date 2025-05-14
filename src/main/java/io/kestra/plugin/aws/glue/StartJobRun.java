@@ -15,6 +15,8 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Map;
@@ -43,7 +45,7 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
                   - id: start
                     type: io.kestra.plugin.aws.glue.StartJobRun
                     jobName: my-glue-job
-                    maxDuration: 3600
+                    maxDuration: PT1H
                     wait: true
                     interval: 100
                 """
@@ -71,8 +73,8 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
 
     @Schema(
         title = "Timeout for waiting for job completion.",
-        description = "If the job does not complete within this duration, the task will fail. " +
-                      "Defaults are 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
+        description = "If the job does not complete within this duration (rounded up to minutes), the task will fail. " +
+                      "If this property is not set, the default timeout is 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
                       "and no job timeout is defaulted for a Glue Streaming job."
     )
     private Property<Duration> maxDuration;
@@ -118,7 +120,10 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
 
         if (this.maxDuration != null) {
             Duration duration = runContext.render(this.maxDuration).as(Duration.class).orElseThrow();
-            requestBuilder.timeout((int) duration.toMinutes());
+            BigDecimal mins = BigDecimal
+                .valueOf(duration.toMillis())
+                .divide(BigDecimal.valueOf(60_000), RoundingMode.UP);
+            requestBuilder.timeout(mins.intValue());
         }
 
         addArgumentsIfProvided(runContext, requestBuilder);
