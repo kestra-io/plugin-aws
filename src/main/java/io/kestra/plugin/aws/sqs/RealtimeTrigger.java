@@ -58,7 +58,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
                   accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                   secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                   region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                  queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"""
+                  queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue
+                """
         ),
         @Example(
             full = true,
@@ -91,7 +92,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                     region: eu-central-1
                     queueUrl: https://sqs.eu-central-1.amazonaws.com/000000000000/orders
                     serdeType: JSON
-            """
+                """
         )
             
     }

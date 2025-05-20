@@ -105,7 +105,7 @@ import java.util.Map;
                     commands:
                       - aws ecs list-clusters --query 'clusterArns[*]'
                       - aws ecs list-clusters > output.json
-            """
+                """
         )
     }
 )

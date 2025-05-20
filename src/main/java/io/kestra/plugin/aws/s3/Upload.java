@@ -95,7 +95,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         region: "{{ secret('AWS_DEFAULT_REGION') }}"
                         accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                         secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                """
+                    """
         ),
         @Example(
             full = true,

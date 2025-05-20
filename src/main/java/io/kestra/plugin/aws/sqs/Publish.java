@@ -79,7 +79,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     queueUrl: https://sqs.eu-central-1.amazonaws.com/123456789/kestra
                     from:
                       data: "{{ inputs.message }}"
-            """
+                """
         )
     }
 )
