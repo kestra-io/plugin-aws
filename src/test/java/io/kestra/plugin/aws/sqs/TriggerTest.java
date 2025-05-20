@@ -44,7 +44,7 @@ class TriggerTest extends AbstractSqsTest {
     protected LocalFlowRepositoryLoader repositoryLoader;
 
     @Inject
-    private RunContextFactory runContextFactory;
+    protected RunContextFactory runContextFactory;
 
 
     @Test
