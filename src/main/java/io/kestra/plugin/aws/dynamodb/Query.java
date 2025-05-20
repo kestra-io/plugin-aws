@@ -43,7 +43,7 @@ import jakarta.validation.constraints.NotNull;
                     keyConditionExpression: id = :id
                     expressionAttributeValues:
                       :id: "1"
-            """
+                """
         ),
         @Example(
             title = "Query items from a table with a filter expression.",
