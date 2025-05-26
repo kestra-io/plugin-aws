@@ -56,7 +56,6 @@ dependencies {
     compileOnly'org.slf4j:slf4j-api'
 
     // AWS libraries are managed by the the Kestra Platform so they are aligned on all plugins
-    api platform('software.amazon.awssdk:bom')
     api 'software.amazon.awssdk:cloudwatchlogs'
     api 'software.amazon.awssdk:s3'
     api 'software.amazon.awssdk:s3-transfer-manager'
