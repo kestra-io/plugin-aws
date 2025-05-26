@@ -9,7 +9,10 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.glue.model.Output;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
@@ -83,11 +86,9 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> 
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String runIdValue = null;
 
-
             if (this.runId != null) {
                 runIdValue = runContext.render(this.runId).as(String.class).orElse(null);
             }
-
 
             if (runIdValue == null || runIdValue.isEmpty()) {
                 runContext.logger().debug("No runId provided, retrieving the latest job run for job '{}'", jobNameValue);

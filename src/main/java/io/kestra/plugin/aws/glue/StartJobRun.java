@@ -20,6 +20,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
@@ -69,7 +70,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         description = "If true, the task will periodically check the job status until it completes."
     )
     @Builder.Default
-    private Property<Boolean> wait = Property.of(true);
+    private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
         title = "Timeout for waiting for job completion.",
@@ -83,7 +84,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         title = "Interval between status checks."
     )
     @Builder.Default
-    private Property<Duration> interval = Property.of(Duration.ofMillis(1000));
+    private Property<Duration> interval = Property.ofValue(Duration.ofMillis(1000));
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
@@ -104,8 +105,14 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
                 waitForJobCompletion(runContext, glueClient, getJobRunRequest, currentJobRun);
             }
 
-            if (!currentJobRun.get().jobRunState().equals(JobRunState.SUCCEEDED) && !currentJobRun.get().jobRunState().equals(JobRunState.RUNNING)
-                && !currentJobRun.get().jobRunState().equals(JobRunState.WAITING) && !currentJobRun.get().jobRunState().equals(JobRunState.STARTING)) {
+            var acceptableJobStates = Set.of(
+                JobRunState.SUCCEEDED,
+                JobRunState.RUNNING,
+                JobRunState.WAITING,
+                JobRunState.STARTING
+            );
+
+            if (!acceptableJobStates.contains(currentJobRun.get().jobRunState())) {
                 throw new RuntimeException("Job state: " + currentJobRun.get().jobRunStateAsString() +
                                            (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : ""));
             }
