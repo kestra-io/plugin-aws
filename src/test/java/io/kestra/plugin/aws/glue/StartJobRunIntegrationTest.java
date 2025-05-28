@@ -24,12 +24,12 @@ class StartJobRunIntegrationTest {
         String region = "";
         String existingJobName = "";
         StartJobRun startJobRun = StartJobRun.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .sessionToken(Property.of(sessionToken))
-            .region(Property.of(region))
-            .jobName(Property.of(existingJobName))
-            .wait(Property.of(false))
+            .accessKeyId(Property.ofValue(accessKeyId))
+            .secretKeyId(Property.ofValue(secretKeyId))
+            .sessionToken(Property.ofValue(sessionToken))
+            .region(Property.ofValue(region))
+            .jobName(Property.ofValue(existingJobName))
+            .wait(Property.ofValue(false))
             .build();
 
         Output output = startJobRun.run(runContextFactory.of());
