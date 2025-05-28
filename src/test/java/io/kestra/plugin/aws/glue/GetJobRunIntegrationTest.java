@@ -25,11 +25,11 @@ class GetJobRunIntegrationTest {
         String region = "";
         String existingJobName = "";
         GetJobRun getJobRun = GetJobRun.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .sessionToken(Property.of(sessionToken))
-            .region(Property.of(region))
-            .jobName(Property.of(existingJobName))
+            .accessKeyId(Property.ofValue(accessKeyId))
+            .secretKeyId(Property.ofValue(secretKeyId))
+            .sessionToken(Property.ofValue(sessionToken))
+            .region(Property.ofValue(region))
+            .jobName(Property.ofValue(existingJobName))
             .build();
 
         Output output = getJobRun.run(runContextFactory.of());
