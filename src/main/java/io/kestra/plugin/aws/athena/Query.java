@@ -105,12 +105,12 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     )
     @NotNull
     @Builder.Default
-    private Property<FetchType> fetchType = Property.of(FetchType.STORE);
+    private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(title = "Whether to skip the first row which is usually the header.")
     @NotNull
     @Builder.Default
-    private Property<Boolean> skipHeader = Property.of(true);
+    private Property<Boolean> skipHeader = Property.ofValue(true);
 
 
     private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");

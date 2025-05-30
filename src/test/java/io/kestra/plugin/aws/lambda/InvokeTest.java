@@ -28,13 +28,13 @@ public class InvokeTest extends AbstractInvokeTest {
     public void givenExistingLambda_whenInvoked_thenOutputOkMetricsOk() throws Exception {
         // Given
         var invoke = Invoke.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn(Property.of(FUNCTION_NAME))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .functionArn(Property.ofValue(FUNCTION_NAME))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .build();
 
         var client = invoke.client(context);
@@ -62,13 +62,13 @@ public class InvokeTest extends AbstractInvokeTest {
     public void givenNotFoundLambda_whenInvoked_thenErrorNoMetrics() throws Exception {
         // Given
         var invoke = Invoke.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn(Property.of("Fake_ARN"))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .functionArn(Property.ofValue("Fake_ARN"))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .build();
 
         var client = invoke.client(context);
@@ -89,14 +89,14 @@ public class InvokeTest extends AbstractInvokeTest {
         // ask for an error in the Lambda by function param (see test resource lambda/test.py)
         params.put("action", "error");
         var invoke = Invoke.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
-            .functionArn(Property.of(FUNCTION_NAME))
-            .functionPayload(Property.of(params))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .functionArn(Property.ofValue(FUNCTION_NAME))
+            .functionPayload(Property.ofValue(params))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .build();
 
         var client = invoke.client(context);

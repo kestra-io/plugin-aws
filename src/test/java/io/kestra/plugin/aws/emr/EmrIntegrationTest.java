@@ -33,21 +33,21 @@ class EmrIntegrationTest {
     @Test
     void createCluster() throws Exception {
         CreateClusterAndSubmitSteps createCluster = CreateClusterAndSubmitSteps.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .sessionToken(Property.of(sessionToken))
-            .region(Property.of(region))
-            .clusterName(Property.of("UNIT_TEST_CLUSTER"))
+            .accessKeyId(Property.ofValue(accessKeyId))
+            .secretKeyId(Property.ofValue(secretKeyId))
+            .sessionToken(Property.ofValue(sessionToken))
+            .region(Property.ofValue(region))
+            .clusterName(Property.ofValue("UNIT_TEST_CLUSTER"))
             .steps(List.of(createPythonSparkJob()))
-            .logUri(Property.of("s3://" + bucketName + "/test-emr-logs"))
-            .keepJobFlowAliveWhenNoSteps(Property.of(true))
-            .applications(Property.of(List.of("Spark")))
-            .masterInstanceType(Property.of("m5.xlarge"))
-            .slaveInstanceType(Property.of("m5.xlarge"))
-            .instanceCount(Property.of(3))
-            .ec2KeyName(Property.of(ec2KeyPairName))
-            .wait(Property.of(false))
-            .keepJobFlowAliveWhenNoSteps(Property.of(true))
+            .logUri(Property.ofValue("s3://" + bucketName + "/test-emr-logs"))
+            .keepJobFlowAliveWhenNoSteps(Property.ofValue(true))
+            .applications(Property.ofValue(List.of("Spark")))
+            .masterInstanceType(Property.ofValue("m5.xlarge"))
+            .slaveInstanceType(Property.ofValue("m5.xlarge"))
+            .instanceCount(Property.ofValue(3))
+            .ec2KeyName(Property.ofValue(ec2KeyPairName))
+            .wait(Property.ofValue(false))
+            .keepJobFlowAliveWhenNoSteps(Property.ofValue(true))
             .build();
 
         CreateClusterAndSubmitSteps.Output output = createCluster.run(runContextFactory.of());
@@ -57,11 +57,11 @@ class EmrIntegrationTest {
     @Test
     void deleteCluster() throws Exception {
         DeleteCluster deleteCluster = DeleteCluster.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .sessionToken(Property.of(sessionToken))
-            .region(Property.of(region))
-            .clusterIds(Property.of(List.of("j-3B0V9K83SNI3M")))
+            .accessKeyId(Property.ofValue(accessKeyId))
+            .secretKeyId(Property.ofValue(secretKeyId))
+            .sessionToken(Property.ofValue(sessionToken))
+            .region(Property.ofValue(region))
+            .clusterIds(Property.ofValue(List.of("j-3B0V9K83SNI3M")))
             .build();
 
         deleteCluster.run(runContextFactory.of());
@@ -70,11 +70,11 @@ class EmrIntegrationTest {
     @Test
     void addStepsToCluster() throws Exception {
         SubmitSteps addJobFlowsSteps = SubmitSteps.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .sessionToken(Property.of(sessionToken))
-            .region(Property.of(region))
-            .clusterId(Property.of("j-FOKPVZGD5FPI"))
+            .accessKeyId(Property.ofValue(accessKeyId))
+            .secretKeyId(Property.ofValue(secretKeyId))
+            .sessionToken(Property.ofValue(sessionToken))
+            .region(Property.ofValue(region))
+            .clusterId(Property.ofValue("j-FOKPVZGD5FPI"))
             .steps(List.of(createPythonSparkJob()))
             .build();
 
@@ -83,13 +83,13 @@ class EmrIntegrationTest {
 
     private StepConfig createPythonSparkJob() {
         return StepConfig.builder()
-            .jar(Property.of("command-runner.jar"))
-            .commands(Property.of(
+            .jar(Property.ofValue("command-runner.jar"))
+            .commands(Property.ofValue(
                 List.of("spark-submit s3://" + bucketName + "/health_violations.py --data_source s3://"
                     + bucketName + "/food_establishment_data.csv --output_uri s3://" + bucketName + "/test-emr-output")
             ))
-            .name(Property.of("TEST SPARK JOB UNIT TEST"))
-            .actionOnFailure(Property.of(StepConfig.Action.CONTINUE))
+            .name(Property.ofValue("TEST SPARK JOB UNIT TEST"))
+            .actionOnFailure(Property.ofValue(StepConfig.Action.CONTINUE))
             .build();
     }
 }

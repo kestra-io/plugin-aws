@@ -62,7 +62,7 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Schema(title = "Token expiration duration in seconds")
     @NotNull
     @Builder.Default
-    private Property<Long> expirationDuration = Property.of(600L);
+    private Property<Long> expirationDuration = Property.ofValue(600L);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

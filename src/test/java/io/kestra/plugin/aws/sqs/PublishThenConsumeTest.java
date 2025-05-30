@@ -17,11 +17,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-            .queueUrl(Property.of(queueUrl()))
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build(),
@@ -34,12 +34,12 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-            .queueUrl(Property.of(queueUrl()))
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .maxRecords(Property.of(2))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .maxRecords(Property.ofValue(2))
             .build();
 
         var consumeOutput = consume.run(runContextFactory.of());
@@ -51,11 +51,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-            .queueUrl(Property.of(queueUrl()))
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .from(
                 List.of(
                     Message.builder().data("""
@@ -70,13 +70,13 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-            .queueUrl(Property.of(queueUrl()))
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .serdeType(Property.of(SerdeType.JSON))
-            .maxRecords(Property.of(2))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .serdeType(Property.ofValue(SerdeType.JSON))
+            .maxRecords(Property.ofValue(2))
             .build();
 
         var consumeOutput = consume.run(runContextFactory.of());

@@ -73,11 +73,11 @@ class TriggerTest extends AbstractSqsTest {
 
             // publish two messages to trigger the flow
             Publish task = Publish.builder()
-                .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
-                .queueUrl(Property.of(queueUrl()))
-                .region(Property.of(localstack.getRegion()))
-                .accessKeyId(Property.of(localstack.getAccessKey()))
-                .secretKeyId(Property.of(localstack.getSecretKey()))
+                .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+                .queueUrl(Property.ofValue(queueUrl()))
+                .region(Property.ofValue(localstack.getRegion()))
+                .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+                .secretKeyId(Property.ofValue(localstack.getSecretKey()))
                 .from(
                     List.of(
                         Message.builder().data("Hello World").build(),

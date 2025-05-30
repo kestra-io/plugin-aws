@@ -72,7 +72,7 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
             + "NONE do nothing."
     )
     @Builder.Default
-    private Property<FetchType> fetchType = Property.of(FetchType.STORE);
+    private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
         title = "Maximum numbers of returned results."
