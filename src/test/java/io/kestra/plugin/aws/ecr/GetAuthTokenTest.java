@@ -28,10 +28,10 @@ public class GetAuthTokenTest extends AbstractLocalStackTest {
         RunContext runContext = runContextFactory.of();
 
         GetAuthToken query = GetAuthToken.builder()
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .build();
 
         GetAuthToken.TokenOutput output = query.run(runContext);

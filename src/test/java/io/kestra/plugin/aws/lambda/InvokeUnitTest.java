@@ -95,13 +95,13 @@ public class InvokeUnitTest {
         });
 
         invoke = Invoke.builder()
-            .functionArn(Property.of("test_function_arn"))
-            .functionPayload(Property.of((Map.of()))) // w/o paramters now
+            .functionArn(Property.ofValue("test_function_arn"))
+            .functionPayload(Property.ofValue((Map.of()))) // w/o paramters now
             .id(InvokeUnitTest.class.getSimpleName())
             .type(InvokeUnitTest.class.getName())
-            .accessKeyId(Property.of("test_accessKeyId"))
-            .secretKeyId(Property.of("test_secretKeyId"))
-            .region(Property.of("test_region"))
+            .accessKeyId(Property.ofValue("test_accessKeyId"))
+            .secretKeyId(Property.ofValue("test_secretKeyId"))
+            .region(Property.ofValue("test_region"))
             .build();
     }
 
