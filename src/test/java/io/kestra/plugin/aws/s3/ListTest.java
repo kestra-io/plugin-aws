@@ -42,22 +42,22 @@ class ListTest extends AbstractTest {
 
         // Dir listing
         task = list()
-            .filter(Property.of(ListInterface.Filter.FILES))
-            .prefix(Property.of("/tasks/s3/" + dir + "/sub"))
+            .filter(Property.ofValue(ListInterface.Filter.FILES))
+            .prefix(Property.ofValue("/tasks/s3/" + dir + "/sub"))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));
 
         // prefix
         task = list()
-            .prefix(Property.of("/tasks/s3/" + dir + "/sub"))
+            .prefix(Property.ofValue("/tasks/s3/" + dir + "/sub"))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));
 
         // regexp
         task = list()
-            .regexp(Property.of("/tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/")))
+            .regexp(Property.ofValue("/tasks/s3/.*/" + StringUtils.substringAfterLast(lastFileName, "/")))
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));

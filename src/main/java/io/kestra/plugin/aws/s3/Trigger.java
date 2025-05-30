@@ -130,14 +130,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> encodingType;
 
     @Builder.Default
-    private Property<Integer> maxKeys = Property.of(1000);
+    private Property<Integer> maxKeys = Property.ofValue(1000);
 
     private Property<String> expectedBucketOwner;
 
     protected Property<String> regexp;
 
     @Builder.Default
-    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+    protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     private Property<ActionInterface.Action> action;
 
@@ -149,7 +149,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<String> stsRoleSessionName;
     protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -204,7 +204,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .requestPayer(this.requestPayer)
                     .bucket(this.bucket)
-                    .key(Property.of(object.getKey()))
+                    .key(Property.ofValue(object.getKey()))
                     .build();
                 Download.Output downloadOutput = download.run(runContext);
 

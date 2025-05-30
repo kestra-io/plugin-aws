@@ -101,7 +101,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         description = "If true, the task will fail when any record fails to be sent."
     )
     @Builder.Default
-    private Property<Boolean> failOnUnsuccessfulRecords = Property.of(true);
+    private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
         title = "The name of the stream to push the records.",

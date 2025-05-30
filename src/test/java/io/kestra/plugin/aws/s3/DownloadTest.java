@@ -28,12 +28,12 @@ class DownloadTest extends AbstractTest {
         Download download = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .key(Property.of(key))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .key(Property.ofValue(key))
             .build();
 
         Download.Output output = download.run(runContext(download));
@@ -74,12 +74,12 @@ class DownloadTest extends AbstractTest {
         Download downloadFolder1 = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-folder1")
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .prefix(Property.of(folder1))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(folder1))
             .build();
 
         Download.Output outputFolder1 = downloadFolder1.run(runContext(downloadFolder1));
@@ -95,13 +95,13 @@ class DownloadTest extends AbstractTest {
         Download downloadFolder1Direct = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-folder1Direct")
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .prefix(Property.of(folder1))
-            .delimiter(Property.of("/"))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(folder1))
+            .delimiter(Property.ofValue("/"))
             .build();
 
         Download.Output outputFolder1Direct = downloadFolder1Direct.run(runContext(downloadFolder1Direct));
@@ -114,13 +114,13 @@ class DownloadTest extends AbstractTest {
         Download downloadTxtFiles = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-txtFiles")
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .prefix(Property.of(basePrefix))
-            .regexp(Property.of(".*\\.txt$"))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(basePrefix))
+            .regexp(Property.ofValue(".*\\.txt$"))
             .build();
 
         Download.Output outputTxtFiles = downloadTxtFiles.run(runContext(downloadTxtFiles));
@@ -136,13 +136,13 @@ class DownloadTest extends AbstractTest {
         Upload upload = Upload.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .from(source.toString())
-            .key(Property.of(key))
+            .key(Property.ofValue(key))
             .build();
         upload.run(runContext(upload));
     }
@@ -154,11 +154,11 @@ class DownloadTest extends AbstractTest {
         Download invalidDownload = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-invalid")
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .build();
 
 

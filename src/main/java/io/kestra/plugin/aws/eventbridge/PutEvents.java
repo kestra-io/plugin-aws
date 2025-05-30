@@ -103,7 +103,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         description = "If true, the task will fail when any event fails to be sent."
     )
     @Builder.Default
-    private Property<Boolean> failOnUnsuccessfulEvents = Property.of(true);
+    private Property<Boolean> failOnUnsuccessfulEvents = Property.ofValue(true);
 
     @PluginProperty(dynamic = true)
     @NotNull

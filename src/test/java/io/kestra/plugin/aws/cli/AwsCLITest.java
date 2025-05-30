@@ -40,10 +40,10 @@ public class AwsCLITest extends AbstractLocalStackTest {
                 .image("amazon/aws-cli")
                 .entryPoint(Collections.emptyList())
                 .build())
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
             .commands(List.of(
                 "echo \"::{\\\"outputs\\\":{" +

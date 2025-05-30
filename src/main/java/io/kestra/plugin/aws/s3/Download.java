@@ -71,7 +71,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         title = "If set to true, the task will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which better integrates with S3-compatible services but restricts uploads and downloads to 2GB."
     )
     @Builder.Default
-    private Property<Boolean> compatibilityMode = Property.of(false);
+    private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
     @Schema(
         title = "The prefix of files to download",
@@ -95,7 +95,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         title = "The maximum number of keys to include in the response in multiple files mode"
     )
     @Builder.Default
-    private Property<Integer> maxKeys = Property.of(1000);
+    private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
         title = "A regular expression to filter the keys of the objects to download",
@@ -218,7 +218,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             .maxKeys(this.maxKeys)
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
-            .filter(Property.of(ListInterface.Filter.FILES))
+            .filter(Property.ofValue(ListInterface.Filter.FILES))
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)

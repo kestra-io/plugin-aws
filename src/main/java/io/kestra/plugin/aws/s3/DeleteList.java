@@ -64,14 +64,14 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     private Property<String> encodingType;
 
     @Builder.Default
-    private Property<Integer> maxKeys = Property.of(1000);
+    private Property<Integer> maxKeys = Property.ofValue(1000);
 
     private Property<String> expectedBucketOwner;
 
     protected Property<String> regexp;
 
     @Builder.Default
-    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+    protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Min(2)
     @Schema(
@@ -84,7 +84,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         title = "raise an error if the file is not found"
     )
     @Builder.Default
-    private final Property<Boolean> errorOnEmpty = Property.of(false);
+    private final Property<Boolean> errorOnEmpty = Property.ofValue(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

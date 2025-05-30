@@ -79,7 +79,7 @@ public class S3Service {
                     .forcePathStyle(abstractS3.getForcePathStyle())
                     .accessKeyId(abstractS3.getAccessKeyId())
                     .secretKeyId(abstractS3.getSecretKeyId())
-                    .key(Property.of(object.getKey()))
+                    .key(Property.ofValue(object.getKey()))
                     .bucket(abstractS3Object.getBucket())
                     .stsRoleArn(abstractS3.getStsRoleArn())
                     .stsRoleExternalId(abstractS3.getStsRoleExternalId())
@@ -107,16 +107,16 @@ public class S3Service {
                     .stsEndpointOverride(abstractS3.getStsEndpointOverride())
                     .from(Copy.CopyObjectFrom.builder()
                         .bucket(abstractS3Object.getBucket())
-                        .key(Property.of(object.getKey()))
+                        .key(Property.ofValue(object.getKey()))
                         .build()
                     )
                     .to(moveTo.toBuilder()
-                        .key(Property.of(StringUtils.stripEnd(moveTo.getKey() + "/", "/")
+                        .key(Property.ofValue(StringUtils.stripEnd(moveTo.getKey() + "/", "/")
                             + "/" + FilenameUtils.getName(object.getKey())
                         ))
                         .build()
                     )
-                    .delete(Property.of(true))
+                    .delete(Property.ofValue(true))
                     .build();
                 copy.run(runContext);
             }

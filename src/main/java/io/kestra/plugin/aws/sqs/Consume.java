@@ -64,7 +64,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Builder.Default
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
-    private Property<SerdeType> serdeType = Property.of(SerdeType.STRING);
+    private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     @SuppressWarnings("BusyWait")
     @Override
