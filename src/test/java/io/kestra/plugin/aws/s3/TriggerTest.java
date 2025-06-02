@@ -44,7 +44,7 @@ class TriggerTest extends AbstractTest {
     void deleteAction() throws Exception {
         String bucket = "trigger-test";
         this.createBucket(bucket);
-        List listTask = list().bucket(Property.of(bucket)).build();
+        List listTask = list().bucket(Property.ofValue(bucket)).build();
 
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
@@ -101,7 +101,7 @@ class TriggerTest extends AbstractTest {
     void noneAction() throws Exception {
         String bucket = "trigger-none-action-test";
         this.createBucket(bucket);
-        List listTask = list().bucket(Property.of(bucket)).build();
+        List listTask = list().bucket(Property.ofValue(bucket)).build();
 
         // wait for execution
         CountDownLatch queueCount = new CountDownLatch(1);

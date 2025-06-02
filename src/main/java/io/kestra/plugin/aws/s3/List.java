@@ -51,14 +51,14 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     private Property<String> encodingType;
 
     @Builder.Default
-    private Property<Integer> maxKeys = Property.of(1000);
+    private Property<Integer> maxKeys = Property.ofValue(1000);
 
     private Property<String> expectedBucketOwner;
 
     protected Property<String> regexp;
 
     @Builder.Default
-    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+    protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

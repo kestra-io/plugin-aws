@@ -93,7 +93,7 @@ import java.util.Map;
             code = """
                 id: awscli-list-ecs-clusters
                 namespace: company.team
-                
+
                 tasks:
                   - id: awscli
                     type: io.kestra.plugin.aws.cli.AwsCLI
@@ -197,7 +197,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withDockerOptions(injectDefaults(getDocker()))
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
-            .withInterpreter(Property.of(List.of("/bin/sh", "-c")))
+            .withInterpreter(Property.ofValue(List.of("/bin/sh", "-c")))
             .withCommands(new Property<>(JacksonMapper.ofJson().writeValueAsString(allCommands)))
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)

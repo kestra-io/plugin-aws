@@ -74,7 +74,7 @@ public interface AbstractConnectionInterface {
         description = "Use it to connect to S3 bucket with S3 compatible services that don't support the new transport client."
     )
     default Property<Boolean> getCompatibilityMode() {
-        return Property.of(false);
+        return Property.ofValue(false);
     }
 
     @Schema(
@@ -82,7 +82,7 @@ public interface AbstractConnectionInterface {
         description = "Must only be used when `compatibilityMode` is enabled."
     )
     default Property<Boolean> getForcePathStyle()  {
-        return Property.of(false);
+        return Property.ofValue(false);
     }
 
     default AbstractConnection.AwsClientConfig awsClientConfig(final RunContext runContext) throws IllegalVariableEvaluationException {

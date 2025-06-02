@@ -64,7 +64,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         title = "Whether to delete the source file after download."
     )
     @Builder.Default
-    private Property<Boolean> delete = Property.of(false);
+    private Property<Boolean> delete = Property.ofValue(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -96,8 +96,8 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .stsRoleSessionDuration(this.stsRoleSessionDuration)
                     .stsRoleArn(this.stsRoleArn)
                     .stsEndpointOverride(this.stsEndpointOverride)
-                    .bucket(Property.of(request.sourceBucket()))
-                    .key(Property.of(request.sourceKey()))
+                    .bucket(Property.ofValue(request.sourceBucket()))
+                    .key(Property.ofValue(request.sourceKey()))
                     .build()
                     .run(runContext);
             }

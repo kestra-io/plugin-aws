@@ -67,7 +67,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
             code = """
                 id: sqs_realtime_trigger
                 namespace: company.team
-                
+
                 tasks:
                   - id: insert_into_dynamoDB
                     type: io.kestra.plugin.aws.dynamodb.PutItem
@@ -83,7 +83,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                       price: "{{ trigger.data | jq('.price') | first }}"
                       quantity: "{{ trigger.data | jq('.quantity') | first }}"
                       total: "{{ trigger.data | jq('.total') | first }}"
-                
+
                 triggers:
                   - id: realtime_trigger
                     type: io.kestra.plugin.aws.sqs.RealtimeTrigger
@@ -94,7 +94,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                     serdeType: JSON
                 """
         )
-            
+
     }
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
@@ -114,7 +114,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     @Builder.Default
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
-    private Property<SerdeType> serdeType = Property.of(SerdeType.STRING);
+    private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole
     protected Property<String> stsRoleArn;
@@ -122,25 +122,25 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     protected Property<String> stsRoleSessionName;
     protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     // Default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout.
     @Schema(title = "The duration for which the SQS client waits for a message.")
     @Builder.Default
-    protected Property<Duration> waitTime = Property.of(Duration.ofSeconds(20));
+    protected Property<Duration> waitTime = Property.ofValue(Duration.ofSeconds(20));
 
     @Schema(
         title = "The maximum number of messages returned from request made to SQS.",
         description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (fewer messages might be returned). Valid values: 1 to 10. Setting this value to 1 would increase your AWS cost and latency because it requires more API requests to SQS. **Note that Realtime Triggers always create one execution per message, regardless of the value of this property.**"
     )
     @Builder.Default
-    protected Property<Integer> maxNumberOfMessage = Property.of(5);
+    protected Property<Integer> maxNumberOfMessage = Property.ofValue(5);
 
     @Schema(
         title = "The maximum number of attempts used by the SQS client's retry strategy."
     )
     @Builder.Default
-    protected Property<Integer> clientRetryMaxAttempts = Property.of(3);
+    protected Property<Integer> clientRetryMaxAttempts = Property.ofValue(3);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)

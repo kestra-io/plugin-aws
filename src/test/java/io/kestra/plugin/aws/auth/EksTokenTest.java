@@ -21,8 +21,8 @@ class EksTokenTest {
     @Test
     void run() throws Exception {
         EksToken task = EksToken.builder()
-            .clusterName(Property.of("kestra"))
-            .region(Property.of("eu-west-1"))
+            .clusterName(Property.ofValue("kestra"))
+            .region(Property.ofValue("eu-west-1"))
             .build();
 
         EksToken.Output output = task.run(runContextFactory.of(Collections.emptyMap()));

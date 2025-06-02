@@ -28,12 +28,12 @@ class AllTest extends AbstractTest{
         List list = List.builder()
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .prefix(Property.of("tasks/aws/upload/"))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue("tasks/aws/upload/"))
             .build();
 
         List.Output listOutput = list.run(runContext(list));
@@ -43,12 +43,12 @@ class AllTest extends AbstractTest{
         Download download = Download.builder()
             .id(AllTest.class.getSimpleName())
             .type(Download.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .key(Property.of(key))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .key(Property.ofValue(key))
             .build();
         Download.Output run = download.run(runContext(download));
 
@@ -62,12 +62,12 @@ class AllTest extends AbstractTest{
         Delete delete = Delete.builder()
             .id(AllTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .bucket(Property.of(this.BUCKET))
-            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .region(Property.of(localstack.getRegion()))
-            .key(Property.of(key))
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .key(Property.ofValue(key))
             .build();
         Delete.Output deleteOutput = delete.run(runContext(delete));
         assertThat(deleteOutput.getDeleteMarker(), is(nullValue()));
