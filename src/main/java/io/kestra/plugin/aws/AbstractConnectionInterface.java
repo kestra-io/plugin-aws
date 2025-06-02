@@ -71,7 +71,7 @@ public interface AbstractConnectionInterface {
 
     @Schema(
         title = "Enable compatibility mode.",
-        description = "Use it to connect to S3 bucket with S3 compatible services that didn't support the new transport client."
+        description = "Use it to connect to S3 bucket with S3 compatible services that don't support the new transport client."
     )
     default Property<Boolean> getCompatibilityMode() {
         return Property.of(false);

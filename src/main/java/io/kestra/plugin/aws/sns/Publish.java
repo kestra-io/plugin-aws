@@ -82,7 +82,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     from:
                       data: |
                         {{ inputs.sms_text }}
-            """
+                """
         )
     }
 )

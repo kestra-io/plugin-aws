@@ -99,7 +99,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     bucket: "my-bucket"
                     prefix: "sub-dir"
                     action: NONE
-            """
+                """
         )
     }
 )

@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import com.google.common.io.CharStreams;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.tenant.TenantService;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -51,7 +52,7 @@ class AllTest extends AbstractTest{
             .build();
         Download.Output run = download.run(runContext(download));
 
-        InputStream get = storageInterface.get(null, null, run.getUri());
+        InputStream get = storageInterface.get(TenantService.MAIN_TENANT, null, run.getUri());
         assertThat(
             CharStreams.toString(new InputStreamReader(get)),
             is(CharStreams.toString(new InputStreamReader(new FileInputStream(file()))))
