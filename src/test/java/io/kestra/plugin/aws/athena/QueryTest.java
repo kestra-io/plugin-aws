@@ -19,6 +19,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @KestraTest
+@Disabled("Provide AWS credentials to run this test")
 class QueryTest {
     @Value("${kestra.aws.access-key}")
     private String accessKey;
