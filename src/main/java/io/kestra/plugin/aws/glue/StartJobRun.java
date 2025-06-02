@@ -48,7 +48,7 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
                     jobName: my-glue-job
                     maxDuration: PT1H
                     wait: true
-                    interval: 100
+                    interval: PT1S
                 """
         )
     }
