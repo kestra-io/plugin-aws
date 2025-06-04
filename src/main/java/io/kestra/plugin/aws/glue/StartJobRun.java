@@ -55,12 +55,12 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
-    @Schema(title = "The name of the Glue job to run.")
+    @Schema(title = "The name of the Glue job to run")
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The job arguments used for this job run.",
+        title = "The job arguments used for this job run",
         description = "These are key-value string pairs passed to the job."
     )
     private Property<Map<String, String>> arguments;
@@ -73,15 +73,15 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
-        title = "Timeout for waiting for job completion.",
+        title = "Timeout for waiting for job completion",
         description = "If the job does not complete within this duration (rounded up to minutes), the task will fail. " +
                       "If this property is not set, the default timeout is 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
-                      "and no job timeout is defaulted for a Glue Streaming job."
+                      "and there is no default job timeout for a Glue Streaming job."
     )
     private Property<Duration> maxDuration;
 
     @Schema(
-        title = "Interval between status checks."
+        title = "Interval between status checks"
     )
     @Builder.Default
     private Property<Duration> interval = Property.ofValue(Duration.ofMillis(1000));

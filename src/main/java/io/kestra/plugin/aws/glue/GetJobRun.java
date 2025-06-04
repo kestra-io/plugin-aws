@@ -69,14 +69,14 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> {
     @Schema(
-        title = "The name of the Glue job."
+        title = "The name of the Glue job"
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The ID of the job run to get status for.",
-        description = "If not provided, the task will automatically retrieve the latest job run."
+        title = "The ID of the job run to get status for",
+        description = "If the job ID is not provided, the task will automatically retrieve the latest job run."
     )
     private Property<String> runId;
 
