@@ -42,7 +42,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             full = true,
-            title = "Upload a FILE input to S3",
+            title = "Upload a FILE input to S3.",
             code = """
                 id: aws_s3_upload
                 namespace: company.team
@@ -68,7 +68,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = "Download a file and upload it to S3",
+            title = "Download a file and upload it to S3.",
             code = """
                     id: upload_file_to_s3
                     namespace: company.team
@@ -99,7 +99,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON array",
+            title = "Upload multiple files to S3 using a JSON array.",
             code = """
                 id: upload_multiple_files_from_json_array
                 namespace: company.team
@@ -134,7 +134,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Collection",
+            title = "Upload multiple files to S3 using a Collection.",
             code = """
                 id: upload_multiple_files_to_s3
                 namespace: company.team
@@ -170,12 +170,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @Schema(
     title = "Upload a file(s) to a S3 bucket.",
-    description = "Uploads single or multiple files to an Amazon S3 bucket."
+    description = "Uploads a single or multiple files to an Amazon S3 bucket."
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
     @Schema(
-        title = "The file(s) to upload.",
-        description = "Can be a single file, a list of files or json array.",
+        title = "The file(s) to upload",
+        description = "Can be a single file, a list of files or json array",
         anyOf = {List.class, String.class}
     )
     @PluginProperty(dynamic = true, internalStorageURI = true)
@@ -183,8 +183,8 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Object from;
 
     @Schema(
-        title = "The key where to upload the file.",
-        description = "a full key (with filename) or the directory path if from is multiple files."
+        title = "The key where to upload the file",
+        description = "A full key (with filename) or the directory path if from is multiple files"
     )
     @NotNull
     private Property<String> key;
@@ -200,39 +200,39 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Property<String> cacheControl;
 
     @Schema(
-        title = "A standard MIME type describing the format of the contents."
+        title = "A standard MIME type that describes the format of the contents."
     )
     private Property<String> contentType;
 
     @Schema(
-        title = "Specifies what content encodings have been applied to the object.",
+        title = "Specifies what content encodings have been applied to the object",
         description = "And thus, what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
     )
     private Property<String> contentEncoding;
 
     @Schema(
-        title = "Specifies presentational information for the object."
+        title = "Specifies presentational information for the object"
     )
     private Property<String> contentDisposition;
 
     @Schema(
-        title = "The language the content is in."
+        title = "The language the content is in"
     )
     private Property<String> contentLanguage;
 
     @Schema(
-        title = "The size of the body in bytes.",
+        title = "The size of the body in bytes",
         description = "This parameter is useful when the size of the body cannot be determined automatically."
     )
     private Property<Long> contentLength;
 
     @Schema(
-        title = "The date and time after which the object is no longer cacheable."
+        title = "The date and time after which the object is no longer cacheable"
     )
     private Property<String> expires;
 
     @Schema(
-        title = "The canned ACL to apply to the object."
+        title = "The canned ACL to apply to the object"
     )
     private Property<String> acl;
 
@@ -242,7 +242,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Property<StorageClass> storageClass;
 
     @Schema(
-        title = "The server-side encryption algorithm used when storing this object in Amazon S3.",
+        title = "The server-side encryption algorithm used when storing this object in Amazon S3",
         description = "For example, AES256, aws:kms, aws:kms:dsse"
     )
     private Property<ServerSideEncryption> serverSideEncryption;
@@ -254,29 +254,29 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Property<Boolean> bucketKeyEnabled;
 
     @Schema(
-        title = "Indicates the algorithm used to create the checksum for the object when using the SDK."
+        title = "Indicates the algorithm used to create the checksum for the object when using the SDK"
     )
     private Property<ChecksumAlgorithm> checksumAlgorithm;
 
     @Schema(
-        title = "The account ID of the expected bucket owner.",
+        title = "The account ID of the expected bucket owner",
         description = "If the bucket is owned by a different account, the request fails " +
                       "with the HTTP status code `403 Forbidden` (access denied)."
     )
     private Property<String> expectedBucketOwner;
 
     @Schema(
-        title = "The Object Lock mode that you want to apply to this object."
+        title = "The Object Lock mode that you want to apply to this object"
     )
     private Property<ObjectLockMode> objectLockMode;
 
     @Schema(
-        title = "Specifies whether a legal hold will be applied to this object."
+        title = "Specifies whether a legal hold will be applied to this object"
     )
     private Property<ObjectLockLegalHoldStatus> objectLockLegalHoldStatus;
 
     @Schema(
-        title = "The date and time when you want this object's Object Lock to expire. "
+        title = "The date and time when you want this object's Object Lock to expire"
     )
     private Property<String> objectLockRetainUntilDate;
 
@@ -287,7 +287,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Property<String> checksum;
 
     @Schema(
-        title = "The tag-set for the object."
+        title = "The tag-set for the object"
     )
     private Property<Map<String, String>> tagging;
 

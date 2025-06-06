@@ -48,22 +48,22 @@ import java.util.Map;
     title = "Download a file(s) from an S3 bucket.",
     description = """
         This task can operate in two modes:
-        1. Single file mode: When providing only the 'key' parameter, it downloads a specific file from S3
-        2. Multiple files mode: When using filtering parameters (prefix, delimiter, regexp), it downloads multiple files matching the criteria
+        1. Single file mode: when providing only the 'key' parameter, it downloads a specific file from S3.
+        2. Multiple files mode: when using filtering parameters (prefix, delimiter, regexp), it downloads multiple files matching the criteria.
 
-        In single file mode, the output contains properties of a single file (uri, contentLength, etc.)
-        In multiple files mode, the output contains maps that associate each file key with its properties (uris, contentLengths, etc.)"""
+        In single file mode, the output contains the properties of a single file (uri, contentLength, etc.).
+        In multiple files mode, the output contains maps that associate each file key with its properties (uris, contentLengths, etc.)."""
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The key of a file to download.",
+        title = "The key of a file to download",
         description = "When specified without filtering options (prefix, delimiter, regexp), the task will download a single file."
     )
     private Property<String> key;
 
     @Schema(
-        title = "The specific version of the object.",
-        description = "Only applicable when downloading a single file with the key parameter."
+        title = "The specific version of the object",
+        description = "This property is only applicable when downloading a single file with the key parameter."
     )
     protected Property<String> versionId;
 
@@ -74,37 +74,37 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     private Property<Boolean> compatibilityMode = Property.of(false);
 
     @Schema(
-        title = "The prefix of files to download.",
+        title = "The prefix of files to download",
         description = "When specified, the task switches to multiple files mode and downloads all files with keys starting with this prefix."
     )
     private Property<String> prefix;
 
     @Schema(
-        title = "A character used to group keys.",
+        title = "A character used to group keys",
         description = "When specified, the task switches to multiple files mode. The API returns all keys that share a common prefix up to the delimiter."
     )
     private Property<String> delimiter;
 
     @Schema(
-        title = "Used for pagination in multiple files mode.",
+        title = "Used for pagination in multiple files mode",
         description = "This is the key at which a previous listing ended."
     )
     private Property<String> marker;
 
     @Schema(
-        title = "The maximum number of keys to include in the response in multiple files mode."
+        title = "The maximum number of keys to include in the response in multiple files mode"
     )
     @Builder.Default
     private Property<Integer> maxKeys = Property.of(1000);
 
     @Schema(
-        title = "A regular expression to filter the keys of the objects to download.",
+        title = "A regular expression to filter the keys of the objects to download",
         description = "When specified, the task switches to multiple files mode and only downloads files matching the pattern."
     )
     protected Property<String> regexp;
 
     @Schema(
-        title = "The account ID of the expected bucket owner.",
+        title = "The account ID of the expected bucket owner",
         description = "Requests will fail with a Forbidden error (access denied) if the bucket is owned by a different account."
     )
     private Property<String> expectedBucketOwner;
@@ -235,17 +235,17 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         private final URI uri;
 
         @Schema(
-            title = "The size of the body in bytes."
+            title = "The size of the body in bytes"
         )
         private final Long contentLength;
 
         @Schema(
-            title = "A standard MIME type describing the format of the object data."
+            title = "A standard MIME type describing the format of the object data"
         )
         private final String contentType;
 
         @Schema(
-            title = "A map of metadata to store with the object in S3."
+            title = "A map of metadata to store with the object in S3"
         )
         private final Map<String, String> metadata;
 
