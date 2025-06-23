@@ -35,8 +35,8 @@ import java.util.Map;
                 tasks:
                   - id: download
                     type: io.kestra.plugin.aws.s3.Download
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     bucket: "my-bucket"
                     key: "path/to/file"

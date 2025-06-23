@@ -45,8 +45,8 @@ import java.util.Base64;
                 tasks:
                   - id: get_eks_token
                     type: io.kestra.plugin.aws.auth.EksToken
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     clusterName: "my-cluster"
                 """

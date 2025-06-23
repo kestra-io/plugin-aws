@@ -45,8 +45,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 tasks:
                   - id: consume
                     type: io.kestra.plugin.aws.sqs.Consume
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
                 """

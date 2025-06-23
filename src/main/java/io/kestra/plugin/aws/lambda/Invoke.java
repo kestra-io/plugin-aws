@@ -63,8 +63,8 @@ import java.util.Optional;
                 tasks:
                   - id: invoke
                     type: io.kestra.plugin.aws.lambda.Invoke
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
                 """
@@ -79,8 +79,8 @@ import java.util.Optional;
                 tasks:
                   - id: invoke
                     type: io.kestra.plugin.aws.lambda.Invoke
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
                     functionPayload:

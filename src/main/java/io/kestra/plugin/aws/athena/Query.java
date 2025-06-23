@@ -65,8 +65,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 tasks:
                   - id: query
                     type: io.kestra.plugin.aws.athena.Query
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     database: my_database
                     outputLocation: s3://some-s3-bucket

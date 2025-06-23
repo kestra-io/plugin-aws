@@ -38,8 +38,8 @@ import java.util.List;
                 tasks:
                   - id: get_auth_token
                     type: io.kestra.plugin.aws.ecr.GetAuthToken
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                 """
         )
