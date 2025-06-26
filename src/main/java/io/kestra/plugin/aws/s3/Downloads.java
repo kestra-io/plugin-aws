@@ -61,13 +61,13 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     private Property<String> encodingType;
 
     @Builder.Default
-    private Property<Integer> maxKeys = Property.of(1000);
+    private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
         title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
     )
     @Builder.Default
-    private Property<Boolean> compatibilityMode = Property.of(false);
+    private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
 
     private Property<String> expectedBucketOwner;
@@ -75,7 +75,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     protected Property<String> regexp;
 
     @Builder.Default
-    protected final Property<Filter> filter = Property.of(Filter.BOTH);
+    protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     private Property<ActionInterface.Action> action;
 

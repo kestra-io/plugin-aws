@@ -31,7 +31,7 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
     protected Property<String> stsRoleSessionName;
     protected Property<String> stsEndpointOverride;
     @Builder.Default
-    protected Property<Duration> stsRoleSessionDuration = Property.of(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     /**
      * Common AWS Client configuration properties.

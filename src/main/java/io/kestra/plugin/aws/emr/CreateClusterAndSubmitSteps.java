@@ -73,7 +73,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
     @Schema(title = "Release Label.", description = "It specifies the EMR release version label. Pattern is 'emr-x.x.x'.")
     @NotNull
     @Builder.Default
-    private Property<String> releaseLabel = Property.of("emr-5.20.0");
+    private Property<String> releaseLabel = Property.ofValue("emr-5.20.0");
 
     @Schema(
         title = "Steps",
@@ -94,11 +94,11 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         """)
     @NotNull
     @Builder.Default
-    private Property<String> jobFlowRole = Property.of("EMR_EC2_DefaultRole");
+    private Property<String> jobFlowRole = Property.ofValue("EMR_EC2_DefaultRole");
 
     @Schema(title = "Visible to all users.", description = "Set this value to true so that IAM principals in the Amazon Web Services account associated with the cluster can perform Amazon EMR actions on the cluster that their IAM policies allow.")
     @Builder.Default
-    private Property<Boolean> visibleToAllUsers = Property.of(true);
+    private Property<Boolean> visibleToAllUsers = Property.ofValue(true);
 
     @Schema(title = "Service Role.", description = """
         The IAM role that Amazon EMR assumes in order to access Amazon Web Services resources on your behalf.
@@ -106,7 +106,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         """)
     @NotNull
     @Builder.Default
-    private Property<String> serviceRole = Property.of("EMR_DefaultRole");
+    private Property<String> serviceRole = Property.ofValue("EMR_DefaultRole");
 
     @NotNull
     @Schema(title = "Master Instance Type.", description = "EC2 instance type for master instances.")
@@ -118,7 +118,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
 
     @Schema(title = "Keep job flow alive.", description = "Specifies whether the cluster should remain available after completing all steps. Defaults to false.")
     @Builder.Default
-    private Property<Boolean> keepJobFlowAliveWhenNoSteps = Property.of(false);
+    private Property<Boolean> keepJobFlowAliveWhenNoSteps = Property.ofValue(false);
 
     @Schema(title = "Instance count.")
     @NotNull
@@ -142,20 +142,20 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "If set to true it will wait until the cluster has status TERMINATED or WAITING."
     )
     @Builder.Default
-    private Property<Boolean> wait = Property.of(Boolean.FALSE);
+    private Property<Boolean> wait = Property.ofValue(Boolean.FALSE);
 
     @Schema(
         title = "Check interval duration.",
         description = "The frequency with which the task checks whether the job is completed."
     )
     @Builder.Default
-    private Property<Duration> completionCheckInterval = Property.of(Duration.ofSeconds(10));
+    private Property<Duration> completionCheckInterval = Property.ofValue(Duration.ofSeconds(10));
 
     @Schema(
         title = "Completion timeout."
     )
     @Builder.Default
-    private Property<Duration> waitUntilCompletion = Property.of(Duration.ofHours(1));
+    private Property<Duration> waitUntilCompletion = Property.ofValue(Duration.ofHours(1));
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {

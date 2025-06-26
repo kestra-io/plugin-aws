@@ -38,13 +38,13 @@ class QueryTest {
         var query = Query.builder()
             .id("hello")
             .type(Query.class.getName())
-            .region(Property.of("eu-west-3"))
-            .accessKeyId(Property.of(accessKey))
-            .secretKeyId(Property.of(secretKey))
-            .database(Property.of("units"))
-            .fetchType(Property.of(FetchType.FETCH))
-            .outputLocation(Property.of("s3://kestra-unit-test"))
-            .query(Property.of("select * from types"))
+            .region(Property.ofValue("eu-west-3"))
+            .accessKeyId(Property.ofValue(accessKey))
+            .secretKeyId(Property.ofValue(secretKey))
+            .database(Property.ofValue("units"))
+            .fetchType(Property.ofValue(FetchType.FETCH))
+            .outputLocation(Property.ofValue("s3://kestra-unit-test"))
+            .query(Property.ofValue("select * from types"))
             .build();
 
         var output = query.run(runContext);
