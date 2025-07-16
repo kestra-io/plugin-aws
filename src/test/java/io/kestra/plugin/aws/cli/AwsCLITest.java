@@ -55,7 +55,7 @@ public class AwsCLITest extends AbstractLocalStackTest {
                     "\\\"customEnv\\\":\\\"$" + envKey + "\\\"" +
                     "}}::\"",
                 "aws s3 mb s3://test-bucket",
-                "aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{\"outputs\":{}}::'"
+                "echo \"::{\\\"outputs\\\":$(aws s3api list-buckets | tr -d '\\n')}::\""
             ))
             .build();
 
