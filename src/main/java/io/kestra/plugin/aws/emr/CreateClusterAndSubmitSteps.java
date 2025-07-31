@@ -41,8 +41,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: create_cluster
                     type: io.kestra.plugin.aws.emr.CreateClusterAndSubmitSteps
-                    accessKeyId: <access-key>
-                    secretKeyId: <secret-key>
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: eu-west-3
                     clusterName: "Spark job cluster"
                     logUri: "s3://my-bucket/test-emr-logs"

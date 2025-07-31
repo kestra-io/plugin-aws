@@ -39,8 +39,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: downloads
                     type: io.kestra.plugin.aws.s3.Downloads
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     bucket: "my-bucket"
                     prefix: "sub-dir"

@@ -45,6 +45,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
                 tasks:
                   - id: start
                     type: io.kestra.plugin.aws.glue.StartJobRun
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     jobName: my-glue-job
                     maxDuration: PT1H
                     wait: true
