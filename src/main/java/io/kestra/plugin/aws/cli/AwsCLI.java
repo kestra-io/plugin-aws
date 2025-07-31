@@ -63,8 +63,8 @@ import java.util.Map;
                 tasks:
                   - id: cli
                     type: io.kestra.plugin.aws.cli.AwsCLI
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     commands:
                       - aws s3 mb s3://test-bucket
@@ -80,8 +80,8 @@ import java.util.Map;
                 tasks:
                   - id: cli
                     type: io.kestra.plugin.aws.cli.AwsCLI
-                    accessKeyId: "<access-key>"
-                    secretKeyId: "<secret-key>"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     commands:
                       - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'
