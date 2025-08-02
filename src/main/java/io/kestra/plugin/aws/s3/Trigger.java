@@ -151,6 +151,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
+    @Builder.Default
+    private Property<Boolean> compatibilityMode = Property.ofValue(false);
+
+    @Builder.Default
+    private Property<Boolean> forcePathStyle = Property.ofValue(false);
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -178,6 +184,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .stsRoleExternalId(this.stsRoleExternalId)
             .stsRoleSessionDuration(this.stsRoleSessionDuration)
             .stsEndpointOverride(this.stsEndpointOverride)
+            .compatibilityMode(this.compatibilityMode)
+            .forcePathStyle(this.forcePathStyle)
             .build();
         List.Output run = task.run(runContext);
 
@@ -205,6 +213,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     .requestPayer(this.requestPayer)
                     .bucket(this.bucket)
                     .key(Property.ofValue(object.getKey()))
+                    .compatibilityMode(this.compatibilityMode)
+                    .forcePathStyle(this.forcePathStyle)
                     .build();
                 Download.Output downloadOutput = download.run(runContext);
 
