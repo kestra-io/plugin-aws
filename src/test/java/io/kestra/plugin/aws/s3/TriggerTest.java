@@ -149,4 +149,58 @@ class TriggerTest extends AbstractTest {
             assertThat(remainingFilesOnBucket, is(2));
         }
     }
+
+    @Test
+    void forcePathStyleWithSimpleLocalhost() throws Exception {
+        String bucket = "trigger-force-path-style-test";
+        this.createBucket(bucket);
+        List listTask = list().bucket(Property.ofValue(bucket)).build();
+
+        CountDownLatch queueCount = new CountDownLatch(1);
+
+        // scheduler
+        Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
+        try (
+            AbstractScheduler scheduler = new JdbcScheduler(
+                this.applicationContext,
+                this.flowListenersService
+            )
+        ) {
+            AtomicReference<Execution> last = new AtomicReference<>();
+
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
+                Execution execution = executionWithError.getLeft();
+
+                if (execution.getFlowId().equals("s3-listen-localhost-force-path-style")) {
+                    last.set(execution);
+                    queueCount.countDown();
+                }
+            });
+
+            upload("trigger/s3", bucket);
+            upload("trigger/s3", bucket);
+
+            worker.run();
+            scheduler.run();
+            repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen-localhost-force-path-style.yaml")));
+
+            boolean await = queueCount.await(15, TimeUnit.SECONDS);
+            try {
+                assertThat("trigger should work with localhost endpoint + forcePathStyle", await, is(true));
+            } finally {
+                worker.shutdown();
+                receive.blockLast();
+            }
+
+            @SuppressWarnings("unchecked")
+            java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
+
+            assertThat(trigger.size(), is(2));
+
+            int remainingFilesOnBucket = listTask.run(runContext(listTask))
+                .getObjects()
+                .size();
+            assertThat(remainingFilesOnBucket, is(0));
+        }
+    }
 }

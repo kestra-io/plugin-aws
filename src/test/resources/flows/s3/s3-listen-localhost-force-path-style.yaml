@@ -1,0 +1,20 @@
+id: s3-listen-localhost-force-path-style
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.aws.s3.Trigger
+    bucket: trigger-force-path-style-test
+    interval: PT10S
+    action: DELETE
+    endpointOverride: http://localhost:4566
+    region: us-east-1
+    accessKeyId: accesskey
+    secretKeyId: secretkey
+    compatibilityMode: true
+    forcePathStyle: true
+
+tasks:
+  - id: end
+    type: io.kestra.plugin.core.debug.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
