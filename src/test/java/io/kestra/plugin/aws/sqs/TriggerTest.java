@@ -8,10 +8,11 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.FlowListeners;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
-import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.aws.sqs.model.Message;
+import io.kestra.worker.DefaultWorker;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -53,7 +54,7 @@ class TriggerTest extends AbstractSqsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
+        DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, UUID.randomUUID().toString(), 8, null);
         try (
             AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,

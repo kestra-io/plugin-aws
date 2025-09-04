@@ -119,6 +119,8 @@ dependencies {
     testImplementation group: "io.kestra", name: "storage-local"
     testImplementation group: "io.kestra", name: "runner-memory"
     testImplementation group: "io.kestra", name: "repository-memory"
+    testImplementation group: "io.kestra", name: "scheduler"
+    testImplementation group: "io.kestra", name: "worker"
 
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:1.21.3"
