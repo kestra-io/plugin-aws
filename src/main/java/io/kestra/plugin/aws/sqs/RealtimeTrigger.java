@@ -164,6 +164,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     )
     @Builder.Default
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
+
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -181,6 +182,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .stsRoleExternalId(this.stsRoleExternalId)
             .stsRoleSessionDuration(this.stsRoleSessionDuration)
             .stsEndpointOverride(this.stsEndpointOverride)
+            .autoDelete(this.autoDelete)
+            .visibilityTimeout(this.visibilityTimeout)
             .build();
 
         return Flux.from(publisher(task, conditionContext.getRunContext()))
@@ -199,6 +202,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             .queueUrl(renderedQueueUrl)
                             .waitTimeSeconds((int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds())
                             .maxNumberOfMessages(runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow())
+                            .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
                             .build();
 
                         final CompletableFuture<ReceiveMessageResponse> future = sqsClient.receiveMessage(receiveRequest);

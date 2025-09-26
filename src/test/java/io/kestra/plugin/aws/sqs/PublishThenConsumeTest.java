@@ -113,7 +113,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(firstConsume.getCount(), is(1));
 
         Thread.sleep(1500);
-        
+
         // we verify that the message is still in the queue
         var secondConsume = consume.run(runContext);
         assertThat(secondConsume.getCount(), is(1));
