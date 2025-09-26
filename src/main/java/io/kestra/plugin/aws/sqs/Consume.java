@@ -9,6 +9,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+import io.micronaut.data.annotation.By;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -66,6 +67,21 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Schema(title = "The serializer/deserializer to use.")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
+    @Schema(
+        title = "Delete consumed messages automatically.",
+        description = "When set to true (default), the message is automatically deleted from SQS after being consumed. Set to false if you want to handle deletion manually."
+    )
+    @Builder.Default
+    private Property<Boolean> autoDelete = Property.ofValue(true);
+
+    @Schema(
+        title = "Visibility timeout for consumed messages.",
+        description = "When set, a received message stays hidden from other consumers for this amount of time (in seconds). The default value is 30 seconds."
+
+    )
+    @Builder.Default
+    private Property<Integer> visibilityTimeout = Property.ofValue(30);
+
     @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -84,14 +100,19 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     var receiveRequest = ReceiveMessageRequest.builder()
                         .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
                         .queueUrl(queueUrl)
+                        .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
                         .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     msg.messages().forEach(throwConsumer(m -> {
                         FileSerde.write(outputFile, runContext.render(serdeType).as(SerdeType.class).orElseThrow().deserialize(m.body()));
-                        sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .receiptHandle(m.receiptHandle()).build()
-                        );
+
+                        if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
+                            sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                                .queueUrl(queueUrl)
+                                .receiptHandle(m.receiptHandle())
+                                .build()
+                            );
+                        }
                         total.getAndIncrement();
                     }));
 
