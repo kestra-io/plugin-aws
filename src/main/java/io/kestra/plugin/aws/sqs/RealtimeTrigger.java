@@ -150,6 +150,21 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     @Getter(AccessLevel.NONE)
     private final CountDownLatch waitForTermination = new CountDownLatch(1);
 
+    @Schema(
+        title = "Delete consumed messages automatically.",
+        description = "When set to true (default), the message is automatically deleted from SQS after being consumed. Set to false if you want to handle deletion manually."
+    )
+    @Builder.Default
+    private Property<Boolean> autoDelete = Property.ofValue(true);
+
+    @Schema(
+        title = "Visibility timeout for consumed messages.",
+        description = "When set, a received message stays hidden from other consumers for this amount of time (in seconds). The default value is 30 seconds."
+
+    )
+    @Builder.Default
+    private Property<Integer> visibilityTimeout = Property.ofValue(30);
+
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -167,6 +182,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .stsRoleExternalId(this.stsRoleExternalId)
             .stsRoleSessionDuration(this.stsRoleSessionDuration)
             .stsEndpointOverride(this.stsEndpointOverride)
+            .autoDelete(this.autoDelete)
+            .visibilityTimeout(this.visibilityTimeout)
             .build();
 
         return Flux.from(publisher(task, conditionContext.getRunContext()))
@@ -185,6 +202,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             .queueUrl(renderedQueueUrl)
                             .waitTimeSeconds((int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds())
                             .maxNumberOfMessages(runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow())
+                            .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
                             .build();
 
                         final CompletableFuture<ReceiveMessageResponse> future = sqsClient.receiveMessage(receiveRequest);
@@ -193,13 +211,15 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             ReceiveMessageResponse response = future.get();
                             response.messages().forEach(message -> fluxSink.next(Message.builder().data(message.body()).build()));
 
-                            response.messages().forEach(message ->
-                                sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                    .queueUrl(renderedQueueUrl)
-                                    .receiptHandle(message.receiptHandle())
-                                    .build()
-                                )
-                            );
+                            if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
+                                response.messages().forEach(message ->
+                                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                                        .queueUrl(renderedQueueUrl)
+                                        .receiptHandle(message.receiptHandle())
+                                        .build()
+                                    )
+                                );
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             isActive.set(false); // proactively stop polling

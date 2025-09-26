@@ -87,7 +87,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<String> stsRoleSessionName;
     protected Property<String> stsEndpointOverride;
     @Builder.Default
+
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+
+    @Builder.Default
+    private Property<Boolean> autoDelete = Property.ofValue(true);
+
+    @Builder.Default
+    private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -97,6 +104,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Consume task = Consume.builder()
             .queueUrl(queueUrl)
             .accessKeyId(accessKeyId)
+            .autoDelete(this.autoDelete)
             .secretKeyId(secretKeyId)
             .sessionToken(sessionToken)
             .region(region)
@@ -109,6 +117,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .stsRoleExternalId(this.stsRoleExternalId)
             .stsRoleSessionDuration(this.stsRoleSessionDuration)
             .stsEndpointOverride(this.stsEndpointOverride)
+            .visibilityTimeout(this.visibilityTimeout)
             .build();
 
         Consume.Output run = task.run(runContext);
