@@ -26,8 +26,6 @@
   <a href="https://www.youtube.com/@kestra-io" style="margin: 0 10px;">
         <img height="25" src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
 </p>
-
-
 <br />
 <p align="center">
     <a href="https://go.kestra.io/video/product-overview" target="_blank">
