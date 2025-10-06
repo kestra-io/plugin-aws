@@ -21,8 +21,12 @@ repositories {
     }
 }
 
-sourceCompatibility = 21
-targetCompatibility = 21
+final targetJavaVersion = JavaVersion.VERSION_21
+
+java {
+    sourceCompatibility = targetJavaVersion
+    targetCompatibility = targetJavaVersion
+}
 
 group "io.kestra.plugin"
 description 'AWS plugin for Kestra'
