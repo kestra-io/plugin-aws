@@ -6,6 +6,7 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -57,6 +58,27 @@ import java.util.Optional;
     )
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Query.Output> {
+    protected Property<String> accessKeyId;
+
+    protected Property<String> secretKeyId;
+
+    protected Property<String> sessionToken;
+
+    protected Property<String> region;
+
+    protected Property<String> endpointOverride;
+
+    protected Property<String> stsRoleArn;
+
+    protected Property<String> stsRoleExternalId;
+
+    protected Property<String> stsRoleSessionName;
+
+    protected Property<String> stsEndpointOverride;
+
+    @Builder.Default
+    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -80,6 +102,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Query.Output output = Query.builder()
             .id(this.id)
             .type(Query.class.getName())
+            .accessKeyId(this.accessKeyId)
+            .secretKeyId(this.secretKeyId)
+            .sessionToken(this.sessionToken)
+            .region(this.region)
+            .endpointOverride(this.endpointOverride)
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsEndpointOverride(this.stsEndpointOverride)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
             .namespace(this.namespace)
             .metricName(this.metricName)
             .statistic(this.statistic)

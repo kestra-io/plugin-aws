@@ -87,8 +87,8 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         Instant end = Instant.now();
         Instant start = end.minusSeconds(rWindow.getSeconds());
 
-        try (CloudWatchClient cw = this.client(runContext)) {
-            GetMetricStatisticsRequest.Builder req = GetMetricStatisticsRequest.builder()
+        try (CloudWatchClient client = this.client(runContext)) {
+            GetMetricStatisticsRequest.Builder request = GetMetricStatisticsRequest.builder()
                 .metricName(rMetricName)
                 .period(rPeriod)
                 .startTime(start)
@@ -96,11 +96,11 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
                 .statisticsWithStrings(rStatistic);
 
             if (rNamespace != null) {
-                req.namespace(rNamespace);
+                request.namespace(rNamespace);
             }
 
             if (rDims != null && !rDims.isEmpty()) {
-                req.dimensions(
+                request.dimensions(
                     rDims.stream()
                         .map(throwFunction(d -> Dimension.builder()
                             .name(runContext.render(d.getName()).as(String.class).orElseThrow())
@@ -111,14 +111,21 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
                 );
             }
 
-            GetMetricStatisticsResponse resp = cw.getMetricStatistics(req.build());
+            GetMetricStatisticsResponse resp = client.getMetricStatistics(request.build());
 
             List<Map<String, Object>> series = resp.datapoints().stream()
                 .sorted(Comparator.comparing(Datapoint::timestamp))
                 .map(dp -> {
-                    Map<String, Object> map = JacksonMapper.ofJson().convertValue(dp, new TypeReference<Map<String, Object>>() {});
-                    map.put("timestamp", dp.timestamp().toString());
-                    map.put("unit", dp.unitAsString());
+                    Map<String, Object> map = new HashMap<>();
+                    dp.sdkFields().forEach(field -> {
+                        Object value = field.getValueOrDefault(dp);
+                        if (value != null) {
+                            if (value instanceof Instant instant) {
+                                value = instant.toString();
+                            }
+                            map.put(field.memberName(), value);
+                        }
+                    });
                     return map;
                 })
                 .toList();

@@ -91,7 +91,7 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
                                     .name(e.getKey())
                                     .value(String.valueOf(e.getValue()))
                                     .build())
-                                .collect(Collectors.toList())
+                                .toList()
                         );
                     }
 

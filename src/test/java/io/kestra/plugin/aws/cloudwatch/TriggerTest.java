@@ -3,33 +3,32 @@ package io.kestra.plugin.aws.cloudwatch;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @KestraTest
-@Testcontainers
 class TriggerTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
 
     @Test
-    void runPushThenTrigger() throws Exception {
+    void evaluate() throws Exception {
         RunContext runContext = runContextFactory.of();
 
         var push = Push.builder()
+            .id(IdUtils.create())
+            .type(TriggerTest.class.getSimpleName())
             .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
@@ -49,6 +48,12 @@ class TriggerTest extends AbstractLocalStackTest {
         assertThat(pushOutput.getCount(), equalTo(1));
 
         var trigger = Trigger.builder()
+            .id(IdUtils.create())
+            .type(TriggerTest.class.getSimpleName())
+            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .namespace(Property.ofValue("Custom/Test"))
             .metricName(Property.ofValue("TriggerLatency"))
             .statistic(Property.ofValue("Average"))
