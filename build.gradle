@@ -75,6 +75,7 @@ dependencies {
     api 'software.amazon.awssdk:netty-nio-client'
     api 'software.amazon.awssdk:emr'
     api 'software.amazon.awssdk:glue'
+    api 'software.amazon.awssdk:cloudwatch'
 }
 
 
