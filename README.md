@@ -20,11 +20,11 @@
 
 <p align="center">
   <a href="https://twitter.com/kestra_io" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/twitter.svg" alt="twitter" width="35" height="25" /></a>
+        <img src="https://kestra.io/twitter.svg" alt="twitter" width="35" height="25" /></a>
   <a href="https://www.linkedin.com/company/kestra/" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/linkedin.svg" alt="linkedin" width="35" height="25" /></a> 
+        <img src="https://kestra.io/linkedin.svg" alt="linkedin" width="35" height="25" /></a>
   <a href="https://www.youtube.com/@kestra-io" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
+        <img src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
 </p>
 <br />
 <p align="center">
@@ -37,7 +37,7 @@
 
 # Kestra AWS Plugin
 
-> Plugin to interract with Amazon Web Services (AWS)
+> Plugin to interact with Amazon Web Services (AWS)
 
 ![Kestra orchestrator](https://kestra.io/video.gif)
 
