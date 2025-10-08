@@ -37,10 +37,10 @@ class TriggerTest extends AbstractLocalStackTest {
             .namespace(Property.ofValue("Custom/Test"))
             .metrics(Property.ofValue(List.of(
                 Push.MetricValue.builder()
-                    .metricName("TriggerLatency")
-                    .value(456.7)
-                    .unit("Milliseconds")
-                    .dimensions(Map.of("env", "test"))
+                    .metricName(Property.ofValue("TriggerLatency"))
+                    .value(Property.ofValue(456.7))
+                    .unit(Property.ofValue("Milliseconds"))
+                    .dimensions(Property.ofValue(Map.of("env", "test")))
                     .build()
             )))
             .build();
@@ -55,7 +55,10 @@ class TriggerTest extends AbstractLocalStackTest {
             .periodSeconds(Property.ofValue(60))
             .window(Property.ofValue(Duration.ofMinutes(5)))
             .dimensions(Property.ofValue(List.of(
-                Query.DimensionKV.builder().name("env").value("test").build()
+                Query.DimensionKV.builder()
+                    .name(Property.ofValue("env"))
+                    .value(Property.ofValue("test"))
+                    .build()
             )))
             .build();
 
