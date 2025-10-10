@@ -79,12 +79,12 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
-        title = "Maximum numbers of returned results."
+        title = "Maximum numbers of returned results"
     )
     private Property<Integer> limit;
 
     @Schema(
-        title = "Query key condition expression."
+        title = "Query key condition expression"
     )
     @NotNull
     private Property<String> keyConditionExpression;
@@ -97,8 +97,8 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     private Property<Map<String, Object>> expressionAttributeValues;
 
     @Schema(
-        title = "Query filter expression.",
-        description = "Query filter expression."
+        title = "Query filter expression",
+        description = "When used, `expressionAttributeValues` property must also be provided."
     )
     private Property<String> filterExpression;
 

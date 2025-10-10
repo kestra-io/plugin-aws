@@ -50,8 +50,8 @@ import java.util.Map;
 )
 public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item key.",
-        description = "The DynamoDB item identifier."
+        title = "The DynamoDB item key",
+        description = "The DynamoDB item identifier"
     )
     private Property<Map<String, Object>> key;
 

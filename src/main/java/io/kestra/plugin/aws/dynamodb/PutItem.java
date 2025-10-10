@@ -105,7 +105,7 @@ import java.util.Map;
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item.",
+        title = "The DynamoDB item",
         description = "The item can be in the form of a JSON string, or a map."
     )
     @PluginProperty(dynamic = true)

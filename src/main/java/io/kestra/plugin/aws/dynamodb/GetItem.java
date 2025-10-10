@@ -46,8 +46,8 @@ import java.util.Map;
 )
 public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Output> {
     @Schema(
-        title = "The DynamoDB item key.",
-        description = "The DynamoDB item identifier."
+        title = "The DynamoDB item key",
+        description = "The DynamoDB item identifier"
     )
     private Property<Map<String, Object>> key;
 
@@ -72,7 +72,7 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "Map containing the fetched item."
+            title = "Map containing the fetched item"
         )
         private Map<String, Object> row;
     }

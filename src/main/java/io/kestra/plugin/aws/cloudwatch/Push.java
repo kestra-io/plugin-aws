@@ -58,7 +58,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output> {
     @NotNull
-    @Schema(title = "CloudWatch namespace, e.g. `Custom/MyApp`")
+    @Schema(title = "CloudWatch namespace, e.g., `Custom/MyApp`")
     private Property<String> namespace;
 
     @Schema(title = "List of metrics to push")
