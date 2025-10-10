@@ -75,18 +75,18 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
-        title = "Maximum numbers of returned results."
+        title = "Maximum numbers of returned results"
     )
     private Property<Integer> limit;
 
     @Schema(
-        title = "Scan filter expression.",
+        title = "Scan filter expression",
         description = "When used, `expressionAttributeValues` property must also be provided."
     )
     private Property<String> filterExpression;
 
     @Schema(
-        title = "Scan expression attributes.",
+        title = "Scan expression attributes",
         description = "It's a map of string -> object."
     )
     private Property<Map<String, Object>> expressionAttributeValues;
