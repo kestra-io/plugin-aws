@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -81,6 +82,14 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       data: "{{ inputs.message }}"
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "sqs.publish.messages",
+            type = Counter.TYPE,
+            unit = "messages",
+            description = "Number of messages published to the SQS queue."
+        )
     }
 )
 public class Publish extends AbstractSqs implements RunnableTask<Publish.Output> {
@@ -132,7 +141,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
             }
 
             // metrics
-            runContext.metric(Counter.of("records", count, "queue", queueUrl));
+            runContext.metric(Counter.of("sqs.publish.messages", count, "queue", queueUrl));
 
             return Output.builder()
                 .messagesCount(count)
