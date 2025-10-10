@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -48,6 +49,20 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                     bucket: "my-bucket"
                     prefix: "sub-dir"
                 """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "s3.objects.deleted.count",
+            type = Counter.TYPE,
+            unit = "objects",
+            description = "The total number of objects deleted from the S3 bucket."
+        ),
+        @Metric(
+            name = "s3.objects.deleted.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The total size in bytes of objects deleted from the S3 bucket."
         )
     }
 )
@@ -119,8 +134,8 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
                 .reduce(Pair.of(0L, 0L), (pair, size) -> Pair.of(pair.getLeft() + 1, pair.getRight() + size))
                 .block();
 
-            runContext.metric(Counter.of("count", finalResult.getLeft()));
-            runContext.metric(Counter.of("size", finalResult.getRight()));
+            runContext.metric(Counter.of("s3.objects.deleted.count", finalResult.getLeft()));
+            runContext.metric(Counter.of("s3.objects.deleted.size", finalResult.getRight()));
 
             if (runContext.render(errorOnEmpty).as(Boolean.class).orElseThrow() && finalResult.getLeft() == 0) {
                 throw new NoSuchElementException("Unable to find any files to delete on " +
