@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sns;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -84,6 +85,14 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         {{ inputs.sms_text }}
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "sns.publish.messages",
+            type = Counter.TYPE,
+            unit = "messages",
+            description = "Number of messages published to the SNS topic."
+        )
     }
 )
 public class Publish extends AbstractSns implements RunnableTask<Publish.Output> {
@@ -133,7 +142,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
             }
 
             // metrics
-            runContext.metric(Counter.of("records", count, "topic", topicArn));
+            runContext.metric(Counter.of("sns.publish.messages", count, "topic", topicArn));
 
             return Output.builder()
                 .messagesCount(count)

@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -51,6 +52,14 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                     region: "eu-central-1"
                     queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
                 """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "sqs.consume.messages",
+            type = Counter.TYPE,
+            unit = "messages", 
+            description = "Number of messages consumed from the SQS queue."
         )
     }
 )
@@ -119,7 +128,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     Thread.sleep(100);
                 } while (!this.ended(total, started, runContext));
 
-                runContext.metric(Counter.of("records", total.get(), "queue", queueUrl));
+                runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
                 outputFile.flush();
             }
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -86,6 +87,32 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     records: kestra:///myfile.ion
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "record.count",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Total number of records attempted to be sent to Kinesis."
+        ),
+        @Metric(
+            name = "record.successful",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Number of records successfully sent to Kinesis."
+        ),
+        @Metric(
+            name = "record.failed",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Number of records that failed to be sent to Kinesis."
+        ),
+        @Metric(
+            name = "duration",
+            type = Timer.TYPE,
+            unit = "nanoseconds",
+            description = "Execution time for the PutRecords task."
+        )
     }
 )
 @Schema(
@@ -141,9 +168,9 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
         // Set metrics
         runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("failedRecordCount", putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("successfulRecordCount", records.size() - putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("recordCount", records.size()));
+        runContext.metric(Counter.of("record.failed", putRecordsResponse.failedRecordCount()));
+        runContext.metric(Counter.of("record.successful", records.size() - putRecordsResponse.failedRecordCount()));
+        runContext.metric(Counter.of("record.count", records.size()));
 
         File tempFile = writeOutputFile(runContext, putRecordsResponse, records);
         return Output.builder()

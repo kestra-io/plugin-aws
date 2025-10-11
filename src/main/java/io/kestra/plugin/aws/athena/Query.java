@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.athena;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -74,6 +75,56 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                       select * from cloudfront_logs limit 10
                 """
             }
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "data.scanned.bytes",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The amount of data scanned by the Athena query in bytes."
+        ),
+        @Metric(
+            name = "engine.execution.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken by the Athena engine to execute the query."
+        ),
+        @Metric(
+            name = "query.planning.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken to plan the Athena query."
+        ),
+        @Metric(
+            name = "query.queue.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time the Athena query spent in the queue."
+        ),
+        @Metric(
+            name = "service.processing.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken for service processing of the Athena query."
+        ),
+        @Metric(
+            name = "total.execution.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The total execution time of the Athena query."
+        ),
+        @Metric(
+            name = "total.rows",
+            type = Counter.TYPE,
+            unit = "rows",
+            description = "The total number of rows returned by the Athena query."
+        ),
+        @Metric(
+            name = "fetch.rows",
+            type = Counter.TYPE,
+            unit = "rows",
+            description = "The number of rows fetched or stored by the task, based on the fetchType."
         )
     }
 )

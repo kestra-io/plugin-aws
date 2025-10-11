@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -36,6 +37,14 @@ import software.amazon.awssdk.services.s3.S3Client;
                     prefix: "sub-dir"
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "s3.objects.count",
+            type = Counter.TYPE,
+            unit = "objects",
+            description = "The number of objects returned by the S3 list operation."
+        )
     }
 )
 @Schema(
@@ -65,7 +74,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
         try (S3Client client = this.client(runContext)) {
             java.util.List<S3Object> list = S3Service.list(runContext, client, this, this);
 
-            runContext.metric(Counter.of("size", list.size()));
+            runContext.metric(Counter.of("s3.objects.count", list.size()));
 
             runContext.logger().debug(
                 "Found '{}' keys on {} with regexp='{}', prefix={}",

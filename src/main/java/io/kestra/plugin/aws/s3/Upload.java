@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -164,6 +165,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                 """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "file.count",
+            type = Counter.TYPE,
+            unit = "files",
+            description = "Total number of files uploaded."
+        ),
+        @Metric(
+            name = "file.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "Total size in bytes of files uploaded."
         )
     }
 )

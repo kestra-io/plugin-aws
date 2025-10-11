@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -88,6 +89,32 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                           - "arn:aws:iam::123456789012:user/johndoe"
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "eventbridge.put.events.duration",
+            type = Timer.TYPE,
+            unit = "nanoseconds",
+            description = "Duration of the PutEvents operation."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.failed",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Number of events that failed to be published to the EventBridge event bus."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.successful",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Number of events successfully published to the EventBridge event bus."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.total",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Total number of events sent to the EventBridge event bus."
+        )
     }
 )
 @Schema(
@@ -123,10 +150,10 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         PutEventsResponse putEventsResponse = putEvents(runContext, entryList);
 
         // Set metrics
-        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("failedEntryCount", putEventsResponse.failedEntryCount()));
-        runContext.metric(Counter.of("successfulEntryCount", entryList.size() - putEventsResponse.failedEntryCount()));
-        runContext.metric(Counter.of("entryCount", entryList.size()));
+        runContext.metric(Timer.of("eventbridge.put.events.duration", Duration.ofNanos(System.nanoTime() - start)));
+        runContext.metric(Counter.of("eventbridge.put.events.failed", putEventsResponse.failedEntryCount()));
+        runContext.metric(Counter.of("eventbridge.put.events.successful", entryList.size() - putEventsResponse.failedEntryCount()));
+        runContext.metric(Counter.of("eventbridge.put.events.total", entryList.size()));
 
         // Fail if failOnUnsuccessfulEvents
         if (runContext.render(failOnUnsuccessfulEvents).as(Boolean.class).orElseThrow() && putEventsResponse.failedEntryCount() > 0) {
