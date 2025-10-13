@@ -105,7 +105,7 @@ import java.util.Map;
             name = "records",
             type = Counter.TYPE,
             unit = "items",
-            description = "Number of records inserted into DynamoDB"
+            description = "Number of items inserted into DynamoDB"
         )
     }
 )
