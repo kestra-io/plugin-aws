@@ -3,10 +3,8 @@ package io.kestra.plugin.aws.dynamodb;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -72,7 +70,7 @@ import java.util.Map;
             code = """
                 id: add_items_to_dynamodb
                 namespace: company.team
-                
+
                 tasks:
                   - id: first_item_as_map
                     type: io.kestra.plugin.aws.dynamodb.PutItem
@@ -80,7 +78,7 @@ import java.util.Map;
                       id: 1
                       flow: "{{ flow.id }}"
                       task: "{{ task.id }}"
-                
+
                   - id: second_item_as_json
                     type: io.kestra.plugin.aws.dynamodb.PutItem
                     item: |
@@ -89,7 +87,7 @@ import java.util.Map;
                           "flow": "{{ flow.id }}",
                           "task": "{{ task.id }}"
                       }
-                
+
                 pluginDefaults:
                   - type: io.kestra.plugin.aws.dynamodb.PutItem
                     values:
@@ -99,18 +97,10 @@ import java.util.Map;
                       secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
             """
         )
-    },
-    metrics = {
-        @Metric(
-            name = "records",
-            type = Counter.TYPE,
-            unit = "items",
-            description = "Number of items inserted into DynamoDB"
-        )
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table.", 
+    title = "Put an item into a DynamoDB table.",
     description = "If an item with the same key already exists, the element will be updated."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
