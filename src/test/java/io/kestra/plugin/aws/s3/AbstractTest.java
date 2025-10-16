@@ -15,11 +15,10 @@ import jakarta.inject.Inject;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 @KestraTest
@@ -92,7 +91,15 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
     }
 
     protected String update(String key, String bucket) throws Exception {
-        URI source = storagePut(IdUtils.create());
+        String content = "updated file: " + IdUtils.create();
+        InputStream input = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+
+        URI source = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI("/" + IdUtils.create()),
+            input
+        );
 
         Upload upload = Upload.builder()
             .id(AllTest.class.getSimpleName())
