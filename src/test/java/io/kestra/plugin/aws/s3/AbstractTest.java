@@ -91,6 +91,26 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
         return upload.getKey().toString();
     }
 
+    protected String update(String key, String bucket) throws Exception {
+        URI source = storagePut(IdUtils.create());
+
+        Upload upload = Upload.builder()
+            .id(AllTest.class.getSimpleName())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .build();
+
+        upload.run(runContext(upload));
+
+        return key;
+    }
+
     protected List.ListBuilder<?, ?> list() {
         return List.builder()
             .id(ListTest.class.getSimpleName())
