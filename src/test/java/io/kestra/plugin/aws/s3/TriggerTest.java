@@ -19,6 +19,7 @@ import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
@@ -219,7 +220,10 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .region(Property.ofValue("us-east-1"))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-create"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -240,12 +244,15 @@ class TriggerTest extends AbstractTest {
         String bucket = "trigger-on-update";
         this.createBucket(bucket);
 
-        upload("trigger/on-update", bucket);
+        var key = upload("trigger/on-update", bucket);
 
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .region(Property.ofValue("us-east-1"))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-update"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -257,7 +264,7 @@ class TriggerTest extends AbstractTest {
 
         trigger.evaluate(context.getKey(), context.getValue());
 
-        update("trigger/on-update", bucket);
+        update(key, bucket);
         Thread.sleep(2000);
 
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
@@ -272,21 +279,24 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .region(Property.ofValue("us-east-1"))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-create-or-update"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
             .interval(Duration.ofSeconds(10))
             .build();
 
-        upload("trigger/on-create-or-update", bucket);
+        var key = upload("trigger/on-create-or-update", bucket);
 
         Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
         Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
         assertThat("Trigger should fire on CREATE", createExecution.isPresent(), is(true));
 
-        update("trigger/on-create-or-update", bucket);
+        update(key, bucket);
         Thread.sleep(2000);
 
         Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
