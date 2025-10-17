@@ -2,8 +2,10 @@ package io.kestra.plugin.aws.s3;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -45,6 +47,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     bucket: "my-bucket"
                     prefix: "sub-dir"
                 """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "files.count",
+            type = Counter.TYPE,
+            unit = "objects",
+            description = "The number of files downloaded from the S3 bucket."
+        ),
+        @Metric(
+            name = "file.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The size in bytes of each downloaded file."
         )
     }
 )
@@ -124,6 +140,8 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 }))
                 .filter(object -> !object.getKey().endsWith("/")) // filter directory
                 .collect(Collectors.toList());
+            runContext.metric(Counter.of("files.count", (double) list.size()));
+
 
             Map<String, URI> outputFiles = list.stream()
                 .map(obj -> new AbstractMap.SimpleEntry<>(obj.getKey(), obj.getUri()))
