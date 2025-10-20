@@ -56,12 +56,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             description = "The number of files downloaded from the S3 bucket."
         ),
         @Metric(
-            name = "file.size",
-            type = Counter.TYPE,
-            unit = "bytes",
-            description = "The size in bytes of each downloaded file."
-        ),
-        @Metric(
             name = "files.size.total",
             type = Counter.TYPE,
             unit = "bytes",
@@ -151,7 +145,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             double totalBytes = 0.0;
             for (S3Object object : list) {
                 if (object.getSize() != null) {
-                    runContext.metric(Counter.of("file.size", (double) object.getSize()));
                     totalBytes += object.getSize();
                 }
             }
