@@ -193,10 +193,5 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             title = "The downloaded files as a map of from/to URIs."
         )
         private final Map<String, URI> outputFiles;
-
-        @Schema(
-            title = "The total size of all downloaded files in bytes."
-        )
-        private final Double totalSize;
     }
 }
