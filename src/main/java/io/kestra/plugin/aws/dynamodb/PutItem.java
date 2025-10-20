@@ -70,7 +70,7 @@ import java.util.Map;
             code = """
                 id: add_items_to_dynamodb
                 namespace: company.team
-                
+
                 tasks:
                   - id: first_item_as_map
                     type: io.kestra.plugin.aws.dynamodb.PutItem
@@ -78,7 +78,7 @@ import java.util.Map;
                       id: 1
                       flow: "{{ flow.id }}"
                       task: "{{ task.id }}"
-                
+
                   - id: second_item_as_json
                     type: io.kestra.plugin.aws.dynamodb.PutItem
                     item: |
@@ -87,7 +87,7 @@ import java.util.Map;
                           "flow": "{{ flow.id }}",
                           "task": "{{ task.id }}"
                       }
-                
+
                 pluginDefaults:
                   - type: io.kestra.plugin.aws.dynamodb.PutItem
                     values:
@@ -100,7 +100,7 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table.", 
+    title = "Put an item into a DynamoDB table.",
     description = "If an item with the same key already exists, the element will be updated."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
