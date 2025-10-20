@@ -168,7 +168,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 .builder()
                 .objects(list)
                 .outputFiles(outputFiles)
-                .totalSize(totalBytes)
                 .build();
         }
     }
