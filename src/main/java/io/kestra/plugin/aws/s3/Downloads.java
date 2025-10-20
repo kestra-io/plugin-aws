@@ -61,6 +61,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             type = Counter.TYPE,
             unit = "bytes",
             description = "The size in bytes of each downloaded file."
+        ),
+        @Metric(
+            name = "files.size.total",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The total size in bytes of all downloaded files."
         )
     }
 )
@@ -140,8 +146,18 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 }))
                 .filter(object -> !object.getKey().endsWith("/")) // filter directory
                 .collect(Collectors.toList());
+
             runContext.metric(Counter.of("files.count", (double) list.size()));
 
+            double totalBytes = 0.0;
+            for (S3Object object : list) {
+                if (object.getSize() != null) {
+                    runContext.metric(Counter.of("file.size", (double) object.getSize()));
+                    totalBytes += object.getSize();
+                }
+            }
+
+            runContext.metric(Counter.of("files.size.total", totalBytes));
 
             Map<String, URI> outputFiles = list.stream()
                 .map(obj -> new AbstractMap.SimpleEntry<>(obj.getKey(), obj.getUri()))
@@ -160,6 +176,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 .builder()
                 .objects(list)
                 .outputFiles(outputFiles)
+                .totalSize(totalBytes)
                 .build();
         }
     }
@@ -177,5 +194,10 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             title = "The downloaded files as a map of from/to URIs."
         )
         private final Map<String, URI> outputFiles;
+
+        @Schema(
+            title = "The total size of all downloaded files in bytes."
+        )
+        private final Double totalSize;
     }
 }
