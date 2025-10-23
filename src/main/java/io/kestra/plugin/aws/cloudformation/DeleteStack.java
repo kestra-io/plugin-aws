@@ -22,7 +22,32 @@ import jakarta.validation.constraints.NotNull;
 @NoArgsConstructor
 @Schema(title = "Delete a CloudFormation stack.")
 @Plugin(
-    examples = { /* ... examples ... */ }
+    examples = {
+        @Example(
+            title = "Delete a CloudFormation stack and wait for it to be fully removed.",
+            full = true,
+            code = """
+                id: aws_cfn_delete_stack
+                namespace: dev
+                tasks:
+                  - id: delete_my_stack
+                    type: io.kestra.plugin.aws.cloudformation.DeleteStack
+                    
+                    # --- Authentication ---
+                    # It's best practice to store credentials as Kestra secrets
+                    accessKeyId: "{{ secrets.AWS_ACCESS_KEY_ID }}"
+                    secretKeyId: "{{ secrets.AWS_SECRET_ACCESS_KEY }}"
+                    region: "us-east-1"
+                    
+                    # --- Task Configuration ---
+                    # The name of the stack you want to delete
+                    stackName: "my-stack-to-delete"
+                    
+                    # This will make the task wait until the stack is fully deleted in AWS (optional, defaults to true)
+                    waitForCompletion: true
+                """
+        )
+    }
 )
 public class DeleteStack extends AbstractCloudFormation implements RunnableTask<DeleteStack.Output> {
 
