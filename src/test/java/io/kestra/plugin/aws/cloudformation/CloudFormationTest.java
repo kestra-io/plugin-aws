@@ -9,7 +9,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
 import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -18,7 +17,7 @@ import static org.hamcrest.Matchers.notNullValue;
 
 @KestraTest
 @Disabled("This test requires a real AWS account; provide credentials and region to run.")
-class CloudFormationIntegrationTest {
+class CloudFormationTest { 
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -36,11 +35,11 @@ class CloudFormationIntegrationTest {
         """;
 
     @Test
-    void createStackTest() throws Exception {
+    void createTest() throws Exception {
         RunContext runContext = runContextFactory.of(ImmutableMap.of());
         String stackName = "kestra-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
 
-        CreateStack task = CreateStack.builder()
+        Create task = Create.builder()
             .accessKeyId(Property.of(accessKeyId))
             .secretKeyId(Property.of(secretKeyId))
             .region(Property.of(region))
@@ -49,18 +48,17 @@ class CloudFormationIntegrationTest {
             .waitForCompletion(true)
             .build();
 
-        CreateStack.Output output = task.run(runContext);
+        Create.Output output = task.run(runContext);
 
         assertThat(output.getStackId(), is(notNullValue()));
     }
     
     @Test
-    void deleteStackTest() throws Exception {
+    void deleteTest() throws Exception {
         RunContext runContext = runContextFactory.of(ImmutableMap.of());
-        // IMPORTANT: Use a stack name that you know exists from a previous test run
-        String stackNameToDelete = "kestra-test-stack-......"; 
+        String stackNameToDelete = "kestra-test-stack-......"; // IMPORTANT: Update with a real stack name
 
-        DeleteStack task = DeleteStack.builder()
+        Delete task = Delete.builder()
             .accessKeyId(Property.of(accessKeyId))
             .secretKeyId(Property.of(secretKeyId))
             .region(Property.of(region))
@@ -68,8 +66,6 @@ class CloudFormationIntegrationTest {
             .waitForCompletion(true)
             .build();
 
-        DeleteStack.Output output = task.run(runContext);
-
-        assertThat(output.getStackName(), is(stackNameToDelete));
+        task.run(runContext); 
     }
 }

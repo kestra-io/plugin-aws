@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.cloudformation;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -39,9 +38,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 namespace: dev
                 tasks:
                   - id: create_s3_bucket
-                    type: io.kestra.plugin.aws.cloudformation.CreateStack
-                    accessKeyId: "{{ secrets.AWS_ACCESS_KEY_ID }}"
-                    secretKeyId: "{{ secrets.AWS_SECRET_ACCESS_KEY }}"
+                    type: io.kestra.plugin.aws.cloudformation.Create
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     region: "us-east-1"
                     stackName: "my-s3-bucket-stack"
                     waitForCompletion: true
@@ -52,7 +51,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         MyS3Bucket:
                           Type: 'AWS::S3::Bucket'
                           Properties:
-                            BucketName: 'my-unique-kestra-bucket-1'
+                            BucketName: "kestra-cfn-test-1"
                       Outputs:
                         BucketName:
                           Value: !Ref MyS3Bucket
@@ -61,22 +60,18 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class CreateStack extends AbstractCloudFormation implements RunnableTask<CreateStack.Output> {
+public class Create extends AbstractCloudFormation implements RunnableTask<Create.Output> {
 
-    @PluginProperty(dynamic = true)
     @NotNull
     @Schema(title = "The name of the stack.")
     private Property<String> stackName;
 
-    @PluginProperty(dynamic = true)
     @Schema(title = "The structure that contains the stack template.")
     private Property<String> templateBody;
 
-    @PluginProperty
     @Schema(title = "A list of Parameter structures for the stack.")
     private Property<Map<String, String>> parameters;
 
-    @PluginProperty(dynamic = false)
     @Builder.Default
     @Schema(title = "Whether to wait for the stack operation to complete.")
     private Boolean waitForCompletion = true;
@@ -84,38 +79,38 @@ public class CreateStack extends AbstractCloudFormation implements RunnableTask<
     @Override
     public Output run(RunContext runContext) throws Exception {
         CloudFormationClient cfClient = this.cfClient(runContext);
-        String renderedStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
+        String rStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
 
         boolean stackExists = cfClient.listStacks(ListStacksRequest.builder()
                 .stackStatusFilters(StackStatus.CREATE_COMPLETE, StackStatus.UPDATE_COMPLETE, StackStatus.UPDATE_ROLLBACK_COMPLETE)
                 .build())
-            .stackSummaries().stream().anyMatch(s -> s.stackName().equals(renderedStackName));
+            .stackSummaries().stream().anyMatch(s -> s.stackName().equals(rStackName));
 
         if (stackExists) {
-            runContext.logger().info("Stack '{}' already exists. Attempting to update.", renderedStackName);
-            UpdateStackRequest.Builder updateRequestBuilder = UpdateStackRequest.builder().stackName(renderedStackName);
-            
+            runContext.logger().info("Stack '{}' already exists. Attempting to update.", rStackName);
+            UpdateStackRequest.Builder updateRequestBuilder = UpdateStackRequest.builder().stackName(rStackName);
+
             if (this.templateBody != null) {
-                 updateRequestBuilder.templateBody(runContext.render(this.templateBody).as(String.class).orElse(null));
+                updateRequestBuilder.templateBody(runContext.render(this.templateBody).as(String.class).orElse(null));
             }
             if (this.parameters != null) {
                 updateRequestBuilder.parameters(mapToParameters(runContext, runContext.render(this.parameters).asMap(String.class, String.class)));
             }
-            
+
             cfClient.updateStack(updateRequestBuilder.build());
 
             if (this.waitForCompletion) {
                 try (CloudFormationWaiter waiter = cfClient.waiter()) {
-                    waiter.waitUntilStackUpdateComplete(s -> s.stackName(renderedStackName));
+                    waiter.waitUntilStackUpdateComplete(s -> s.stackName(rStackName));
                 }
             }
 
         } else {
-            runContext.logger().info("Stack '{}' does not exist. Creating new stack.", renderedStackName);
-            CreateStackRequest.Builder createRequestBuilder = CreateStackRequest.builder().stackName(renderedStackName);
+            runContext.logger().info("Stack '{}' does not exist. Creating new stack.", rStackName);
+            CreateStackRequest.Builder createRequestBuilder = CreateStackRequest.builder().stackName(rStackName);
 
             if (this.templateBody != null) {
-                 createRequestBuilder.templateBody(runContext.render(this.templateBody).as(String.class).orElse(null));
+                createRequestBuilder.templateBody(runContext.render(this.templateBody).as(String.class).orElse(null));
             }
             if (this.parameters != null) {
                 createRequestBuilder.parameters(mapToParameters(runContext, runContext.render(this.parameters).asMap(String.class, String.class)));
@@ -125,14 +120,14 @@ public class CreateStack extends AbstractCloudFormation implements RunnableTask<
 
             if (this.waitForCompletion) {
                 try (CloudFormationWaiter waiter = cfClient.waiter()) {
-                    waiter.waitUntilStackCreateComplete(s -> s.stackName(renderedStackName));
+                    waiter.waitUntilStackCreateComplete(s -> s.stackName(rStackName));
                 }
             }
         }
 
-        DescribeStacksResponse describeStacksResponse = cfClient.describeStacks(DescribeStacksRequest.builder().stackName(renderedStackName).build());
+        DescribeStacksResponse describeStacksResponse = cfClient.describeStacks(DescribeStacksRequest.builder().stackName(rStackName).build());
         Stack finalStack = describeStacksResponse.stacks().get(0);
-        
+
         return Output.builder()
             .stackId(finalStack.stackId())
             .stackOutputs(finalStack.outputs().stream().collect(Collectors.toMap(

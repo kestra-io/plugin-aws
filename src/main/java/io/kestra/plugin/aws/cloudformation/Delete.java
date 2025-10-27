@@ -2,9 +2,9 @@ package io.kestra.plugin.aws.cloudformation;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -31,66 +31,48 @@ import jakarta.validation.constraints.NotNull;
                 namespace: dev
                 tasks:
                   - id: delete_my_stack
-                    type: io.kestra.plugin.aws.cloudformation.DeleteStack
-                    
-                    # --- Authentication ---
-                    # It's best practice to store credentials as Kestra secrets
-                    accessKeyId: "{{ secrets.AWS_ACCESS_KEY_ID }}"
-                    secretKeyId: "{{ secrets.AWS_SECRET_ACCESS_KEY }}"
+                    type: io.kestra.plugin.aws.cloudformation.Delete
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     region: "us-east-1"
-                    
-                    # --- Task Configuration ---
-                    # The name of the stack you want to delete
                     stackName: "my-stack-to-delete"
-                    
-                    # This will make the task wait until the stack is fully deleted in AWS (optional, defaults to true)
                     waitForCompletion: true
                 """
         )
     }
 )
-public class DeleteStack extends AbstractCloudFormation implements RunnableTask<DeleteStack.Output> {
+public class Delete extends AbstractCloudFormation implements RunnableTask<VoidOutput> {
 
-    @PluginProperty(dynamic = true)
     @NotNull
     @Schema(title = "The name of the stack to delete.")
     private Property<String> stackName;
 
-    @PluginProperty(dynamic = false)
     @Builder.Default
     @Schema(title = "Whether to wait for the stack deletion to complete.")
     private Boolean waitForCompletion = true;
 
     @Override
-    public Output run(RunContext runContext) throws Exception {
+    public VoidOutput run(RunContext runContext) throws Exception {
         CloudFormationClient cfClient = this.cfClient(runContext);
-        String renderedStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
+        String rStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
+
+        runContext.logger().info("Attempting to delete CloudFormation stack '{}'", rStackName);
 
         DeleteStackRequest deleteRequest = DeleteStackRequest.builder()
-            .stackName(renderedStackName)
+            .stackName(rStackName)
             .build();
 
         cfClient.deleteStack(deleteRequest);
 
         if (this.waitForCompletion) {
+            runContext.logger().info("Waiting for stack '{}' deletion to complete.", rStackName);
             try (CloudFormationWaiter waiter = cfClient.waiter()) {
-                waiter.waitUntilStackDeleteComplete(r -> r.stackName(renderedStackName));
+                waiter.waitUntilStackDeleteComplete(r -> r.stackName(rStackName));
             }
         }
-        
-        runContext.logger().info("Stack '{}' deletion process initiated.", renderedStackName);
 
-        return Output.builder()
-            .stackName(renderedStackName)
-            .build();
-    }
-    
-    @Builder
-    @Getter
-    public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(
-            title = "The name of the stack that was deleted."
-        )
-        private final String stackName;
+        runContext.logger().info("Successfully initiated deletion for stack '{}'", rStackName);
+
+        return null;
     }
 }
