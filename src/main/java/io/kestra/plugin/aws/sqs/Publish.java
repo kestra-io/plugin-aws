@@ -110,7 +110,10 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         try (var sqsClient = this.client(runContext)) {
             Integer count = Data.from(from).read(runContext)
                 .map(throwFunction(message -> {
-                    sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
+                    sqsClient.sendMessage(SendMessageRequest.builder()
+                        .queueUrl(queueUrl)
+                        .messageBody(message.get("data").toString())
+                        .build());
                     return 1;
                 }))
                 .reduce(Integer::sum)
