@@ -109,7 +109,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
             Integer count = Data.from(from).read(runContext)
-                .map(throwFunction(row -> {
+                .map(throwFunction(message -> {
                     sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
                     return 1;
                 }))
