@@ -112,7 +112,10 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
         try (var snsClient = this.client(runContext)) {
             Integer count = Data.from(from).read(runContext)
             .map(throwFunction(message -> {
-                snsClient.publish(PublishRequest.builder().topicArn(topicArn).message(message.getData()).build());
+                snsClient.publish(PublishRequest.builder()
+                    .topicArn(topicArn)
+                    .message(message.getData())
+                    .build());
                 return 1;
             }))
             .reduce(Integer::sum)
