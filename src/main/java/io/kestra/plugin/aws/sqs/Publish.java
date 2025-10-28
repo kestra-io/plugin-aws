@@ -112,18 +112,19 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                 .map(throwFunction(raw -> {
                     Message message;
 
-                    if (raw instanceof Message m) {
-                        message = m;
-                    } else if (raw instanceof Map<?, ?> map) {
-                        message = JacksonMapper.ofJson().convertValue(map, Message.class);
-                    } else if (raw instanceof String str) {
-                         try {
-                                message = JacksonMapper.ofJson().readValue(str, Message.class);
-                             } catch (Exception e) {
-                                message = Message.builder()
-                                .data(str)
-                                .build();
-                            }
+                    if (raw instanceof Message) {
+                        message = (Message) raw;
+                    } else if (raw instanceof Map) {
+                        message = JacksonMapper.ofJson().convertValue(raw, Message.class);
+                    } else if (raw instanceof String) {
+                        String str = (String) raw;
+                        try {
+                            message = JacksonMapper.ofJson().readValue(str, Message.class);
+                        } catch (Exception e) {
+                            message = Message.builder()
+                            .data(str)
+                            .build();
+                        }
                     } else {
                         throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
                     }
