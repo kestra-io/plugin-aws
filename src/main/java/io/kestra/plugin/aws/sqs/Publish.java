@@ -109,11 +109,28 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
             Integer count = Data.from(from).read(runContext)
-                .map(throwFunction(message -> {
-                    sqsClient.sendMessage(SendMessageRequest.builder()
+                .map(throwFunction(raw -> {
+                    Message message;
+
+                    if (raw instanceof Message m) {
+                        message = m;
+                    } else if (raw instanceof Map<?, ?> map) {
+                        message = JacksonMapper.ofJson().convertValue(map, Message.class);
+                    } else if (raw instanceof String str) {
+                        message = JacksonMapper.ofJson().readValue(str, Message.class);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
+                    }
+
+                    var builder = SendMessageRequest.builder()
                         .queueUrl(queueUrl)
-                        .messageBody(message.get("data").toString())
-                        .build());
+                        .messageBody(message.getData());
+
+                    if (message.getDelaySeconds() != null) {
+                        builder.delaySeconds(message.getDelaySeconds());
+                    }
+
+                    sqsClient.sendMessage(builder.build());
                     return 1;
                 }))
                 .reduce(Integer::sum)
