@@ -120,7 +120,13 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                     } else if (raw instanceof Map<?, ?> map) {
                         message = JacksonMapper.ofJson().convertValue(map, Message.class);
                     } else if (raw instanceof String str) {
-                        message = JacksonMapper.ofJson().readValue(str, Message.class);
+                        try {
+                                message = JacksonMapper.ofJson().readValue(str, Message.class);
+                             } catch (Exception e) {
+                                message = Message.builder()
+                                .data(str)
+                                .build();
+                            }
                     } else {
                         throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
                     }
