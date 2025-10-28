@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -111,12 +112,27 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
         var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
             Integer count = Data.from(from).read(runContext)
-            .map(throwFunction(message -> {
-                snsClient.publish(PublishRequest.builder()
-                    .topicArn(topicArn)
-                    .message((String) message.get("data"))
-                    .build());
-                return 1;
+                .map(throwFunction(raw -> {
+                    Message message;
+
+                    if (raw instanceof Message m) {
+                        message = m;
+                    } else if (raw instanceof Map<?, ?> map) {
+                        message = JacksonMapper.ofJson().convertValue(map, Message.class);
+                    } else if (raw instanceof String str) {
+                        message = JacksonMapper.ofJson().readValue(str, Message.class);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
+                    }
+
+                    snsClient.publish(PublishRequest.builder()
+                        .topicArn(topicArn)
+                        .message(message.getData())
+                        .subject(message.getSubject())
+                        .build()
+                    );
+                 
+                    return 1;
             }))
             .reduce(Integer::sum)
             .blockOptional()
