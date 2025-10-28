@@ -110,9 +110,9 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     public Publish.Output run(RunContext runContext) throws Exception {
         var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
-            Integer count = Data.from(from).read(runContext, Message.class)
+            Integer count = Data.from(from).read(runContext)
             .map(throwFunction(message -> {
-                snsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
+                snsClient.publish(PublishRequest.builder().topicArn(topicArn).message(message.getData()).build());
                 return 1;
             }))
             .reduce(Integer::sum)
