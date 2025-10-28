@@ -114,7 +114,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
             .map(throwFunction(message -> {
                 snsClient.publish(PublishRequest.builder()
                     .topicArn(topicArn)
-                    .message(message.getData())
+                    .message((String) message.get("data"))
                     .build());
                 return 1;
             }))
