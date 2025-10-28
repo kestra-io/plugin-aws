@@ -41,7 +41,6 @@ dependencies {
     // Platform
     annotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
     implementation enforcedPlatform("io.kestra:platform:$kestraVersion")
-    implementation 'jakarta.validation:jakarta.validation-api'
 
     // Lombok
     annotationProcessor "org.projectlombok:lombok"
@@ -78,7 +77,6 @@ dependencies {
     api 'software.amazon.awssdk:glue'
     api 'software.amazon.awssdk:cloudwatch'
     api 'software.amazon.awssdk:cloudformation'
-    // Add this line with the other AWS and Kestra dependencies
 }
 
 
