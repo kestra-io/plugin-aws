@@ -1,71 +1,68 @@
 package io.kestra.plugin.aws.cloudformation;
 
-import com.google.common.collect.ImmutableMap;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 import java.util.UUID;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
 @KestraTest
-@Disabled("This test requires a real AWS account; provide credentials and region to run.")
-class CloudFormationTest { 
+@Testcontainers 
+class CloudFormationTest {
 
     @Inject
     private RunContextFactory runContextFactory;
 
-    // --- Configuration: Fill these in before running ---
-    private String accessKeyId = "YOUR_AWS_ACCESS_KEY_ID";
-    private String secretKeyId = "YOUR_AWS_SECRET_KEY_ID";
-    private String region = "us-east-1";
-    
-    private String templateBody = """
+    @Container
+    private static final LocalStackContainer localstack = new LocalStackContainer(
+        DockerImageName.parse("localstack/localstack:2.2.0")
+    ).withServices(LocalStackContainer.Service.CLOUDFORMATION); 
+
+    private final String templateBody = """
         AWSTemplateFormatVersion: '2010-09-09'
+        Description: A test S3 bucket.
         Resources:
           MyTestBucket:
             Type: 'AWS::S3::Bucket'
         """;
 
     @Test
-    void createTest() throws Exception {
-        RunContext runContext = runContextFactory.of(ImmutableMap.of());
+    void createAndDeleteStackTest() throws Exception {
+        RunContext runContext = runContextFactory.of();
         String stackName = "kestra-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
-
-        Create task = Create.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .region(Property.of(region))
+       
+        Create create = Create.builder()
+            .region(Property.of(localstack.getRegion()))
+            .accessKeyId(Property.of(localstack.getAccessKey())) 
+            .secretKeyId(Property.of(localstack.getSecretKey())) 
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.CLOUDFORMATION).toString())) // IMPORTANT: Point to LocalStack
             .stackName(Property.of(stackName))
             .templateBody(Property.of(templateBody))
             .waitForCompletion(true)
             .build();
 
-        Create.Output output = task.run(runContext);
+        Create.Output createOutput = create.run(runContext);
+        
+        assertThat(createOutput.getStackId(), is(notNullValue()));
 
-        assertThat(output.getStackId(), is(notNullValue()));
-    }
-    
-    @Test
-    void deleteTest() throws Exception {
-        RunContext runContext = runContextFactory.of(ImmutableMap.of());
-        String stackNameToDelete = "kestra-test-stack-......"; // IMPORTANT: Update with a real stack name
-
-        Delete task = Delete.builder()
-            .accessKeyId(Property.of(accessKeyId))
-            .secretKeyId(Property.of(secretKeyId))
-            .region(Property.of(region))
-            .stackName(Property.of(stackNameToDelete))
+        Delete delete = Delete.builder()
+            .region(Property.of(localstack.getRegion()))
+            .accessKeyId(Property.of(localstack.getAccessKey()))
+            .secretKeyId(Property.of(localstack.getSecretKey()))
+            .endpointOverride(Property.of(localstack.getEndpointOverride(LocalStackContainer.Service.CLOUDFORMATION).toString())) // IMPORTANT: Point to LocalStack
+            .stackName(Property.of(stackName))
             .waitForCompletion(true)
             .build();
 
-        task.run(runContext); 
+        delete.run(runContext);
     }
 }
