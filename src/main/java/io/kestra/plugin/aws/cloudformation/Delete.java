@@ -13,8 +13,6 @@ import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 import software.amazon.awssdk.services.cloudformation.model.DeleteStackRequest;
 import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWaiter;
 
-import jakarta.validation.constraints.NotNull;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -27,6 +25,7 @@ import jakarta.validation.constraints.NotNull;
             title = "Delete a CloudFormation stack and wait for it to be fully removed.",
             full = true,
             code = """
+
                 id: aws_cfn_delete_stack
                 namespace: dev
                 tasks:
@@ -43,19 +42,17 @@ import jakarta.validation.constraints.NotNull;
 )
 public class Delete extends AbstractCloudFormation implements RunnableTask<VoidOutput> {
 
-    @NotNull
-    @Schema(title = "The name of the stack to delete.")
-    private Property<String> stackName;
 
     @Builder.Default
     @Schema(title = "Whether to wait for the stack deletion to complete.")
-    private Boolean waitForCompletion = true;
+    private Property<Boolean> waitForCompletion = Property.of(true);
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         CloudFormationClient cfClient = this.cfClient(runContext);
         String rStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
-
+        Boolean rWaitForCompletion = runContext.render(this.waitForCompletion).as(Boolean.class).orElse(true);
+        
         runContext.logger().info("Attempting to delete CloudFormation stack '{}'", rStackName);
 
         DeleteStackRequest deleteRequest = DeleteStackRequest.builder()
@@ -64,10 +61,14 @@ public class Delete extends AbstractCloudFormation implements RunnableTask<VoidO
 
         cfClient.deleteStack(deleteRequest);
 
-        if (this.waitForCompletion) {
+        if (rWaitForCompletion) {
             runContext.logger().info("Waiting for stack '{}' deletion to complete.", rStackName);
             try (CloudFormationWaiter waiter = cfClient.waiter()) {
                 waiter.waitUntilStackDeleteComplete(r -> r.stackName(rStackName));
+            }
+            catch (Exception e) {
+                runContext.logger().error("Error while waiting for stack '{}' deletion to complete: {}", rStackName, e.getMessage());
+                throw e;
             }
         }
 
