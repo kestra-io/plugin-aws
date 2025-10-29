@@ -15,11 +15,10 @@ import jakarta.inject.Inject;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 @KestraTest
@@ -89,6 +88,34 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
         upload.run(runContext(upload));
 
         return upload.getKey().toString();
+    }
+
+    protected String update(String key, String bucket) throws Exception {
+        String content = "updated file: " + IdUtils.create();
+        InputStream input = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+
+        URI source = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI("/" + IdUtils.create()),
+            input
+        );
+
+        Upload upload = Upload.builder()
+            .id(AllTest.class.getSimpleName())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .build();
+
+        upload.run(runContext(upload));
+
+        return key;
     }
 
     protected List.ListBuilder<?, ?> list() {

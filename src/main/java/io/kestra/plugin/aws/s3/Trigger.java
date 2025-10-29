@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -13,10 +14,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.sql.Blob;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -103,7 +109,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractConnectionInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractConnectionInterface, StatefulTriggerInterface {
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -157,9 +163,20 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Boolean> forcePathStyle = Property.ofValue(false);
 
+    @Builder.Default
+    private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
+
+    private Property<String> stateKey;
+
+    private Property<Duration> stateTtl;
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
+
+        var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
+        var rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
         List task = List.builder()
             .id(this.id)
@@ -187,52 +204,101 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .compatibilityMode(this.compatibilityMode)
             .forcePathStyle(this.forcePathStyle)
             .build();
+
         List.Output run = task.run(runContext);
 
         if (run.getObjects().isEmpty()) {
             return Optional.empty();
         }
 
-        java.util.List<S3Object> list = run
-            .getObjects()
-            .stream()
-            .map(throwFunction(object -> {
-                Download download = Download.builder()
-                    .id(this.id)
-                    .type(List.class.getName())
-                    .region(this.region)
-                    .endpointOverride(this.endpointOverride)
-                    .accessKeyId(this.accessKeyId)
-                    .secretKeyId(this.secretKeyId)
-                    .sessionToken(this.sessionToken)
-                    .stsRoleArn(this.stsRoleArn)
-                    .stsRoleSessionName(this.stsRoleSessionName)
-                    .stsRoleExternalId(this.stsRoleExternalId)
-                    .stsRoleSessionDuration(this.stsRoleSessionDuration)
-                    .stsEndpointOverride(this.stsEndpointOverride)
-                    .requestPayer(this.requestPayer)
-                    .bucket(this.bucket)
-                    .key(Property.ofValue(object.getKey()))
-                    .compatibilityMode(this.compatibilityMode)
-                    .forcePathStyle(this.forcePathStyle)
-                    .build();
-                Download.Output downloadOutput = download.run(runContext);
+        var previousState = readState(runContext, rStateKey, rStateTtl);
 
-                return object.withUri(downloadOutput.getUri());
+        java.util.List<S3Object> actionBlobs = new ArrayList<>();
+
+        var toFire = run.getObjects().stream()
+            .flatMap(throwFunction(object -> {
+                var resolvedBucket = runContext.render(bucket).as(String.class).orElse("");
+                var uri = String.format("s3://%s/%s", resolvedBucket, object.getKey());
+
+                Instant modifiedAt = Optional.ofNullable(object.getLastModified()).orElse(Instant.now());
+                String version = Optional.ofNullable(object.getEtag()).orElse(String.valueOf(modifiedAt.toEpochMilli()));
+
+                var candidate = StatefulTriggerService.Entry.candidate(uri, version, modifiedAt);
+                var change = computeAndUpdateState(previousState, candidate, rOn);
+
+                if (change.fire()) {
+                    var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
+
+                    var download = Download.builder()
+                        .id(this.id)
+                        .type(Download.class.getName())
+                        .region(this.region)
+                        .endpointOverride(this.endpointOverride)
+                        .accessKeyId(this.accessKeyId)
+                        .secretKeyId(this.secretKeyId)
+                        .sessionToken(this.sessionToken)
+                        .stsRoleArn(this.stsRoleArn)
+                        .stsRoleSessionName(this.stsRoleSessionName)
+                        .stsRoleExternalId(this.stsRoleExternalId)
+                        .stsRoleSessionDuration(this.stsRoleSessionDuration)
+                        .stsEndpointOverride(this.stsEndpointOverride)
+                        .requestPayer(this.requestPayer)
+                        .bucket(this.bucket)
+                        .key(Property.ofValue(object.getKey()))
+                        .compatibilityMode(this.compatibilityMode)
+                        .forcePathStyle(this.forcePathStyle)
+                        .build();
+
+                    var dlOut = download.run(runContext);
+                    var downloaded = object.withUri(dlOut.getUri());
+
+                    actionBlobs.add(object);
+
+                    return Stream.of(TriggeredObject.builder()
+                        .object(downloaded)
+                        .changeType(changeType)
+                        .build());
+                }
+                return Stream.empty();
             }))
-            .collect(Collectors.toList());
+            .toList();
 
-        S3Service.performAction(
-            run.getObjects(),
-            this.action,
-            this.moveTo,
-            runContext,
-            this,
-            this
-        );
+        writeState(runContext, rStateKey, previousState, rStateTtl);
 
-        Execution execution = TriggerService.generateExecution(this, conditionContext, context, List.Output.builder().objects(list).build());
+        if (toFire.isEmpty()) {
+            return Optional.empty();
+        }
+
+        S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+
+        var output = Output.builder().objects(toFire).build();
+        Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
 
         return Optional.of(execution);
+    }
+
+    public enum ChangeType {
+        CREATE,
+        UPDATE
+    }
+
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class TriggeredObject {
+        @JsonUnwrapped
+        private final S3Object object;
+        private final ChangeType changeType;
+
+        public S3Object toObject() {
+            return object;
+        }
+    }
+
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "List of S3 objects that triggered the flow, each with its change type.")
+        private final java.util.List<TriggeredObject> objects;
     }
 }
