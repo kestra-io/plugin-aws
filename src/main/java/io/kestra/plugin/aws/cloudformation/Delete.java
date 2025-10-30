@@ -2,7 +2,6 @@ package io.kestra.plugin.aws.cloudformation;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -22,12 +21,12 @@ import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWait
 @Plugin(
     examples = {
         @Example(
-            title = "Delete a CloudFormation stack and wait for it to be fully removed.",
             full = true,
+            title = "Delete a CloudFormation stack and wait for it to be fully removed.",
             code = """
-
                 id: aws_cfn_delete_stack
                 namespace: dev
+
                 tasks:
                   - id: delete_my_stack
                     type: io.kestra.plugin.aws.cloudformation.Delete
@@ -41,11 +40,6 @@ import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWait
     }
 )
 public class Delete extends AbstractCloudFormation implements RunnableTask<VoidOutput> {
-
-
-    @Builder.Default
-    @Schema(title = "Whether to wait for the stack deletion to complete.")
-    private Property<Boolean> waitForCompletion = Property.of(true);
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {

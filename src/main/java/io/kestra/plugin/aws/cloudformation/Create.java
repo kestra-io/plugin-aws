@@ -30,12 +30,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Create a simple S3 bucket with CloudFormation and wait for completion.",
             full = true,
+            title = "Create a simple S3 bucket with CloudFormation and wait for completion.",
             code = """
-
                 id: aws_cfn_create_stack
                 namespace: dev
+
                 tasks:
                   - id: create_s3_bucket
                     type: io.kestra.plugin.aws.cloudformation.Create
@@ -62,16 +62,11 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Create extends AbstractCloudFormation implements RunnableTask<Create.Output> {
 
-
     @Schema(title = "The structure that contains the stack template.")
     private Property<String> templateBody;
 
     @Schema(title = "A list of Parameter structures for the stack.")
     private Property<Map<String, String>> parameters;
-
-    @Builder.Default
-    @Schema(title = "Whether to wait for the stack operation to complete.")
-    private Property<Boolean> waitForCompletion = Property.of(true);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
