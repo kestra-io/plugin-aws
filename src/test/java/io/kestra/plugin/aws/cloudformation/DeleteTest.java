@@ -9,27 +9,24 @@ import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
 
-class CloudFormationTest extends AbstractLocalStackTest {
+class DeleteTest extends AbstractLocalStackTest {
 
     @Inject
     private RunContextFactory runContextFactory;
 
     private final String templateBody = """
         AWSTemplateFormatVersion: '2010-09-09'
-        Description: A test S3 bucket.
+        Description: A test S3 bucket to be deleted.
         Resources:
           MyTestBucket:
             Type: 'AWS::S3::Bucket'
         """;
 
     @Test
-    void createAndDeleteStackTest() throws Exception {
+    void run() throws Exception {
         RunContext runContext = runContextFactory.of();
-        String stackName = "kestra-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
+        String stackName = "kestra-delete-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
 
         Create create = Create.builder()
             .region(Property.of(localstack.getRegion()))
@@ -40,11 +37,7 @@ class CloudFormationTest extends AbstractLocalStackTest {
             .templateBody(Property.of(templateBody))
             .waitForCompletion(Property.of(true))
             .build();
-
-        Create.Output createOutput = create.run(runContext);
-
-        assertThat(createOutput.getStackId(), is(notNullValue()));
-        assertThat(createOutput.getStackName(), is(stackName));
+        create.run(runContext);
 
         Delete delete = Delete.builder()
             .region(Property.of(localstack.getRegion()))
@@ -54,7 +47,6 @@ class CloudFormationTest extends AbstractLocalStackTest {
             .stackName(Property.of(stackName))
             .waitForCompletion(Property.of(true))
             .build();
-
         delete.run(runContext);
     }
 }
