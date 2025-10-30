@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 @Disabled("Provide AWS credentials, an existing Glue job name, and a job run ID to stop to run this test")
-class StopJobRunIntegrationTest {
+class StopJobRunIT {
     @Inject
     private RunContextFactory runContextFactory;
 

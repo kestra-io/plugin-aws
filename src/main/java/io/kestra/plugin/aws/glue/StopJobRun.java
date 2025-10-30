@@ -17,6 +17,8 @@ import software.amazon.awssdk.services.glue.model.BatchStopJobRunRequest;
 import software.amazon.awssdk.services.glue.model.BatchStopJobRunResponse;
 import software.amazon.awssdk.services.glue.model.GetJobRunRequest;
 import software.amazon.awssdk.services.glue.model.GetJobRunResponse;
+import software.amazon.awssdk.services.glue.model.JobRun;
+import software.amazon.awssdk.services.glue.model.JobRunState;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -58,12 +60,10 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
     @Schema(title = "The name of the Glue job to stop")
-    @PluginProperty(dynamic = true)
     @NotNull
     private Property<String> jobName;
 
     @Schema(title = "The ID of the job run to stop")
-    @PluginProperty(dynamic = true)
     @NotNull
     private Property<String> jobRunId;
 
@@ -83,41 +83,41 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
     @Override
     public Output run(RunContext runContext) throws Exception {
         // Render properties once
-        String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
-        String jobRunIdValue = runContext.render(this.jobRunId).as(String.class).orElseThrow();
-        boolean waitValue = runContext.render(this.wait).as(Boolean.class).orElse(true);
-        Duration intervalValue = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
+        String rjobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
+        String rjobRunIdValue = runContext.render(this.jobRunId).as(String.class).orElseThrow();
+        boolean rwaitValue = runContext.render(this.wait).as(Boolean.class).orElse(true);
+        Duration rintervalValue = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
 
         try (GlueClient glueClient = this.client(runContext)) {
             // Stop the job
             BatchStopJobRunResponse stopResponse = glueClient.batchStopJobRun(
                 BatchStopJobRunRequest.builder()
-                    .jobName(jobNameValue)
-                    .jobRunIds(jobRunIdValue)
+                    .jobName(rjobNameValue)
+                    .jobRunIds(rjobRunIdValue)
                     .build()
             );
 
-            runContext.logger().info("Stopped Glue job '{}' with run ID: {}", jobNameValue, jobRunIdValue);
+            runContext.logger().info("Stopped Glue job '{}' with run ID: {}", rjobNameValue, rjobRunIdValue);
 
-            GetJobRunRequest getJobRunRequest = createGetJobRunRequest(jobNameValue, jobRunIdValue);
-            AtomicReference<software.amazon.awssdk.services.glue.model.JobRun> currentJobRun = new AtomicReference<>();
+            GetJobRunRequest getJobRunRequest = createGetJobRunRequest(rjobNameValue, rjobRunIdValue);
+            AtomicReference<JobRun> currentJobRun = new AtomicReference<>();
 
             GetJobRunResponse initialResponse = glueClient.getJobRun(getJobRunRequest);
-            software.amazon.awssdk.services.glue.model.JobRun initialJobRun = initialResponse.jobRun();
+            JobRun initialJobRun = initialResponse.jobRun();
             currentJobRun.set(initialJobRun);
 
             runContext.logger().info("Initial job state after stop request: {}", initialJobRun.jobRunStateAsString());
 
             // Wait for job to reach terminal state
-            if (waitValue) {
-                waitForJobStopped(runContext, glueClient, getJobRunRequest, currentJobRun, intervalValue);
+            if (rwaitValue) {
+                waitForJobStopped(runContext, glueClient, getJobRunRequest, currentJobRun, rintervalValue);
             }
 
             // Check state
             var acceptableStopStates = Set.of(
-                software.amazon.awssdk.services.glue.model.JobRunState.STOPPED,
-                software.amazon.awssdk.services.glue.model.JobRunState.SUCCEEDED,
-                software.amazon.awssdk.services.glue.model.JobRunState.FAILED
+                JobRunState.STOPPED,
+                JobRunState.SUCCEEDED,
+                JobRunState.FAILED
             );
 
             var finalState = currentJobRun.get().jobRunState();
@@ -127,13 +127,13 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
                         ", Error message: " + currentJobRun.get().errorMessage() : ""));
             }
 
-            return buildOutput(jobNameValue, jobRunIdValue, currentJobRun.get());
+            return buildOutput(rjobNameValue, rjobRunIdValue, currentJobRun.get());
         }
     }
 
     private void waitForJobStopped(RunContext runContext, GlueClient glueClient,
                                    GetJobRunRequest getJobRunRequest,
-                                   AtomicReference<software.amazon.awssdk.services.glue.model.JobRun> currentJobRun,
+                                   AtomicReference<JobRun> currentJobRun,
                                    Duration interval) {
         runContext.logger().debug("Waiting for job to reach stopped state...");
 
@@ -145,9 +145,9 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
 
     private boolean pollAndUpdateJobState(GlueClient glueClient, GetJobRunRequest getJobRunRequest,
                                           RunContext runContext,
-                                          AtomicReference<software.amazon.awssdk.services.glue.model.JobRun> currentJobRun) {
+                                          AtomicReference<JobRun> currentJobRun) {
         GetJobRunResponse jobRunResponse = glueClient.getJobRun(getJobRunRequest);
-        software.amazon.awssdk.services.glue.model.JobRun jobRun = jobRunResponse.jobRun();
+        JobRun jobRun = jobRunResponse.jobRun();
         currentJobRun.set(jobRun);
 
         runContext.logger().info("Job state: {}, Execution time: {} seconds",
@@ -156,13 +156,13 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         var state = jobRun.jobRunState();
 
         // Stop waiting when job reaches a terminal state
-        return state.equals(software.amazon.awssdk.services.glue.model.JobRunState.STOPPED) ||
-            state.equals(software.amazon.awssdk.services.glue.model.JobRunState.SUCCEEDED) ||
-            state.equals(software.amazon.awssdk.services.glue.model.JobRunState.FAILED);
+        return switch (state) {
+            case STOPPED, SUCCEEDED, FAILED, ERROR, TIMEOUT, EXPIRED -> true;
+            default -> false;
+        };
     }
 
-    private Output buildOutput(String jobNameValue, String jobRunIdValue,
-                               software.amazon.awssdk.services.glue.model.JobRun jobRun) {
+    private Output buildOutput(String jobNameValue, String jobRunIdValue, JobRun jobRun) {
         return Output.builder()
             .jobName(jobNameValue)
             .jobRunId(jobRunIdValue)
