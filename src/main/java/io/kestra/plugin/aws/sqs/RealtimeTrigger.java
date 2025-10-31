@@ -112,6 +112,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private Property<String> endpointOverride;
 
     @Builder.Default
+    private Property<Integer> maxConcurrency = Property.ofValue(50);
+
+    @Builder.Default
+    private Property<Duration> connectionAcquisitionTimeout = Property.ofValue(Duration.ofSeconds(5));
+
+    @Builder.Default
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
