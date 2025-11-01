@@ -6,6 +6,8 @@ import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Data;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -92,8 +94,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSqs implements RunnableTask<Publish.Output> {
-    @PluginProperty(dynamic = true)
+public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>,Data.From {
     @NotNull
     @Schema(
         title = "The source of the published data.",
@@ -107,39 +108,42 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
-            Integer count;
-            Flux<Message> flowable;
-            Flux<Integer> resultFlowable;
+            Integer count = Data.from(from).read(runContext)
+                .map(throwFunction(raw -> {
+                    Message message;
 
-            if (this.from instanceof String) {
-                URI from = new URI(runContext.render((String) this.from));
-                if (!from.getScheme().equals("kestra")) {
-                    throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
-                }
+                    if (raw instanceof Message) {
+                        message = (Message) raw;
+                    } else if (raw instanceof Map) {
+                        message = JacksonMapper.ofJson().convertValue(raw, Message.class);
+                    } else if (raw instanceof String || raw instanceof Map) {
+                        String str = raw.toString();
+                        try {
+                            message = JacksonMapper.ofJson().readValue(str, Message.class);
+                        } catch (Exception e) {
+                            message = Message.builder()
+                            .data(str)
+                            .build();
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
+                    }
 
+                    var builder = SendMessageRequest.builder()
+                        .queueUrl(queueUrl)
+                        .messageBody(message.getData());
 
-                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                    flowable = FileSerde.readAll(inputStream, Message.class);
-                    resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
+                    if (message.getDelaySeconds() != null) {
+                        builder.delaySeconds(message.getDelaySeconds());
+                    }
 
-                    count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
-                }
-
-            } else if (this.from instanceof List) {
-                flowable = Flux
-                    .fromIterable((List<?>) this.from)
-                    .map(map -> JacksonMapper.toMap(map, Message.class));
-
-                resultFlowable = this.buildFlowable(flowable, sqsClient, queueUrl, runContext);
-
-                count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
-            } else {
-                var msg = JacksonMapper.toMap(this.from, Message.class);
-                sqsClient.sendMessage(msg.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
-
-                count = 1;
-            }
-
+                    sqsClient.sendMessage(builder.build());
+                    return 1;
+                }))
+                .reduce(Integer::sum)
+                .blockOptional()
+                .orElse(0);
+            
             // metrics
             runContext.metric(Counter.of("sqs.publish.messages", count, "queue", queueUrl));
 
@@ -149,13 +153,6 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         }
     }
 
-    private Flux<Integer> buildFlowable(Flux<Message> flowable, SqsClient sqsClient, String queueUrl, RunContext runContext) throws IllegalVariableEvaluationException {
-        return flowable
-            .map(throwFunction(message -> {
-                sqsClient.sendMessage(message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext));
-                return 1;
-            }));
-    }
 
     @Builder
     @Getter

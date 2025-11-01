@@ -6,6 +6,8 @@ import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Data;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -24,6 +26,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -95,8 +98,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSns implements RunnableTask<Publish.Output> {
-    @PluginProperty(dynamic = true)
+public class Publish extends AbstractSns implements RunnableTask<Publish.Output>,Data.From {
     @NotNull
     @Schema(
         title = "The source of the published data.",
@@ -109,37 +111,38 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     public Publish.Output run(RunContext runContext) throws Exception {
         var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
-            Integer count;
-            Flux<Message> flowable;
-            Flux<Integer> resultFlowable;
+            Integer count = Data.from(from).read(runContext)
+                .map(throwFunction(raw -> {
+                    Message message;
 
-            if (this.from instanceof String) {
-                URI from = new URI(runContext.render((String) this.from));
-                if (!from.getScheme().equals("kestra")) {
-                    throw new Exception("Invalid 'from' parameter, must be a Kestra internal storage URI");
-                }
-
-                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                    flowable = FileSerde.readAll(inputStream, Message.class);
-                    resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
-
-                    count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
-                }
-
-            } else if (this.from instanceof List) {
-                flowable = Flux
-                    .fromIterable((List<?>) this.from)
-                    .map(map -> JacksonMapper.toMap(map, Message.class));
-
-                resultFlowable = this.buildFlowable(flowable, snsClient, topicArn, runContext);
-
-                count = resultFlowable.reduce(Integer::sum).blockOptional().orElse(0);
-            } else {
-                var msg = JacksonMapper.toMap(this.from, Message.class);
-                snsClient.publish(msg.to(PublishRequest.builder().topicArn(topicArn), runContext));
-
-                count = 1;
-            }
+                    if (raw instanceof Message) {
+                        message = (Message) raw;
+                    } else if (raw instanceof Map) {
+                        message = JacksonMapper.ofJson().convertValue(raw, Message.class);
+                    } else if (raw instanceof String || raw instanceof Map) {
+                        String str = raw.toString();
+                        try {
+                            message = JacksonMapper.ofJson().readValue(str, Message.class);
+                        } catch (Exception e) {
+                            message = Message.builder()
+                            .data(str)
+                            .build();
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
+                    }
+                    snsClient.publish(PublishRequest.builder()
+                        .topicArn(topicArn)
+                        .message(message.getData())
+                        .subject(message.getSubject())
+                        .build()
+                    );
+                 
+                    return 1;
+            }))
+            .reduce(Integer::sum)
+            .blockOptional()
+            .orElse(0);
 
             // metrics
             runContext.metric(Counter.of("sns.publish.messages", count, "topic", topicArn));
@@ -148,14 +151,6 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                 .messagesCount(count)
                 .build();
         }
-    }
-
-    private Flux<Integer> buildFlowable(Flux<Message> flowable, SnsClient snsClient, String topicArn, RunContext runContext) throws IllegalVariableEvaluationException {
-        return flowable
-            .map(throwFunction(message -> {
-                snsClient.publish(message.to(PublishRequest.builder().topicArn(topicArn), runContext));
-                return 1;
-            }));
     }
 
     @Builder
