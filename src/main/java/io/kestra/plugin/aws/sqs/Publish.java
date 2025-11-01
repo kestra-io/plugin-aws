@@ -116,8 +116,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                         message = (Message) raw;
                     } else if (raw instanceof Map) {
                         message = JacksonMapper.ofJson().convertValue(raw, Message.class);
-                    } else if (raw instanceof String) {
-                        String str = (String) raw;
+                    } else if (raw instanceof String || raw instanceof Map) {
+                        String str = raw.toString();
                         try {
                             message = JacksonMapper.ofJson().readValue(str, Message.class);
                         } catch (Exception e) {
