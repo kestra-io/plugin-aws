@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.emr
+name: "emr"
+title: "EMR"
+description: "This sub-group of plugins contains tasks for using Amazon EMR. Amazon EMR (previously called Amazon Elastic MapReduce) is a managed cluster platform that simplifies running big data frameworks, such as Apache Hadoop and Apache Spark, on AWS to process and analyze vast amounts of data."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

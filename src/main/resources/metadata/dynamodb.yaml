@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.dynamodb
+name: "dynamodb"
+title: "Dynamodb"
+description: "This sub-group of plugins contains tasks for using Amazon DynamoDB. Amazon DynamoDB is a fully managed, serverless, key-value NoSQL database designed to run high-performance applications at any scale."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

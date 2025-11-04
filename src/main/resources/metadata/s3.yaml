@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.s3
+name: "s3"
+title: "S3"
+description: "This sub-group of plugins contains tasks for using Amazon Simple Storage Service (S3). Amazon S3 is an object storage built to retrieve any amount of data from anywhere."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
