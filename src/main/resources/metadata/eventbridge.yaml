@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.eventbridge
+name: "eventbridge"
+title: "Eventbridge"
+description: "This sub-group of plugins contains tasks for using Amazon EventBridge. Amazon EventBridge is a serverless event bus that ingests data from your own apps, SaaS apps, and AWS services and routes that data to targets."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
