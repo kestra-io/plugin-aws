@@ -3,8 +3,8 @@ package io.kestra.plugin.aws.s3;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -27,9 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -187,13 +187,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     title = "Upload a file(s) to a S3 bucket.",
     description = "Uploads a single or multiple files to an Amazon S3 bucket."
 )
-public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
+public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output>, Data.From {
     @Schema(
-        title = "The file(s) to upload",
-        description = "Can be a single file, a list of files or json array",
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
         anyOf = {List.class, String.class}
     )
-    @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
     private Object from;
 
@@ -333,15 +332,16 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     }
 
     private String[] parseFromProperty(RunContext runContext) throws Exception {
-        if (this.from instanceof Collection<?> fromURIs) {
-            return fromURIs.stream()
-                .map(throwFunction(from -> runContext.render((String) from)))
-                .toArray(String[]::new);
-        } else if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
+
+        if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches())
             return JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
-        } else {
-            return new String[]{runContext.render((String) this.from)};
-        }
+
+        return Objects.requireNonNull(Data.from(this.from)
+                .readAs(runContext, String.class, Object::toString)
+                .map(throwFunction(runContext::render))
+                .collectList()
+                .block())
+            .toArray(String[]::new);
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
