@@ -310,7 +310,8 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
 
         try (var output = new BufferedWriter(new FileWriter(tempFile), FileSerde.BUFFER_SIZE)) {
-            Long count = FileSerde.writeAll(output, Flux.fromIterable(results)).block();
+            Long count = FileSerde.writeAll(output, Flux.fromIterable(results).mapNotNull(row -> map(columnInfo, row))).block();
+
             return Pair.of(
                 runContext.storage().putFile(tempFile),
                 count
