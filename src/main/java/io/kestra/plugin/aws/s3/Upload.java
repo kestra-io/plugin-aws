@@ -71,32 +71,32 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             title = "Download a file and upload it to S3.",
             code = """
-                    id: upload_file_to_s3
-                    namespace: company.team
+                id: upload_file_to_s3
+                namespace: company.team
 
-                    inputs:
-                      - id: bucket
-                        type: STRING
-                        defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-                      - id: file_url
-                        type: STRING
-                        defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
+                  - id: file_url
+                    type: STRING
+                    defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
 
-                    tasks:
-                      - id: download_file
-                        type: io.kestra.plugin.core.http.Download
-                        uri: "{{ inputs.file_url }}"
+                tasks:
+                  - id: download_file
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "{{ inputs.file_url }}"
 
-                      - id: upload_to_s3
-                        type: io.kestra.plugin.aws.s3.Upload
-                        from: "{{ outputs.download_file.uri }}"
-                        key: powerplant/global_power_plant_database.zip
-                        bucket: "{{ inputs.bucket }}"
-                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    """
+                  - id: upload_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: "{{ outputs.download_file.uri }}"
+                    key: powerplant/global_power_plant_database.zip
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         ),
         @Example(
             full = true,
@@ -165,6 +165,74 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a JSON map.",
+            code = """
+                id: upload_multiple_files_from_json_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_files_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: |
+                      [
+                        "first_key": "{{ outputs.download_file1.uri }}",
+                        "second_key": "{{ outputs.download_file2.uri }}"
+                      ]
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a Map.",
+            code = """
+                id: upload_multiple_files_to_s3_from_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_multiple_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from:
+                      firstKey: "{{ outputs.download_file1.uri }}"
+                      secondKey: "{{ outputs.download_file2.uri }}"
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         )
     },
     metrics = {
@@ -190,8 +258,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output>, Data.From {
     @Schema(
         title = Data.From.TITLE,
-        description = Data.From.DESCRIPTION,
-        anyOf = {List.class, String.class}
+        description = Data.From.DESCRIPTION + "\n" +
+            "When providing a Map, keys specify the S3 object key (path after bucket prefix), and values are the source file URIs.",
+        anyOf = {List.class, String.class, Map.class}
     )
     @NotNull
     private Object from;
@@ -275,7 +344,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = "The account ID of the expected bucket owner",
         description = "If the bucket is owned by a different account, the request fails " +
-                      "with the HTTP status code `403 Forbidden` (access denied)."
+            "with the HTTP status code `403 Forbidden` (access denied)."
     )
     private Property<String> expectedBucketOwner;
 
@@ -319,29 +388,77 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         try (S3AsyncClient client = this.asyncClient(runContext);
              S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
 
-            String[] filesToUpload = parseFromProperty(runContext);
+            Map<String, String> filesToUpload = parseFromProperty(runContext);
 
-            if (filesToUpload.length == 0) {
+            if (filesToUpload.isEmpty()) {
                 throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
             }
 
-            return filesToUpload.length == 1
-                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload[0])
+            return filesToUpload.size() == 1
+                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload.values().iterator().next())
                 : uploadMultipleFiles(runContext, transferManager, bucket, key, filesToUpload);
         }
     }
 
-    private String[] parseFromProperty(RunContext runContext) throws Exception {
+    // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
+    // as values where in this case, file names are just the file name part of the file URIs.
+    private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
+        // Handle JSON array string (e.g., "[\"uri1\", \"uri2\"]")
+        if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
+            String rendered = runContext.render((String) this.from);
+            // Try to parse as JSON array first
+            try {
+                String[] array = JacksonMapper.ofJson().readValue(rendered, String[].class);
+                Map<String, String> map = new HashMap<>();
+                for (String uri : array) {
+                    map.put(FilenameUtils.getName(uri), uri);
+                }
+                return map;
+            } catch (Exception e) {
+                // Not a valid JSON array, continue handling.
+            }
+        }
 
-        if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches())
-            return JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
+        // Handle JSON map string (e.g., "{\"key1\": \"uri1\", \"key2\": \"uri2\"}")
+        if (this.from instanceof String && Pattern.compile("^\\{.*}$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
+            String rendered = runContext.render((String) this.from);
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, String> parsedMap = JacksonMapper.ofJson().readValue(rendered, Map.class);
+                Map<String, String> resultMap = new HashMap<>();
+                for (Map.Entry<String, String> entry : parsedMap.entrySet()) {
+                    resultMap.put(entry.getKey(), runContext.render(entry.getValue()));
+                }
+                return resultMap;
+            } catch (Exception e) {
+                // Not a valid JSON map, continue handling.
+            }
+        }
 
-        return Objects.requireNonNull(Data.from(this.from)
-                .readAs(runContext, String.class, Object::toString)
-                .map(throwFunction(runContext::render))
-                .collectList()
-                .block())
-            .toArray(String[]::new);
+        // Handle Map<String, String> directly (from YAML)
+        if (this.from instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> fromMap = (Map<String, Object>) this.from;
+            Map<String, String> resultMap = new HashMap<>();
+            for (Map.Entry<String, Object> entry : fromMap.entrySet()) {
+                String renderedKey = runContext.render(entry.getKey());
+                String renderedValue = runContext.render(entry.getValue().toString());
+                resultMap.put(renderedKey, renderedValue);
+            }
+            return resultMap;
+        }
+
+        // Handle Collection or other Data.From compatible types (List, array, etc.)
+        java.util.List<String> renderedList = Objects.requireNonNull(Data.from(this.from)
+            .readAs(runContext, String.class, Object::toString)
+            .map(throwFunction(runContext::render))
+            .collectList()
+            .block());
+        Map<String, String> resultMap = new HashMap<>();
+        for (String uri : renderedList) {
+            resultMap.put(FilenameUtils.getName(uri), uri);
+        }
+        return resultMap;
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
@@ -369,16 +486,19 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             .build();
     }
 
+    // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
-                                       String bucket, String baseKey, String[] renderedFroms) throws Exception {
+                                       String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
         Map<String, FileInfo> fileInfoMap = new HashMap<>();
 
-        for (String renderedFrom : renderedFroms) {
-            File tempFile = copyFileToTemp(runContext, renderedFrom);
-            String fileName = FilenameUtils.getName(renderedFrom);
-            String fileKey = Path.of(baseKey, fileName).toString();
+        for (Map.Entry<String, String> entry : filesToUpload.entrySet()) {
+            String fileKey = entry.getKey();
+            String finalKey = Path.of(baseKey, fileKey).toString();
+            String renderedFrom = entry.getValue();
 
-            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, fileKey);
+            File tempFile = copyFileToTemp(runContext, renderedFrom);
+
+            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
 
             runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
@@ -389,14 +509,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
             PutObjectResponse response = upload.completionFuture().get().response();
 
-
             FileInfo fileInfo = FileInfo.builder()
                 .eTag(response.eTag())
                 .versionId(response.versionId())
                 .contentLength(tempFile.length())
                 .build();
 
-            fileInfoMap.put(fileName, fileInfo);
+            fileInfoMap.put(fileKey, fileInfo);
 
             recordMetrics(runContext, tempFile);
         }
