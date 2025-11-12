@@ -12,7 +12,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class UploadsTest extends AbstractTest {
+class UploadTest extends AbstractTest {
     @Test
     void run() throws Exception {
         this.createBucket();
@@ -46,7 +46,7 @@ class UploadsTest extends AbstractTest {
 
         // list
         List list = List.builder()
-            .id(UploadsTest.class.getSimpleName())
+            .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
             .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
