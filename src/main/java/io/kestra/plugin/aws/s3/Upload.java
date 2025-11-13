@@ -71,32 +71,32 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             title = "Download a file and upload it to S3.",
             code = """
-                id: upload_file_to_s3
-                namespace: company.team
+                    id: upload_file_to_s3
+                    namespace: company.team
 
-                inputs:
-                  - id: bucket
-                    type: STRING
-                    defaults: my-bucket
+                    inputs:
+                      - id: bucket
+                        type: STRING
+                        defaults: my-bucket
 
-                  - id: file_url
-                    type: STRING
-                    defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
+                      - id: file_url
+                        type: STRING
+                        defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
 
-                tasks:
-                  - id: download_file
-                    type: io.kestra.plugin.core.http.Download
-                    uri: "{{ inputs.file_url }}"
+                    tasks:
+                      - id: download_file
+                        type: io.kestra.plugin.core.http.Download
+                        uri: "{{ inputs.file_url }}"
 
-                  - id: upload_to_s3
-                    type: io.kestra.plugin.aws.s3.Upload
-                    from: "{{ outputs.download_file.uri }}"
-                    key: powerplant/global_power_plant_database.zip
-                    bucket: "{{ inputs.bucket }}"
-                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                """
+                      - id: upload_to_s3
+                        type: io.kestra.plugin.aws.s3.Upload
+                        from: "{{ outputs.download_file.uri }}"
+                        key: powerplant/global_power_plant_database.zip
+                        bucket: "{{ inputs.bucket }}"
+                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    """
         ),
         @Example(
             full = true,
