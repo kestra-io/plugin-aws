@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -401,37 +402,34 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
     // as values where in this case, file names are just the file name part of the file URIs.
-    private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
-        // Handle String inputs - could be JSON array or JSON map
-        if (this.from instanceof String) {
-            String rendered = runContext.render((String) this.from).trim();
+    private Map<String, String> uriListToMap(List<String> uriList) throws Exception {
+        Map<String, String> uriMap = new HashMap<>();
+        for (String uri : uriList) {
+            uriMap.put(FilenameUtils.getName(uri), uri);
+        }
+        return uriMap;
+    }
 
-            // Try to parse as JSON (array or map)
+    private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
+        if (this.from instanceof String) {
+            String renderedString = runContext.render((String) this.from).trim();
+            // Try to parse as JSON (map or list)
             try {
-                // First, try to parse as a map
                 @SuppressWarnings("unchecked")
-                Map<String, String> parsedMap = JacksonMapper.ofJson().readValue(rendered, Map.class);
-                Map<String, String> resultMap = new HashMap<>();
-                for (Map.Entry<String, String> entry : parsedMap.entrySet()) {
-                    resultMap.put(entry.getKey(), runContext.render(entry.getValue()));
-                }
-                return resultMap;
+                Map<String, String> parsedMap = JacksonMapper.ofJson().readValue(renderedString, Map.class);
+                return parsedMap;
             } catch (Exception e) {
-                // Not a JSON map, try array
                 try {
-                    String[] array = JacksonMapper.ofJson().readValue(rendered, String[].class);
-                    Map<String, String> map = new HashMap<>();
-                    for (String uri : array) {
-                        map.put(FilenameUtils.getName(uri), uri);
-                    }
-                    return map;
+                    @SuppressWarnings("unchecked")
+                    List<String> parsedList = JacksonMapper.ofJson().readValue(renderedString, List.class);
+                    return uriListToMap(parsedList);
                 } catch (Exception ex) {
-                    // Not a valid JSON array or map, continue handling.
+                    // No valid JSON.
                 }
             }
         }
 
-        // Handle Map<String, String> directly (from YAML)
+        // Handle Map<String, String> directly (from YAML).
         if (this.from instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> fromMap = (Map<String, Object>) this.from;
@@ -444,17 +442,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             return resultMap;
         }
 
-        // Handle Collection or other Data.From compatible types (List, array, etc.)
-        java.util.List<String> renderedList = Objects.requireNonNull(Data.from(this.from)
+        // Handle Collection or other Data.From compatible types.
+        List<String> renderedArray = Objects.requireNonNull(Data.from(this.from)
             .readAs(runContext, String.class, Object::toString)
             .map(throwFunction(runContext::render))
             .collectList()
             .block());
-        Map<String, String> resultMap = new HashMap<>();
-        for (String uri : renderedList) {
-            resultMap.put(FilenameUtils.getName(uri), uri);
-        }
-        return resultMap;
+        return uriListToMap(renderedArray);
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
