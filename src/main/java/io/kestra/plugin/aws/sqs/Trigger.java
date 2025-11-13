@@ -68,6 +68,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> endpointOverride;
 
     @Builder.Default
+    private Property<Integer> maxConcurrency = Property.ofValue(50);
+
+    @Builder.Default
+    private Property<Duration> connectionAcquisitionTimeout = Property.ofValue(Duration.ofSeconds(5));
+
+    @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(title = "Max number of records, when reached the task will end.")
