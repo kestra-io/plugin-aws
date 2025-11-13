@@ -402,27 +402,27 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
     // as values where in this case, file names are just the file name part of the file URIs.
-    private Map<String, String> uriListToMap(List<String> uriList) throws Exception {
-        Map<String, String> uriMap = new HashMap<>();
-        for (String uri : uriList) {
-            uriMap.put(FilenameUtils.getName(uri), uri);
+    private Map<String, String> uriListToMap(List<String> rUriList) throws Exception {
+        Map<String, String> rUriMap = new HashMap<>();
+        for (String rUri : rUriList) {
+            rUriMap.put(FilenameUtils.getName(rUri), rUri);
         }
-        return uriMap;
+        return rUriMap;
     }
 
     private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
         if (this.from instanceof String) {
-            String renderedString = runContext.render((String) this.from).trim();
+            String rString = runContext.render((String) this.from).trim();
             // Try to parse as JSON (map or list)
             try {
                 @SuppressWarnings("unchecked")
-                Map<String, String> parsedMap = JacksonMapper.ofJson().readValue(renderedString, Map.class);
-                return parsedMap;
+                Map<String, String> rMap = JacksonMapper.ofJson().readValue(rString, Map.class);
+                return rMap;
             } catch (Exception e) {
                 try {
                     @SuppressWarnings("unchecked")
-                    List<String> parsedList = JacksonMapper.ofJson().readValue(renderedString, List.class);
-                    return uriListToMap(parsedList);
+                    List<String> rList = JacksonMapper.ofJson().readValue(rString, List.class);
+                    return uriListToMap(rList);
                 } catch (Exception ex) {
                     // No valid JSON.
                 }
@@ -433,22 +433,22 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         if (this.from instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> fromMap = (Map<String, Object>) this.from;
-            Map<String, String> resultMap = new HashMap<>();
+            Map<String, String> rMap = new HashMap<>();
             for (Map.Entry<String, Object> entry : fromMap.entrySet()) {
-                String renderedKey = runContext.render(entry.getKey());
-                String renderedValue = runContext.render(entry.getValue().toString());
-                resultMap.put(renderedKey, renderedValue);
+                String rKey = runContext.render(entry.getKey());
+                String rValue = runContext.render(entry.getValue().toString());
+                rMap.put(rKey, rValue);
             }
-            return resultMap;
+            return rMap;
         }
 
         // Handle Collection or other Data.From compatible types.
-        List<String> renderedArray = Objects.requireNonNull(Data.from(this.from)
+        List<String> rArray = Objects.requireNonNull(Data.from(this.from)
             .readAs(runContext, String.class, Object::toString)
             .map(throwFunction(runContext::render))
             .collectList()
             .block());
-        return uriListToMap(renderedArray);
+        return uriListToMap(rArray);
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
