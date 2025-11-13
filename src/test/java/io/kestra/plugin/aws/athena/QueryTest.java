@@ -68,4 +68,28 @@ class QueryTest {
         assertThat(((Map<String, Object>) output.getRows().get(0)).get("map"), is("{bar=2, foo=1}"));
         assertThat(((Map<String, Object>) output.getRows().get(0)).get("timestamp"), is(LocalDateTime.parse("2008-09-15T03:04:05.324")));
     }
+
+    @Test
+    void runStore() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var query = Query.builder()
+            .id("athena_store_test")
+            .type(Query.class.getName())
+            .region(Property.ofValue("eu-west-3"))
+            .accessKeyId(Property.ofValue(accessKey))
+            .secretKeyId(Property.ofValue(secretKey))
+            .database(Property.ofValue("units"))
+            .outputLocation(Property.ofValue("s3://kestra-unit-test"))
+            .query(Property.ofValue("select * from types"))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .skipHeader(Property.ofValue(true))
+            .build();
+
+        var output = query.run(runContext);
+
+        assertThat(output, notNullValue());
+        assertThat(output.getUri(), notNullValue());
+        assertThat(output.getRows(), is(nullValue()));
+    }
 }

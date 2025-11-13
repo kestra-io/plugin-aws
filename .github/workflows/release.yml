@@ -11,11 +11,15 @@ on:
         required: false
       kestraVersion:
         description: "Kestra core version (e.g. 1.1.0)"
-        required: true
+        required: false
       dryRun:
         description: "If true, simulate the release without pushing or tagging"
         required: false
         default: "false"
+      commitsList:
+        description: "(ONLY FOR HOTFIXES) Comma-separated list of SHA1 commits to cherry-pick before creating the release tag. Example: abc123,def456"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -33,6 +37,6 @@ jobs:
           kestraVersion: ${{ github.event.inputs.kestraVersion }}
           nextVersion: ${{ github.event.inputs.nextVersion }}
           dryRun: ${{ github.event.inputs.dryRun }}
-          webhookUrl: ${{ secrets.KESTRA_WEBHOOK_URL_PLUGIN_RELEASE_INDEX }}
+          commitsList: ${{ github.event.inputs.commitsList }}
         env:
           GITHUB_PAT: ${{ secrets.GH_PERSONAL_TOKEN }}
