@@ -30,7 +30,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -403,26 +402,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
     // as values where in this case, file names are just the file name part of the file URIs.
     private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
-        // Handle JSON array string (e.g., "[\"uri1\", \"uri2\"]")
-        if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
-            String rendered = runContext.render((String) this.from);
-            // Try to parse as JSON array first
-            try {
-                String[] array = JacksonMapper.ofJson().readValue(rendered, String[].class);
-                Map<String, String> map = new HashMap<>();
-                for (String uri : array) {
-                    map.put(FilenameUtils.getName(uri), uri);
-                }
-                return map;
-            } catch (Exception e) {
-                // Not a valid JSON array, continue handling.
-            }
-        }
+        // Handle String inputs - could be JSON array or JSON map
+        if (this.from instanceof String) {
+            String rendered = runContext.render((String) this.from).trim();
 
-        // Handle JSON map string (e.g., "{\"key1\": \"uri1\", \"key2\": \"uri2\"}")
-        if (this.from instanceof String && Pattern.compile("^\\{.*}$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
-            String rendered = runContext.render((String) this.from);
+            // Try to parse as JSON (array or map)
             try {
+                // First, try to parse as a map
                 @SuppressWarnings("unchecked")
                 Map<String, String> parsedMap = JacksonMapper.ofJson().readValue(rendered, Map.class);
                 Map<String, String> resultMap = new HashMap<>();
@@ -431,7 +417,17 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 }
                 return resultMap;
             } catch (Exception e) {
-                // Not a valid JSON map, continue handling.
+                // Not a JSON map, try array
+                try {
+                    String[] array = JacksonMapper.ofJson().readValue(rendered, String[].class);
+                    Map<String, String> map = new HashMap<>();
+                    for (String uri : array) {
+                        map.put(FilenameUtils.getName(uri), uri);
+                    }
+                    return map;
+                } catch (Exception ex) {
+                    // Not a valid JSON array or map, continue handling.
+                }
             }
         }
 
