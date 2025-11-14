@@ -15,6 +15,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
@@ -27,10 +29,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.*;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.function.Function;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -411,44 +412,33 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     }
 
     private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
-        if (this.from instanceof String) {
-            String rString = runContext.render((String) this.from).trim();
-            // Try to parse as JSON (map or list)
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, String> rMap = JacksonMapper.ofJson().readValue(rString, Map.class);
-                return rMap;
-            } catch (Exception e) {
-                try {
-                    @SuppressWarnings("unchecked")
-                    List<String> rList = JacksonMapper.ofJson().readValue(rString, List.class);
-                    return uriListToMap(rList);
-                } catch (Exception ex) {
-                    // No valid JSON.
+        Data data = Data.from(this.from);
+        try {
+            Function<Map<String, Object>, Map<String, String>> mapper = map -> {
+                Map<String, String> result = new HashMap<>();
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue().toString());
                 }
-            }
-        }
+                return result;
+            };
 
-        // Handle Map<String, String> directly (from YAML).
-        if (this.from instanceof Map) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> fromMap = (Map<String, Object>) this.from;
-            Map<String, String> rMap = new HashMap<>();
-            for (Map.Entry<String, Object> entry : fromMap.entrySet()) {
-                String rKey = runContext.render(entry.getKey());
-                String rValue = runContext.render(entry.getValue().toString());
-                rMap.put(rKey, rValue);
-            }
-            return rMap;
+            Flux<Map<String, String>> rFromMap = data.readAs(runContext, (Class<Map<String, String>>) Map.of().getClass(), mapper);
+            return Objects.requireNonNull(rFromMap.blockFirst());
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a Map, trying List...", e);
         }
 
-        // Handle Collection or other Data.From compatible types.
-        List<String> rArray = Objects.requireNonNull(Data.from(this.from)
-            .readAs(runContext, String.class, Object::toString)
-            .map(throwFunction(runContext::render))
-            .collectList()
-            .block());
-        return uriListToMap(rArray);
+        try {
+            @SuppressWarnings("unchecked")
+            Flux<List<String>> rFromList = data.readAs(runContext, (Class<List<String>>) List.of().getClass(), map -> map.keySet().stream().toList());
+            return uriListToMap(Objects.requireNonNull(rFromList.flatMapIterable(list -> list).collectList().block()));
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a List, trying String...", e);
+        }
+
+        Flux<String> rFromString = data.readAs(runContext, String.class, Object::toString);
+        return uriListToMap(Objects.requireNonNull(rFromString.collectList().block()));
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
