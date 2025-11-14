@@ -8,7 +8,6 @@ import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +15,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
@@ -32,8 +30,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.function.Function;
-
-import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -403,7 +399,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
     // as values where in this case, file names are just the file name part of the file URIs.
-    private Map<String, String> uriListToMap(List<String> rUriList) throws Exception {
+    private Map<String, String> uriListToMap(List<String> rUriList) {
         Map<String, String> rUriMap = new HashMap<>();
         for (String rUri : rUriList) {
             rUriMap.put(FilenameUtils.getName(rUri), rUri);
