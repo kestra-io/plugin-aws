@@ -255,8 +255,7 @@ import java.util.function.Function;
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output>, Data.From {
     @Schema(
         title = Data.From.TITLE,
-        description = Data.From.DESCRIPTION + "\n" +
-            "When providing a Map, keys specify the S3 object key (path after bucket prefix), and values are the source file URIs.",
+        description = Data.From.DESCRIPTION,
         anyOf = {List.class, String.class, Map.class}
     )
     @NotNull
@@ -341,7 +340,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = "The account ID of the expected bucket owner",
         description = "If the bucket is owned by a different account, the request fails " +
-            "with the HTTP status code `403 Forbidden` (access denied)."
+                      "with the HTTP status code `403 Forbidden` (access denied)."
     )
     private Property<String> expectedBucketOwner;
 
