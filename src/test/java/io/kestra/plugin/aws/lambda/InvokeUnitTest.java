@@ -1,28 +1,12 @@
 package io.kestra.plugin.aws.lambda;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextProperty;
+import io.kestra.core.runners.WorkingDir;
 import io.kestra.core.storages.Storage;
+import io.kestra.plugin.aws.lambda.Invoke.Output;
 import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +17,28 @@ import org.mockito.Mock.Strictness;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.WorkingDir;
-import io.kestra.plugin.aws.lambda.Invoke.Output;
+import org.slf4j.Logger;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 @ExtendWith(MockitoExtension.class)
 public class InvokeUnitTest {
@@ -60,6 +57,9 @@ public class InvokeUnitTest {
     @Mock(strictness = Strictness.LENIENT)
     private WorkingDir workingDir;
 
+    @Mock(strictness = Strictness.LENIENT)
+    private Logger logger;
+
     private File tempFile;
 
     private String testValue;
@@ -70,6 +70,7 @@ public class InvokeUnitTest {
         given(context.workingDir()).willReturn(workingDir);
         given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
+        given(context.logger()).willReturn(logger);
         given(context.render(any(Property.class))).willAnswer(new Answer<RunContextProperty<String>>() {
             @Override
             public RunContextProperty<String> answer(InvocationOnMock invocation) throws Throwable {
