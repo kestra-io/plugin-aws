@@ -1,16 +1,13 @@
 package io.kestra.plugin.aws.sqs;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,12 +17,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
 
 import jakarta.validation.constraints.NotNull;
 
@@ -94,50 +85,24 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>,Data.From {
+public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>,io.kestra.core.models.property.Data.From {
     @NotNull
     @Schema(
-        title = "The source of the published data.",
-        description = "Can be an internal storage URI, a list of SQS messages, or a single SQS message.",
-        anyOf = {String.class, List.class, Message.class}
+        title = io.kestra.core.models.property.Data.From.TITLE,
+        description = io.kestra.core.models.property.Data.From.DESCRIPTION,
+        anyOf = {String.class,Message[].class, Message.class}
     )
     private Object from;
-
-    @SuppressWarnings("unchecked")
+    
     @Override
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
-            Integer count = Data.from(from).read(runContext)
-                .map(throwFunction(raw -> {
-                    Message message;
-
-                    if (raw instanceof Message) {
-                        message = (Message) raw;
-                    } else if (raw instanceof Map) {
-                        message = JacksonMapper.ofJson().convertValue(raw, Message.class);
-                    } else if (raw instanceof String || raw instanceof Map) {
-                        String str = raw.toString();
-                        try {
-                            message = JacksonMapper.ofJson().readValue(str, Message.class);
-                        } catch (Exception e) {
-                            message = Message.builder()
-                            .data(str)
-                            .build();
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
-                    }
-
-                    var builder = SendMessageRequest.builder()
-                        .queueUrl(queueUrl)
-                        .messageBody(message.getData());
-
-                    if (message.getDelaySeconds() != null) {
-                        builder.delaySeconds(message.getDelaySeconds());
-                    }
-
-                    sqsClient.sendMessage(builder.build());
+            Integer count = io.kestra.core.models.property.Data.from(from)
+                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
+                .map(throwFunction(message -> {
+                    var sendMessageRequest = message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext);
+                    sqsClient.sendMessage(sendMessageRequest);
                     return 1;
                 }))
                 .reduce(Integer::sum)
