@@ -1,16 +1,13 @@
 package io.kestra.plugin.aws.sns;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sns.model.Message;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,12 +18,7 @@ import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.List;
 import jakarta.validation.constraints.NotNull;
-import java.util.Map;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -98,51 +90,29 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSns implements RunnableTask<Publish.Output>,Data.From {
+public class Publish extends AbstractSns implements RunnableTask<Publish.Output>, io.kestra.core.models.property.Data.From {
     @NotNull
     @Schema(
-        title = "The source of the published data.",
-        description = "Can be an internal storage URI, a list of SNS messages, or a single SNS message."
+        title = io.kestra.core.models.property.Data.From.TITLE,
+        description =io.kestra.core.models.property.Data.From.DESCRIPTION,
+        anyOf = {String.class, Message[].class, Message.class}
     )
     private Object from;
 
-    @SuppressWarnings("unchecked")
     @Override
     public Publish.Output run(RunContext runContext) throws Exception {
         var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
-            Integer count = Data.from(from).read(runContext)
-                .map(throwFunction(raw -> {
-                    Message message;
-
-                    if (raw instanceof Message) {
-                        message = (Message) raw;
-                    } else if (raw instanceof Map) {
-                        message = JacksonMapper.ofJson().convertValue(raw, Message.class);
-                    } else if (raw instanceof String || raw instanceof Map) {
-                        String str = raw.toString();
-                        try {
-                            message = JacksonMapper.ofJson().readValue(str, Message.class);
-                        } catch (Exception e) {
-                            message = Message.builder()
-                            .data(str)
-                            .build();
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Unsupported message type: " + raw.getClass());
-                    }
-                    snsClient.publish(PublishRequest.builder()
-                        .topicArn(topicArn)
-                        .message(message.getData())
-                        .subject(message.getSubject())
-                        .build()
-                    );
-                 
+            Integer count =  io.kestra.core.models.property.Data.from(from)
+                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
+                .map(throwFunction(message -> {
+                    var publishRequest = message.to(PublishRequest.builder().topicArn(topicArn), runContext);
+                    snsClient.publish(publishRequest);
                     return 1;
-            }))
-            .reduce(Integer::sum)
-            .blockOptional()
-            .orElse(0);
+                }))
+               .reduce(Integer::sum)
+               .blockOptional()
+               .orElse(0);
 
             // metrics
             runContext.metric(Counter.of("sns.publish.messages", count, "topic", topicArn));
