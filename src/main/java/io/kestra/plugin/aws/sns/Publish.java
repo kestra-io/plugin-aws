@@ -103,7 +103,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     public Publish.Output run(RunContext runContext) throws Exception {
         var topicArn = runContext.render(getTopicArn()).as(String.class).orElseThrow();
         try (var snsClient = this.client(runContext)) {
-            Integer count =  io.kestra.core.models.property.Data.from(from)
+            Integer count = Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
                 .map(throwFunction(message -> {
                     var publishRequest = message.to(PublishRequest.builder().topicArn(topicArn), runContext);
