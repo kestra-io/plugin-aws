@@ -98,7 +98,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
-            Integer count = io.kestra.core.models.property.Data.from(from)
+            Integer count = Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
                 .map(throwFunction(message -> {
                     var sendMessageRequest = message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext);
