@@ -7,7 +7,6 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
@@ -117,6 +116,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ?
             null :
             runContext.render(this.functionPayload).asMap(String.class, Object.class);
+        var logger = runContext.logger();
 
         try (var lambda = client(runContext)) {
             var builder = InvokeRequest.builder().functionName(functionArn);
@@ -137,8 +137,8 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                 // details and throw - this will throw an exception in any case
                 handleError(functionArn, contentType, res.payload());
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Lambda {} invoked successfully", functionArn);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Lambda {} invoked successfully", functionArn);
             }
             Output out = handleContent(runContext, functionArn, contentType, res.payload());
             runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
@@ -201,7 +201,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         try {
             errorPayload = payload.asUtf8String();
         } catch (UncheckedIOException e) {
-            log.warn("Lambda function respone payload cannot be read as UTF8 string: {}",
+            log.warn("Lambda function response payload cannot be read as UTF8 string: {}",
                     e.getMessage());
             errorPayload = null;
         }
@@ -223,6 +223,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     Output handleContent(RunContext runContext, String functionArn, ContentType contentType,
             SdkBytes payload) {
+        var logger = runContext.logger();
         try (var dataStream = payload.asInputStream()) {
             File tempFile = runContext.workingDir().createTempFile().toFile();
             // noinspection ResultOfMethodCallIgnored
@@ -232,8 +233,8 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             // Doing the same as in S3Service.download()
             runContext.metric(Counter.of("file.size", size));
             var uri = runContext.storage().putFile(tempFile);
-            if (log.isDebugEnabled()) {
-                log.debug("Lambda invokation task completed {}: response type: {}, file: `{}",
+            if (logger.isDebugEnabled()) {
+                logger.debug("Lambda invokation task completed {}: response type: {}, file: `{}",
                         functionArn, contentType, uri);
             }
             return Output.builder()

@@ -8,13 +8,13 @@ import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
+import reactor.core.publisher.Flux;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
@@ -27,12 +27,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Pattern;
-
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import java.util.*;
+import java.util.List;
+import java.util.function.Function;
 
 @SuperBuilder
 @ToString
@@ -165,6 +162,74 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a JSON map.",
+            code = """
+                id: upload_multiple_files_from_json_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_files_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: |
+                      [
+                        "first_key": "{{ outputs.download_file1.uri }}",
+                        "second_key": "{{ outputs.download_file2.uri }}"
+                      ]
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a Map.",
+            code = """
+                id: upload_multiple_files_to_s3_from_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_multiple_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from:
+                      firstKey: "{{ outputs.download_file1.uri }}"
+                      secondKey: "{{ outputs.download_file2.uri }}"
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         )
     },
     metrics = {
@@ -191,7 +256,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = Data.From.TITLE,
         description = Data.From.DESCRIPTION,
-        anyOf = {List.class, String.class}
+        anyOf = {List.class, String.class, Map.class}
     )
     @NotNull
     private Object from;
@@ -319,29 +384,56 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         try (S3AsyncClient client = this.asyncClient(runContext);
              S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
 
-            String[] filesToUpload = parseFromProperty(runContext);
+            Map<String, String> filesToUpload = parseFromProperty(runContext);
 
-            if (filesToUpload.length == 0) {
+            if (filesToUpload.isEmpty()) {
                 throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
             }
 
-            return filesToUpload.length == 1
-                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload[0])
+            return filesToUpload.size() == 1
+                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload.values().iterator().next())
                 : uploadMultipleFiles(runContext, transferManager, bucket, key, filesToUpload);
         }
     }
 
-    private String[] parseFromProperty(RunContext runContext) throws Exception {
+    // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
+    // as values where in this case, file names are just the file name part of the file URIs.
+    private Map<String, String> uriListToMap(List<String> rUriList) {
+        Map<String, String> rUriMap = new HashMap<>();
+        for (String rUri : rUriList) {
+            rUriMap.put(FilenameUtils.getName(rUri), rUri);
+        }
+        return rUriMap;
+    }
 
-        if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches())
-            return JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
+    private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
+        Data data = Data.from(this.from);
+        try {
+            Function<Map<String, Object>, Map<String, String>> mapper = map -> {
+                Map<String, String> result = new HashMap<>();
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue().toString());
+                }
+                return result;
+            };
 
-        return Objects.requireNonNull(Data.from(this.from)
-                .readAs(runContext, String.class, Object::toString)
-                .map(throwFunction(runContext::render))
-                .collectList()
-                .block())
-            .toArray(String[]::new);
+            @SuppressWarnings("unchecked")
+            Flux<Map<String, String>> rFromMap = data.readAs(runContext, (Class<Map<String, String>>) Map.of().getClass(), mapper);
+            return Objects.requireNonNull(rFromMap.blockFirst());
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a Map, trying List...", e);
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Flux<List<String>> rFromList = data.readAs(runContext, (Class<List<String>>) List.of().getClass(), map -> map.keySet().stream().toList());
+            return uriListToMap(Objects.requireNonNull(rFromList.flatMapIterable(list -> list).collectList().block()));
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a List, trying String...", e);
+        }
+
+        Flux<String> rFromString = data.readAs(runContext, String.class, Object::toString);
+        return uriListToMap(Objects.requireNonNull(rFromString.collectList().block()));
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
@@ -369,16 +461,19 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             .build();
     }
 
+    // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
-                                       String bucket, String baseKey, String[] renderedFroms) throws Exception {
+                                       String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
         Map<String, FileInfo> fileInfoMap = new HashMap<>();
 
-        for (String renderedFrom : renderedFroms) {
-            File tempFile = copyFileToTemp(runContext, renderedFrom);
-            String fileName = FilenameUtils.getName(renderedFrom);
-            String fileKey = Path.of(baseKey, fileName).toString();
+        for (Map.Entry<String, String> entry : filesToUpload.entrySet()) {
+            String fileKey = entry.getKey();
+            String finalKey = Path.of(baseKey, fileKey).toString();
+            String renderedFrom = entry.getValue();
 
-            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, fileKey);
+            File tempFile = copyFileToTemp(runContext, renderedFrom);
+
+            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
 
             runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
@@ -389,14 +484,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
             PutObjectResponse response = upload.completionFuture().get().response();
 
-
             FileInfo fileInfo = FileInfo.builder()
                 .eTag(response.eTag())
                 .versionId(response.versionId())
                 .contentLength(tempFile.length())
                 .build();
 
-            fileInfoMap.put(fileName, fileInfo);
+            fileInfoMap.put(fileKey, fileInfo);
 
             recordMetrics(runContext, tempFile);
         }
