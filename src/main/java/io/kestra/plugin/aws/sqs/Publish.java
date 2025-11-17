@@ -88,8 +88,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>,io.kestra.core.models.property.Data.From {
     @NotNull
     @Schema(
-        title = io.kestra.core.models.property.Data.From.TITLE,
-        description = io.kestra.core.models.property.Data.From.DESCRIPTION,
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
         anyOf = {String.class,Message[].class, Message.class}
     )
     private Object from;
