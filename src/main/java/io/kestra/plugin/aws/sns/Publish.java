@@ -93,9 +93,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class Publish extends AbstractSns implements RunnableTask<Publish.Output>, io.kestra.core.models.property.Data.From {
     @NotNull
     @Schema(
-        title = io.kestra.core.models.property.Data.From.TITLE,
-        description =io.kestra.core.models.property.Data.From.DESCRIPTION,
-        anyOf = {String.class, Message[].class, Message.class}
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
+        anyOf = {String.class, List.class, Message.class}
     )
     private Object from;
 
