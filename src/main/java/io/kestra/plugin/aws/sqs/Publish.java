@@ -90,7 +90,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @Schema(
         title = Data.From.TITLE,
         description = Data.From.DESCRIPTION,
-        anyOf = {String.class,Message[].class, Message.class}
+        anyOf = {String.class, List.class, Message.class}
     )
     private Object from;
     
