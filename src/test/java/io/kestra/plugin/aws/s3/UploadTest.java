@@ -12,7 +12,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class UploadsTest extends AbstractTest {
+class UploadTest extends AbstractTest {
     @Test
     void run() throws Exception {
         this.createBucket();
@@ -46,7 +46,7 @@ class UploadsTest extends AbstractTest {
 
         // list
         List list = List.builder()
-            .id(UploadsTest.class.getSimpleName())
+            .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
             .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
@@ -187,6 +187,148 @@ class UploadsTest extends AbstractTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .region(Property.ofValue(localstack.getRegion()))
             .from(java.util.Collections.emptyList())
+            .key(Property.ofValue(IdUtils.create() + "/"))
+            .build();
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> upload.run(runContext(upload))
+        );
+
+        assertThat(exception.getMessage(), is("No files to upload: the 'from' property contains an empty collection or array"));
+    }
+
+    @Test
+    void run_mapWithCustomKeys() throws Exception {
+        this.createBucket();
+
+        URI source1 = storagePut("file1.yml");
+        URI source2 = storagePut("file2.yml");
+        URI source3 = storagePut("file3.yml");
+
+        // Map with custom S3 keys
+        java.util.Map<String, String> filesMap = new java.util.HashMap<>();
+        filesMap.put("custom/path/renamed1.yml", source1.toString());
+        filesMap.put("another/location/renamed2.yml", source2.toString());
+        filesMap.put("deep/nested/path/renamed3.yml", source3.toString());
+
+        String baseKey = IdUtils.create() + "/";
+
+        Upload upload = Upload.builder()
+            .id("MapWithCustomKeysTest")
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(filesMap)
+            .key(Property.ofValue(baseKey))
+            .build();
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        // Verify output
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), is(baseKey));
+        assertThat(uploadOutput.getFiles(), is(notNullValue()));
+        assertThat(uploadOutput.getFiles().size(), is(3));
+        assertThat(uploadOutput.getFiles().keySet(), hasItems(
+            "custom/path/renamed1.yml",
+            "another/location/renamed2.yml",
+            "deep/nested/path/renamed3.yml"
+        ));
+
+        // Verify files were uploaded to correct locations
+        List list = List.builder()
+            .id("MapWithCustomKeysListTest")
+            .type(List.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(baseKey))
+            .build();
+
+        List.Output listOutput = list.run(runContext(list));
+        assertThat(listOutput.getObjects().size(), is(3));
+        assertThat(listOutput.getObjects().stream()
+            .anyMatch(obj -> obj.getKey().endsWith("custom/path/renamed1.yml")), is(true));
+        assertThat(listOutput.getObjects().stream()
+            .anyMatch(obj -> obj.getKey().endsWith("another/location/renamed2.yml")), is(true));
+        assertThat(listOutput.getObjects().stream()
+            .anyMatch(obj -> obj.getKey().endsWith("deep/nested/path/renamed3.yml")), is(true));
+    }
+
+    @Test
+    void run_jsonMapString() throws Exception {
+        this.createBucket();
+
+        URI source1 = storagePut("file1.yml");
+        URI source2 = storagePut("file2.yml");
+
+        // JSON map string with custom keys
+        String jsonMap = String.format(
+            "{\n  \"reports/2024/report1.yml\": \"%s\",\n  \"reports/2024/report2.yml\": \"%s\"\n}",
+            source1.toString(),
+            source2.toString()
+        );
+
+        String baseKey = IdUtils.create() + "/";
+
+        Upload upload = Upload.builder()
+            .id("JsonMapStringTest")
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(jsonMap)
+            .key(Property.ofValue(baseKey))
+            .build();
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), is(baseKey));
+        assertThat(uploadOutput.getFiles(), is(notNullValue()));
+        assertThat(uploadOutput.getFiles().size(), is(2));
+        assertThat(uploadOutput.getFiles().keySet(), hasItems(
+            "reports/2024/report1.yml",
+            "reports/2024/report2.yml"
+        ));
+
+        // Verify files in S3
+        List list = List.builder()
+            .id("JsonMapStringListTest")
+            .type(List.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(baseKey))
+            .build();
+
+        List.Output listOutput = list.run(runContext(list));
+        assertThat(listOutput.getObjects().size(), is(2));
+    }
+
+    @Test
+    void run_emptyMap() throws Exception {
+        this.createBucket();
+
+        Upload upload = Upload.builder()
+            .id("EmptyMapTest")
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(java.util.Collections.emptyMap())
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
 
