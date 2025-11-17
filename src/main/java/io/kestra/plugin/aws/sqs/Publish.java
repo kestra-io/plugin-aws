@@ -5,20 +5,17 @@ import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
-import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
-import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -58,12 +55,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: sqs_publish_message
                 namespace: company.team
-                
+
                 inputs:
                   - id: message
                     type: STRING
                     defaults: Hi from Kestra!
-                
+
                 tasks:
                   - id: publish_message
                     type: io.kestra.plugin.aws.sqs.Publish
@@ -85,7 +82,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>,io.kestra.core.models.property.Data.From {
+public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>, Data.From {
     @NotNull
     @Schema(
         title = Data.From.TITLE,
@@ -93,7 +90,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         anyOf = {String.class, List.class, Message.class}
     )
     private Object from;
-    
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
@@ -108,7 +105,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                 .reduce(Integer::sum)
                 .blockOptional()
                 .orElse(0);
-            
+
             // metrics
             runContext.metric(Counter.of("sqs.publish.messages", count, "queue", queueUrl));
 

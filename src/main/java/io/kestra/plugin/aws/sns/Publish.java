@@ -5,20 +5,17 @@ import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
-import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sns.model.Message;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
-import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -35,8 +32,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             full = true,
             title = """
-            Send an SMS message using AWS SNS
-            """,
+                Send an SMS message using AWS SNS
+                """,
             code = """
                 id: aws_sns_publish
                 namespace: company.team
@@ -57,17 +54,17 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         @Example(
             full = true,
             title = """
-            Send an SMS message using AWS SNS based on a runtime-specific input
-            """,
+                Send an SMS message using AWS SNS based on a runtime-specific input
+                """,
             code = """
                 id: send_sms
                 namespace: company.team
-                
+
                 inputs:
                   - id: sms_text
                     type: STRING
                     defaults: Hello from Kestra and AWS SNS!
-                
+
                 tasks:
                   - id: send_sms
                     type: io.kestra.plugin.aws.sns.Publish
@@ -90,7 +87,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Publish extends AbstractSns implements RunnableTask<Publish.Output>, io.kestra.core.models.property.Data.From {
+public class Publish extends AbstractSns implements RunnableTask<Publish.Output>, Data.From {
     @NotNull
     @Schema(
         title = Data.From.TITLE,
@@ -110,9 +107,9 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
                     snsClient.publish(publishRequest);
                     return 1;
                 }))
-               .reduce(Integer::sum)
-               .blockOptional()
-               .orElse(0);
+                .reduce(Integer::sum)
+                .blockOptional()
+                .orElse(0);
 
             // metrics
             runContext.metric(Counter.of("sns.publish.messages", count, "topic", topicArn));
