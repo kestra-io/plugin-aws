@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.athena
+name: "athena"
+title: "Athena"
+description: "This sub-group of plugins contains tasks for using Amazon Athena. Amazon Athena is an interactive query service that makes it easy to analyze data in Amazon S3 and other federated data sources using standard SQL."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
