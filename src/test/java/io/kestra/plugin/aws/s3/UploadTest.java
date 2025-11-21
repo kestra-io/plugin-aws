@@ -339,4 +339,45 @@ class UploadTest extends AbstractTest {
 
         assertThat(exception.getMessage(), is("No files to upload: the 'from' property contains an empty collection or array"));
     }
+
+    @Test
+    void run_singleKestraUriShouldNotBeParsedAsJson() throws Exception {
+        this.createBucket();
+
+        URI source = storagePut("manifest.json");
+
+        Upload upload = Upload.builder()
+            .id("SingleKestraUriJsonTest")
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .from(source.toString())
+            .key(Property.ofValue(IdUtils.create() + "/manifest.json"))
+            .build();
+
+        Upload.Output uploadOutput = upload.run(runContext(upload));
+
+        assertThat(uploadOutput.getBucket(), is(this.BUCKET));
+        assertThat(uploadOutput.getKey(), containsString("manifest.json"));
+        assertThat(uploadOutput.getETag(), is(notNullValue()));
+
+        List list = List.builder()
+            .id("SingleKestraUriJsonListTest")
+            .type(List.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(upload.getKey())
+            .build();
+
+        List.Output listOutput = list.run(runContext(list));
+
+        assertThat(listOutput.getObjects().size(), is(1));
+        assertThat(listOutput.getObjects().getFirst().getKey(), containsString("manifest.json"));
+    }
 }
