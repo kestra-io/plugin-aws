@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.emrserverless.model.*;
             title = "Create an EMR Serverless app and start a Spark job",
             full = true,
             code = """
-                id: create_and_run_emr_serverless
+                id: create_and_run_emr_serverless_app
                 namespace: company.team
 
                 tasks:

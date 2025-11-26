@@ -34,7 +34,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             title = "Delete a couple of EMR Serverless applications providing their IDs.",
             full = true,
             code = """
-                id: aws_emrserverless_delete_app
+                id: delete_emr_serverless_app
                 namespace: company.team
 
                 tasks:
@@ -44,8 +44,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     applicationIds:
-                        - 00f123abc456xyz
-                        - 11g789def012uvw
+                      - 00f123abc456xyz
+                      - 11g789def012uvw
                 """
         )
     }
