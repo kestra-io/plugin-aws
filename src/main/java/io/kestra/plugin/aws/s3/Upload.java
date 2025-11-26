@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.property.URIFetcher;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.FileInfo;
@@ -407,6 +408,11 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     }
 
     private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
+
+        if (this.from instanceof String fromString && URIFetcher.supports(runContext.render(fromString))) {
+            return uriListToMap(List.of(fromString));
+        }
+
         Data data = Data.from(this.from);
         try {
             Function<Map<String, Object>, Map<String, String>> mapper = map -> {
