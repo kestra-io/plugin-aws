@@ -13,7 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
-@Disabled("Provide credenials, a s3 bucket, and ec2 ssh key pair name to run the tests.")
+@Disabled("Provide credentials, a s3 bucket, and ec2 ssh key pair name to run the tests.")
 class EmrIntegrationTest {
     @Inject
     private RunContextFactory runContextFactory;
