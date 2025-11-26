@@ -74,11 +74,11 @@ dependencies {
     api 'software.amazon.awssdk:ecr'
     api 'software.amazon.awssdk:netty-nio-client'
     api 'software.amazon.awssdk:emr'
+    api 'software.amazon.awssdk:emrserverless'
     api 'software.amazon.awssdk:glue'
     api 'software.amazon.awssdk:cloudwatch'
     api 'software.amazon.awssdk:cloudformation'
 }
-
 
 /**********************************************************************************************************************\
  * Test
