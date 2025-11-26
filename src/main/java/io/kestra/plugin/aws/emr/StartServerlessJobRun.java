@@ -49,31 +49,44 @@ import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
     }
 )
 public class StartServerlessJobRun extends AbstractEmrServerlessTask implements RunnableTask<StartServerlessJobRun.Output> {
+
+    @Schema(
+        title = "The EMR Serverless application ID to run the job on."
+    )
     @NotNull
     private Property<String> applicationId;
 
+    @Schema(
+        title = "The execution role ARN for the job."
+    )
     @NotNull
     private Property<String> executionRoleArn;
 
+    @Schema(
+        title = "The name of the job."
+    )
     @NotNull
     private Property<String> jobName;
 
+    @Schema(
+        title = "The entry point for the job."
+    )
     @NotNull
     private Property<String> entryPoint;
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
         try (EmrServerlessClient client = this.client(runContext)) {
-            String appId = runContext.render(applicationId).as(String.class).orElseThrow();
-            String role = runContext.render(executionRoleArn).as(String.class).orElseThrow();
-            String name = runContext.render(jobName).as(String.class).orElseThrow();
-            String entry = runContext.render(entryPoint).as(String.class).orElseThrow();
+            String rApplicationId = runContext.render(applicationId).as(String.class).orElseThrow();
+            String rExecutionRoleArn = runContext.render(executionRoleArn).as(String.class).orElseThrow();
+            String rJobName = runContext.render(jobName).as(String.class).orElseThrow();
+            String rEntryPoint = runContext.render(entryPoint).as(String.class).orElseThrow();
 
             StartJobRunRequest request = StartJobRunRequest.builder()
-                .applicationId(appId)
-                .executionRoleArn(role)
-                .name(name)
-                .jobDriver(builder -> builder.sparkSubmit(builder2 -> builder2.entryPoint(entry)))
+                .applicationId(rApplicationId)
+                .executionRoleArn(rExecutionRoleArn)
+                .name(rJobName)
+                .jobDriver(builder -> builder.sparkSubmit(builder2 -> builder2.entryPoint(rEntryPoint)))
                 .build();
 
             StartJobRunResponse response = client.startJobRun(request);

@@ -44,39 +44,68 @@ import software.amazon.awssdk.services.emrserverless.model.*;
     }
 )
 public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerlessTask implements RunnableTask<CreateServerlessApplicationAndStartJob.Output> {
-    @NotNull private Property<String> releaseLabel;
-    @NotNull private Property<String> applicationType;
-    @NotNull private Property<String> executionRoleArn;
-    @NotNull private Property<String> jobName;
-    @NotNull private Property<String> entryPoint;
+
+    @Schema(
+        title = "The EMR release label to use for the application.",
+        description = "For example, `emr-6.3.0` or `emr-7.0.0`."
+    )
+    @NotNull
+    private Property<String> releaseLabel;
+
+    @Schema(
+        title = "The type of application to create.",
+        description = "Valid values are for instance `SPARK` and `HIVE`."
+    )
+    @NotNull
+    private Property<String> applicationType;
+
+    @Schema(
+        title = "The execution role ARN for the application.",
+        description = "This role will be assumed by EMR Serverless to access AWS resources on your behalf."
+    )
+    @NotNull
+    private Property<String> executionRoleArn;
+
+    @Schema(
+        title = "The name of the job to start."
+    )
+    @NotNull
+    private Property<String> jobName;
+
+    @Schema(
+        title = "The entry point for the job.",
+        description = "For `SPARK` applications, this is typically the S3 path to your main application file (e.g., a Python or JAR file). For `HIVE` applications, this is the Hive query to execute."
+    )
+    @NotNull
+    private Property<String> entryPoint;
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
         try (EmrServerlessClient client = this.client(runContext)) {
-            String release = runContext.render(releaseLabel).as(String.class).orElseThrow();
-            String type = runContext.render(applicationType).as(String.class).orElseThrow();
-            String role = runContext.render(executionRoleArn).as(String.class).orElseThrow();
-            String name = runContext.render(jobName).as(String.class).orElseThrow();
-            String entry = runContext.render(entryPoint).as(String.class).orElseThrow();
+            String rReleaseLabel = runContext.render(releaseLabel).as(String.class).orElseThrow();
+            String rApplicationType = runContext.render(applicationType).as(String.class).orElseThrow();
+            String rExecutionRoleArn = runContext.render(executionRoleArn).as(String.class).orElseThrow();
+            String rJobName = runContext.render(jobName).as(String.class).orElseThrow();
+            String rEntryPoint = runContext.render(entryPoint).as(String.class).orElseThrow();
 
             // 1. Create Application
             CreateApplicationResponse app = client.createApplication(CreateApplicationRequest.builder()
-                .releaseLabel(release)
-                .type(type)
+                .releaseLabel(rReleaseLabel)
+                .type(rApplicationType)
                 .build());
 
             // 2. Start Job
             StartJobRunRequest.Builder jobBuilder = StartJobRunRequest.builder()
                 .applicationId(app.applicationId())
-                .executionRoleArn(role)
-                .name(name);
+                .executionRoleArn(rExecutionRoleArn)
+                .name(rJobName);
 
-            if ("SPARK".equalsIgnoreCase(type)) {
-                jobBuilder.jobDriver(jd -> jd.sparkSubmit(ss -> ss.entryPoint(entry)));
-            } else if ("HIVE".equalsIgnoreCase(type)) {
-                jobBuilder.jobDriver(jd -> jd.hive(hd -> hd.query(entry)));
+            if ("SPARK".equalsIgnoreCase(rApplicationType)) {
+                jobBuilder.jobDriver(jd -> jd.sparkSubmit(ss -> ss.entryPoint(rEntryPoint)));
+            } else if ("HIVE".equalsIgnoreCase(rApplicationType)) {
+                jobBuilder.jobDriver(jd -> jd.hive(hd -> hd.query(rEntryPoint)));
             } else {
-                throw new IllegalArgumentException("Unsupported application type: " + type);
+                throw new IllegalArgumentException("Unsupported application rApplicationType: " + rApplicationType);
             }
 
             StartJobRunResponse job = client.startJobRun(jobBuilder.build());

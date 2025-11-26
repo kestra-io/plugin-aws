@@ -51,18 +51,22 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class DeleteServerlessApplication extends AbstractEmrServerlessTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Application IDs.", description = "List of EMR Serverless application IDs to delete.")
+
+    @Schema(
+        title = "Application IDs.",
+        description = "List of EMR Serverless application IDs to delete."
+    )
     @NotNull
     private Property<List<String>> applicationIds;
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
         try (EmrServerlessClient client = this.client(runContext)) {
-            List<String> apps = runContext.render(this.applicationIds).asList(String.class);
-            apps.forEach(throwConsumer(appId ->
+            List<String> rApplicationIds = runContext.render(this.applicationIds).asList(String.class);
+            rApplicationIds.forEach(throwConsumer(appId ->
                 client.deleteApplication(r -> r.applicationId(appId))
             ));
-            runContext.logger().info("Deleted {} EMR Serverless applications: {}", apps.size(), apps);
+            runContext.logger().info("Deleted {} EMR Serverless applications: {}", rApplicationIds.size(), rApplicationIds);
             return null;
         }
     }
