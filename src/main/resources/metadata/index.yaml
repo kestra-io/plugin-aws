@@ -1,7 +1,7 @@
 group: io.kestra.plugin.aws
 name: "aws"
 title: "AWS"
-description: ""
+description: "AWS plugin for Kestra"
 body: ""
 videos: []
 createdBy: "Kestra Core Team"
