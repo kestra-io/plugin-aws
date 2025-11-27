@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.lambda
+name: "lambda"
+title: "Lambda"
+description: "This sub-group of plugins contains tasks for using Amazon Lambda. AWS Lambda is a serverless, event-driven compute service that lets you run code for virtually any type of application or backend service without provisioning or managing servers."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
