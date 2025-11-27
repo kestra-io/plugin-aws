@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.sqs
+name: "sqs"
+title: "SQS"
+description: "This sub-group of plugins contains tasks for using Amazon Simple Queue Service (SQS). Amazon SQS is a fully managed message queuing for microservices, distributed systems, and serverless applications."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.emr
+name: "emr"
+title: "EMR"
+description: "This sub-group of plugins contains tasks for using Amazon EMR and EMR Serverless. Amazon EMR (Elastic MapReduce) is a managed big data platform for running frameworks such as Apache Hadoop and Apache Spark on AWS. EMR Serverless provides a serverless option that lets you run Spark or Hive jobs without managing clusters."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

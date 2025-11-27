@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.cloudwatch
+name: "cloudwatch"
+title: "CloudWatch"
+description: "This sub-group of plugins contains tasks for using Amazon CloudWatch. Amazon CloudWatch is a monitoring and observability service that provides data and actionable insights for AWS resources and applications."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.kinesis
+name: "kinesis"
+title: "Kinesis"
+description: "This sub-group of plugins contains tasks for using Amazon Kinesis. Amazon Kinesis is a family of services provided by Amazon Web Services (AWS) for processing and analyzing real-time streaming data at a large scale."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

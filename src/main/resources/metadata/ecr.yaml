@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.ecr
+name: "ecr"
+title: "ECR"
+description: "This sub-group of plugins contains tasks to interact with Amazon ECR."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
