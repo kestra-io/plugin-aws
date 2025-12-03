@@ -1,7 +1,6 @@
 @PluginSubGroup(
     title = "SQS",
-    description = "This sub-group of plugins contains tasks for using Amazon Simple Queue Service (SQS).\n" +
-        "Amazon SQS is a fully managed message queuing for microservices, distributed systems, and serverless applications.",
+    description = "Tasks that publish to or consume from Amazon Simple Queue Service (SQS), including polling and real-time triggers. Use them to push messages, drain queues into flow outputs, or start flows when new messages arrive.",
     categories = { PluginSubGroup.PluginCategory.MESSAGING, PluginSubGroup.PluginCategory.CLOUD }
 )
 package io.kestra.plugin.aws.sqs;

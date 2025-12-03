@@ -1,7 +1,7 @@
 group: io.kestra.plugin.aws.sns
 name: "sns"
 title: "SNS"
-description: "This sub-group of plugins contains tasks for using Amazon Simple Notification Service (SNS) . Amazon SNS is a fully managed Pub/Sub service for A2A and A2P messaging."
+description: "Tasks that publish notifications to Amazon Simple Notification Service (SNS) topics for pub/sub fanout or SMS, email, Lambda, and SQS targets, with support for custom message attributes."
 body: ""
 videos: []
 createdBy: "Kestra Core Team"
