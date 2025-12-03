@@ -1,6 +1,6 @@
 @PluginSubGroup(
     title = "CLI",
-    description = "This sub-group of plugins contains tasks to interact with AWS CLI. ",
+    description = "Tasks that run AWS CLI commands (inside a container by default), reuse Kestra credentials and environment variables, and capture stdout or files produced by the CLI.",
     categories = { PluginSubGroup.PluginCategory.CLOUD }
 )
 package io.kestra.plugin.aws.cli;

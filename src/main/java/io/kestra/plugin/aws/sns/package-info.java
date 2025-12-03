@@ -1,7 +1,6 @@
 @PluginSubGroup(
     title = "SNS",
-    description = "This sub-group of plugins contains tasks for using Amazon Simple Notification Service (SNS) .\n" +
-        "Amazon SNS is a fully managed Pub/Sub service for A2A and A2P messaging.",
+    description = "Tasks that publish notifications to Amazon Simple Notification Service (SNS) topics for pub/sub fanout or SMS, email, Lambda, and SQS targets, with support for custom message attributes.",
     categories = { PluginSubGroup.PluginCategory.MESSAGING, PluginSubGroup.PluginCategory.CLOUD }
 )
 package io.kestra.plugin.aws.sns;

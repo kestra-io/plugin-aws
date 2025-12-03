@@ -1,6 +1,5 @@
 @PluginSubGroup(
-    description = "This sub-group of plugins contains tasks for using Amazon Kinesis.\n" +
-        "Amazon Kinesis is a family of services provided by Amazon Web Services (AWS) for processing and analyzing real-time streaming data at a large scale.",
+    description = "Tasks that write batches of records to Amazon Kinesis Data Streams with partition keys for high-throughput, real-time ingestion pipelines.",
     categories = {PluginSubGroup.PluginCategory.MESSAGING, PluginSubGroup.PluginCategory.CLOUD}
 )
 package io.kestra.plugin.aws.kinesis;

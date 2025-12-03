@@ -1,7 +1,6 @@
 @PluginSubGroup(
     title = "CloudWatch",
-    description = "This sub-group of plugins contains tasks for using Amazon CloudWatch.\n" +
-        "Amazon CloudWatch is a monitoring and observability service that provides data and actionable insights for AWS resources and applications.",
+    description = "Tasks that push custom metrics, query recent CloudWatch metric statistics, and trigger flows when metric queries return data, providing lightweight observability hooks without managing agents.",
     categories = { PluginSubGroup.PluginCategory.ALERTING, PluginSubGroup.PluginCategory.CLOUD }
 )
 package io.kestra.plugin.aws.cloudwatch;

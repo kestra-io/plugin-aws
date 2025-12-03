@@ -1,7 +1,7 @@
 group: io.kestra.plugin.aws.auth
 name: "auth"
 title: "Authentication"
-description: "This sub-group of plugins contains tasks to manage authentication for AWS."
+description: "Tasks that generate authentication material for AWS services, such as short-lived tokens to access Amazon EKS clusters."
 body: ""
 videos: []
 createdBy: "Kestra Core Team"
