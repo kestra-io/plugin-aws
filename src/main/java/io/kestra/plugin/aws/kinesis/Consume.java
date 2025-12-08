@@ -83,7 +83,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Schema(title = "How long to wait between GetRecords calls.")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
-
     @Override
     public Output run(RunContext runContext) throws Exception {
         long startedAt = System.nanoTime();
