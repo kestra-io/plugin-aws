@@ -68,7 +68,7 @@ class TriggerTest {
     }
 
     @Test
-    void testPollingTrigger() throws Exception {
+    void evaluate() throws Exception {
         for (int i = 0; i < 3; i++) {
             client.putRecord(PutRecordRequest.builder()
                 .streamName("stream")
@@ -77,7 +77,7 @@ class TriggerTest {
                 .build());
         }
 
-        Trigger trigger = Trigger.builder()
+        var trigger = Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
             .streamName(Property.ofValue("stream"))

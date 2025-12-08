@@ -90,7 +90,7 @@ class RealtimeTriggerTest {
     }
 
     @Test
-    void testRealtimeTrigger() throws Exception {
+    void evaluate() throws Exception {
         RealtimeTrigger trigger = RealtimeTrigger.builder()
             .id(RealtimeTriggerTest.class.getSimpleName())
             .type(RealtimeTrigger.class.getName())
