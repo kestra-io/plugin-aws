@@ -146,13 +146,11 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             title = "Server side encryption to apply to the target object.",
             description = "Example: AES256 or AWS_KMS"
         )
-        @PluginProperty(dynamic = true)
         private Property<ServerSideEncryption> serverSideEncryption;
-
+        
         @Schema(
             title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"
         )
-        @PluginProperty(dynamic = true)
         private Property<String> kmsKeyId;
     }
 
