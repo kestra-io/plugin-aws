@@ -105,6 +105,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .pollDuration(this.pollDuration)
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
+            .region(region)
             .sessionToken(sessionToken)
             .endpointOverride(endpointOverride)
             .stsRoleArn(stsRoleArn)
