@@ -57,12 +57,12 @@ class PutRecordsTest {
 
         KinesisClient client = client(localstack);
         client.createStream(CreateStreamRequest.builder()
-            .streamName("streamName")
+            .streamName("stream")
             .streamModeDetails(StreamModeDetails.builder().streamMode(StreamMode.PROVISIONED).build())
             .build());
-        DescribeStreamResponse stream = client.describeStream(DescribeStreamRequest.builder().streamName("streamName").build());
+        DescribeStreamResponse stream = client.describeStream(DescribeStreamRequest.builder().streamName("stream").build());
         while (stream.streamDescription().streamStatus() != StreamStatus.ACTIVE) {
-            stream = client.describeStream(DescribeStreamRequest.builder().streamName("streamName").build());
+            stream = client.describeStream(DescribeStreamRequest.builder().streamName("stream").build());
         }
     }
 
@@ -121,7 +121,7 @@ class PutRecordsTest {
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .streamName(Property.ofValue("streamName"))
+            .streamName(Property.ofValue("stream"))
             .records(List.of(record, record2, record3))
             .build();
 
@@ -174,7 +174,7 @@ class PutRecordsTest {
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName(Property.ofValue("streamName"))
+            .streamName(Property.ofValue("stream"))
             .build();
 
 
@@ -227,7 +227,7 @@ class PutRecordsTest {
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .records(runContext.storage().putFile(tempFile).toString())
-            .streamName(Property.ofValue("streamName"))
+            .streamName(Property.ofValue("stream"))
             .build();
 
 

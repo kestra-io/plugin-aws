@@ -61,7 +61,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    streamName: "mystream"
+                    stream: "mystream"
                     records:
                       - data: "user sign-in event"
                         explicitHashKey: "optional hash value overriding the partition key"
@@ -83,7 +83,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    streamName: "mystream"
+                    stream: "mystream"
                     records: kestra:///myfile.ion
                 """
         )
@@ -118,7 +118,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Send records to Amazon Kinesis Data Streams."
 )
-public class PutRecords extends AbstractConnection implements RunnableTask<PutRecords.Output> {
+public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
@@ -132,13 +132,13 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
     @Schema(
         title = "The name of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        description = "Make sure to set either `stream` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamName;
 
     @Schema(
         title = "The ARN of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        description = "Make sure to set either `stream` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamArn;
 
@@ -191,7 +191,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
             } else if (!Strings.isNullOrEmpty(renderedStreamName)) {
                 builder.streamName(renderedStreamName);
             } else {
-                throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
+                throw new IllegalArgumentException("Either stream or streamArn has to be set.");
             }
 
 
@@ -241,11 +241,6 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
                 .block();
         }
         return tempFile;
-    }
-
-    protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
-        final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder
