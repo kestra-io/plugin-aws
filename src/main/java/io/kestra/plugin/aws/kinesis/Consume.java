@@ -97,7 +97,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
         int consumed = 0;
         Map<String, String> lastSequence = new HashMap<>();
-        Instant deadline = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElseThrow());
+        Instant deadline = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
 
         for (Shard shard : shards) {
             String iterator = buildShardIterator(runContext, client, rStream, shard);
