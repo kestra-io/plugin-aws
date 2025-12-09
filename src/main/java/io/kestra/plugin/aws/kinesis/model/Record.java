@@ -24,7 +24,7 @@ import jakarta.validation.constraints.NotNull;
 public class Record {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
-    @Schema(title = "Determines which shard in the streamName the data record is assigned to.")
+    @Schema(title = "Determines which shard in the stream the data record is assigned to.")
     @PluginProperty(dynamic = true)
     @NotNull
     @JsonAlias("PartitionKey")

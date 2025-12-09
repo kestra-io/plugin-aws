@@ -58,12 +58,12 @@ import java.util.*;
 )
 public class Consume extends AbstractKinesis implements RunnableTask<Consume.Output> {
     @NotNull
-    @Schema(title = "The Kinesis streamName name.")
+    @Schema(title = "The Kinesis stream name.")
     private Property<String> streamName;
 
     @Builder.Default
     @Schema(
-        title = "The position in the streamName to start reading from.",
+        title = "The position in the stream to start reading from.",
         description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
     )
     private Property<String> iteratorType = Property.ofValue("LATEST");

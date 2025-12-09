@@ -131,13 +131,13 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
     private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
-        title = "The name of the streamName to push the records.",
+        title = "The name of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamName;
 
     @Schema(
-        title = "The ARN of the streamName to push the records.",
+        title = "The ARN of the stream to push the records.",
         description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamArn;
