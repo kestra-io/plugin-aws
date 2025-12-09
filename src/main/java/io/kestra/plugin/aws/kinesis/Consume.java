@@ -160,7 +160,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             .streamName(stream)
             .shardId(shard.shardId())
             .shardIteratorType(ShardIteratorType.fromValue(
-                runContext.render(iteratorType).as(String.class).orElseThrow()
+                runContext.render(iteratorType).as(String.class).orElse("LATEST")
             ));
 
         if (startingSequenceNumber != null) {
