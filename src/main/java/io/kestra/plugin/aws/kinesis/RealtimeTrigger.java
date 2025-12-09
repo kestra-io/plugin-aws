@@ -160,7 +160,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         });
     }
 
-
     private StartingPosition startingPosition(RunContext runContext) throws Exception {
         if (startingSequenceNumber != null) {
             return StartingPosition.builder()

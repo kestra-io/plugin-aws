@@ -104,7 +104,7 @@ class ConsumeTest {
 
         var output = consume.run(runContext);
 
-        assertThat(output.getRecordCount(), is(3));
+        assertThat(output.getCount(), is(3));
         assertThat(output.getLastSequencePerShard(), aMapWithSize(1));
 
         List<Consume.ConsumedRecord> records = loadOutput(runContext, output.getUri());

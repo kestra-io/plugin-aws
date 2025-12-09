@@ -13,6 +13,8 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import jakarta.validation.constraints.NotNull;
+import org.slf4j.Logger;
+
 import java.time.Duration;
 import java.util.*;
 
@@ -42,7 +44,7 @@ import java.util.*;
                 triggers:
                   - id: poll
                     type: io.kestra.plugin.aws.kinesis.KinesisTrigger
-                    streamName: "my-stream"
+                    stream: "my-stream"
                     iteratorType: "LATEST"
                     interval: PT30S
                     maxRecords: 100
@@ -76,7 +78,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private final Duration interval = Duration.ofSeconds(60);
 
     @NotNull
-    private Property<String> streamName;
+    private Property<String> stream;
 
     @Builder.Default
     private Property<String> iteratorType = Property.ofValue("LATEST");
@@ -95,9 +97,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
+        Logger logger = runContext.logger();
 
         Consume consume = Consume.builder()
-            .stream(this.streamName)
+            .stream(this.stream)
             .iteratorType(this.iteratorType)
             .startingSequenceNumber(this.startingSequenceNumber)
             .maxRecords(this.maxRecords)
@@ -117,7 +120,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         Consume.Output output = consume.run(runContext);
 
-        if (output.getRecordCount() == 0) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Consumed '{}' messaged.", output.getCount());
+        }
+
+        if (output.getCount() == 0) {
             return Optional.empty();
         }
 

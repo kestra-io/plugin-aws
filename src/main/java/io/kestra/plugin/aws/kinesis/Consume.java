@@ -48,7 +48,7 @@ import java.util.*;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    streamName: "my-stream"
+                    stream: "my-stream"
                     iteratorType: TRIM_HORIZON
                     pollDuration: PT5S
                     maxRecords: 100
@@ -80,7 +80,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofSeconds(30));
 
     @Builder.Default
-    @Schema(title = "How long to wait between GetRecords calls.")
+    @Schema(title = "How long to wait between record calls.")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
     @Override
@@ -149,7 +149,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
         return Output.builder()
             .uri(uri)
-            .recordCount(consumed)
+            .count(consumed)
             .lastSequencePerShard(lastSequence)
             .build();
     }
@@ -199,7 +199,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         private final URI uri;
 
         @Schema(title = "Number of consumed records.")
-        private final int recordCount;
+        private final int count;
 
         @Schema(title = "Last consumed sequence number per shard.")
         private final Map<String, String> lastSequencePerShard;
