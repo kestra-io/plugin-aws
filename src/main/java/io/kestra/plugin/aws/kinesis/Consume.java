@@ -48,7 +48,7 @@ import java.util.*;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    stream: "my-stream"
+                    streamName: "stream"
                     iteratorType: TRIM_HORIZON
                     pollDuration: PT5S
                     maxRecords: 100
@@ -58,12 +58,12 @@ import java.util.*;
 )
 public class Consume extends AbstractKinesis implements RunnableTask<Consume.Output> {
     @NotNull
-    @Schema(title = "The Kinesis stream name.")
-    private Property<String> stream;
+    @Schema(title = "The Kinesis streamName name.")
+    private Property<String> streamName;
 
     @Builder.Default
     @Schema(
-        title = "The position in the stream to start reading from.",
+        title = "The position in the streamName to start reading from.",
         description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
     )
     private Property<String> iteratorType = Property.ofValue("LATEST");
@@ -86,7 +86,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Override
     public Output run(RunContext runContext) throws Exception {
         long startedAt = System.nanoTime();
-        var rStream = runContext.render(this.stream).as(String.class).orElseThrow();
+        var rStream = runContext.render(this.streamName).as(String.class).orElseThrow();
 
         KinesisClient client = client(runContext);
 

@@ -20,11 +20,7 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 public class AbstractKinesis extends AbstractConnection {
     protected KinesisAsyncClient asyncClient(final RunContext runContext) throws Exception {
         final AwsClientConfig config = awsClientConfig(runContext);
-
-        return ConnectionUtils.configureAsyncClient(
-            config,
-            KinesisAsyncClient.builder()
-        ).build();
+        return ConnectionUtils.configureAsyncClient(config, KinesisAsyncClient.builder()).build();
     }
 
     protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {

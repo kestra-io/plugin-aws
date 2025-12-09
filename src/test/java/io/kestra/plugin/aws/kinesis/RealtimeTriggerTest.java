@@ -94,7 +94,7 @@ class RealtimeTriggerTest {
         RealtimeTrigger trigger = RealtimeTrigger.builder()
             .id(RealtimeTriggerTest.class.getSimpleName())
             .type(RealtimeTrigger.class.getName())
-            .stream(Property.ofValue("stream"))
+            .streamName(Property.ofValue("stream"))
             .consumerArn(Property.ofValue(consumerArn))
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))

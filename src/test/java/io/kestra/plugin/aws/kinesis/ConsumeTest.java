@@ -96,7 +96,7 @@ class ConsumeTest {
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .stream(Property.ofValue("stream"))
+            .streamName(Property.ofValue("stream"))
             .iteratorType(Property.ofValue("TRIM_HORIZON"))
             .maxRecords(Property.ofValue(10))
             .pollDuration(Property.ofValue(java.time.Duration.ofSeconds(1)))

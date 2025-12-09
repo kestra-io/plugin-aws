@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.kinesis;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -15,6 +16,7 @@ import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 import org.reactivestreams.Publisher;
 
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 import software.amazon.awssdk.core.async.SdkPublisher;
@@ -37,14 +39,18 @@ import java.time.Duration;
                 namespace: company.team
 
                 tasks:
-                  - id: print
+                  - id: log
                     type: io.kestra.plugin.core.log.Log
-                    message: "{{ trigger.value.data }}"
+                    message: "{{ trigger.variables.count }}"
 
                 triggers:
                   - id: realtime
-                    type: io.kestra.plugin.aws.kinesis.KinesisRealtimeTrigger
-                    streamName: "my-stream"
+                    type: io.kestra.plugin.aws.kinesis.RealtimeTrigger
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: eu-central-1
+                    consumerArn: "arn:aws:kinesis:us-east-1:123456789012:stream/my-stream/consumer/kestra-app:1234abcd"
+                    streamName: "stream"
                 """
         )
     }
@@ -52,7 +58,7 @@ import java.time.Duration;
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.ConsumedRecord> {
 
     @NotNull
-    private Property<String> stream;
+    private Property<String> streamName;
 
     @NotNull
     @Builder.Default
@@ -86,7 +92,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         var runContext = conditionContext.getRunContext();
 
         var task = Consume.builder()
-            .stream(stream)
+            .streamName(streamName)
             .region(region)
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
@@ -99,68 +105,87 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .stsRoleSessionDuration(stsRoleSessionDuration)
             .build();
 
-        KinesisAsyncClient client = task.asyncClient(runContext);
-
         return Flux.create(sink -> {
             try {
-                ListShardsResponse shards = client.listShards(ListShardsRequest.builder().streamName(runContext.render(stream).as(String.class).orElseThrow()).build()).get();
+                KinesisAsyncClient client = task.asyncClient(runContext);
 
-                for (Shard shard : shards.shards()) {
-                    var shardId = shard.shardId();
+                var rStream = runContext.render(streamName).as(String.class).orElseThrow();
+                var rConsumerArn = runContext.render(consumerArn).as(String.class).orElseThrow();
 
-                    SubscribeToShardRequest subscribeToShardRequest = SubscribeToShardRequest.builder()
-                        .consumerARN(runContext.render(consumerArn).as(String.class).orElseThrow())
-                        .shardId(shardId)
-                        .startingPosition(startingPosition(runContext))
-                        .build();
-
-                    client.subscribeToShard(
-                        subscribeToShardRequest,
-                        new SubscribeToShardResponseHandler() {
-                            @Override
-                            public void responseReceived(SubscribeToShardResponse r) {
-                            }
-
-                            @Override
-                            public void onEventStream(SdkPublisher<SubscribeToShardEventStream> publisher) {
-                                publisher.subscribe(event -> {
-                                    if (event instanceof SubscribeToShardEvent recordsEvent) {
-                                        recordsEvent.records().forEach(rec -> {
-                                            Consume.ConsumedRecord consumedRecord = Consume.ConsumedRecord.builder()
-                                                .data(rec.data().asUtf8String())
-                                                .partitionKey(rec.partitionKey())
-                                                .sequenceNumber(rec.sequenceNumber())
-                                                .shardId(shardId)
-                                                .approximateArrivalTimestamp(rec.approximateArrivalTimestamp())
-                                                .build();
-
-                                            Execution execution = TriggerService.generateRealtimeExecution(RealtimeTrigger.this, conditionContext, context, consumedRecord);
-
-                                            sink.next(execution);
-                                        });
-                                    }
-                                });
-                            }
-
-                            @Override
-                            public void exceptionOccurred(Throwable t) {
-                                sink.error(t);
-                            }
-
-                            @Override
-                            public void complete() {
-                                sink.complete();
-                            }
+                client.listShards(ListShardsRequest.builder().streamName(rStream).build())
+                    .whenComplete((shards, err) -> {
+                        if (err != null) {
+                            sink.error(err);
+                            return;
                         }
-                    );
-                }
-            } catch (Exception e) {
-                sink.error(e);
+
+                        for (Shard shard : shards.shards()) {
+                            subscribeShard(shard, client, rConsumerArn, sink, runContext, conditionContext, context);
+                        }
+                    });
+
+            } catch (Throwable t) {
+                sink.error(t);
             }
         });
     }
 
-    private StartingPosition startingPosition(RunContext runContext) throws Exception {
+    private void subscribeShard(Shard shard, KinesisAsyncClient client, String consumerArn, FluxSink<Execution> sink, RunContext runContext, ConditionContext conditionContext, TriggerContext context) {
+        StartingPosition position;
+        try {
+            position = startingPosition(runContext);
+        } catch (Exception e) {
+            sink.error(e);
+            return;
+        }
+
+        var subscribeToShardRequest = SubscribeToShardRequest.builder()
+            .consumerARN(consumerArn)
+            .shardId(shard.shardId())
+            .startingPosition(position)
+            .build();
+
+        client.subscribeToShard(subscribeToShardRequest, new SubscribeToShardResponseHandler() {
+
+            @Override
+            public void responseReceived(SubscribeToShardResponse response) {}
+
+            @Override
+            public void onEventStream(SdkPublisher<SubscribeToShardEventStream> publisher) {
+                publisher.subscribe(ev -> {
+                    if (ev instanceof SubscribeToShardEvent evt) {
+                        evt.records().forEach(rec -> {
+                            var out = Consume.ConsumedRecord.builder()
+                                .data(rec.data().asUtf8String())
+                                .partitionKey(rec.partitionKey())
+                                .sequenceNumber(rec.sequenceNumber())
+                                .shardId(shard.shardId())
+                                .approximateArrivalTimestamp(rec.approximateArrivalTimestamp())
+                                .build();
+
+                            Execution exec = TriggerService.generateRealtimeExecution(
+                                RealtimeTrigger.this, conditionContext, context, out
+                            );
+
+                            sink.next(exec);
+                        });
+                    }
+                });
+            }
+
+            @Override
+            public void exceptionOccurred(Throwable t) {
+                sink.error(t);
+            }
+
+            @Override
+            public void complete() {
+                sink.complete();
+            }
+        });
+    }
+
+    private StartingPosition startingPosition(RunContext runContext) throws IllegalVariableEvaluationException {
         if (startingSequenceNumber != null) {
             return StartingPosition.builder()
                 .type(ShardIteratorType.AT_SEQUENCE_NUMBER)

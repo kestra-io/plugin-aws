@@ -61,7 +61,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    stream: "mystream"
+                    streamName: "mystream"
                     records:
                       - data: "user sign-in event"
                         explicitHashKey: "optional hash value overriding the partition key"
@@ -83,7 +83,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
-                    stream: "mystream"
+                    streamName: "mystream"
                     records: kestra:///myfile.ion
                 """
         )
@@ -131,14 +131,14 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
     private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
-        title = "The name of the stream to push the records.",
-        description = "Make sure to set either `stream` or `streamArn`. One of those must be provided."
+        title = "The name of the streamName to push the records.",
+        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamName;
 
     @Schema(
-        title = "The ARN of the stream to push the records.",
-        description = "Make sure to set either `stream` or `streamArn`. One of those must be provided."
+        title = "The ARN of the streamName to push the records.",
+        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
     )
     private Property<String> streamArn;
 
@@ -191,7 +191,7 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             } else if (!Strings.isNullOrEmpty(renderedStreamName)) {
                 builder.streamName(renderedStreamName);
             } else {
-                throw new IllegalArgumentException("Either stream or streamArn has to be set.");
+                throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
             }
 
 

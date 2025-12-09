@@ -37,14 +37,14 @@ import java.util.*;
                 namespace: company.team
 
                 tasks:
-                  - id: handle
+                  - id: log
                     type: io.kestra.plugin.core.log.Log
-                    message: "Consumed {{ trigger.value.recordCount }} records."
+                    message: "Consumed {{ trigger.variables.count }} records."
 
                 triggers:
                   - id: poll
-                    type: io.kestra.plugin.aws.kinesis.KinesisTrigger
-                    stream: "my-stream"
+                    type: io.kestra.plugin.aws.kinesis.Trigger
+                    streamName: "stream"
                     iteratorType: "LATEST"
                     interval: PT30S
                     maxRecords: 100
@@ -78,7 +78,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private final Duration interval = Duration.ofSeconds(60);
 
     @NotNull
-    private Property<String> stream;
+    private Property<String> streamName;
 
     @Builder.Default
     private Property<String> iteratorType = Property.ofValue("LATEST");
@@ -100,7 +100,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Logger logger = runContext.logger();
 
         Consume consume = Consume.builder()
-            .stream(this.stream)
+            .streamName(this.streamName)
             .iteratorType(this.iteratorType)
             .startingSequenceNumber(this.startingSequenceNumber)
             .maxRecords(this.maxRecords)

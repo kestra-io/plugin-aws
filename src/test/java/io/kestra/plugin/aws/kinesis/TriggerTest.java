@@ -80,7 +80,7 @@ class TriggerTest {
         var trigger = Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .stream(Property.ofValue("stream"))
+            .streamName(Property.ofValue("stream"))
             .iteratorType(Property.ofValue("TRIM_HORIZON"))
             .maxRecords(Property.ofValue(3))
             .region(Property.ofValue(localstack.getRegion()))
