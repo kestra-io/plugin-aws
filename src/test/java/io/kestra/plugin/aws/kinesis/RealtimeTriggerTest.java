@@ -1,124 +1,112 @@
 package io.kestra.plugin.aws.kinesis;
 
-import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.queues.QueueFactoryInterface;
+import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.repositories.LocalFlowRepositoryLoader;
+import io.kestra.core.runners.FlowListeners;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.jdbc.runner.JdbcScheduler;
+import io.kestra.plugin.aws.kinesis.model.Record;
+import io.kestra.scheduler.AbstractScheduler;
+import io.kestra.worker.DefaultWorker;
+import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.*;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import reactor.core.publisher.Flux;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-@KestraTest
-@Testcontainers
-class RealtimeTriggerTest {
-    private static LocalStackContainer localstack;
+class RealtimeTriggerTest extends AbstractKinesisTest {
+    @Inject
+    ApplicationContext applicationContext;
 
     @Inject
-    private RunContextFactory runContextFactory;
+    FlowListeners flowListeners;
 
-    private static KinesisAsyncClient asyncClient;
+    @Inject
+    @Named(QueueFactoryInterface.EXECUTION_NAMED)
+    QueueInterface<Execution> executionQueue;
 
-    private static String consumerArn;
+    @Inject
+    LocalFlowRepositoryLoader repositoryLoader;
 
-    @BeforeAll
-    static void init() throws Exception {
-        localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.0"));
-        localstack.start();
-
-        asyncClient = KinesisAsyncClient.builder()
-            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
-                localstack.getAccessKey(), localstack.getSecretKey()
-            )))
-            .region(Region.of(localstack.getRegion()))
-            .endpointOverride(localstack.getEndpoint())
-            .build();
-
-        asyncClient.createStream(CreateStreamRequest.builder()
-            .streamName("stream")
-            .shardCount(1)
-            .build()).get();
-
-        DescribeStreamResponse ds = asyncClient.describeStream(r -> r.streamName("stream")).get();
-        while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE) {
-            Thread.sleep(300);
-            ds = asyncClient.describeStream(r -> r.streamName("stream")).get();
-        }
-
-
-        RegisterStreamConsumerResponse registerStreamConsumerResponse = asyncClient.registerStreamConsumer(
-            RegisterStreamConsumerRequest.builder()
-                .streamARN(ds.streamDescription().streamARN())
-                .consumerName("kestra-test")
-                .build()
-        ).get();
-
-        DescribeStreamConsumerResponse describeStreamConsumerResponse = asyncClient.describeStreamConsumer(
-            DescribeStreamConsumerRequest.builder()
-                .consumerARN(registerStreamConsumerResponse.consumer().consumerARN())
-                .build()
-        ).get();
-
-        while (describeStreamConsumerResponse.consumerDescription().consumerStatus() != ConsumerStatus.ACTIVE) {
-            Thread.sleep(300);
-            describeStreamConsumerResponse = asyncClient.describeStreamConsumer(
-                DescribeStreamConsumerRequest.builder()
-                    .consumerARN(registerStreamConsumerResponse.consumer().consumerARN())
-                    .build()
-            ).get();
-        }
-
-        consumerArn = describeStreamConsumerResponse.consumerDescription().consumerARN();
-    }
-
-    @AfterAll
-    static void cleanup() {
-        if (localstack != null)
-            localstack.stop();
-    }
+    static String consumerArn;
 
     @Test
-    void evaluate() throws Exception {
-        RealtimeTrigger trigger = RealtimeTrigger.builder()
-            .id(RealtimeTriggerTest.class.getSimpleName())
-            .type(RealtimeTrigger.class.getName())
-            .streamName(Property.ofValue("stream"))
-            .consumerArn(Property.ofValue(consumerArn))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .iteratorType(Property.ofValue("TRIM_HORIZON"))
-            .build();
+    void flow() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Flux<Execution> received = TestsUtils.receive(executionQueue, e -> latch.countDown());
 
-        Flux<Execution> flux = Flux.from(trigger.evaluate(context.getKey(), context.getValue()));
+        DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, UUID.randomUUID().toString(), 8, null);
+        try (AbstractScheduler scheduler = new JdbcScheduler(applicationContext, flowListeners)) {
 
-        Thread.sleep(500);
+            worker.run();
+            scheduler.run();
 
-        asyncClient.putRecord(PutRecordRequest.builder()
-            .streamName("stream")
-            .partitionKey("pk")
-            .data(SdkBytes.fromUtf8String("hello"))
-            .build()).get();
+            String yaml = """
+                id: realtime
+                namespace: company.team
 
-        Execution execution = flux.blockFirst(java.time.Duration.ofSeconds(5));
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
 
-        assertThat(execution, is(notNullValue()));
-        assertThat(execution.getTrigger(), is(notNullValue()));
-        assertThat(execution.getTrigger().getVariables().get("data"), is("hello"));
+                triggers:
+                  - id: realtime
+                    type: io.kestra.plugin.aws.kinesis.RealtimeTrigger
+                    streamName: "stream"
+                    consumerArn: "%s"
+                    region: "us-east-1"
+                    accessKeyId: "test"
+                    secretKeyId: "test"
+                    endpointOverride: "http://localhost:4566"
+                    iteratorType: TRIM_HORIZON
+                """
+                .formatted(consumerArn);
+
+
+            File tempFlow = File.createTempFile("kinesis-realtime", ".yaml");
+            Files.writeString(tempFlow.toPath(), yaml);
+
+            repositoryLoader.load(tempFlow);
+
+            Record record = Record.builder()
+                .partitionKey("pk")
+                .data("hello")
+                .build();
+
+            var put = PutRecords.builder()
+                .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+                .region(Property.ofValue(localstack.getRegion()))
+                .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+                .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+                .streamName(Property.ofValue("stream"))
+                .records(List.of(record))
+                .build();
+
+            put.run(runContextFactory.of());
+
+            boolean done = latch.await(30, TimeUnit.SECONDS);
+            assertThat(done, is(true));
+
+            Execution exec = received.blockLast();
+            assertThat(exec.getTrigger().getVariables().get("data"), is("hello"));
+        }
     }
 }

@@ -66,7 +66,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "The position in the stream to start reading from.",
         description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
     )
-    private Property<String> iteratorType = Property.ofValue("LATEST");
+    private Property<IteratorType> iteratorType = Property.ofValue(IteratorType.LATEST);
 
     @Schema(title = "Used if iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER.")
     private Property<String> startingSequenceNumber;
@@ -97,7 +97,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
         int consumed = 0;
         Map<String, String> lastSequence = new HashMap<>();
-        Instant deadline = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
+        var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
 
         for (Shard shard : shards) {
             String iterator = buildShardIterator(runContext, client, rStream, shard);
@@ -131,7 +131,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
                 iterator = response.nextShardIterator();
 
-                if (Instant.now().isAfter(deadline) ||
+                if (Instant.now().isAfter(rMaxDuration) ||
                     consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)) {
                     break;
                 }
@@ -154,13 +154,12 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             .build();
     }
 
-
     private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard) throws IllegalVariableEvaluationException {
         var builder = GetShardIteratorRequest.builder()
             .streamName(stream)
             .shardId(shard.shardId())
             .shardIteratorType(ShardIteratorType.fromValue(
-                runContext.render(iteratorType).as(String.class).orElse("LATEST")
+                runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name()
             ));
 
         if (startingSequenceNumber != null) {

@@ -39,7 +39,7 @@ import java.util.*;
                 tasks:
                   - id: log
                     type: io.kestra.plugin.core.log.Log
-                    message: "Consumed {{ trigger.variables.count }} records."
+                    message: "Consumed {{ trigger.count }} records."
 
                 triggers:
                   - id: poll
@@ -53,36 +53,80 @@ import java.util.*;
     }
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output> {
+    @Schema(
+        title = "Access Key Id in order to connect to AWS.",
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+    )
     private Property<String> accessKeyId;
 
+    @Schema(
+        title = "Secret Key Id in order to connect to AWS.",
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+    )
     private Property<String> secretKeyId;
 
+    @Schema(
+        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
+        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+    )
     private Property<String> sessionToken;
 
+    @Schema(
+        title = "AWS region with which the SDK should communicate."
+    )
     private Property<String> region;
 
+    @Schema(
+        title = "The endpoint with which the SDK should communicate.",
+        description = "This property allows you to use a different S3 compatible storage backend."
+    )
     private Property<String> endpointOverride;
 
+    @Schema(
+        title = "AWS STS Role.",
+        description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+    )
     protected Property<String> stsRoleArn;
 
+    @Schema(
+        title = "AWS STS External Id.",
+        description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
+    )
     protected Property<String> stsRoleExternalId;
 
+    @Schema(
+        title = "AWS STS Session name.",
+        description = "This property is only used when an `stsRoleArn` is defined."
+    )
     protected Property<String> stsRoleSessionName;
 
+    @Schema(
+        title = "The AWS STS endpoint with which the SDKClient should communicate."
+    )
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
+    @Schema(
+        title = "AWS STS Session duration.",
+        description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
+    )
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
+    @Schema(title = "The Kinesis stream name.")
     @NotNull
     private Property<String> streamName;
 
     @Builder.Default
-    private Property<String> iteratorType = Property.ofValue("LATEST");
+    @Schema(
+        title = "The position in the stream to start reading from.",
+        description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
+    )
+    private Property<AbstractKinesis.IteratorType> iteratorType = Property.ofValue(AbstractKinesis.IteratorType.LATEST);
 
+    @Schema(title = "Used if iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER.")
     private Property<String> startingSequenceNumber;
 
     @Builder.Default

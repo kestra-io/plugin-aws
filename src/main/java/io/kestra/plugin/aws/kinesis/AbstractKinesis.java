@@ -27,4 +27,12 @@ public class AbstractKinesis extends AbstractConnection {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
+
+    public enum IteratorType {
+        AT_SEQUENCE_NUMBER,
+        AFTER_SEQUENCE_NUMBER,
+        TRIM_HORIZON,
+        LATEST,
+        AT_TIMESTAMP;
+    }
 }
