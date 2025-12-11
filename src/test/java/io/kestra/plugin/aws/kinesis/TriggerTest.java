@@ -18,10 +18,7 @@ import java.util.Optional;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-class TriggerTest extends AbstractLocalStackTest {
-    @Inject
-    protected RunContextFactory runContextFactory;
-
+class TriggerTest extends AbstractKinesisTest {
     @Test
     void evaluate() throws Exception {
         Record record = Record.builder()

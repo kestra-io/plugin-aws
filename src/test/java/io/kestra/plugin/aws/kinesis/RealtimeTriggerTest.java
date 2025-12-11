@@ -42,10 +42,9 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
     @Inject
     LocalFlowRepositoryLoader repositoryLoader;
 
-    static String consumerArn;
-
     @Test
-    void flow() throws Exception {
+    void evaluate() throws Exception {
+        String consumerArn = registerConsumer();
         CountDownLatch latch = new CountDownLatch(1);
 
         Flux<Execution> received = TestsUtils.receive(executionQueue, e -> latch.countDown());
