@@ -80,7 +80,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             }
 
             if (this.to != null && this.to.serverSideEncryption != null) {
-                ServerSideEncryption renderedSse = runContext.render(this.to.serverSideEncryption).as(ServerSideEncryption.class).orElse(null);
+                ServerSideEncryption rServerSideEncryption = runContext.render(this.to.serverSideEncryption).as(ServerSideEncryption.class).orElse(null);
 
                 if (renderedSse != null) {
                     builder.serverSideEncryption(renderedSse);
