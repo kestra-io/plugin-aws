@@ -86,20 +86,9 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .orElse(null);
 
                 if (rSse != null && rSse != S3ServerSideEncryption.NONE) {
-                    switch (rSse) {
-                        case AES256 -> builder.serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256);
-                        case AWS_KMS -> {
-                            builder.serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AWS_KMS);
-
-                            if (this.to.kmsKeyId != null) {
-                                String rKmsKeyId = runContext.render(this.to.kmsKeyId).as(String.class).orElse(null);
-                                if (rKmsKeyId != null && !rKmsKeyId.isEmpty()) {
-                                    builder.ssekmsKeyId(rKmsKeyId);
-                                }
-                            }
-                        }
-                        default -> { /* NONE or unknown — do nothing */ }
-                    }
+                    builder.serverSideEncryption(
+                        software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(rSse.name())
+                    );
                 }
             }
 
