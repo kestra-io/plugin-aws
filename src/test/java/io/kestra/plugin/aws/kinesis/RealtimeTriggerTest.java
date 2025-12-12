@@ -93,7 +93,7 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 .region(Property.ofValue(localstack.getRegion()))
                 .accessKeyId(Property.ofValue(localstack.getAccessKey()))
                 .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-                .streamName(Property.ofValue("stream"))
+                .streamName(Property.ofValue(streamName))
                 .records(List.of(record))
                 .build();
 

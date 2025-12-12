@@ -41,7 +41,7 @@ class TriggerTest extends AbstractKinesisTest {
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .streamName(Property.ofValue("stream"))
+            .streamName(Property.ofValue(streamName))
             .records(List.of(record, record2, record3))
             .build();
 
@@ -50,7 +50,7 @@ class TriggerTest extends AbstractKinesisTest {
         var trigger = Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .streamName(Property.ofValue("stream"))
+            .streamName(Property.ofValue(streamName))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
             .maxRecords(Property.ofValue(3))
             .region(Property.ofValue(localstack.getRegion()))

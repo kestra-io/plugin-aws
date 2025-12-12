@@ -23,35 +23,35 @@ public class AbstractKinesisTest extends AbstractLocalStackTest {
     @Inject
     protected RunContextFactory runContextFactory;
     protected static String streamArn;
-    protected static final String STREAM_NAME = "stream";
+    protected static String streamName;
 
     @BeforeAll
-    static void beforeAll() throws InterruptedException {
-        try(KinesisClient kinesisClient = KinesisClient.builder()
-            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
-                localstack.getAccessKey(),
-                localstack.getSecretKey()
-            )))
+    static void setupStream() throws InterruptedException {
+        streamName = "stream-" + IdUtils.create();
+
+        try (KinesisClient kinesisClient = KinesisClient.builder()
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
+            ))
             .region(Region.of(localstack.getRegion()))
             .endpointOverride(localstack.getEndpoint())
             .build()) {
 
-            try {
-                kinesisClient.createStream(CreateStreamRequest.builder()
-                    .streamName(STREAM_NAME)
-                    .shardCount(1)
-                    .build());
-            } catch (ResourceInUseException ignored) {}
+            kinesisClient.createStream(CreateStreamRequest.builder()
+                .streamName(streamName)
+                .shardCount(1)
+                .build());
 
-            DescribeStreamResponse ds = kinesisClient.describeStream(r -> r.streamName(STREAM_NAME));
-            while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE) {
+            DescribeStreamResponse ds;
+            do {
                 Thread.sleep(200);
-                ds = kinesisClient.describeStream(r -> r.streamName(STREAM_NAME));
-            }
+                ds = kinesisClient.describeStream(r -> r.streamName(streamName));
+            } while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE);
 
             streamArn = ds.streamDescription().streamARN();
         }
     }
+
 
     protected String registerConsumer() throws Exception {
         try (KinesisClient kinesis = KinesisClient.builder()

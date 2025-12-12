@@ -37,7 +37,7 @@ class ConsumeTest extends AbstractKinesisTest {
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .streamName(Property.ofValue("stream"))
+            .streamName(Property.ofValue(streamName))
             .records(List.of(record))
             .build();
 
@@ -48,7 +48,7 @@ class ConsumeTest extends AbstractKinesisTest {
             .region(Property.ofValue(localstack.getRegion()))
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .streamName(Property.ofValue("stream"))
+            .streamName(Property.ofValue(streamName))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
             .maxRecords(Property.ofValue(10))
             .pollDuration(Property.ofValue(java.time.Duration.ofSeconds(1)))
