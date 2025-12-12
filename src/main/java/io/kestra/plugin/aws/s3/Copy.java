@@ -13,7 +13,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
-import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
+import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 
 @SuperBuilder
 @ToString
@@ -80,19 +80,29 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             }
 
             if (this.to != null && this.to.serverSideEncryption != null) {
-                ServerSideEncryption rServerSideEncryption = runContext.render(this.to.serverSideEncryption).as(ServerSideEncryption.class).orElse(null);
+                S3ServerSideEncryption rSse = runContext
+                    .render(this.to.serverSideEncryption)
+                    .as(S3ServerSideEncryption.class)
+                    .orElse(null);
 
-                if (renderedSse != null) {
-                    builder.serverSideEncryption(renderedSse);
+                if (rSse != null && rSse != S3ServerSideEncryption.NONE) {
+                    switch (rSse) {
+                        case AES256 -> builder.serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AES256);
+                        case AWS_KMS -> {
+                            builder.serverSideEncryption(software.amazon.awssdk.services.s3.model.ServerSideEncryption.AWS_KMS);
 
-                    if (renderedSse == ServerSideEncryption.AWS_KMS && this.to.kmsKeyId != null) {
-                        String rKmsKeyId = runContext.render(this.to.kmsKeyId).as(String.class).orElse(null);
-                        if (renderedKmsKeyId != null && !renderedKmsKeyId.isEmpty()) {
-                            builder.ssekmsKeyId(renderedKmsKeyId);
+                            if (this.to.kmsKeyId != null) {
+                                String rKmsKeyId = runContext.render(this.to.kmsKeyId).as(String.class).orElse(null);
+                                if (rKmsKeyId != null && !rKmsKeyId.isEmpty()) {
+                                    builder.ssekmsKeyId(rKmsKeyId);
+                                }
+                            }
                         }
+                        default -> { /* NONE or unknown — do nothing */ }
                     }
                 }
-            }   
+            }
+
 
             CopyObjectRequest request = builder.build();
             CopyObjectResponse response = client.copyObject(request);
@@ -146,7 +156,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             title = "Server side encryption to apply to the target object.",
             description = "Example: AES256 or AWS_KMS"
         )
-        private Property<ServerSideEncryption> serverSideEncryption;
+        private Property<S3ServerSideEncryption> serverSideEncryption;
         
         @Schema(
             title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"

@@ -5,7 +5,6 @@ import io.kestra.core.utils.IdUtils;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -83,7 +82,7 @@ class CopyTest extends AbstractTest {
             )
             .to(Copy.CopyObject.builder()
                 .key(Property.ofValue(move))
-                .serverSideEncryption(Property.ofValue(ServerSideEncryption.AES256)) 
+                .serverSideEncryption(Property.ofValue(io.kestra.plugin.aws.s3.models.S3ServerSideEncryption.AES256))
                 .build()
             )
             .delete(Property.ofValue(false))
@@ -114,7 +113,7 @@ class CopyTest extends AbstractTest {
             )
             .to(Copy.CopyObject.builder()
                 .key(Property.ofValue(move))
-                .serverSideEncryption(Property.ofValue(ServerSideEncryption.AWS_KMS))
+                .serverSideEncryption(Property.ofValue(io.kestra.plugin.aws.s3.models.S3ServerSideEncryption.AWS_KMS))
                 .kmsKeyId(Property.ofValue("arn:aws:kms:us-east-1:000000000000:key/test-kms")) 
                 .build()
             )
