@@ -67,7 +67,7 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 triggers:
                   - id: realtime
                     type: io.kestra.plugin.aws.kinesis.RealtimeTrigger
-                    streamName: "stream"
+                    streamName: "%s"
                     consumerArn: "%s"
                     region: "us-east-1"
                     accessKeyId: "test"
@@ -75,7 +75,7 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                     endpointOverride: "http://localhost:4566"
                     iteratorType: TRIM_HORIZON
                 """
-                .formatted(consumerArn);
+                .formatted(streamName, consumerArn);
 
 
             File tempFlow = File.createTempFile("kinesis-realtime", ".yaml");
@@ -93,7 +93,7 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 .region(Property.ofValue(localstack.getRegion()))
                 .accessKeyId(Property.ofValue(localstack.getAccessKey()))
                 .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-                .streamName(Property.ofValue("stream"))
+                .streamName(Property.ofValue(streamName))
                 .records(List.of(record))
                 .build();
 
