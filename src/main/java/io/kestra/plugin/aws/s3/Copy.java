@@ -1,5 +1,4 @@
 package io.kestra.plugin.aws.s3;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -14,6 +13,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
+import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 
 @SuperBuilder
 @ToString
@@ -79,6 +79,20 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                 builder.sourceVersionId(runContext.render(this.from.versionId).as(String.class).orElseThrow());
             }
 
+            if (this.to != null && this.to.serverSideEncryption != null) {
+                S3ServerSideEncryption rSse = runContext
+                    .render(this.to.serverSideEncryption)
+                    .as(S3ServerSideEncryption.class)
+                    .orElse(null);
+
+                if (rSse != null && rSse != S3ServerSideEncryption.NONE) {
+                    builder.serverSideEncryption(
+                        software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(rSse.name())
+                    );
+                }
+            }
+
+
             CopyObjectRequest request = builder.build();
             CopyObjectResponse response = client.copyObject(request);
 
@@ -126,6 +140,17 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         )
         @NotNull
         Property<String> key;
+
+        @Schema(
+            title = "Server side encryption to apply to the target object.",
+            description = "Example: AES256 or AWS_KMS"
+        )
+        private Property<S3ServerSideEncryption> serverSideEncryption;
+        
+        @Schema(
+            title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"
+        )
+        private Property<String> kmsKeyId;
     }
 
     @SuperBuilder(toBuilder = true)
