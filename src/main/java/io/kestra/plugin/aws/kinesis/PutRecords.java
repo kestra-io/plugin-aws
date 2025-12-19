@@ -118,7 +118,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Send records to Amazon Kinesis Data Streams."
 )
-public class PutRecords extends AbstractConnection implements RunnableTask<PutRecords.Output> {
+public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
@@ -241,11 +241,6 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
                 .block();
         }
         return tempFile;
-    }
-
-    protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
-        final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder
