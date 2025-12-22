@@ -128,7 +128,7 @@ dependencies {
     testImplementation group: "io.kestra", name: "worker"
 
     // testcontainers
-    testImplementation "org.testcontainers:testcontainers:2.0.1"
+    testImplementation "org.testcontainers:testcontainers:2.0.3"
     testImplementation "org.testcontainers:junit-jupiter:1.21.3"
     testImplementation "org.testcontainers:localstack:1.21.3"
     testImplementation 'com.amazonaws:aws-java-sdk-s3'
