@@ -56,7 +56,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster ID.")
+    @Schema(title = "Cluster ID")
     @NotNull
     private Property<String> clusterId;
 
@@ -68,7 +68,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
     private List<StepConfig> steps;
 
     @Schema(
-        title = "Execution role ARN.",
+        title = "Execution role ARN",
         description = """
         The Amazon Resource Name (ARN) of the runtime role for a step on the cluster. The runtime role can be a cross-account IAM role.
         The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.

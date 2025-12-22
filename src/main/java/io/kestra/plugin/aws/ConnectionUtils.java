@@ -81,9 +81,9 @@ public class ConnectionUtils {
         StsClientBuilder builder = StsClient.builder();
 
         final String stsEndpointOverride = awsClientConfig.stsEndpointOverride();
-        if (stsEndpointOverride != null) {
+        if(StringUtils.isNotBlank(stsEndpointOverride)) {
             builder.applyMutation(stsClientBuilder ->
-                stsClientBuilder.endpointOverride(URI.create(stsEndpointOverride)));
+                stsClientBuilder.endpointOverride(URI.create(stsEndpointOverride.trim())));
         }
 
         final String regionString = awsClientConfig.region();
@@ -152,8 +152,9 @@ public class ConnectionUtils {
         if (clientConfig.region() != null) {
             builder.region(Region.of(clientConfig.region()));
         }
-        if (clientConfig.endpointOverride() != null) {
-            builder.endpointOverride(URI.create(clientConfig.endpointOverride()));
+
+        if (StringUtils.isNotBlank(clientConfig.endpointOverride())) {
+            builder.endpointOverride(URI.create(clientConfig.endpointOverride().trim()));
         }
         return builder;
     }
