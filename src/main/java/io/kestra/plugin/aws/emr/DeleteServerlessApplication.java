@@ -53,7 +53,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 public class DeleteServerlessApplication extends AbstractEmrServerlessTask implements RunnableTask<VoidOutput> {
 
     @Schema(
-        title = "Application IDs.",
+        title = "Application IDs",
         description = "List of EMR Serverless application IDs to delete."
     )
     @NotNull

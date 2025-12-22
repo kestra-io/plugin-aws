@@ -66,28 +66,28 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements RunnableTask<CreateClusterAndSubmitSteps.Output> {
 
-    @Schema(title = "Cluster Name.")
+    @Schema(title = "Cluster Name")
     @NotNull
     private Property<String> clusterName;
 
-    @Schema(title = "Release Label.", description = "It specifies the EMR release version label. Pattern is 'emr-x.x.x'.")
+    @Schema(title = "Release Label", description = "It specifies the EMR release version label. Pattern is 'emr-x.x.x'.")
     @NotNull
     @Builder.Default
     private Property<String> releaseLabel = Property.ofValue("emr-5.20.0");
 
     @Schema(
         title = "Steps",
-        description = "List of steps to run."
+        description = "List of steps to run"
     )
     private List<StepConfig> steps;
 
-    @Schema(title = "Applications.", description = "List of applications name: Ex: \"Hive\", \"Spark\", \"Ganglia\"")
+    @Schema(title = "Applications", description = "List of applications name: Ex: \"Hive\", \"Spark\", \"Ganglia\"")
     private Property<List<String>> applications;
 
-    @Schema(title = "Log URI.", description = "The location in Amazon S3 to write the log files of the job flow. If a value is not provided, logs are not created.")
+    @Schema(title = "Log URI", description = "The location in Amazon S3 to write the log files of the job flow. If a value is not provided, logs are not created.")
     private Property<String> logUri;
 
-    @Schema(title = "Job flow Role.", description = """
+    @Schema(title = "Job flow Role", description = """
         Also called instance profile and Amazon EC2 role. An IAM role for an Amazon EMR cluster.
         The Amazon EC2 instances of the cluster assume this role. The default role is EMR_EC2_DefaultRole.
         In order to use the default role, you must have already created it using the CLI or console.

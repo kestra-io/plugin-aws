@@ -46,34 +46,34 @@ import software.amazon.awssdk.services.emrserverless.model.*;
 public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerlessTask implements RunnableTask<CreateServerlessApplicationAndStartJob.Output> {
 
     @Schema(
-        title = "The EMR release label to use for the application.",
+        title = "The EMR release label to use for the application",
         description = "For example, `emr-6.3.0` or `emr-7.0.0`."
     )
     @NotNull
     private Property<String> releaseLabel;
 
     @Schema(
-        title = "The type of application to create.",
-        description = "Valid values are for instance `SPARK` and `HIVE`."
+        title = "The type of application to create",
+        description = "For example, valid values are `SPARK` and `HIVE`."
     )
     @NotNull
     private Property<String> applicationType;
 
     @Schema(
-        title = "The execution role ARN for the application.",
+        title = "The execution role ARN for the application",
         description = "This role will be assumed by EMR Serverless to access AWS resources on your behalf."
     )
     @NotNull
     private Property<String> executionRoleArn;
 
     @Schema(
-        title = "The name of the job to start."
+        title = "The name of the job to start"
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The entry point for the job.",
+        title = "The entry point for the job",
         description = "For `SPARK` applications, this is typically the S3 path to your main application file (e.g., a Python or JAR file). For `HIVE` applications, this is the Hive query to execute."
     )
     @NotNull

@@ -51,7 +51,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class DeleteCluster extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster IDs.", description = "List of cluster IDs to be terminated.")
+    @Schema(title = "Cluster IDs", description = "List of cluster IDs to be terminated.")
     @NotNull
     private Property<List<String>> clusterIds;
 
