@@ -150,7 +150,7 @@ configurations {
 }
 
 dependencies {
-    agent "org.aspectj:aspectjweaver:1.9.25"
+    agent "org.aspectj:aspectjweaver:1.9.25.1"
 }
 
 test {
