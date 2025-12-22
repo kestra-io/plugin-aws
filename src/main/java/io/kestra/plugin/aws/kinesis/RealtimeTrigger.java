@@ -60,20 +60,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.ConsumedRecord> {
     @Schema(
-        title = "Access Key Id in order to connect to AWS.",
-        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+        title = "AWS access key ID.",
+        description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     private Property<String> accessKeyId;
 
     @Schema(
-        title = "Secret Key Id in order to connect to AWS.",
-        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+        title = "AWS secret access key.",
+        description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     private Property<String> secretKeyId;
 
     @Schema(
-        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
-        description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
+        title = "AWS session token for temporary credentials.",
+        description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     private Property<String> sessionToken;
 
@@ -404,4 +404,3 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         }
     }
 }
-

@@ -51,25 +51,25 @@ import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
 public class StartServerlessJobRun extends AbstractEmrServerlessTask implements RunnableTask<StartServerlessJobRun.Output> {
 
     @Schema(
-        title = "The EMR Serverless application ID to run the job on."
+        title = "The EMR Serverless application ID to run the job on"
     )
     @NotNull
     private Property<String> applicationId;
 
     @Schema(
-        title = "The execution role ARN for the job."
+        title = "The execution role ARN for the job"
     )
     @NotNull
     private Property<String> executionRoleArn;
 
     @Schema(
-        title = "The name of the job."
+        title = "The name of the job"
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The entry point for the job."
+        title = "The entry point for the job"
     )
     @NotNull
     private Property<String> entryPoint;
