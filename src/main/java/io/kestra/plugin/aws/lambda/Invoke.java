@@ -1,8 +1,22 @@
 package io.kestra.plugin.aws.lambda;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.http.HttpHeaders;
+import org.apache.http.entity.ContentType;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -15,6 +29,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,22 +40,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpHeaders;
-import org.apache.http.entity.ContentType;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -112,6 +119,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
+        final Instant invocationStart = Instant.now().minusSeconds(5);
         var functionArn = runContext.render(this.functionArn).as(String.class).orElseThrow();
         var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ?
             null :
@@ -141,11 +149,17 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                 logger.debug("Lambda {} invoked successfully", functionArn);
             }
             Output out = handleContent(runContext, functionArn, contentType, res.payload());
+            fetchAndLogLambdaLogs(runContext, functionArn, invocationStart);
             runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
             return out;
         } catch (LambdaException e) {
             throw new LambdaInvokeException("Lambda Invoke task execution failed for function: " + functionArn, e);
         }
+    }
+
+    @VisibleForTesting
+    CloudWatchLogsClient getCloudWatchLogsClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return new CloudWatchLogs().logsClient(runContext);
     }
 
     @VisibleForTesting
@@ -195,6 +209,51 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         return Optional.empty();
     }
 
+    @VisibleForTesting
+    void fetchAndLogLambdaLogs(
+        RunContext runContext,
+        String functionArn,
+        Instant startTime
+    ) {
+        var logger = runContext.logger();
+
+        // Extract function name from ARN
+        String functionName;
+        try {
+            functionName = functionArn.split(":function:")[1].split(":")[0];
+        } catch (Exception e) {
+            logger.warn("Unable to determine Lambda function name from ARN: {}", functionArn);
+            return;
+        }
+
+        String logGroupName = "/aws/lambda/" + functionName;
+
+        try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
+            FilterLogEventsRequest request = FilterLogEventsRequest.builder()
+                .logGroupName(logGroupName)
+                .startTime(startTime.toEpochMilli())
+                .build();
+
+            // Fetch logs using CloudWatch paginator
+            logsClient.filterLogEventsPaginator(request)
+                .events()
+                .stream()
+                // Hard cap to prevent excessive log volume in a single task execution
+                .limit(1_000)
+                .map(FilteredLogEvent::message)
+                .filter(message -> message != null && !message.isBlank())
+                .forEach(message -> logger.info("[lambda] {}", message));
+
+        } catch (Exception e) {
+            // Logs must never fail the task execution
+            logger.warn(
+                "Failed to fetch CloudWatch logs for Lambda {}: {}",
+                functionArn,
+                e.getMessage()
+            );
+        }
+    }
+    
     @VisibleForTesting
     void handleError(String functionArn, ContentType contentType, SdkBytes payload) {
         String errorPayload;
