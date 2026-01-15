@@ -210,17 +210,12 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     }
 
     @VisibleForTesting
-    void fetchAndLogLambdaLogs(
-        RunContext runContext,
-        String functionArn,
-        Instant startTime
-    ) {
+    void fetchAndLogLambdaLogs(RunContext runContext, String functionArn, Instant startTime) {
         var logger = runContext.logger();
-
-        // Extract function name from ARN
         String functionName;
+    
         try {
-            functionName = functionArn.split(":function:")[1].split(":")[0];
+            functionName = extractFunctionName(functionArn);
         } catch (Exception e) {
             logger.warn("Unable to determine Lambda function name from ARN: {}", functionArn);
             return;
@@ -228,32 +223,59 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
         String logGroupName = "/aws/lambda/" + functionName;
 
+        // Polling logic: 5 attempts, waiting 3 seconds between each
+        int maxAttempts = 5;
+        long sleepMillis = 3000;
+        boolean logsFound = false;
+
         try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
-            FilterLogEventsRequest request = FilterLogEventsRequest.builder()
-                .logGroupName(logGroupName)
-                .startTime(startTime.toEpochMilli())
-                .build();
+            for (int i = 0; i < maxAttempts; i++) {
+                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
+                    .logGroupName(logGroupName)
+                    .startTime(startTime.toEpochMilli())
+                    .build();
 
-            // Fetch logs using CloudWatch paginator
-            logsClient.filterLogEventsPaginator(request)
-                .events()
-                .stream()
-                // Hard cap to prevent excessive log volume in a single task execution
-                .limit(1_000)
-                .map(FilteredLogEvent::message)
-                .filter(message -> message != null && !message.isBlank())
-                .forEach(message -> logger.info("[lambda] {}", message));
+                var response = logsClient.filterLogEvents(request);
+                var events = response.events();
 
+                if (events != null && !events.isEmpty()) {
+                    events.stream()
+                        .limit(1000)
+                        .map(FilteredLogEvent::message)
+                        .filter(message -> message != null && !message.isBlank())
+                        .forEach(message -> logger.info("[lambda] {}", message.trim()));
+                    logsFound = true;
+                    break; // Exit early if found logs
+                }
+
+                // Wait before next retry, but not after the last attempt
+                if (i < maxAttempts - 1) {
+                    Thread.sleep(sleepMillis);
+                }
+            }
+
+            if (!logsFound) {
+                logger.debug("No CloudWatch logs found for {} after {} attempts.", functionName, maxAttempts);
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Log fetching interrupted for Lambda {}", functionArn);
         } catch (Exception e) {
-            // Logs must never fail the task execution
-            logger.warn(
-                "Failed to fetch CloudWatch logs for Lambda {}: {}",
-                functionArn,
-                e.getMessage()
-            );
+            logger.warn("Failed to fetch CloudWatch logs for Lambda {}: {}", functionArn, e.getMessage());
         }
     }
     
+    @VisibleForTesting
+    private String extractFunctionName(String functionArnOrName) {
+        if (functionArnOrName.contains(":function:")) {
+            // Handle Full ARN
+            return functionArnOrName.split(":function:")[1].split(":")[0];
+        }
+        // Handle just the name
+        return functionArnOrName;
+    }
+
     @VisibleForTesting
     void handleError(String functionArn, ContentType contentType, SdkBytes payload) {
         String errorPayload;

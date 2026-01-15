@@ -28,6 +28,7 @@ import org.mockito.Mock.Strictness;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -220,37 +221,40 @@ public class InvokeUnitTest {
     }
 
     @Test
-    void givenLambdaInvocation_whenCloudWatchLogsEnabled_thenLogsAreFetchedAndLogged() throws Exception {
-        // Given
+    void givenLambdaInvocation_whenLogsAreFetched_thenLogsAreLoggedCorrectly() throws Exception {
+        // Arrange
+        Instant startTime = Instant.parse("2026-01-15T10:00:00Z");
+
         FilteredLogEvent logEvent = FilteredLogEvent.builder()
             .message("Hello from CloudWatch Logs")
-            .timestamp(Instant.now().toEpochMilli())
+            .timestamp(startTime.plusSeconds(1).toEpochMilli())
             .build();
 
-        // Mock paginator
-        FilterLogEventsIterable paginator = mock(FilterLogEventsIterable.class);
+        FilterLogEventsResponse response = FilterLogEventsResponse.builder()
+            .events(List.of(logEvent))
+            .build();
 
-        // Correct AWS SDK iterable for events()
-        software.amazon.awssdk.core.pagination.sync.SdkIterable<FilteredLogEvent> eventIterable =
-            () -> List.of(logEvent).iterator();
+        given(logsClient.filterLogEvents(any(FilterLogEventsRequest.class)))
+            .willReturn(response);
 
-        given(paginator.events()).willReturn(eventIterable);
-        given(logsClient.filterLogEventsPaginator(any(FilterLogEventsRequest.class)))
-            .willReturn(paginator);
+        given(context.logger()).willReturn(logger);
 
-        // Spy Invoke to inject mocked logs client
         Invoke spyInvoke = spy(invoke);
         doReturn(logsClient).when(spyInvoke).getCloudWatchLogsClient(any());
 
-        // When
+        // Act
         spyInvoke.fetchAndLogLambdaLogs(
             context,
-            "arn:aws:lambda:eu-central-1:123456789012:function:test",
-            Instant.now()
+            "arn:aws:lambda:ap-south-1:123456789012:function:test-function",
+            startTime
         );
 
-        // Then
-        verify(logger).info("[lambda] {}", "Hello from CloudWatch Logs");
-    }
+        // Assert
+        verify(logsClient, times(1))
+            .filterLogEvents(any(FilterLogEventsRequest.class));
 
+        verify(logger)
+            .info("[lambda] {}", "Hello from CloudWatch Logs");
+    }
 }
+
