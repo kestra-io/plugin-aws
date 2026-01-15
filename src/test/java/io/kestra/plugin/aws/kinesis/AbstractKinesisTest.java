@@ -25,8 +25,8 @@ public class AbstractKinesisTest extends AbstractLocalStackTest {
     protected static String streamArn;
     protected static String streamName;
 
-    @BeforeAll
-    static void setupStream() throws InterruptedException {
+    @BeforeEach
+    void setupStream() throws InterruptedException {
         streamName = "stream-" + IdUtils.create();
 
         try (KinesisClient kinesisClient = KinesisClient.builder()

@@ -78,7 +78,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try(var emrClient = this.client(runContext)) {
+        try(var emrClient = this.emrClient(runContext)) {
             List<software.amazon.awssdk.services.emr.model.StepConfig> jobSteps = steps.stream()
                 .map(throwFunction(stepConfig -> stepConfig.toStep(runContext)))
                 .toList();

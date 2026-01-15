@@ -57,7 +57,7 @@ public class DeleteCluster extends AbstractEmrTask implements RunnableTask<VoidO
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (EmrClient emrClient = this.client(runContext)) {
+        try (EmrClient emrClient = this.emrClient(runContext)) {
             emrClient.terminateJobFlows(throwConsumer(request -> request.jobFlowIds(runContext.render(this.clusterIds).asList(String.class))));
             return null;
         }
