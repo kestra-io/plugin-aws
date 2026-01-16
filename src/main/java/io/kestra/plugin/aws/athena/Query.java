@@ -186,7 +186,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             .resultConfiguration(resultConfiguration)
             .build();
 
-        try (var client = client(runContext)) {
+        try (var client = athenaClient(runContext)) {
             var startQueryExecution = client.startQueryExecution(startQueryExecutionRequest);
             var fetchType = runContext.render(this.fetchType).as(FetchType.class).orElseThrow();
             runContext.logger().info("Query created with Athena execution identifier {}", startQueryExecution.queryExecutionId());
@@ -255,6 +255,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             }
             return output;
         }
+    }
+
+    protected AthenaClient athenaClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return client(runContext);
     }
 
     private AthenaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {

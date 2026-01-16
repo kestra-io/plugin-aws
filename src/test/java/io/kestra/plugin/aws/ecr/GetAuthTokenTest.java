@@ -1,40 +1,57 @@
 package io.kestra.plugin.aws.ecr;
 
-import io.kestra.core.models.property.Property;
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import software.amazon.awssdk.services.ecr.EcrClient;
+import software.amazon.awssdk.services.ecr.model.AuthorizationData;
+import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
+
+import java.util.Base64;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.*;
 
 @KestraTest
-@Testcontainers
-public class GetAuthTokenTest extends AbstractLocalStackTest {
-
+class GetAuthTokenTest {
     @Inject
-    protected RunContextFactory runContextFactory;
+    RunContextFactory runContextFactory;
 
-    @SuppressWarnings("unchecked")
     @Test
-    @Disabled
-    void run() throws Exception {
+    void run_mocked() throws Exception {
         RunContext runContext = runContextFactory.of();
 
-        GetAuthToken query = GetAuthToken.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.EC2).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .build();
+        EcrClient ecrClient = mock(EcrClient.class);
 
-        GetAuthToken.TokenOutput output = query.run(runContext);
+        String encoded = Base64.getEncoder().encodeToString("AWS:my-token".getBytes());
+
+        when(ecrClient.getAuthorizationToken())
+            .thenReturn(
+                GetAuthorizationTokenResponse.builder()
+                    .authorizationData(
+                        List.of(AuthorizationData.builder()
+                            .authorizationToken(encoded)
+                            .build()
+                        )
+                    )
+                    .build()
+            );
+
+        GetAuthToken task = spy(GetAuthToken.builder()
+            .region(io.kestra.core.models.property.Property.ofValue("eu-west-3"))
+            .build());
+
+        doReturn(ecrClient).when(task).client(any(RunContext.class));
+
+        GetAuthToken.TokenOutput output = task.run(runContext);
+
         assertThat(output, notNullValue());
+        assertThat(output.getToken(), notNullValue());
+
+        verify(ecrClient).getAuthorizationToken();
     }
 }

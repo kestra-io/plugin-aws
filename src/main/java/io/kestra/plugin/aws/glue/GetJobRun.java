@@ -82,7 +82,7 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> 
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (GlueClient glueClient = this.client(runContext)) {
+        try (GlueClient glueClient = this.glueClient(runContext)) {
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String runIdValue = null;
 

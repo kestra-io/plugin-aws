@@ -88,7 +88,7 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         boolean rwaitValue = runContext.render(this.wait).as(Boolean.class).orElse(true);
         Duration rintervalValue = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
 
-        try (GlueClient glueClient = this.client(runContext)) {
+        try (GlueClient glueClient = this.glueClient(runContext)) {
             // Stop the job
             BatchStopJobRunResponse stopResponse = glueClient.batchStopJobRun(
                 BatchStopJobRunRequest.builder()
