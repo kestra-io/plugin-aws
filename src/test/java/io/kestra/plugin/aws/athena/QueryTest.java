@@ -83,7 +83,7 @@ class QueryTest {
             );
 
         Query task = spy(Query.builder()
-            .id("test")
+            .id("athena_store_test")
             .type(Query.class.getName())
             .database(Property.ofValue("db"))
             .outputLocation(Property.ofValue("s3://dummy"))
