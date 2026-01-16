@@ -21,4 +21,8 @@ public abstract class AbstractGlueTask extends AbstractConnection {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, GlueClient.builder()).build();
     }
+
+    protected GlueClient glueClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return client(runContext);
+    }
 }

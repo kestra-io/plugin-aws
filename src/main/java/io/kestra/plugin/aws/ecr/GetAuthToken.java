@@ -66,7 +66,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
         }
     }
 
-    private EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+    protected EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, EcrClient.builder()).build();
     }
