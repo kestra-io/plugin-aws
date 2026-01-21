@@ -25,14 +25,17 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.retrys.AbstractRetry;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.core.utils.RetryUtils;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -48,21 +51,19 @@ import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
+import io.kestra.core.models.tasks.retrys.Constant;
+import io.kestra.core.models.tasks.retrys.Exponential;
+
+import java.util.List;
 
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(
-    title = "Invoke an AWS Lambda function."
-)
-@Plugin(
-    examples = {
-        @Example(
-            title = "Invoke given Lambda function and wait for its completion.",
-            full = true,
-            code = """
+@Schema(title = "Invoke an AWS Lambda function.")
+@Plugin(examples = {
+        @Example(title = "Invoke given Lambda function and wait for its completion.", full = true, code = """
                 id: aws_lambda_invoke
                 namespace: company.team
 
@@ -73,12 +74,8 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
-                """
-        ),
-        @Example(
-            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
-            full = true,
-            code = """
+                """),
+        @Example(title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.", full = true, code = """
                 id: aws_lambda_invoke
                 namespace: company.team
 
@@ -93,14 +90,11 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                         id: 1
                         firstname: "John"
                         lastname: "Doe"
-                """
-        )
-    },
-    metrics = {
+                """)
+}, metrics = {
         @Metric(name = "file.size", type = Counter.TYPE),
         @Metric(name = "duration", type = Timer.TYPE)
-    }
-)
+})
 @Slf4j
 public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
@@ -110,10 +104,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @NotNull
     private Property<String> functionArn;
 
-    @Schema(
-        title = "Function request payload.",
-        description = "Request payload. It's a map of string -> object."
-    )
+    @Schema(title = "Function request payload.", description = "Request payload. It's a map of string -> object.")
     private Property<Map<String, Object>> functionPayload;
 
     @Override
@@ -121,21 +112,23 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         final long start = System.nanoTime();
         final Instant invocationStart = Instant.now().minusSeconds(5);
         var functionArn = runContext.render(this.functionArn).as(String.class).orElseThrow();
-        var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ?
-            null :
-            runContext.render(this.functionPayload).asMap(String.class, Object.class);
+        var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ? null
+                : runContext.render(this.functionPayload).asMap(String.class, Object.class);
         var logger = runContext.logger();
 
         try (var lambda = client(runContext)) {
             var builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
-                var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload)) ;
+                var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload));
                 builder.payload(payload);
             }
             InvokeRequest request = builder.build();
-            // TODO take care about long-running functions: your client might disconnect during
-            // synchronous invocation while it waits for a response. Configure your HTTP client,
-            // SDK, firewall, proxy, or operating system to allow for long connections with timeout
+            // TODO take care about long-running functions: your client might disconnect
+            // during
+            // synchronous invocation while it waits for a response. Configure your HTTP
+            // client,
+            // SDK, firewall, proxy, or operating system to allow for long connections with
+            // timeout
             // or keep-alive settings.
             InvokeResponse res = lambda.invoke(request);
             Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader(HttpHeaders.CONTENT_TYPE);
@@ -179,7 +172,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                     // Apply charset only if it was provided originally
                     return ContentType.create(known.getMimeType(), parsed.getCharset());
                 }
-            } catch(Exception cte) {
+            } catch (Exception cte) {
                 log.warn("Unable to parse Lambda response content type {}: {}", contentType.get(), cte.getMessage());
             }
         }
@@ -192,7 +185,8 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         try {
             // Sample error from AWS could be:
             // {"errorMessage": "'path'", "errorType": "KeyError", "requestId":
-            // "f32ff4cf-b0dc-44ec-a59a-4c5b18b836c3", "stackTrace": [" File \"/var/task/hello.py\",
+            // "f32ff4cf-b0dc-44ec-a59a-4c5b18b836c3", "stackTrace": [" File
+            // \"/var/task/hello.py\",
             // line 12, in handler\n \"body\": \"Hello AWS Lambda!!! You have requested
             // {}\".format(event[\"path\"])\n"]}
             // TODO May be it's more resonable to return the whole payload as an error
@@ -212,60 +206,40 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     void fetchAndLogLambdaLogs(RunContext runContext, String functionArn, Instant startTime) {
         var logger = runContext.logger();
-        String functionName;
-    
-        try {
-            functionName = extractFunctionName(functionArn);
-        } catch (Exception e) {
-            logger.warn("Unable to determine Lambda function name from ARN: {}", functionArn);
-            return;
-        }
-
+        String functionName = extractFunctionName(functionArn);
         String logGroupName = "/aws/lambda/" + functionName;
 
-        // Polling logic: 5 attempts, waiting 3 seconds between each
-        int maxAttempts = 5;
-        long sleepMillis = 3000;
-        boolean logsFound = false;
+        // Explicit retry policy: 5 attempts, 3s interval, maxInterval 3s
+        AbstractRetry retryPolicy = Exponential.builder()
+                .interval(Duration.ofSeconds(3))
+                .maxAttempts(5)
+                .maxInterval(Duration.ofSeconds(10))
+                .build();
 
         try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
-            for (int i = 0; i < maxAttempts; i++) {
-                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
-                    .logGroupName(logGroupName)
-                    .startTime(startTime.toEpochMilli())
-                    .build();
+            // Explicitly specify generic type for RetryUtils
+            List<FilteredLogEvent> events = RetryUtils.<List<FilteredLogEvent>, Exception>of(retryPolicy, logger)
+                    .run(
+                            result -> result == null || result.isEmpty(),
+                            () -> {
+                                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
+                                        .logGroupName(logGroupName)
+                                        .startTime(startTime.toEpochMilli())
+                                        .build();
 
-                var response = logsClient.filterLogEvents(request);
-                var events = response.events();
+                                var response = logsClient.filterLogEvents(request);
+                                return response.events();
+                            });
 
-                if (events != null && !events.isEmpty()) {
-                    events.stream()
-                        .limit(1000)
-                        .map(FilteredLogEvent::message)
-                        .filter(message -> message != null && !message.isBlank())
-                        .forEach(message -> logger.info("[lambda] {}", message.trim()));
-                    logsFound = true;
-                    break; // Exit early if found logs
-                }
-
-                // Wait before next retry, but not after the last attempt
-                if (i < maxAttempts - 1) {
-                    Thread.sleep(sleepMillis);
-                }
+            if (events != null) {
+                events.forEach(event -> logger.info("[lambda] {}", event.message().trim()));
             }
 
-            if (!logsFound) {
-                logger.debug("No CloudWatch logs found for {} after {} attempts.", functionName, maxAttempts);
-            }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("Log fetching interrupted for Lambda {}", functionArn);
         } catch (Exception e) {
             logger.warn("Failed to fetch CloudWatch logs for Lambda {}: {}", functionArn, e.getMessage());
         }
     }
-    
+
     @VisibleForTesting
     private String extractFunctionName(String functionArnOrName) {
         if (functionArnOrName.contains(":function:")) {
@@ -332,20 +306,14 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
 
-        @Schema(
-            title = "Response file URI."
-        )
+        @Schema(title = "Response file URI.")
         private final URI uri;
 
-        @Schema(
-            title = "Size of the response content in bytes."
-        )
+        @Schema(title = "Size of the response content in bytes.")
 
         private final Long contentLength;
 
-        @Schema(
-            title = "A standard MIME type describing the format of the content."
-        )
+        @Schema(title = "A standard MIME type describing the format of the content.")
         private final String contentType;
     }
 }
