@@ -35,7 +35,6 @@ import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -51,7 +50,6 @@ import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
-import io.kestra.core.models.tasks.retrys.Constant;
 import io.kestra.core.models.tasks.retrys.Exponential;
 
 import java.util.List;
@@ -61,9 +59,15 @@ import java.util.List;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Invoke an AWS Lambda function.")
-@Plugin(examples = {
-        @Example(title = "Invoke given Lambda function and wait for its completion.", full = true, code = """
+@Schema(
+    title = "Invoke an AWS Lambda function."
+)
+@Plugin(
+    examples = {
+        @Example(
+            title = "Invoke given Lambda function and wait for its completion.",
+            full = true,
+            code = """
                 id: aws_lambda_invoke
                 namespace: company.team
 
@@ -74,8 +78,12 @@ import java.util.List;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-function"
-                """),
-        @Example(title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.", full = true, code = """
+                """
+        ),
+        @Example(
+            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
+            full = true,
+            code = """
                 id: aws_lambda_invoke
                 namespace: company.team
 
@@ -90,11 +98,15 @@ import java.util.List;
                         id: 1
                         firstname: "John"
                         lastname: "Doe"
-                """)
-}, metrics = {
+                """
+        )
+    },
+    metrics = {
         @Metric(name = "file.size", type = Counter.TYPE),
         @Metric(name = "duration", type = Timer.TYPE)
-})
+    }
+)
+
 @Slf4j
 public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
@@ -123,13 +135,9 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                 builder.payload(payload);
             }
             InvokeRequest request = builder.build();
-            // TODO take care about long-running functions: your client might disconnect
-            // during
-            // synchronous invocation while it waits for a response. Configure your HTTP
-            // client,
-            // SDK, firewall, proxy, or operating system to allow for long connections with
-            // timeout
-            // or keep-alive settings.
+            // TODO take care about long-running functions: your client might disconnect during
+            // synchronous invocation while it waits for a response. Configure your HTTP client,
+            // SDK, firewall, proxy, or operating system to allow for long connections with timeout
             InvokeResponse res = lambda.invoke(request);
             Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader(HttpHeaders.CONTENT_TYPE);
             ContentType contentType = parseContentType(contentTypeHeader);
@@ -185,8 +193,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         try {
             // Sample error from AWS could be:
             // {"errorMessage": "'path'", "errorType": "KeyError", "requestId":
-            // "f32ff4cf-b0dc-44ec-a59a-4c5b18b836c3", "stackTrace": [" File
-            // \"/var/task/hello.py\",
+            // "f32ff4cf-b0dc-44ec-a59a-4c5b18b836c3", "stackTrace": [" File \"/var/task/hello.py\",
             // line 12, in handler\n \"body\": \"Hello AWS Lambda!!! You have requested
             // {}\".format(event[\"path\"])\n"]}
             // TODO May be it's more resonable to return the whole payload as an error
