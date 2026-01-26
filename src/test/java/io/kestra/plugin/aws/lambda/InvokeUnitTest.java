@@ -223,7 +223,7 @@ public class InvokeUnitTest {
     }
 
     @Test
-    void givenLambdaInvocation_whenLogsAreFetched_thenLogsAreLoggedCorrectly() throws Throwable {
+    void givenLambdaInvocation_whenLogsAreFetched_thenLogsAreLoggedCorrectly() throws Exception {
         // Arrange
         Instant startTime = Instant.parse("2026-01-15T10:00:00Z");
 
@@ -250,8 +250,12 @@ public class InvokeUnitTest {
                 "arn:aws:lambda:ap-south-1:123456789012:function:test-function",
                 startTime);
 
-        // Assert (THIS is what really matters)
-        verify(logger).info("[lambda] {}", "Hello from CloudWatch Logs");
+        // Assert
+        verify(logsClient, times(1))
+                .filterLogEvents(any(FilterLogEventsRequest.class));
+
+        verify(logger)
+                .info("[lambda] {}", "Hello from CloudWatch Logs");
     }
 }
 

@@ -213,35 +213,56 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     void fetchAndLogLambdaLogs(RunContext runContext, String functionArn, Instant startTime) {
         var logger = runContext.logger();
-        String functionName = extractFunctionName(functionArn);
+        String functionName;
+
+        try {
+            functionName = extractFunctionName(functionArn);
+        } catch (Exception e) {
+            logger.warn("Unable to determine Lambda function name from ARN: {}", functionArn);
+            return;
+        }
+
         String logGroupName = "/aws/lambda/" + functionName;
 
-        // Explicit retry policy: 5 attempts, 3s interval, maxInterval 3s
-        AbstractRetry retryPolicy = Exponential.builder()
-                .interval(Duration.ofSeconds(3))
-                .maxAttempts(5)
-                .maxInterval(Duration.ofSeconds(10))
-                .build();
+        // Polling logic: 5 attempts, waiting 3 seconds between each
+        int maxAttempts = 5;
+        long sleepMillis = 3000;
+        boolean logsFound = false;
 
         try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
-            // Explicitly specify generic type for RetryUtils
-            List<FilteredLogEvent> events = RetryUtils.<List<FilteredLogEvent>, Exception>of(retryPolicy, logger)
-                    .run(
-                            result -> result == null || result.isEmpty(),
-                            () -> {
-                                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
-                                        .logGroupName(logGroupName)
-                                        .startTime(startTime.toEpochMilli())
-                                        .build();
+            for (int i = 0; i < maxAttempts; i++) {
+                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
+                        .logGroupName(logGroupName)
+                        .startTime(startTime.toEpochMilli())
+                        .build();
 
-                                var response = logsClient.filterLogEvents(request);
-                                return response.events();
-                            });
+                var response = logsClient.filterLogEvents(request);
+                var events = response.events();
 
-            if (events != null) {
-                events.forEach(event -> logger.info("[lambda] {}", event.message().trim()));
+                if (events != null && !events.isEmpty()) {
+                    events.stream()
+                            .limit(1000)
+                            .map(FilteredLogEvent::message)
+                            .filter(message -> message != null && !message.isBlank())
+                            .forEach(message -> logger.info("[lambda] {}", message.trim()));
+
+                    logsFound = true;
+                    break; // Exit early if found logs
+                }
+
+                // Wait before next retry, but not after the last attempt
+                if (i < maxAttempts - 1) {
+                    Thread.sleep(sleepMillis);
+                }
             }
 
+            if (!logsFound) {
+                logger.debug("No CloudWatch logs found for {} after {} attempts.", functionName, maxAttempts);
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Log fetching interrupted for Lambda {}", functionArn);
         } catch (Exception e) {
             logger.warn("Failed to fetch CloudWatch logs for Lambda {}: {}", functionArn, e.getMessage());
         }
