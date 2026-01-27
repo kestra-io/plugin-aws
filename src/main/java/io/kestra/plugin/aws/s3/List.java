@@ -67,6 +67,12 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     protected Property<String> regexp;
 
     @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
+    @Builder.Default
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Override
@@ -83,6 +89,14 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
                 runContext.render(regexp).as(String.class).orElse(null),
                 runContext.render(prefix).as(String.class).orElse(null)
             );
+
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (list.size() > rMaxFiles) {
+                runContext.logger().warn("Too many files to process, skipping");
+                return Output.builder()
+                    .objects(java.util.List.of())
+                    .build();
+            }
 
             return Output.builder()
                 .objects(list)

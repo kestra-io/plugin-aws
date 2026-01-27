@@ -92,6 +92,12 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     @Builder.Default
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     private Property<ActionInterface.Action> action;
 
     private Copy.CopyObject moveTo;
@@ -116,6 +122,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(this.filter)
+            .maxFiles(this.maxFiles)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)
