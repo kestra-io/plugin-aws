@@ -19,7 +19,10 @@ import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Start a job run on an existing EMR Serverless application.")
+@Schema(
+    title = "Start a job on an EMR Serverless app",
+    description = "Submits a job run to an existing EMR Serverless application using the Spark driver with the provided entry point. Returns jobRunId only; does not wait for job completion."
+)
 @Plugin(
     examples = {
         @Example(
@@ -51,25 +54,29 @@ import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
 public class StartServerlessJobRun extends AbstractEmrServerlessTask implements RunnableTask<StartServerlessJobRun.Output> {
 
     @Schema(
-        title = "The EMR Serverless application ID to run the job on"
+        title = "Application ID",
+        description = "Existing EMR Serverless application to run the job on."
     )
     @NotNull
     private Property<String> applicationId;
 
     @Schema(
-        title = "The execution role ARN for the job"
+        title = "Execution role ARN",
+        description = "IAM role assumed for this job run."
     )
     @NotNull
     private Property<String> executionRoleArn;
 
     @Schema(
-        title = "The name of the job"
+        title = "Job name",
+        description = "Displayed name for the job run."
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The entry point for the job"
+        title = "Job entry point",
+        description = "Path to the Spark application file; passed to spark-submit."
     )
     @NotNull
     private Property<String> entryPoint;
@@ -104,7 +111,10 @@ public class StartServerlessJobRun extends AbstractEmrServerlessTask implements 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Job Run ID")
+        @Schema(
+            title = "Job run ID",
+            description = "Identifier returned by StartJobRun."
+        )
         private final String jobRunId;
     }
 }

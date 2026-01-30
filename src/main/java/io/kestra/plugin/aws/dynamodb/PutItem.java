@@ -100,13 +100,13 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table.",
-    description = "If an item with the same key already exists, the element will be updated."
+    title = "Put an item into a DynamoDB table",
+    description = "Creates or replaces an item. Upserts when the key already exists."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item",
-        description = "The item can be in the form of a JSON string, or a map."
+        title = "Item",
+        description = "Item content as a JSON string or map; rendered before write."
     )
     @PluginProperty(dynamic = true)
     private Object item;

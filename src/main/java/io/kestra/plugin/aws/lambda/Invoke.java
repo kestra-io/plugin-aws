@@ -60,7 +60,8 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Invoke an AWS Lambda function."
+    title = "Invoke an AWS Lambda function",
+    description = "Synchronously invokes a Lambda by ARN or name with an optional JSON payload. Stores the response body to internal storage and captures content type and size. Fails if the function returns functionError."
 )
 @Plugin(
     examples = {
@@ -112,11 +113,17 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
-    @Schema(title = "The Lambda function name.")
+    @Schema(
+        title = "Function ARN or name",
+        description = "Lambda ARN or name to invoke."
+    )
     @NotNull
     private Property<String> functionArn;
 
-    @Schema(title = "Function request payload.", description = "Request payload. It's a map of string -> object.")
+    @Schema(
+        title = "Function payload",
+        description = "Optional map rendered to JSON and sent as the request payload."
+    )
     private Property<Map<String, Object>> functionPayload;
 
     @Override
@@ -334,14 +341,22 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
 
-        @Schema(title = "Response file URI.")
+        @Schema(
+            title = "Response file URI",
+            description = "Internal storage URI of the Lambda response body."
+        )
         private final URI uri;
 
-        @Schema(title = "Size of the response content in bytes.")
+        @Schema(
+            title = "Content length (bytes)"
+        )
 
         private final Long contentLength;
 
-        @Schema(title = "A standard MIME type describing the format of the content.")
+        @Schema(
+            title = "Content type",
+            description = "MIME type parsed from the Lambda response headers."
+        )
         private final String contentType;
     }
 }

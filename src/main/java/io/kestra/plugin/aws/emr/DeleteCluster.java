@@ -26,7 +26,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Terminate one or multiple AWS EMR cluster."
+    title = "Terminate EMR clusters by ID",
+    description = "Calls TerminateJobFlows on the provided cluster IDs without waiting for final state. Requires permissions on each cluster."
 )
 @Plugin(
     examples = {
@@ -51,7 +52,10 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class DeleteCluster extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster IDs", description = "List of cluster IDs to be terminated.")
+    @Schema(
+        title = "Cluster IDs",
+        description = "Job flow IDs to terminate, e.g., j-XXXXXXXXXXXXX."
+    )
     @NotNull
     private Property<List<String>> clusterIds;
 

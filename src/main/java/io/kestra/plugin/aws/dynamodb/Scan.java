@@ -22,7 +22,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Scan items from a DynamoDB table."
+    title = "Scan items from a DynamoDB table",
+    description = "Performs a Scan over the table. fetchType defaults to STORE; FETCH and FETCH_ONE read into memory. Optional limit and filterExpression reduce the returned set."
 )
 @Plugin(
     examples = {
@@ -74,29 +75,27 @@ import java.util.Map;
 public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
 
     @Schema(
-        title = "The way you want to store the data.",
-        description = "FETCH_ONE output the first row, "
-            + "FETCH output all the rows, "
-            + "STORE store all rows in a file, "
-            + "NONE do nothing."
+        title = "Fetch strategy",
+        description = "STORE (default) writes rows to internal storage; FETCH loads all rows; FETCH_ONE returns the first row."
     )
     @Builder.Default
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
-        title = "Maximum numbers of returned results"
+        title = "Max results",
+        description = "Maximum items to return."
     )
     private Property<Integer> limit;
 
     @Schema(
-        title = "Scan filter expression",
-        description = "When used, `expressionAttributeValues` property must also be provided."
+        title = "Filter expression",
+        description = "Server-side filter applied after the scan; requires expressionAttributeValues."
     )
     private Property<String> filterExpression;
 
     @Schema(
-        title = "Scan expression attributes",
-        description = "It's a map of string -> object."
+        title = "Expression attribute values",
+        description = "Map of placeholders used in expressions."
     )
     private Property<Map<String, Object>> expressionAttributeValues;
 

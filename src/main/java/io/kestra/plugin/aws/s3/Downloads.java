@@ -64,7 +64,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Downloads multiple files from a S3 bucket."
+    title = "Download multiple S3 objects",
+    description = "Lists objects with filters, downloads them in bulk, emits metrics, and optionally performs a post-action (move/delete)."
 )
 public class Downloads extends AbstractS3Object implements RunnableTask<Downloads.Output>, ListInterface, ActionInterface {
     private Property<String> prefix;
@@ -79,7 +80,8 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
-        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB."
+        title = "Compatibility mode",
+        description = "Use default async client for S3-compatible endpoints (limits transfers to ~2GB)."
     )
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
@@ -94,7 +96,8 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Max files",
+        description = "Limit returned files; default 25."
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 
@@ -184,12 +187,14 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     public static class Output implements io.kestra.core.models.tasks.Output {
         @JsonInclude
         @Schema(
-            title = "The list of S3 objects."
+            title = "Objects",
+            description = "Downloaded objects with metadata."
         )
         private final java.util.List<S3Object> objects;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs."
+            title = "Output files",
+            description = "Map of object key to downloaded URI."
         )
         private final Map<String, URI> outputFiles;
     }

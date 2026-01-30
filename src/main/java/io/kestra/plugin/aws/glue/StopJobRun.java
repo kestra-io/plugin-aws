@@ -33,7 +33,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Stop a running AWS Glue job and optionally wait for completion."
+    title = "Stop a Glue job run",
+    description = "Requests termination of a Glue job run and optionally waits for a terminal state. Wait defaults to true."
 )
 @Plugin(
     examples = {
@@ -59,23 +60,30 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
-    @Schema(title = "The name of the Glue job to stop")
+    @Schema(
+        title = "Job name",
+        description = "Name of the Glue job containing the run to stop."
+    )
     @NotNull
     private Property<String> jobName;
 
-    @Schema(title = "The ID of the job run to stop")
+    @Schema(
+        title = "Job run ID",
+        description = "Identifier of the job run to stop."
+    )
     @NotNull
     private Property<String> jobRunId;
 
     @Schema(
-        title = "Wait for the job to be fully stopped before ending the task.",
-        description = "If true, the task will periodically check the job status until it reaches a stopped state."
+        title = "Wait for stop",
+        description = "If true (default), poll status until STOPPED/SUCCEEDED/FAILED/ERROR/TIMEOUT/EXPIRED."
     )
     @Builder.Default
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
-        title = "Interval between status checks"
+        title = "Poll interval",
+        description = "Delay between status checks; default 1s."
     )
     @Builder.Default
     private Property<Duration> interval = Property.ofValue(Duration.ofSeconds(1));

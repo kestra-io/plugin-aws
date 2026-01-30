@@ -18,7 +18,10 @@ import software.amazon.awssdk.services.emrserverless.model.*;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Create an EMR Serverless application and immediately start a job run.")
+@Schema(
+    title = "Create EMR Serverless app and start job",
+    description = "Creates an EMR Serverless application then starts a job run immediately on it. Returns applicationId and jobRunId; does not wait for job completion. Supports SPARK or HIVE job drivers based on applicationType."
+)
 @Plugin(
     examples = {
         @Example(
@@ -46,35 +49,36 @@ import software.amazon.awssdk.services.emrserverless.model.*;
 public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerlessTask implements RunnableTask<CreateServerlessApplicationAndStartJob.Output> {
 
     @Schema(
-        title = "The EMR release label to use for the application",
-        description = "For example, `emr-6.3.0` or `emr-7.0.0`."
+        title = "Release label",
+        description = "EMR Serverless release, e.g., emr-6.3.0 or emr-7.0.0."
     )
     @NotNull
     private Property<String> releaseLabel;
 
     @Schema(
-        title = "The type of application to create",
-        description = "For example, valid values are `SPARK` and `HIVE`."
+        title = "Application type",
+        description = "Valid values SPARK or HIVE; determines which job driver is built."
     )
     @NotNull
     private Property<String> applicationType;
 
     @Schema(
-        title = "The execution role ARN for the application",
-        description = "This role will be assumed by EMR Serverless to access AWS resources on your behalf."
+        title = "Execution role ARN",
+        description = "IAM role assumed by EMR Serverless for the application."
     )
     @NotNull
     private Property<String> executionRoleArn;
 
     @Schema(
-        title = "The name of the job to start"
+        title = "Job name",
+        description = "Name reported for the started job run."
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The entry point for the job",
-        description = "For `SPARK` applications, this is typically the S3 path to your main application file (e.g., a Python or JAR file). For `HIVE` applications, this is the Hive query to execute."
+        title = "Job entry point",
+        description = "For SPARK, S3 URI to the main file passed to spark-submit; for HIVE, the Hive query text."
     )
     @NotNull
     private Property<String> entryPoint;

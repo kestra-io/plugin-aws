@@ -24,7 +24,8 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Retrieve an AWS ECR token to push or pull Docker images."
+    title = "Get an ECR authorization token",
+    description = "Fetches a short-lived Basic auth password for Docker push/pull to Amazon ECR by calling GetAuthorizationToken. Returns only the password portion (username is always AWS)."
 )
 @Plugin(
     examples = {
@@ -76,8 +77,8 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
     public static class TokenOutput implements Output {
 
         @Schema(
-            title = "AWS ECR authorization token.",
-            description = "Will be automatically encrypted and decrypted in the outputs if encryption is configured"
+            title = "ECR password token",
+            description = "Password extracted from the Base64 Basic auth token; encrypted in outputs when supported."
         )
         private EncryptedString token;
 

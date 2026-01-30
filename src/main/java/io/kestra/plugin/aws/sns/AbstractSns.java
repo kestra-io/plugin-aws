@@ -20,8 +20,15 @@ import software.amazon.awssdk.services.sns.SnsClient;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared SNS connection",
+    description = "Provides SNS client configuration and topicArn field."
+)
 abstract class AbstractSns extends AbstractConnection {
-    @Schema(title = "The SNS topic ARN. The topic must already exist.")
+    @Schema(
+        title = "Topic ARN",
+        description = "Existing SNS topic to publish to."
+    )
     @NotNull
     private Property<String> topicArn;
 

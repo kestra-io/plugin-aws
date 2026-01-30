@@ -24,7 +24,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Query CloudWatch metrics.")
+@Schema(
+    title = "Query CloudWatch metrics",
+    description = "Fetches metric statistics over a rolling window using GetMetricStatistics. Uses current time as end, start = end - window. Results are sorted by timestamp."
+)
 @Plugin(
     examples =
         @Example(
@@ -50,27 +53,42 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     )
 )
 public class Query extends AbstractCloudWatch implements RunnableTask<Query.Output> {
-    @Schema(title = "CloudWatch namespace (optional, required for metric-based queries)")
+    @Schema(
+        title = "Namespace",
+        description = "Metric namespace; required for most metrics."
+    )
     private Property<String> namespace;
 
-    @Schema(title = "The metric name to query")
+    @Schema(
+        title = "Metric name",
+        description = "Name of the metric to retrieve."
+    )
     @NotNull
     private Property<String> metricName;
 
-    @Schema(title = "Dimensions to filter the metric")
+    @Schema(
+        title = "Dimensions",
+        description = "Optional dimension filters applied to the metric."
+    )
     private Property<List<DimensionKV>> dimensions;
 
-    @Schema(title = "Statistic type to retrieve", description = "e.g., Average, Sum, Maximum, Minimum, SampleCount")
+    @Schema(
+        title = "Statistic",
+        description = "Statistic to return (Average, Sum, Maximum, Minimum, SampleCount); default Average."
+    )
     @Builder.Default
     private Property<String> statistic = Property.ofValue("Average");
 
-    @Schema(title = "Period in seconds for data aggregation")
+    @Schema(
+        title = "Period seconds",
+        description = "Granularity for aggregation; default 60 seconds."
+    )
     @Builder.Default
     private Property<Integer> periodSeconds = Property.ofValue(60);
 
     @Schema(
-        title = "Time window to query",
-        description = "Duration looking back from now, e.g., PT5M for 5 minutes"
+        title = "Window",
+        description = "Lookback duration from now, e.g., PT5M; default 5 minutes."
     )
     @Builder.Default
     private Property<Duration> window = Property.ofValue(Duration.ofMinutes(5));
@@ -142,20 +160,30 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
     @Builder
     @Getter
     public static class DimensionKV {
-        @Schema(title = "Dimension name")
+        @Schema(
+            title = "Dimension name"
+        )
         private Property<String> name;
 
-        @Schema(title = "Dimension value")
+        @Schema(
+            title = "Dimension value"
+        )
         private Property<String> value;
     }
 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Total number of datapoints returned")
+        @Schema(
+            title = "Datapoint count",
+            description = "Number of datapoints returned after sorting."
+        )
         private final Integer count;
 
-        @Schema(title = "Time series data with timestamps and values")
+        @Schema(
+            title = "Series",
+            description = "List of datapoints as maps, sorted by timestamp."
+        )
         private final List<Map<String, Object>> series;
     }
 }

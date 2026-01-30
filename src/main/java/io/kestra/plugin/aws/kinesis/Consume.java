@@ -31,7 +31,8 @@ import java.util.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume records from an Amazon Kinesis Data Stream."
+    title = "Consume records from Kinesis",
+    description = "Reads records from a stream starting at the chosen iterator type. Stops when maxRecords or maxDuration is reached. Writes results to internal storage and records last sequence per shard."
 )
 @Plugin(
     examples = {
@@ -58,29 +59,44 @@ import java.util.*;
 )
 public class Consume extends AbstractKinesis implements RunnableTask<Consume.Output> {
     @NotNull
-    @Schema(title = "The Kinesis stream name.")
+    @Schema(
+        title = "Stream name",
+        description = "Name of the Kinesis stream to read from."
+    )
     private Property<String> streamName;
 
     @Builder.Default
     @Schema(
-        title = "The position in the stream to start reading from.",
-        description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
+        title = "Iterator type",
+        description = "Start position: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER, AT_TIMESTAMP."
     )
     private Property<IteratorType> iteratorType = Property.ofValue(IteratorType.LATEST);
 
-    @Schema(title = "Used if iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER.")
+    @Schema(
+        title = "Starting sequence number",
+        description = "Required when iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER."
+    )
     private Property<String> startingSequenceNumber;
 
     @Builder.Default
-    @Schema(title = "Maximum records to consume before stopping.")
+    @Schema(
+        title = "Max records",
+        description = "Stop after consuming this many records; default 1000."
+    )
     private Property<Integer> maxRecords = Property.ofValue(1000);
 
     @Builder.Default
-    @Schema(title = "Stop consumption after this duration.")
+    @Schema(
+        title = "Max duration",
+        description = "Stop after this duration elapses; default 30s."
+    )
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofSeconds(30));
 
     @Builder.Default
-    @Schema(title = "How long to wait between record calls.")
+    @Schema(
+        title = "Poll interval",
+        description = "Sleep between GetRecords calls; default 1s."
+    )
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
     @Override
@@ -177,16 +193,24 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         @Schema(title = "The data payload returned by Kinesis.")
         private final String data;
 
-        @Schema(title = "The partition key associated with this record.")
+        @Schema(
+            title = "Partition key"
+        )
         private final String partitionKey;
 
-        @Schema(title = "The sequence number for this record.")
+        @Schema(
+            title = "Sequence number"
+        )
         private final String sequenceNumber;
 
-        @Schema(title = "The shard ID from which this record was consumed.")
+        @Schema(
+            title = "Shard ID"
+        )
         private final String shardId;
 
-        @Schema(title = "Approximate arrival timestamp of the record.")
+        @Schema(
+            title = "Approximate arrival timestamp"
+        )
         private final Instant approximateArrivalTimestamp;
     }
 
@@ -194,13 +218,22 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
 
-        @Schema(title = "Kinesis records output file.")
+        @Schema(
+            title = "Records file URI",
+            description = "Internal storage URI containing the consumed records (ION)."
+        )
         private final URI uri;
 
-        @Schema(title = "Number of consumed records.")
+        @Schema(
+            title = "Record count",
+            description = "Total records consumed."
+        )
         private final int count;
 
-        @Schema(title = "Last consumed sequence number per shard.")
+        @Schema(
+            title = "Last sequence per shard",
+            description = "Map of shardId to last consumed sequence number."
+        )
         private final Map<String, String> lastSequencePerShard;
     }
 }

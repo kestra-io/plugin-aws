@@ -24,18 +24,27 @@ import jakarta.validation.constraints.NotNull;
 public class Record {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
-    @Schema(title = "Determines which shard in the stream the data record is assigned to.")
+    @Schema(
+        title = "Partition key",
+        description = "Determines the target shard for the record."
+    )
     @PluginProperty(dynamic = true)
     @NotNull
     @JsonAlias("PartitionKey")
     private String partitionKey;
 
-    @Schema(title = "The optional hash value used to determine explicitly the shard that the data record is assigned to by overriding the partition key hash.")
+    @Schema(
+        title = "Explicit hash key",
+        description = "Optional hash value that overrides the partition key hash for shard selection."
+    )
     @PluginProperty(dynamic = true)
     @JsonAlias("ExplicitHashKey")
     private String explicitHashKey;
 
-    @Schema(title = "Free-form data blob to put into the record.")
+    @Schema(
+        title = "Data",
+        description = "Data payload as a string; UTF-8 encoded before sending."
+    )
     @PluginProperty(dynamic = true)
     @NotNull
     @JsonAlias("Data")

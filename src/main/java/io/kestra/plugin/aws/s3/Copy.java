@@ -45,23 +45,27 @@ import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
     }
 )
 @Schema(
-    title = "Copy a file between S3 buckets."
+    title = "Copy an object between S3 locations",
+    description = "Copies an object within or across buckets. Optionally deletes the source after copy. Supports versionId on source and SSE on destination."
 )
 public class Copy extends AbstractConnection implements AbstractS3, RunnableTask<Copy.Output> {
     @Schema(
-        title = "The source bucket and key."
+        title = "Source object",
+        description = "Bucket/key (and optional versionId) to copy from."
     )
     @PluginProperty
     private CopyObjectFrom from;
 
     @Schema(
-        title = "The destination bucket and key."
+        title = "Destination object",
+        description = "Bucket/key to copy to; defaults to source when omitted."
     )
     @PluginProperty
     private CopyObject to;
 
     @Schema(
-        title = "Whether to delete the source file after download."
+        title = "Delete source after copy",
+        description = "If true, deletes the source object once copy succeeds."
     )
     @Builder.Default
     private Property<Boolean> delete = Property.ofValue(false);
@@ -130,13 +134,13 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     @NoArgsConstructor
     public static class CopyObject {
         @Schema(
-            title = "The bucket name"
+            title = "Bucket"
         )
         @NotNull
         Property<String> bucket;
 
         @Schema(
-            title = "The bucket key"
+            title = "Key"
         )
         @NotNull
         Property<String> key;

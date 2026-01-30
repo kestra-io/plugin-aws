@@ -48,11 +48,9 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query an Amazon Athena table.",
+    title = "Run an Athena query and fetch results",
     description = """
-        The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
-        Row conversion is based on the types listed in [Athena Data Types](https://docs.aws.amazon.com/athena/latest/ug/data-types.html).
-        Complex data types like array, map, and struct will be converted to a string."""
+        Executes an Athena SQL query and waits for completion unless fetchType is NONE. Converts primitive columns to native types and stores results according to fetchType; default STORE writes an ION file to internal storage. skipHeader defaults to true to drop the header row; complex Athena types (array/map/struct) are returned as strings."""
 )
 @Plugin(
     examples = {
@@ -129,36 +127,45 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class Query extends AbstractConnection implements RunnableTask<Query.QueryOutput> {
-    @Schema(title = "Athena catalog.")
+    @Schema(
+        title = "Athena catalog",
+        description = "Optional catalog name; use default if omitted."
+    )
     private Property<String> catalog;
 
-    @Schema(title = "Athena database.")
+    @Schema(
+        title = "Athena database",
+        description = "Target database for the query."
+    )
     @NotNull
     private Property<String> database;
 
     @Schema(
-        title = "Athena output location.",
-        description = "The query results will be stored in this output location. Must be an existing S3 bucket."
+        title = "Athena output location",
+        description = "Existing S3 URI where Athena writes result files (required by service)."
     )
     @NotNull
     private Property<String> outputLocation;
 
-    @Schema(title = "Athena SQL query.")
+    @Schema(
+        title = "Athena SQL query",
+        description = "SQL statement executed by Athena."
+    )
     @NotNull
     private Property<String> query;
 
     @Schema(
-        title = "The way you want to store the data.",
-        description = "FETCH_ONE outputs the first row, "
-            + "FETCH outputs all the rows, "
-            + "STORE stores all rows in a file, "
-            + "NONE does nothing — in this case, the task submits the query without waiting for its completion."
+        title = "Fetch strategy",
+        description = "Default STORE writes all rows to internal storage; FETCH loads all rows into memory; FETCH_ONE returns the first row; NONE submits without waiting."
     )
     @NotNull
     @Builder.Default
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
-    @Schema(title = "Whether to skip the first row which is usually the header.")
+    @Schema(
+        title = "Skip header row",
+        description = "If true (default), drop the first returned row, which is usually the column header."
+    )
     @NotNull
     @Builder.Default
     private Property<Boolean> skipHeader = Property.ofValue(true);
@@ -356,29 +363,33 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Getter
     public static class QueryOutput implements Output {
 
-        @Schema(title = "The query execution identifier.")
+        @Schema(
+            title = "Query execution ID",
+            description = "Identifier returned by StartQueryExecution."
+        )
         private String queryExecutionId;
 
         @Schema(
-            title = "List containing the fetched data.",
-            description = "Only populated if `fetchType=FETCH`."
+            title = "Rows",
+            description = "All rows when fetchType is FETCH."
         )
         private List<Object> rows;
 
         @Schema(
-            title = "Map containing the first row of fetched data.",
-            description = "Only populated if `fetchType=FETCH_ONE`."
+            title = "First row",
+            description = "Single row when fetchType is FETCH_ONE."
         )
         private Map<String, Object> row;
 
         @Schema(
-            title = "The URI of stored data.",
-            description = "Only populated if `fetchType=STORE`."
+            title = "Stored data URI",
+            description = "Internal storage URI when fetchType is STORE."
         )
         private URI uri;
 
         @Schema(
-            title = "The size of the fetched rows."
+            title = "Fetched row count",
+            description = "Number of rows returned or stored."
         )
         private Long size;
     }

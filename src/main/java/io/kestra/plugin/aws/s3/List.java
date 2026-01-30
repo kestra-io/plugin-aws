@@ -48,7 +48,8 @@ import software.amazon.awssdk.services.s3.S3Client;
     }
 )
 @Schema(
-    title = "List keys of an S3 bucket."
+    title = "List objects in an S3 bucket",
+    description = "Lists objects with optional prefix/regex filtering and caps returned items with maxFiles. Emits object count metric."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
     private Property<String> prefix;
@@ -68,7 +69,8 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Max files",
+        description = "Truncates results to this count; default 25."
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 
@@ -111,7 +113,8 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     public static class Output implements io.kestra.core.models.tasks.Output {
         @JsonInclude
         @Schema(
-            title = "The list of S3 objects."
+            title = "Objects",
+            description = "Listed objects after filtering and maxFiles limit."
         )
         private final java.util.List<S3Object> objects;
     }
