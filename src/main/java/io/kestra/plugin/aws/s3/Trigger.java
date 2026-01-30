@@ -166,11 +166,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
-    @Builder.Default
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
-    private Property<Integer> maxFiles = Property.ofValue(25);
+    private Property<Integer> maxFiles;
 
     private Property<String> stateKey;
 

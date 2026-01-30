@@ -113,11 +113,10 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     )
     protected Property<String> regexp;
 
-    @Builder.Default
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
-    private Property<Integer> maxFiles = Property.ofValue(25);
+    private Property<Integer> maxFiles;
 
     @Schema(
         title = "The account ID of the expected bucket owner",

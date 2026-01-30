@@ -92,11 +92,10 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     @Builder.Default
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
-    @Builder.Default
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
-    private Property<Integer> maxFiles = Property.ofValue(25);
+    private Property<Integer> maxFiles;
 
     private Property<ActionInterface.Action> action;
 
