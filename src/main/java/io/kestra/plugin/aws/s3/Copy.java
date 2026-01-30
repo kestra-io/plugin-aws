@@ -30,11 +30,11 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @Plugin(
         examples = {
             @Example(
-                    full = true,
-                    code = """
+                full = true,
+                code = """
                 id: aws_s3_copy
                 namespace: company.team
-
+                        
                 tasks:
                   - id: copy
                     type: io.kestra.plugin.aws.s3.Copy
@@ -78,7 +78,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public Output run(RunContext runContext) throws Exception {
 
         try (
-                S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
+                S3AsyncClient s3AsyncClient = this.asyncClient(runContext); 
                 S3TransferManager transferManager = S3TransferManager.builder()
                         .s3Client(s3AsyncClient)
                         .build()) {
@@ -115,7 +115,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     copyObjectBuilder.serverSideEncryption(
                             software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(sse.name())
                     );
-                    
+
                     // If using AWS_KMS encryption, set the KMS key ID
                     if (sse == S3ServerSideEncryption.AWS_KMS && this.to.kmsKeyId != null) {
                         copyObjectBuilder.ssekmsKeyId(
