@@ -1,4 +1,4 @@
-FROM kestra/kestra:latest-no-plugins
+FROM kestra/kestra:latest
 
 RUN mkdir -p /app/plugins
 

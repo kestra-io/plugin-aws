@@ -172,4 +172,65 @@ class DownloadTest extends AbstractTest {
             containsString("Invalid configuration: either specify 'key' for single file download or at least one filtering parameter")
         );
     }
+
+    @Test
+    void maxFilesExceeded() throws Exception {
+        this.createBucket();
+
+        String basePrefix = IdUtils.create() + "/maxfiles-test/";
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            URI file = storagePut("file" + i + ".txt");
+            uploadFile(file, basePrefix + "file" + i + ".txt");
+        }
+
+        // Download with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
+        Download download = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-maxFilesExceeded")
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(basePrefix))
+            .maxFiles(Property.ofValue(3))
+            .build();
+
+        Download.Output output = download.run(runContext(download));
+
+        // When maxFiles exceeded, List returns first 3 files
+        assertThat(output.getFiles().size(), is(3));
+    }
+
+    @Test
+    void maxFilesNotExceeded() throws Exception {
+        this.createBucket();
+
+        String basePrefix = IdUtils.create() + "/maxfiles-ok/";
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            URI file = storagePut("file" + i + ".txt");
+            uploadFile(file, basePrefix + "file" + i + ".txt");
+        }
+
+        // Download with maxFiles=10 (more than 5 files) - should return all 5 files
+        Download download = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-maxFilesNotExceeded")
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue(basePrefix))
+            .maxFiles(Property.ofValue(10))
+            .build();
+
+        Download.Output output = download.run(runContext(download));
+
+        assertThat(output.getFiles().size(), is(5));
+    }
 }
