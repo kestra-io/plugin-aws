@@ -28,10 +28,10 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @Getter
 @NoArgsConstructor
 @Plugin(
-        examples = {
-            @Example(
-                full = true,
-                code = """
+    examples = {
+        @Example(
+            full = true,
+            code = """
                 id: aws_s3_copy
                 namespace: company.team
 
@@ -52,24 +52,24 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
         }
 )
 @Schema(
-        title = "Copy a file between S3 buckets."
+    title = "Copy a file between S3 buckets."
 )
 public class Copy extends AbstractConnection implements AbstractS3, RunnableTask<Copy.Output> {
 
     @Schema(
-            title = "The source bucket and key."
+        title = "The source bucket and key."
     )
     @PluginProperty
     private CopyObjectFrom from;
 
     @Schema(
-            title = "The destination bucket and key."
+        title = "The destination bucket and key."
     )
     @PluginProperty
     private CopyObject to;
 
     @Schema(
-            title = "Whether to delete the source file after download."
+        title = "Whether to delete the source file after download."
     )
     @Builder.Default
     private Property<Boolean> delete = Property.ofValue(false);
@@ -78,48 +78,48 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public Output run(RunContext runContext) throws Exception {
 
         try (
-                S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
-                S3TransferManager transferManager = S3TransferManager.
-                builder().s3Client(s3AsyncClient).
-                build()) {
+            S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
+            S3TransferManager transferManager = S3TransferManager.builder()
+                .s3Client(s3AsyncClient)
+                .build()) {
 
             CopyObjectRequest.Builder copyObjectBuilder = CopyObjectRequest.builder()
-                    .sourceBucket(runContext.render(this.from.bucket).as(String.class).orElseThrow())
-                    .sourceKey(runContext.render(this.from.key).as(String.class).orElseThrow())
-                    .destinationBucket(
-                            runContext.render(
-                                    (this.to != null && this.to.bucket != null) ? this.to.bucket : this.from.bucket
-                            ).as(String.class).orElseThrow()
-                    )
-                    .destinationKey(
-                            runContext.render(
-                                    (this.to != null && this.to.key != null) ? this.to.key : this.from.key
-                            ).as(String.class).orElseThrow()
-                    );
+                .sourceBucket(runContext.render(this.from.bucket).as(String.class).orElseThrow())
+                .sourceKey(runContext.render(this.from.key).as(String.class).orElseThrow())
+                .destinationBucket(
+                    runContext.render(
+                        (this.to != null && this.to.bucket != null) ? this.to.bucket : this.from.bucket
+                    ).as(String.class).orElseThrow()
+                )
+                .destinationKey(
+                    runContext.render(
+                        (this.to != null && this.to.key != null) ? this.to.key : this.from.key
+                    ).as(String.class).orElseThrow()
+                );
 
             // Optional version ID
             if (this.from.versionId != null) {
                 copyObjectBuilder.sourceVersionId(
-                        runContext.render(this.from.versionId).as(String.class).orElseThrow()
+                    runContext.render(this.from.versionId).as(String.class).orElseThrow()
                 );
             }
 
             // Server-side encryption
             if (this.to != null && this.to.serverSideEncryption != null) {
                 S3ServerSideEncryption sse = runContext
-                        .render(this.to.serverSideEncryption)
-                        .as(S3ServerSideEncryption.class)
-                        .orElse(null);
+                    .render(this.to.serverSideEncryption)
+                    .as(S3ServerSideEncryption.class)
+                    .orElse(null);
 
                 if (sse != null && sse != S3ServerSideEncryption.NONE) {
                     copyObjectBuilder.serverSideEncryption(
-                            software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(sse.name())
+                        software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(sse.name())
                     );
 
                     // If using AWS_KMS encryption, set the KMS key ID
                     if (sse == S3ServerSideEncryption.AWS_KMS && this.to.kmsKeyId != null) {
                         copyObjectBuilder.ssekmsKeyId(
-                                runContext.render(this.to.kmsKeyId).as(String.class).orElseThrow()
+                            runContext.render(this.to.kmsKeyId).as(String.class).orElseThrow()
                         );
                     }
                 }
@@ -129,40 +129,40 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
 
             // TransferManager copy (parallel & multipart aware)
             CopyRequest copyRequest = CopyRequest.builder()
-                    .copyObjectRequest(copyObjectRequest)
-                    .build();
+                .copyObjectRequest(copyObjectRequest)
+                .build();
 
             CompletedCopy completedCopy = transferManager
-                    .copy(copyRequest)
-                    .completionFuture()
-                    .join();
+                .copy(copyRequest)
+                .completionFuture()
+                .join();
 
             // Optional delete source
             if (runContext.render(this.delete).as(Boolean.class).orElse(false)) {
                 Delete.builder()
-                        .id(this.id)
-                        .type(Delete.class.getName())
-                        .region(this.region)
-                        .endpointOverride(this.endpointOverride)
-                        .accessKeyId(this.accessKeyId)
-                        .secretKeyId(this.secretKeyId)
-                        .sessionToken(this.sessionToken)
-                        .stsRoleArn(this.stsRoleArn)
-                        .stsRoleExternalId(this.stsRoleExternalId)
-                        .stsRoleSessionName(this.stsRoleSessionName)
-                        .stsRoleSessionDuration(this.stsRoleSessionDuration)
-                        .stsEndpointOverride(this.stsEndpointOverride)
-                        .bucket(Property.ofValue(copyObjectRequest.sourceBucket()))
-                        .key(Property.ofValue(copyObjectRequest.sourceKey()))
-                        .build()
-                        .run(runContext);
+                    .id(this.id)
+                    .type(Delete.class.getName())
+                    .region(this.region)
+                    .endpointOverride(this.endpointOverride)
+                    .accessKeyId(this.accessKeyId)
+                    .secretKeyId(this.secretKeyId)
+                    .sessionToken(this.sessionToken)
+                    .stsRoleArn(this.stsRoleArn)
+                    .stsRoleExternalId(this.stsRoleExternalId)
+                    .stsRoleSessionName(this.stsRoleSessionName)
+                    .stsRoleSessionDuration(this.stsRoleSessionDuration)
+                    .stsEndpointOverride(this.stsEndpointOverride)
+                    .bucket(Property.ofValue(copyObjectRequest.sourceBucket()))
+                    .key(Property.ofValue(copyObjectRequest.sourceKey()))
+                    .build()
+                    .run(runContext);
             }
 
             return Output.builder()
-                    .bucket(copyObjectRequest.destinationBucket())
-                    .key(copyObjectRequest.destinationKey())
-                    .eTag(completedCopy.response().copyObjectResult().eTag())
-                    .build();
+                .bucket(copyObjectRequest.destinationBucket())
+                .key(copyObjectRequest.destinationKey())
+                .eTag(completedCopy.response().copyObjectResult().eTag())
+                .build();
         }
     }
 
@@ -172,25 +172,25 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public static class CopyObject {
 
         @Schema(
-                title = "The bucket name"
+            title = "The bucket name"
         )
         @NotNull
         Property<String> bucket;
 
         @Schema(
-                title = "The bucket key"
+            title = "The bucket key"
         )
         @NotNull
         Property<String> key;
 
         @Schema(
-                title = "Server side encryption to apply to the target object.",
-                description = "Example: AES256 or AWS_KMS"
+            title = "Server side encryption to apply to the target object.",
+            description = "Example: AES256 or AWS_KMS"
         )
         private Property<S3ServerSideEncryption> serverSideEncryption;
 
         @Schema(
-                title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"
+            title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"
         )
         private Property<String> kmsKeyId;
     }
@@ -201,7 +201,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public static class CopyObjectFrom extends CopyObject {
 
         @Schema(
-                title = "The specific version of the object."
+            title = "The specific version of the object."
         )
         private Property<String> versionId;
     }
