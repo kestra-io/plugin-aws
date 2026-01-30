@@ -34,7 +34,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
                 code = """
                 id: aws_s3_copy
                 namespace: company.team
-                        
+
                 tasks:
                   - id: copy
                     type: io.kestra.plugin.aws.s3.Copy
@@ -78,11 +78,11 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public Output run(RunContext runContext) throws Exception {
 
         try (
-                S3AsyncClient s3AsyncClient = this.asyncClient(runContext); 
-                S3TransferManager transferManager = S3TransferManager.builder()
-                        .s3Client(s3AsyncClient)
-                        .build()) {
-            
+                S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
+                S3TransferManager transferManager = S3TransferManager.
+                builder().s3Client(s3AsyncClient).
+                build()) {
+
             CopyObjectRequest.Builder copyObjectBuilder = CopyObjectRequest.builder()
                     .sourceBucket(runContext.render(this.from.bucket).as(String.class).orElseThrow())
                     .sourceKey(runContext.render(this.from.key).as(String.class).orElseThrow())
