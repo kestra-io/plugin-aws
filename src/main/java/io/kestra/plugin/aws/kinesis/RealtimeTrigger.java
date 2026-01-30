@@ -33,6 +33,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Trigger on Kinesis records (realtime)",
+    description = "Subscribes to a Kinesis stream consumer and emits executions as records arrive using SubscribeToShard. Handles shard discovery on a schedule."
+)
 @Plugin(
     examples = {
         @Example(
@@ -118,21 +122,31 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     )
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
-    @Schema(title = "The Kinesis stream name.")
+    @Schema(
+        title = "Stream name",
+        description = "Name of the Kinesis stream to subscribe to."
+    )
     @NotNull
     private Property<String> streamName;
 
     @Builder.Default
     @Schema(
-        title = "The position in the stream to start reading from.",
-        description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
+        title = "Iterator type",
+        description = "Start position: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
     )
     private Property<AbstractKinesis.IteratorType> iteratorType = Property.ofValue(AbstractKinesis.IteratorType.LATEST);
 
-    @Schema(title = "Used if iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER.")
+    @Schema(
+        title = "Starting sequence number",
+        description = "Required when iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER."
+    )
     private Property<String> startingSequenceNumber;
 
     @NotNull
+    @Schema(
+        title = "Consumer ARN",
+        description = "ARN of a registered stream consumer for enhanced fan-out."
+    )
     private Property<String> consumerArn;
 
     @Builder.Default

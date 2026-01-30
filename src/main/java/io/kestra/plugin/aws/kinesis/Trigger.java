@@ -24,9 +24,8 @@ import java.util.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow when new records appear in an Amazon Kinesis stream.",
-    description = "A polling trigger that reads new Kinesis records at fixed intervals. "
-        + "State is stored per shard using sequence numbers, so each record is processed exactly once."
+    title = "Trigger on Kinesis records (polling)",
+    description = "Polls a Kinesis stream on a fixed interval and starts a flow when new records are found. Stores last sequence per shard to avoid reprocessing."
 )
 @Plugin(
     examples = {
@@ -115,18 +114,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @Schema(title = "The Kinesis stream name.")
+    @Schema(
+        title = "Stream name",
+        description = "Name of the Kinesis stream to poll."
+    )
     @NotNull
     private Property<String> streamName;
 
     @Builder.Default
     @Schema(
-        title = "The position in the stream to start reading from.",
-        description = "Kinesis iterator type: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
+        title = "Iterator type",
+        description = "Start position: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER."
     )
     private Property<AbstractKinesis.IteratorType> iteratorType = Property.ofValue(AbstractKinesis.IteratorType.LATEST);
 
-    @Schema(title = "Used if iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER.")
+    @Schema(
+        title = "Starting sequence number",
+        description = "Required when iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER."
+    )
     private Property<String> startingSequenceNumber;
 
     @Builder.Default

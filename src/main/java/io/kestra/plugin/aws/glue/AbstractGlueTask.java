@@ -16,6 +16,10 @@ import software.amazon.awssdk.services.glue.GlueClient;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared Glue connection",
+    description = "Provides a GlueClient using standard AWS connection settings."
+)
 public abstract class AbstractGlueTask extends AbstractConnection {
     protected GlueClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);

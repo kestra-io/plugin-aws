@@ -19,6 +19,10 @@ import java.time.Duration;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared SQS connection",
+    description = "Provides SQS sync/async clients plus queueUrl and concurrency settings."
+)
 abstract class AbstractSqs extends AbstractConnection implements SqsConnectionInterface {
 
     private static final Duration RETRY_STRATEGY_BACKOFF_BASE_DELAY = Duration.ofMillis(50);

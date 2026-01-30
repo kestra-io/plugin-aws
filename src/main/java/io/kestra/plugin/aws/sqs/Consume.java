@@ -33,8 +33,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from an AWS SQS queue.",
-    description = "Requires `maxDuration` or `maxRecords`."
+    title = "Consume messages from SQS",
+    description = "Polls a queue until maxRecords or maxDuration is reached, stores messages to internal storage, and optionally auto-deletes them."
 )
 @Plugin(
     examples = {
@@ -65,10 +65,16 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 )
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
 
-    @Schema(title = "Maximum number of records; when reached, the task will end.")
+    @Schema(
+        title = "Max records",
+        description = "Stop after consuming this many messages."
+    )
     private Property<Integer> maxRecords;
 
-    @Schema(title = "Maximum duration in the Duration ISO format, after that the task will end.")
+    @Schema(
+        title = "Max duration",
+        description = "Stop after this duration elapses."
+    )
     private Property<Duration> maxDuration;
 
     @Builder.Default
@@ -77,16 +83,15 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     @Schema(
-        title = "Delete consumed messages automatically.",
-        description = "When set to true (default), the message is automatically deleted from SQS after being consumed. Set to false if you want to handle deletion manually."
+        title = "Auto-delete",
+        description = "If true (default), delete messages after processing."
     )
     @Builder.Default
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Schema(
-        title = "Visibility timeout for consumed messages.",
-        description = "When set, a received message stays hidden from other consumers for this amount of time (in seconds). The default value is 30 seconds."
-
+        title = "Visibility timeout",
+        description = "Seconds a received message stays hidden; default 30s."
     )
     @Builder.Default
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
@@ -157,11 +162,13 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Number of consumed rows."
+            title = "Consumed count",
+            description = "Messages read within limits."
         )
         private final Integer count;
         @Schema(
-            title = "File URI containing consumed messages."
+            title = "Messages file URI",
+            description = "Internal storage URI with serialized messages."
         )
         private final URI uri;
     }

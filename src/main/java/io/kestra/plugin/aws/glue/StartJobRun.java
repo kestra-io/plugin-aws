@@ -31,7 +31,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Start an AWS Glue job and optionally wait for completion."
+    title = "Start a Glue job run",
+    description = "Starts a Glue job and optionally waits for it to reach a terminal state. Wait defaults to true; polls every interval until completion. maxDuration is converted to minutes for the Glue timeout."
 )
 @Plugin(
     examples = {
@@ -57,33 +58,35 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
-    @Schema(title = "The name of the Glue job to run")
+    @Schema(
+        title = "Job name",
+        description = "Name of the Glue job to invoke."
+    )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The job arguments used for this job run",
-        description = "These are key-value string pairs passed to the job."
+        title = "Job arguments",
+        description = "Key/value pairs passed as job arguments."
     )
     private Property<Map<String, String>> arguments;
 
     @Schema(
-        title = "Wait for the job to complete before ending the task.",
-        description = "If true, the task will periodically check the job status until it completes."
+        title = "Wait for completion",
+        description = "If true (default), poll status until the run leaves STARTING/RUNNING/WAITING."
     )
     @Builder.Default
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
-        title = "Timeout for waiting for job completion",
-        description = "If the job does not complete within this duration (rounded up to minutes), the task will fail. " +
-                      "If this property is not set, the default timeout is 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
-                      "and there is no default job timeout for a Glue Streaming job."
+        title = "Job timeout",
+        description = "Optional run timeout; converted to whole minutes. Otherwise Glue applies its defaults (8h for Glue 5.0 ETL, 48h for Glue 4.0 and earlier, none for streaming)."
     )
     private Property<Duration> maxDuration;
 
     @Schema(
-        title = "Interval between status checks"
+        title = "Poll interval",
+        description = "Delay between status checks; default 1s."
     )
     @Builder.Default
     private Property<Duration> interval = Property.ofValue(Duration.ofMillis(1000));

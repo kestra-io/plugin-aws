@@ -24,7 +24,8 @@ import jakarta.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query items from a DynamoDB table."
+    title = "Query DynamoDB items by key condition",
+    description = "Executes a Query request with the provided keyConditionExpression. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit and filterExpression refine results."
 )
 @Plugin(
     examples = {
@@ -79,36 +80,35 @@ import jakarta.validation.constraints.NotNull;
 )
 public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
     @Schema(
-        title = "The way you want to store the data.",
-        description = "FETCH_ONE output the first row, "
-            + "FETCH output all the rows, "
-            + "STORE store all rows in a file, "
-            + "NONE do nothing."
+        title = "Fetch strategy",
+        description = "STORE (default) writes rows to internal storage; FETCH loads all rows; FETCH_ONE returns the first row."
     )
     @Builder.Default
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
-        title = "Maximum numbers of returned results"
+        title = "Max results",
+        description = "Maximum items to return."
     )
     private Property<Integer> limit;
 
     @Schema(
-        title = "Query key condition expression"
+        title = "Key condition expression",
+        description = "Expression using partition key (and sort key if defined)."
     )
     @NotNull
     private Property<String> keyConditionExpression;
 
     @Schema(
-        title = "Query expression attributes.",
-        description = "It's a map of string -> object."
+        title = "Expression attribute values",
+        description = "Map of placeholders used in expressions."
     )
     @NotNull
     private Property<Map<String, Object>> expressionAttributeValues;
 
     @Schema(
-        title = "Query filter expression",
-        description = "When used, `expressionAttributeValues` property must also be provided."
+        title = "Filter expression",
+        description = "Additional server-side filter; requires expressionAttributeValues."
     )
     private Property<String> filterExpression;
 

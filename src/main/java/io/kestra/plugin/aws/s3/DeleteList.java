@@ -67,7 +67,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 @Schema(
-    title = "Delete a list of objects in an S3 bucket."
+    title = "Delete multiple S3 objects",
+    description = "Lists objects with optional prefix/regex filters and deletes them (optionally in parallel). Can error when no match if errorOnEmpty is true."
 )
 public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteList.Output>, ListInterface {
     private Property<String> prefix;
@@ -90,13 +91,15 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
 
     @Min(2)
     @Schema(
-        title = "Number of concurrent parallels deletion"
+        title = "Parallel deletes",
+        description = "Max concurrent delete operations when set."
     )
     @PluginProperty
     private Integer concurrent;
 
     @Schema(
-        title = "raise an error if the file is not found"
+        title = "Error if empty",
+        description = "If true, throw when no objects match filters."
     )
     @Builder.Default
     private final Property<Boolean> errorOnEmpty = Property.ofValue(false);

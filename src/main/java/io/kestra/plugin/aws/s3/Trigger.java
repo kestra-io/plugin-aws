@@ -31,12 +31,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on a new file arrival in an S3 bucket.",
-    description = "This trigger will poll every `interval` s3 bucket. " +
-        "You can search for all files in a bucket or directory in `from` or you can filter the files with a `regExp`. " +
-        "The detection is atomic, internally we do a list and interact only with files listed.\n" +
-        "Once a file is detected, we download the file on internal storage and process with a declared `action` " +
-        "in order to move or delete the files from the bucket (to avoid double detection on new poll)."
+    title = "Trigger on S3 object creation/update",
+    description = "Polls a bucket on a fixed interval, listing with prefix/regex filters. Downloads matched objects to internal storage and can move or delete them to prevent reprocessing. Maintains state per trigger to avoid duplicates."
 )
 @Plugin(
     examples = {

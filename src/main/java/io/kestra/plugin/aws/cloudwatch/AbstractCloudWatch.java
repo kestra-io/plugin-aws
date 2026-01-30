@@ -16,6 +16,10 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared CloudWatch connection",
+    description = "Provides CloudWatchClient configuration via standard AWS connection settings."
+)
 abstract class AbstractCloudWatch extends AbstractConnection {
     protected CloudWatchClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);

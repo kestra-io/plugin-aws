@@ -16,6 +16,10 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Create a CloudWatch Logs client",
+    description = "Helper task for obtaining a configured CloudWatchLogsClient using standard AWS connection properties."
+)
 public class CloudWatchLogs extends AbstractConnection {
 
     /**
