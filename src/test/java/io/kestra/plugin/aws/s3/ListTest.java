@@ -106,22 +106,22 @@ class ListTest extends AbstractTest {
     }
 
     @Test
-    void maxFilesNotSpecified() throws Exception {
+    void maxFilesDefault() throws Exception {
         this.createBucket();
 
         String dir = IdUtils.create();
 
-        // Upload 30 files
+        // Upload 30 files (more than default limit of 25)
         for (int i = 0; i < 30; i++) {
             upload("/tasks/s3/" + dir);
         }
 
-        // List WITHOUT specifying maxFiles - should return all files (no default limit)
+        // List WITHOUT specifying maxFiles - should use default of 25 and return first 25 files
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .build();
         List.Output run = task.run(runContext(task));
 
-        assertThat(run.getObjects().size(), is(30));
+        assertThat(run.getObjects().size(), is(25));
     }
 }
