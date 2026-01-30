@@ -78,7 +78,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public Output run(RunContext runContext) throws Exception {
 
         try (
-                S3AsyncClient s3AsyncClient = this.asyncClient(runContext); 
+                S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
                 S3TransferManager transferManager = S3TransferManager.builder()
                         .s3Client(s3AsyncClient)
                         .build()) {
