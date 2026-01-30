@@ -88,12 +88,12 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .sourceKey(runContext.render(this.from.key).as(String.class).orElseThrow())
                     .destinationBucket(
                             runContext.render(
-                                    this.to.bucket != null ? this.to.bucket : this.from.bucket
+                                    (this.to != null && this.to.bucket != null) ? this.to.bucket : this.from.bucket
                             ).as(String.class).orElseThrow()
                     )
                     .destinationKey(
                             runContext.render(
-                                    this.to.key != null ? this.to.key : this.from.key
+                                    (this.to != null && this.to.key != null) ? this.to.key : this.from.key
                             ).as(String.class).orElseThrow()
                     );
 
