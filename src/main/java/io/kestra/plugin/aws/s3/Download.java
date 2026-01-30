@@ -114,6 +114,11 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     protected Property<String> regexp;
 
     @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
+    @Schema(
         title = "The account ID of the expected bucket owner",
         description = "Requests will fail with a Forbidden error (access denied) if the bucket is owned by a different account."
     )
@@ -229,6 +234,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(Property.ofValue(ListInterface.Filter.FILES))
+            .maxFiles(this.maxFiles)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)

@@ -50,7 +50,7 @@ class ConsumeTest extends AbstractKinesisTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .streamName(Property.ofValue(streamName))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
-            .maxRecords(Property.ofValue(10))
+            .maxRecords(Property.ofValue(1))
             .pollDuration(Property.ofValue(java.time.Duration.ofSeconds(1)))
             .build();
 

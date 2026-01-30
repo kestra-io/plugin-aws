@@ -159,7 +159,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try(var emrClient = this.client(runContext)) {
+        try (var emrClient = this.emrClient(runContext)) {
             //Create Applications to be loaded
             List<Application> applicationsList = runContext.render(this.applications).asList(String.class)
                 .stream()

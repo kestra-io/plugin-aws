@@ -66,6 +66,11 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
 
     protected Property<String> regexp;
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     @Builder.Default
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
@@ -83,6 +88,16 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
                 runContext.render(regexp).as(String.class).orElse(null),
                 runContext.render(prefix).as(String.class).orElse(null)
             );
+
+            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+            if (rMaxFiles != null && list.size() > rMaxFiles) {
+                runContext.logger().warn(
+                    "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
+                    "Increase the maxFiles property if you need more files.",
+                    list.size(), rMaxFiles, rMaxFiles
+                );
+                list = list.subList(0, rMaxFiles);
+            }
 
             return Output.builder()
                 .objects(list)
