@@ -166,6 +166,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     private Property<String> stateKey;
 
     private Property<Duration> stateTtl;
@@ -196,6 +201,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(this.filter)
+            .maxFiles(this.maxFiles)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)

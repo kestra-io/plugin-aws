@@ -1,5 +1,5 @@
 plugins {
-    id "com.vanniktech.maven.publish" version "0.35.0"
+    id "com.vanniktech.maven.publish" version "0.36.0"
     id "io.kestra.gradle.inject-bom-versions" version "1.0.0"
     id 'java-library'
     id "idea"
@@ -129,8 +129,8 @@ dependencies {
 
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:2.0.3"
-    testImplementation "org.testcontainers:junit-jupiter:1.21.3"
-    testImplementation "org.testcontainers:localstack:1.21.3"
+    testImplementation "org.testcontainers:junit-jupiter:1.21.4"
+    testImplementation "org.testcontainers:localstack:1.21.4"
     testImplementation 'com.amazonaws:aws-java-sdk-s3'
 }
 
