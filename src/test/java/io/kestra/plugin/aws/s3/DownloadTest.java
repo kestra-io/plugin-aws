@@ -185,7 +185,7 @@ class DownloadTest extends AbstractTest {
             uploadFile(file, basePrefix + "file" + i + ".txt");
         }
 
-        // Download with maxFiles=3 (less than 5 files) - should return empty/null files
+        // Download with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
         Download download = Download.builder()
             .id(DownloadTest.class.getSimpleName() + "-maxFilesExceeded")
             .type(Download.class.getName())
@@ -200,8 +200,8 @@ class DownloadTest extends AbstractTest {
 
         Download.Output output = download.run(runContext(download));
 
-        // When maxFiles exceeded, List returns empty, so Download gets no files
-        assertThat(output.getFiles(), anyOf(nullValue(), anEmptyMap()));
+        // When maxFiles exceeded, List returns first 3 files
+        assertThat(output.getFiles().size(), is(3));
     }
 
     @Test

@@ -313,7 +313,7 @@ class TriggerTest extends AbstractTest {
             upload("trigger/maxfiles", bucket);
         }
 
-        // Trigger with maxFiles=3 (less than 5 files) - should not fire (empty list)
+        // Trigger with maxFiles=3 (less than 5 files) - should fire with first 3 files (truncated)
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
@@ -331,8 +331,8 @@ class TriggerTest extends AbstractTest {
         Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
-        // When maxFiles exceeded, List returns empty, so Trigger should not fire
-        assertThat(execution.isPresent(), is(false));
+        // When maxFiles exceeded, List returns first 3 files, so Trigger should fire
+        assertThat(execution.isPresent(), is(true));
     }
 
     @Test

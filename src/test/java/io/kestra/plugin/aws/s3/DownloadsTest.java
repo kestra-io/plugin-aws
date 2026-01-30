@@ -87,7 +87,7 @@ class DownloadsTest extends AbstractTest {
             upload("/tasks/s3-maxfiles");
         }
 
-        // Downloads with maxFiles=3 (less than 5 files) - should return empty list
+        // Downloads with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(Downloads.class.getName())
@@ -103,7 +103,7 @@ class DownloadsTest extends AbstractTest {
 
         Downloads.Output run = task.run(runContext(task));
 
-        assertThat(run.getObjects().size(), is(0));
+        assertThat(run.getObjects().size(), is(3));
     }
 
     @Test

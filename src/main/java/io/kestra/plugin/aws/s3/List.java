@@ -92,10 +92,12 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
 
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             if (list.size() > rMaxFiles) {
-                runContext.logger().warn("Too many files to process, skipping");
-                return Output.builder()
-                    .objects(java.util.List.of())
-                    .build();
+                runContext.logger().warn(
+                    "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
+                    "Increase the maxFiles property if you need more files.",
+                    list.size(), rMaxFiles, rMaxFiles
+                );
+                list = list.subList(0, rMaxFiles);
             }
 
             return Output.builder()
