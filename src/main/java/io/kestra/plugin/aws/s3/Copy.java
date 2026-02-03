@@ -49,7 +49,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
                       key: "path/to/file2"
                 """
         )
-        }
+    }
 )
 @Schema(
     title = "Copy an object between S3 locations",
