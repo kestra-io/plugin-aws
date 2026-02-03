@@ -48,7 +48,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
                       bucket: "my-bucket2"
                       key: "path/to/file2"
                 """
-            )
+        )
         }
 )
 @Schema(
