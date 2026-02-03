@@ -25,8 +25,8 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on periodic message consumption from an AWS SQS queue, creating one execution per batch.",
-    description = "Requires `maxDuration` or `maxRecords`.\nNote that you don't need an extra task to consume the message from the event trigger. The trigger will automatically consume messages and you can retrieve their content in your flow using the `{{ trigger.uri }}` variable. If you would like to consume each message from an SQS queue in real-time and create one execution per message, you can use the [io.kestra.plugin.aws.sqs.RealtimeTrigger](https://kestra.io/plugins/plugin-aws/triggers/io.kestra.plugin.aws.sqs.realtimetrigger) instead."
+    title = "Trigger on SQS messages (batch polling)",
+    description = "Polls a queue on an interval and creates an execution when messages are fetched, stopping at maxRecords or maxDuration. Messages are stored at trigger.uri; autoDelete controls deletion. For per-message realtime, use RealtimeTrigger."
 )
 @Plugin(
     examples = {
@@ -76,15 +76,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @Schema(title = "Max number of records, when reached the task will end.")
+    @Schema(
+        title = "Max records",
+        description = "Stop after consuming this many messages."
+    )
     private Property<Integer> maxRecords;
 
-    @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
+    @Schema(
+        title = "Max duration",
+        description = "Stop after this duration elapses."
+    )
     private Property<Duration> maxDuration;
 
     @Builder.Default
     @NotNull
-    @Schema(title = "The serializer/deserializer to use.")
+    @Schema(
+        title = "Serde type",
+        description = "Serializer/deserializer used for message bodies."
+    )
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole

@@ -5,6 +5,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.awscore.retry.AwsRetryPolicy;
@@ -19,6 +20,10 @@ import java.time.Duration;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared SQS connection",
+    description = "Provides SQS sync/async clients plus queueUrl and concurrency settings."
+)
 abstract class AbstractSqs extends AbstractConnection implements SqsConnectionInterface {
 
     private static final Duration RETRY_STRATEGY_BACKOFF_BASE_DELAY = Duration.ofMillis(50);

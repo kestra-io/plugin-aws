@@ -17,7 +17,10 @@ import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWait
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Delete a CloudFormation stack.")
+@Schema(
+    title = "Delete a CloudFormation stack",
+    description = "Triggers stack deletion and optionally waits for DELETE_COMPLETE when waitForCompletion is true (default). Fails fast if the stack cannot be deleted."
+)
 @Plugin(
     examples = {
         @Example(
