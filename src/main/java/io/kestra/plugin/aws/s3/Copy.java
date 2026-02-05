@@ -7,6 +7,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -19,7 +20,6 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
-import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @SuperBuilder
@@ -151,10 +151,10 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .accessKeyId(this.accessKeyId)
                     .secretKeyId(this.secretKeyId)
                     .sessionToken(this.sessionToken)
-                    .stsRoleArn(this.stsRoleArn)
-                    .stsRoleExternalId(this.stsRoleExternalId)
                     .stsRoleSessionName(this.stsRoleSessionName)
+                    .stsRoleExternalId(this.stsRoleExternalId)
                     .stsRoleSessionDuration(this.stsRoleSessionDuration)
+                    .stsRoleArn(this.stsRoleArn)
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .bucket(Property.ofValue(copyObjectRequest.sourceBucket()))
                     .key(Property.ofValue(copyObjectRequest.sourceKey()))
