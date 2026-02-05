@@ -144,7 +144,6 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             // Optional delete source
             if (runContext.render(this.delete).as(Boolean.class).orElse(false)) {
                 Delete.builder()
-                    .id(this.id)
                     .type(Delete.class.getName())
                     .region(this.region)
                     .endpointOverride(this.endpointOverride)
