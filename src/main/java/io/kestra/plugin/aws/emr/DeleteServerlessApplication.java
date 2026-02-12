@@ -26,7 +26,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete one or multiple AWS EMR Serverless applications."
+    title = "Delete EMR Serverless applications",
+    description = "Deletes one or more EMR Serverless applications by ID. Does not wait for terminal state; ensure jobs are stopped before deletion."
 )
 @Plugin(
     examples = {
@@ -54,7 +55,7 @@ public class DeleteServerlessApplication extends AbstractEmrServerlessTask imple
 
     @Schema(
         title = "Application IDs",
-        description = "List of EMR Serverless application IDs to delete."
+        description = "Identifiers of the EMR Serverless applications to delete."
     )
     @NotNull
     private Property<List<String>> applicationIds;

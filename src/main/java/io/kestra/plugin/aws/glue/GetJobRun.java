@@ -28,7 +28,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get the status of an AWS Glue job run."
+    title = "Get Glue job run status",
+    description = "Retrieves details for a specific Glue job run; if runId is absent, fetches the latest run for the job."
 )
 @Plugin(
     examples = {
@@ -69,20 +70,21 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> {
     @Schema(
-        title = "The name of the Glue job"
+        title = "Job name",
+        description = "Glue job whose run status is requested."
     )
     @NotNull
     private Property<String> jobName;
 
     @Schema(
-        title = "The ID of the job run to get status for",
-        description = "If the job ID is not provided, the task will automatically retrieve the latest job run."
+        title = "Run ID",
+        description = "Specific run ID; when omitted, the latest run is selected."
     )
     private Property<String> runId;
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (GlueClient glueClient = this.client(runContext)) {
+        try (GlueClient glueClient = this.glueClient(runContext)) {
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String runIdValue = null;
 

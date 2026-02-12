@@ -27,7 +27,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Add steps to an existing AWS EMR cluster."
+    title = "Submit EMR steps to a running cluster",
+    description = "Appends one or more job steps to an existing EMR cluster using the AddJobFlowSteps API. Steps run in listed order and honor each step's actionOnFailure; use executionRoleArn when a step needs a specific runtime role."
 )
 @Plugin(
     examples = {
@@ -56,13 +57,16 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster ID")
+    @Schema(
+        title = "Cluster ID",
+        description = "Identifier of the existing EMR cluster (jobFlowId)."
+    )
     @NotNull
     private Property<String> clusterId;
 
     @Schema(
         title = "Steps",
-        description = "List of steps to add to the existing cluster."
+        description = "Steps to append to the cluster; they execute in the order provided."
     )
     @NotNull
     private List<StepConfig> steps;
@@ -78,7 +82,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try(var emrClient = this.client(runContext)) {
+        try (var emrClient = this.emrClient(runContext)) {
             List<software.amazon.awssdk.services.emr.model.StepConfig> jobSteps = steps.stream()
                 .map(throwFunction(stepConfig -> stepConfig.toStep(runContext)))
                 .toList();

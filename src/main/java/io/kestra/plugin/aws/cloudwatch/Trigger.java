@@ -21,7 +21,10 @@ import java.util.Optional;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Trigger a new flow when CloudWatch metrics match a query condition.")
+@Schema(
+    title = "Trigger on CloudWatch metric results",
+    description = "Polls a CloudWatch metric query at a fixed interval and fires when the query returns at least one datapoint. Reuses Query task parameters and AWS connection fields."
+)
 @Plugin(
     examples =
         @Example(
