@@ -23,11 +23,17 @@ import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 public abstract class AbstractCloudFormation extends AbstractConnection {
 
     @NotNull
-    @Schema(title = "The name of the stack.")
+    @Schema(
+        title = "Stack name",
+        description = "CloudFormation stack identifier used by create, update, and delete operations."
+    )
     protected Property<String> stackName;
 
     @Builder.Default
-    @Schema(title = "Whether to wait for the stack operation to complete.")
+    @Schema(
+        title = "Wait for completion",
+        description = "When true (default), block until the stack reaches a terminal state for the requested operation."
+    )
     protected Property<Boolean> waitForCompletion = Property.of(true);
 
     protected CloudFormationClient cfClient(final RunContext runContext) throws IllegalVariableEvaluationException {

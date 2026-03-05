@@ -19,7 +19,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get an item from a DynamoDB table."
+    title = "Get a DynamoDB item by key",
+    description = "Retrieves a single item using the provided primary key. Returns an empty row when the item is missing."
 )
 @Plugin(
     examples = {
@@ -45,8 +46,8 @@ import java.util.Map;
 )
 public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Output> {
     @Schema(
-        title = "The DynamoDB item key",
-        description = "The DynamoDB item identifier"
+        title = "Item key",
+        description = "Full primary key map (partition key, plus sort key when applicable)."
     )
     private Property<Map<String, Object>> key;
 
@@ -71,7 +72,8 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "Map containing the fetched item"
+            title = "Item",
+            description = "Fetched item as a map; empty if not found."
         )
         private Map<String, Object> row;
     }

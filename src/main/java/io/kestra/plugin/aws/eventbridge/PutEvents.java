@@ -118,7 +118,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Send custom events to Amazon EventBridge for rule matching."
+    title = "Send events to Amazon EventBridge",
+    description = "Publishes one or more events to EventBridge. Supports inline entries or a kestra:// URI containing serialized Entry objects. Records per-event success/failure metrics; optionally fails when any entry is rejected (failOnUnsuccessfulEvents default true)."
 )
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -126,8 +127,8 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
     @NotNull
     @Schema(
-        title = "Mark the task as failed when sending an event is unsuccessful.",
-        description = "If true, the task will fail when any event fails to be sent."
+        title = "Fail on unsuccessful events",
+        description = "If true (default), task fails when EventBridge rejects at least one entry."
     )
     @Builder.Default
     private Property<Boolean> failOnUnsuccessfulEvents = Property.ofValue(true);
@@ -135,8 +136,8 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     @PluginProperty(dynamic = true)
     @NotNull
     @Schema(
-        title = "List of event entries to send to, or internal storage URI to retrieve it.",
-        description = "A list of at least one EventBridge entry.",
+        title = "Event entries",
+        description = "List of EventBridge entries or a kestra:// URI pointing to serialized entries (ION).",
         oneOf = {String.class, Entry[].class}
     )
     private Object entries;

@@ -25,7 +25,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to an AWS SQS queue."
+    title = "Publish messages to an SQS queue",
+    description = "Publishes one or more messages to the target queue URL using Data.From inputs. Emits message count metric."
 )
 @Plugin(
     examples = {
@@ -119,7 +120,10 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Number of published messages.")
+        @Schema(
+            title = "Published messages",
+            description = "Count of messages successfully sent."
+        )
         private final Integer messagesCount;
     }
 }

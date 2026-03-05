@@ -25,7 +25,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Create or update a CloudFormation stack."
+    title = "Create or update a CloudFormation stack",
+    description = "Creates the stack if it does not exist, otherwise issues an update. Can wait for terminal status when waitForCompletion is true (default). Uses templateBody and optional parameters; only succeeds when template changes are allowed."
 )
 @Plugin(
     examples = {
@@ -62,10 +63,16 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Create extends AbstractCloudFormation implements RunnableTask<Create.Output> {
 
-    @Schema(title = "The structure that contains the stack template.")
+    @Schema(
+        title = "Template body",
+        description = "YAML or JSON template content."
+    )
     private Property<String> templateBody;
 
-    @Schema(title = "A list of Parameter structures for the stack.")
+    @Schema(
+        title = "Template parameters",
+        description = "Key-value map rendered into CloudFormation parameters."
+    )
     private Property<Map<String, String>> parameters;
 
     @Override
@@ -153,13 +160,21 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         
-        @Schema(title = "The unique stack ID.")
+        @Schema(
+            title = "Stack ID",
+            description = "Unique identifier returned by CloudFormation."
+        )
         private final String stackId;
 
-        @Schema(title = "The name of the stack.") 
+        @Schema(
+            title = "Stack name"
+        ) 
         private final String stackName;
 
-        @Schema(title = "A map of the stack's outputs.")
+        @Schema(
+            title = "Stack outputs",
+            description = "Outputs returned by the deployed stack."
+        )
         private final Map<String, String> stackOutputs;
     }
 }

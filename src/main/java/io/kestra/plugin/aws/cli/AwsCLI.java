@@ -34,7 +34,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Run AWS CLI commands."
+    title = "Execute AWS CLI commands in a task",
+    description = "Runs one or more AWS CLI statements inside the configured task runner (default Docker with amazon/aws-cli). Exports rendered AWS credentials/region to the process env, honors stsRole* fields, and sets AWS_DEFAULT_OUTPUT to outputFormat (default json). Use outputFiles to persist generated files."
 )
 @Plugin(
     examples = {
@@ -113,13 +114,15 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     private static final String DEFAULT_IMAGE = "amazon/aws-cli";
 
     @Schema(
-        title = "The AWS commands to run."
+        title = "AWS CLI commands",
+        description = "Shell fragments executed in order with /bin/sh -c; include aws ... and any needed piped tooling."
     )
     @NotNull
     protected List<String> commands;
 
     @Schema(
-        title = "Additional environment variables for the current process."
+        title = "Extra environment variables",
+        description = "Merged into the process environment alongside AWS credentials and AWS_DEFAULT_OUTPUT."
     )
     @PluginProperty(
         additionalProperties = String.class,
@@ -128,28 +131,33 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected Map<String, String> env;
 
     @Schema(
-        title = "Deprecated, use 'taskRunner' instead"
+        title = "Deprecated Docker options",
+        description = "Use taskRunner instead; retained for backward compatibility."
     )
     @PluginProperty
     @Deprecated
     private DockerOptions docker;
 
     @Schema(
-        title = "The task runner to use.",
-        description = "Task runners are provided by plugins, each have their own properties."
+        title = "Task runner",
+        description = "Runner implementation for executing the CLI; defaults to Docker runner."
     )
     @PluginProperty
     @Builder.Default
     @Valid
     private TaskRunner<?> taskRunner = Docker.instance();
 
-    @Schema(title = "The task runner container image, only used if the task runner is container-based.")
+    @Schema(
+        title = "Container image",
+        description = "Image used when the runner is container-based; default amazon/aws-cli."
+    )
     @PluginProperty(dynamic = true)
     @Builder.Default
     private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
-        title = "Expected output format for AWS commands (can be overridden with --format parameter)."
+        title = "AWS CLI output format",
+        description = "Sets AWS_DEFAULT_OUTPUT; default json. CLI flags still take precedence."
     )
     @PluginProperty
     @Builder.Default

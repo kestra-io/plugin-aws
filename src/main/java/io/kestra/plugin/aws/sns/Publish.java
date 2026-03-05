@@ -25,7 +25,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Publish a message to an AWS SNS topic."
+    title = "Publish messages to an SNS topic",
+    description = "Publishes one or many messages to an existing SNS topic. Accepts payloads via Data.From (string, list, or Message objects). Emits message count metric."
 )
 @Plugin(
     examples = {
@@ -123,7 +124,10 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Number of published messages.")
+        @Schema(
+            title = "Published messages",
+            description = "Count of messages successfully sent."
+        )
         private final Integer messagesCount;
     }
 }

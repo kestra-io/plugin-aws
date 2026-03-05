@@ -55,63 +55,66 @@ import java.util.Map;
     }
 )
 @Schema(
-    title = "Download a file(s) from an S3 bucket.",
-    description = """
-        This task can operate in two modes:
-        1. Single file mode: when providing only the 'key' parameter, it downloads a specific file from S3.
-        2. Multiple files mode: when using filtering parameters (prefix, delimiter, regexp), it downloads multiple files matching the criteria.
-
-        In single file mode, the output contains the properties of a single file (uri, contentLength, etc.).
-        In multiple files mode, the output contains maps that associate each file key with its properties (uris, contentLengths, etc.)."""
+    title = "Download objects from S3",
+    description = "Single-file mode when only key is set; multi-file mode when prefix/delimiter/regexp are provided. Saves downloads to internal storage and returns metadata per object."
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The key of a file to download",
-        description = "When specified without filtering options (prefix, delimiter, regexp), the task will download a single file."
+        title = "Object key",
+        description = "Key to download in single-file mode."
     )
     private Property<String> key;
 
     @Schema(
-        title = "The specific version of the object",
-        description = "This property is only applicable when downloading a single file with the key parameter."
+        title = "Version ID",
+        description = "Specific version to fetch in single-file mode."
     )
     protected Property<String> versionId;
 
     @Schema(
-        title = "If set to true, the task will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which better integrates with S3-compatible services but restricts uploads and downloads to 2GB."
+        title = "Compatibility mode",
+        description = "Use default async client (limits transfers to ~2GB) for S3-compatible endpoints."
     )
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
     @Schema(
-        title = "The prefix of files to download",
-        description = "When specified, the task switches to multiple files mode and downloads all files with keys starting with this prefix."
+        title = "Prefix filter",
+        description = "Enables multi-file mode; downloads keys starting with this prefix."
     )
     private Property<String> prefix;
 
     @Schema(
-        title = "A character used to group keys",
-        description = "When specified, the task switches to multiple files mode. The API returns all keys that share a common prefix up to the delimiter."
+        title = "Delimiter",
+        description = "Groups keys up to the delimiter; enables multi-file mode."
     )
     private Property<String> delimiter;
 
     @Schema(
-        title = "Used for pagination in multiple files mode",
-        description = "This is the key at which a previous listing ended."
+        title = "Marker",
+        description = "Pagination start key for multi-file mode."
     )
     private Property<String> marker;
 
     @Schema(
-        title = "The maximum number of keys to include in the response in multiple files mode"
+        title = "Max keys",
+        description = "Maximum keys per list request in multi-file mode; default 1000."
     )
     @Builder.Default
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
-        title = "A regular expression to filter the keys of the objects to download",
-        description = "When specified, the task switches to multiple files mode and only downloads files matching the pattern."
+        title = "Regexp filter",
+        description = "Regex on keys; enables multi-file mode."
     )
     protected Property<String> regexp;
+
+    @Builder.Default
+    @Schema(
+        title = "Max files",
+        description = "Limit returned files in multi-file mode; default 25."
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Schema(
         title = "The account ID of the expected bucket owner",
@@ -229,6 +232,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(Property.ofValue(ListInterface.Filter.FILES))
+            .maxFiles(this.maxFiles)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)
@@ -245,22 +249,23 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         private final URI uri;
 
         @Schema(
-            title = "The size of the body in bytes"
+            title = "Content length (bytes)"
         )
         private final Long contentLength;
 
         @Schema(
-            title = "A standard MIME type describing the format of the object data"
+            title = "Content type"
         )
         private final String contentType;
 
         @Schema(
-            title = "A map of metadata to store with the object in S3"
+            title = "Metadata"
         )
         private final Map<String, String> metadata;
 
         @Schema(
-            title = "Map of object keys to their complete file information (multiple files mode only)"
+            title = "Files",
+            description = "Per-key file info when multi-file mode is used."
         )
         private final Map<String, FileInfo> files;
 

@@ -77,4 +77,60 @@ class DownloadsTest extends AbstractTest {
         listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(2));
     }
+
+    @Test
+    void maxFilesExceeded() throws Exception {
+        this.createBucket();
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3-maxfiles");
+        }
+
+        // Downloads with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(Downloads.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue("/tasks/s3-maxfiles"))
+            .maxFiles(Property.ofValue(3))
+            .action(Property.ofValue(ActionInterface.Action.NONE))
+            .build();
+
+        Downloads.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(3));
+    }
+
+    @Test
+    void maxFilesNotExceeded() throws Exception {
+        this.createBucket();
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3-maxfiles-ok");
+        }
+
+        // Downloads with maxFiles=10 (more than 5 files) - should return all 5 files
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(Downloads.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .prefix(Property.ofValue("/tasks/s3-maxfiles-ok"))
+            .maxFiles(Property.ofValue(10))
+            .action(Property.ofValue(ActionInterface.Action.NONE))
+            .build();
+
+        Downloads.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(5));
+    }
 }

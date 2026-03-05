@@ -40,11 +40,13 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
     }
 )
 @Schema(
-    title = "Delete a file in an S3 bucket."
+    title = "Delete a single S3 object",
+    description = "Deletes one object by key, optionally with MFA or bypassing governance retention. Returns version/delete marker metadata."
 )
 public class Delete extends AbstractS3Object implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "The key to delete."
+        title = "Object key",
+        description = "Key of the object to delete."
     )
     @NotNull
     private Property<String> key;

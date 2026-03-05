@@ -32,7 +32,8 @@ import java.util.Base64;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Fetch an OAuth access token for an AWS EKS cluster."
+    title = "Generate a presigned EKS authentication token",
+    description = "Builds a short-lived `k8s-aws-v1` token for a given EKS cluster by presigning STS GetCallerIdentity. Requires region and cluster name; expirationDuration defaults to 600s."
 )
 @Plugin(
     examples = {
@@ -55,11 +56,17 @@ import java.util.Base64;
 )
 public class EksToken extends AbstractConnection implements RunnableTask<EksToken.Output> {
 
-    @Schema(title = "EKS cluster name.")
+    @Schema(
+        title = "EKS cluster name",
+        description = "Cluster identifier passed in x-k8s-aws-id when presigning."
+    )
     @NotNull
     private Property<String> clusterName;
 
-    @Schema(title = "Token expiration duration in seconds")
+    @Schema(
+        title = "Token TTL (seconds)",
+        description = "Lifetime of the presigned URL; default 600 seconds."
+    )
     @NotNull
     @Builder.Default
     private Property<Long> expirationDuration = Property.ofValue(600L);
@@ -123,7 +130,10 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @NotNull
-        @Schema(title = "An OAuth access token for the current user.")
+        @Schema(
+            title = "EKS auth token",
+            description = "Bearer token formatted as k8s-aws-v1.<base64url>; encrypted in outputs when supported."
+        )
         private final Token token;
     }
 
@@ -136,6 +146,10 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
         )
         EncryptedString tokenValue;
 
+        @Schema(
+            title = "Token expiration time",
+            description = "Exact UTC expiration timestamp derived from the provided TTL."
+        )
         Instant expirationTime;
     }
 }

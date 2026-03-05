@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,10 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Shared S3 object task base",
+    description = "Provides common S3 connection fields plus bucket/requestPayer handling."
+)
 public abstract class AbstractS3Object extends AbstractConnection implements AbstractS3ObjectInterface {
     protected Property<String> requestPayer;
 

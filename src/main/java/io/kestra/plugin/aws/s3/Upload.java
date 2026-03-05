@@ -250,8 +250,8 @@ import java.util.function.Function;
 )
 
 @Schema(
-    title = "Upload a file(s) to a S3 bucket.",
-    description = "Uploads a single or multiple files to an Amazon S3 bucket."
+    title = "Upload files to S3",
+    description = "Uploads one or many files to an S3 bucket. Accepts inputs as URIs, lists, or maps. Supports metadata, ACLs, SSE, checksum, and Object Lock options. Compatibility mode enables S3-compatible endpoints but limits size to ~2GB."
 )
 public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output>, Data.From {
     @Schema(
@@ -263,116 +263,118 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     private Object from;
 
     @Schema(
-        title = "The key where to upload the file",
-        description = "A full key (with filename) or the directory path if from is multiple files"
+        title = "Object key",
+        description = "Full key for single upload or base prefix for multi-file uploads."
     )
     @NotNull
     private Property<String> key;
 
     @Schema(
-        title = "A map of metadata to store with the object in S3."
+        title = "Metadata",
+        description = "Key/value metadata stored with the object."
     )
     private Property<Map<String, String>> metadata;
 
     @Schema(
-        title = "Can be used to specify caching behavior along the request/response chain."
+        title = "Cache-Control"
     )
     private Property<String> cacheControl;
 
     @Schema(
-        title = "A standard MIME type that describes the format of the contents."
+        title = "Content-Type"
     )
     private Property<String> contentType;
 
     @Schema(
-        title = "Specifies what content encodings have been applied to the object",
-        description = "And thus, what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
+        title = "Content-Encoding",
+        description = "Applied encodings; informs how to decode to the Content-Type."
     )
     private Property<String> contentEncoding;
 
     @Schema(
-        title = "Specifies presentational information for the object"
+        title = "Content-Disposition"
     )
     private Property<String> contentDisposition;
 
     @Schema(
-        title = "The language the content is in"
+        title = "Content-Language"
     )
     private Property<String> contentLanguage;
 
     @Schema(
-        title = "The size of the body in bytes",
-        description = "This parameter is useful when the size of the body cannot be determined automatically."
+        title = "Content-Length",
+        description = "Explicit length when it cannot be inferred."
     )
     private Property<Long> contentLength;
 
     @Schema(
-        title = "The date and time after which the object is no longer cacheable"
+        title = "Expires"
     )
     private Property<String> expires;
 
     @Schema(
-        title = "The canned ACL to apply to the object"
+        title = "Canned ACL"
     )
     private Property<String> acl;
 
     @Schema(
-        title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."
+        title = "Storage class",
+        description = "Defaults to STANDARD if not set."
     )
     private Property<StorageClass> storageClass;
 
     @Schema(
-        title = "The server-side encryption algorithm used when storing this object in Amazon S3",
-        description = "For example, AES256, aws:kms, aws:kms:dsse"
+        title = "Server-side encryption",
+        description = "For example AES256, aws:kms, aws:kms:dsse."
     )
     private Property<ServerSideEncryption> serverSideEncryption;
 
     @Schema(
-        title = "Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).",
-        description = "Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS."
+        title = "Bucket key enabled",
+        description = "Use S3 Bucket Key when SSE-KMS is selected."
     )
     private Property<Boolean> bucketKeyEnabled;
 
     @Schema(
-        title = "Indicates the algorithm used to create the checksum for the object when using the SDK"
+        title = "Checksum algorithm"
     )
     private Property<ChecksumAlgorithm> checksumAlgorithm;
 
     @Schema(
-        title = "The account ID of the expected bucket owner",
-        description = "If the bucket is owned by a different account, the request fails " +
-                      "with the HTTP status code `403 Forbidden` (access denied)."
+        title = "Expected bucket owner",
+        description = "Reject if the bucket is owned by another account."
     )
     private Property<String> expectedBucketOwner;
 
     @Schema(
-        title = "The Object Lock mode that you want to apply to this object"
+        title = "Object Lock mode"
     )
     private Property<ObjectLockMode> objectLockMode;
 
     @Schema(
-        title = "Specifies whether a legal hold will be applied to this object"
+        title = "Legal hold"
     )
     private Property<ObjectLockLegalHoldStatus> objectLockLegalHoldStatus;
 
     @Schema(
-        title = "The date and time when you want this object's Object Lock to expire"
+        title = "Retain until date"
     )
     private Property<String> objectLockRetainUntilDate;
 
     @Schema(
-        title = "The checksum data integrity check to verify that the data received is the same data that was originally sent.",
-        description = "Must be used in pair with `checksumAlgorithm` to defined the expect algorithm of these values"
+        title = "Checksum value",
+        description = "Must match the selected checksumAlgorithm."
     )
     private Property<String> checksum;
 
     @Schema(
-        title = "The tag-set for the object"
+        title = "Tags"
     )
     private Property<Map<String, String>> tagging;
 
     @Schema(
-        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB. For some S3 endpoints such as CloudFlare R2, you may need to set this value to `true`."
+        title = "Compatibility mode",
+        description = "Use default async client for S3-compatible endpoints (limits transfers to ~2GB)."
     )
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
@@ -632,20 +634,20 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The S3 bucket name",
-            description = "The name of the bucket where the file(s) were uploaded"
+            title = "Bucket",
+            description = "Destination bucket."
         )
         private final String bucket;
 
         @Schema(
-            title = "The S3 object key",
-            description = "The key (path) where the file(s) were uploaded in the bucket"
+            title = "Key",
+            description = "Object key (base for multi-upload)."
         )
         private final String key;
 
         @Schema(
-            title = "Information about uploaded files",
-            description = "A map of file names to their corresponding file information. Returned only for multiple file uploads."
+            title = "Files",
+            description = "Per-file upload info (multi-file uploads only)."
         )
         private final Map<String, FileInfo> files;
     }

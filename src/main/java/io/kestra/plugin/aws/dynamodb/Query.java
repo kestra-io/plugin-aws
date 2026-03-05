@@ -1,9 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -11,12 +12,14 @@ import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-
-import java.util.Map;
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -24,7 +27,8 @@ import jakarta.validation.constraints.NotNull;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query items from a DynamoDB table."
+    title = "Query DynamoDB items by key condition",
+    description = "Executes a Query request with the provided keyConditionExpression. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit and filterExpression refine results."
 )
 @Plugin(
     examples = {
@@ -62,6 +66,7 @@ import jakarta.validation.constraints.NotNull;
                     region: "eu-central-1"
                     tableName: "persons"
                     keyConditionExpression: id = :id
+                    filterExpression: "lastname = :lastname"
                     expressionAttributeValues:
                       :id: "1"
                       :lastname: "Doe"
@@ -79,36 +84,35 @@ import jakarta.validation.constraints.NotNull;
 )
 public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
     @Schema(
-        title = "The way you want to store the data.",
-        description = "FETCH_ONE output the first row, "
-            + "FETCH output all the rows, "
-            + "STORE store all rows in a file, "
-            + "NONE do nothing."
+        title = "Fetch strategy",
+        description = "STORE (default) writes rows to internal storage; FETCH loads all rows; FETCH_ONE returns the first row."
     )
     @Builder.Default
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
-        title = "Maximum numbers of returned results"
+        title = "Max results",
+        description = "Maximum items to return."
     )
     private Property<Integer> limit;
 
     @Schema(
-        title = "Query key condition expression"
+        title = "Key condition expression",
+        description = "Expression using partition key (and sort key if defined)."
     )
     @NotNull
     private Property<String> keyConditionExpression;
 
     @Schema(
-        title = "Query expression attributes.",
-        description = "It's a map of string -> object."
+        title = "Expression attribute values",
+        description = "Map of placeholders used in expressions."
     )
     @NotNull
     private Property<Map<String, Object>> expressionAttributeValues;
 
     @Schema(
-        title = "Query filter expression",
-        description = "When used, `expressionAttributeValues` property must also be provided."
+        title = "Filter expression",
+        description = "Additional server-side filter; requires expressionAttributeValues."
     )
     private Property<String> filterExpression;
 

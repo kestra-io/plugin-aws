@@ -302,4 +302,67 @@ class TriggerTest extends AbstractTest {
         Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
         assertThat(updateExecution.isPresent(), is(true));
     }
+
+    @Test
+    void maxFilesExceeded() throws Exception {
+        String bucket = "trigger-maxfiles-exceeded";
+        this.createBucket(bucket);
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("trigger/maxfiles", bucket);
+        }
+
+        // Trigger with maxFiles=3 (less than 5 files) - should fire with first 3 files (truncated)
+        Trigger trigger = Trigger.builder()
+            .id("s3-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .bucket(Property.ofValue(bucket))
+            .prefix(Property.ofValue("trigger/maxfiles"))
+            .action(Property.ofValue(ActionInterface.Action.NONE))
+            .maxFiles(Property.ofValue(3))
+            .interval(Duration.ofSeconds(10))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        // When maxFiles exceeded, List returns first 3 files, so Trigger should fire
+        assertThat(execution.isPresent(), is(true));
+    }
+
+    @Test
+    void maxFilesNotExceeded() throws Exception {
+        String bucket = "trigger-maxfiles-ok";
+        this.createBucket(bucket);
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("trigger/maxfiles-ok", bucket);
+        }
+
+        // Trigger with maxFiles=10 (more than 5 files) - should fire
+        Trigger trigger = Trigger.builder()
+            .id("s3-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .bucket(Property.ofValue(bucket))
+            .prefix(Property.ofValue("trigger/maxfiles-ok"))
+            .action(Property.ofValue(ActionInterface.Action.NONE))
+            .maxFiles(Property.ofValue(10))
+            .interval(Duration.ofSeconds(10))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(execution.isPresent(), is(true));
+    }
 }

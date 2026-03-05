@@ -22,21 +22,36 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @EqualsAndHashCode
 @Jacksonized
 public class StepConfig {
-    @Schema(title = "JAR path.", description = "A path to a JAR file run during the step.")
+    @Schema(
+        title = "JAR path",
+        description = "JAR executed for the step, e.g., command-runner.jar."
+    )
     @NotNull
     private Property<String> jar;
 
-    @Schema(title = "Main class.", description = "The name of the main class in the specified Java file. If not specified, the JAR file should specify a Main-Class in its manifest file.")
+    @Schema(
+        title = "Main class",
+        description = "Entry class name; omit if the JAR manifest defines Main-Class."
+    )
     private Property<String> mainClass;
 
-    @Schema(title = "Commands." , description = "A list of commands that will be passed to the JAR file's main function when executed.")
+    @Schema(
+        title = "Arguments",
+        description = "List of arguments; each string is split on spaces before being passed to the step."
+    )
     private Property<List<String>> commands;
 
-    @Schema(title = "Step configuration name.", description = "Ex: \"Run Spark job\"")
+    @Schema(
+        title = "Step name",
+        description = "Label for the step, e.g., Run Spark job."
+    )
     @NotNull
     private Property<String> name;
 
-    @Schema(title = "Action on failure.", description = "Possible values : TERMINATE_CLUSTER, CANCEL_AND_WAIT, CONTINUE, TERMINATE_JOB_FLOW.")
+    @Schema(
+        title = "Action on failure",
+        description = "Behavior when the step fails: TERMINATE_CLUSTER, CANCEL_AND_WAIT, CONTINUE, or TERMINATE_JOB_FLOW."
+    )
     @NotNull
     private Property<Action> actionOnFailure;
 

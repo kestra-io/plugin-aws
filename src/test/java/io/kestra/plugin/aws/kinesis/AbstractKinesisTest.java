@@ -22,11 +22,11 @@ import java.util.UUID;
 public class AbstractKinesisTest extends AbstractLocalStackTest {
     @Inject
     protected RunContextFactory runContextFactory;
-    protected static String streamArn;
-    protected static String streamName;
+    protected String streamArn;
+    protected String streamName;
 
-    @BeforeAll
-    static void setupStream() throws InterruptedException {
+    @BeforeEach
+    void setupStream() throws InterruptedException {
         streamName = "stream-" + IdUtils.create();
 
         try (KinesisClient kinesisClient = KinesisClient.builder()

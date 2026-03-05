@@ -23,7 +23,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Schema(title = "Push metrics to AWS CloudWatch.")
+@Schema(
+    title = "Push custom metrics to CloudWatch",
+    description = "Writes one or more MetricDatum entries into a CloudWatch namespace. Uses current time for timestamps and optionally sets unit and dimensions."
+)
 @Plugin(
     examples =
         @Example(
@@ -58,10 +61,16 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output> {
     @NotNull
-    @Schema(title = "CloudWatch namespace, e.g., `Custom/MyApp`")
+    @Schema(
+        title = "CloudWatch namespace",
+        description = "Target namespace for metric data, e.g., Custom/MyApp."
+    )
     private Property<String> namespace;
 
-    @Schema(title = "List of metrics to push")
+    @Schema(
+        title = "Metrics",
+        description = "List of metrics to publish; each becomes a MetricDatum."
+    )
     @NotNull
     private Property<List<MetricValue>> metrics;
 
@@ -115,24 +124,39 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
     @Builder
     @Getter
     public static class MetricValue {
-        @Schema(title = "Metric name")
+        @Schema(
+            title = "Metric name",
+            description = "Name of the datapoint."
+        )
         @NotNull
         private Property<String> metricName;
 
-        @Schema(title = "Metric value")
+        @Schema(
+            title = "Metric value",
+            description = "Numeric value sent for the metric."
+        )
         private Property<Double> value;
 
-        @Schema(title = "Metric unit")
+        @Schema(
+            title = "Metric unit",
+            description = "Optional CloudWatch unit string, e.g., Count or Milliseconds."
+        )
         private Property<String> unit;
 
-        @Schema(title = "Metric dimensions")
+        @Schema(
+            title = "Metric dimensions",
+            description = "Optional key/value dimensions attached to the datapoint."
+        )
         private Property<Map<String, Object>> dimensions;
     }
 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Total number of datapoints pushed")
+        @Schema(
+            title = "Datapoints pushed",
+            description = "Total MetricDatum entries sent in the request."
+        )
         private final Integer count;
     }
 }

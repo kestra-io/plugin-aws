@@ -21,4 +21,8 @@ public abstract class AbstractEmrTask extends AbstractConnection {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, EmrClient.builder()).build();
     }
+
+    protected EmrClient emrClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return client(runContext);
+    }
 }

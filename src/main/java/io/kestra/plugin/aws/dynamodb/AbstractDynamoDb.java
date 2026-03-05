@@ -37,7 +37,10 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractDynamoDb extends AbstractConnection {
-    @Schema(title = "The DynamoDB table name")
+    @Schema(
+        title = "Table name",
+        description = "Target DynamoDB table for the operation."
+    )
     @NotNull
     protected Property<String> tableName;
 

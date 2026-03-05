@@ -1,5 +1,42 @@
 package io.kestra.plugin.aws.lambda;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.http.entity.ContentType;
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import org.mockito.Mock;
+import org.mockito.Mock.Strictness;
+
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -7,38 +44,16 @@ import io.kestra.core.runners.RunContextProperty;
 import io.kestra.core.runners.WorkingDir;
 import io.kestra.core.storages.Storage;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
-import org.apache.http.entity.ContentType;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.Mock.Strictness;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
+import software.amazon.awssdk.services.cloudwatchlogs.paginators.FilterLogEventsIterable;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 
 @ExtendWith(MockitoExtension.class)
 public class InvokeUnitTest {
@@ -47,6 +62,9 @@ public class InvokeUnitTest {
 
     @Mock(strictness = Strictness.LENIENT)
     private RunContext context;
+
+    @Mock
+    private CloudWatchLogsClient logsClient;
 
     @Mock(strictness = Strictness.LENIENT)
     private RunContextProperty runContextProperty;
@@ -203,4 +221,41 @@ public class InvokeUnitTest {
         // Then
         checkOutput(data, res);
     }
+
+    @Test
+    void givenLambdaInvocation_whenLogsAreFetched_thenLogsAreLoggedCorrectly() throws Exception {
+        // Arrange
+        Instant startTime = Instant.parse("2026-01-15T10:00:00Z");
+
+        FilteredLogEvent logEvent = FilteredLogEvent.builder()
+                .message("Hello from CloudWatch Logs")
+                .timestamp(startTime.plusSeconds(1).toEpochMilli())
+                .build();
+
+        FilterLogEventsResponse response = FilterLogEventsResponse.builder()
+                .events(List.of(logEvent))
+                .build();
+
+        given(logsClient.filterLogEvents(any(FilterLogEventsRequest.class)))
+                .willReturn(response);
+
+        given(context.logger()).willReturn(logger);
+
+        Invoke spyInvoke = spy(invoke);
+        doReturn(logsClient).when(spyInvoke).getCloudWatchLogsClient(any());
+
+        // Act
+        spyInvoke.fetchAndLogLambdaLogs(
+                context,
+                "arn:aws:lambda:ap-south-1:123456789012:function:test-function",
+                startTime);
+
+        // Assert
+        verify(logsClient, times(1))
+                .filterLogEvents(any(FilterLogEventsRequest.class));
+
+        verify(logger)
+                .info("[lambda] {}", "Hello from CloudWatch Logs");
+    }
 }
+

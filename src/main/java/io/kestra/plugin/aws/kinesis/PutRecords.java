@@ -116,7 +116,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 @Schema(
-    title = "Send records to Amazon Kinesis Data Streams."
+    title = "Put records to Kinesis Data Streams",
+    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
 )
 public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -124,28 +125,28 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
     @NotNull
     @Schema(
-        title = "Mark the task as failed when sending a record is unsuccessful.",
-        description = "If true, the task will fail when any record fails to be sent."
+        title = "Fail on unsuccessful records",
+        description = "If true (default), task fails when at least one record is rejected."
     )
     @Builder.Default
     private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
-        title = "The name of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        title = "Stream name",
+        description = "Kinesis stream name; set this or streamArn."
     )
     private Property<String> streamName;
 
     @Schema(
-        title = "The ARN of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        title = "Stream ARN",
+        description = "Kinesis stream ARN; set this or streamName."
     )
     private Property<String> streamArn;
 
     @PluginProperty(dynamic = true)
     @Schema(
-        title = "List of records (i.e., list of maps) or internal storage URI of the file that defines the records to be sent to AWS Kinesis Data Streams.",
-        description = "A list of at least one record with a map including `data` and `partitionKey` properties (those two are required arguments). Check the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) API reference for a detailed description of required fields.",
+        title = "Records",
+        description = "List of records or kestra:// URI to an ION file of records. Each requires data and partitionKey; optional explicitHashKey.",
         anyOf = {String.class, Record[].class}
     )
     @NotNull

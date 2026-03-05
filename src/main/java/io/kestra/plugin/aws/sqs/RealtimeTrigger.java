@@ -35,8 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on message consumption in real-time from an AWS SQS queue, creating one execution per message.",
-    description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.aws.sqs.Trigger](https://kestra.io/plugins/plugin-aws/triggers/io.kestra.plugin.aws.sqs.trigger) instead."
+    title = "Trigger on SQS messages (realtime)",
+    description = "Long-polls SQS and emits an execution per message as they arrive. Auto-delete controls deletion; use batch Trigger for grouped processing."
 )
 @Plugin(
     examples = {

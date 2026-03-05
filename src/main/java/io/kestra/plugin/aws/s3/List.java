@@ -48,7 +48,8 @@ import software.amazon.awssdk.services.s3.S3Client;
     }
 )
 @Schema(
-    title = "List keys of an S3 bucket."
+    title = "List objects in an S3 bucket",
+    description = "Lists objects with optional prefix/regex filtering and caps returned items with maxFiles. Emits object count metric."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
     private Property<String> prefix;
@@ -65,6 +66,13 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     private Property<String> expectedBucketOwner;
 
     protected Property<String> regexp;
+
+    @Builder.Default
+    @Schema(
+        title = "Max files",
+        description = "Truncates results to this count; default 25."
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Builder.Default
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
@@ -84,6 +92,16 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
                 runContext.render(prefix).as(String.class).orElse(null)
             );
 
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (list.size() > rMaxFiles) {
+                runContext.logger().warn(
+                    "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
+                    "Increase the maxFiles property if you need more files.",
+                    list.size(), rMaxFiles, rMaxFiles
+                );
+                list = list.subList(0, rMaxFiles);
+            }
+
             return Output.builder()
                 .objects(list)
                 .build();
@@ -95,7 +113,8 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     public static class Output implements io.kestra.core.models.tasks.Output {
         @JsonInclude
         @Schema(
-            title = "The list of S3 objects."
+            title = "Objects",
+            description = "Listed objects after filtering and maxFiles limit."
         )
         private final java.util.List<S3Object> objects;
     }

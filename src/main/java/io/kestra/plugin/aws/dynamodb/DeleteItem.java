@@ -23,7 +23,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete an item from a DynamoDB table."
+    title = "Delete a DynamoDB item by key",
+    description = "Deletes a single item using the provided primary key. No condition expression is applied."
 )
 @Plugin(
     examples = {
@@ -49,8 +50,8 @@ import java.util.Map;
 )
 public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item key",
-        description = "The DynamoDB item identifier"
+        title = "Item key",
+        description = "Full primary key map (partition key, plus sort key when applicable)."
     )
     private Property<Map<String, Object>> key;
 

@@ -1,13 +1,12 @@
 package io.kestra.plugin.aws.cloudwatch;
 
 import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.core.models.property.Property;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
 
 import java.time.Duration;
 import java.util.List;
@@ -15,45 +14,22 @@ import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @KestraTest
-class TriggerTest extends AbstractLocalStackTest {
+class TriggerTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
 
     @Test
     void evaluate() throws Exception {
-        RunContext runContext = runContextFactory.of();
-
-        var push = Push.builder()
-            .id(IdUtils.create())
-            .type(TriggerTest.class.getSimpleName())
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .namespace(Property.ofValue("Custom/Test"))
-            .metrics(Property.ofValue(List.of(
-                Push.MetricValue.builder()
-                    .metricName(Property.ofValue("TriggerLatency"))
-                    .value(Property.ofValue(456.7))
-                    .unit(Property.ofValue("Milliseconds"))
-                    .dimensions(Property.ofValue(Map.of("env", "test")))
-                    .build()
-            )))
-            .build();
-
-        Push.Output pushOutput = push.run(runContext);
-        assertThat(pushOutput.getCount(), equalTo(1));
-
         var trigger = Trigger.builder()
             .id(IdUtils.create())
             .type(TriggerTest.class.getSimpleName())
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .namespace(Property.ofValue("Custom/Test"))
             .metricName(Property.ofValue("TriggerLatency"))
             .statistic(Property.ofValue("Average"))
@@ -67,9 +43,20 @@ class TriggerTest extends AbstractLocalStackTest {
             )))
             .build();
 
-        var conditionContext = io.kestra.core.utils.TestsUtils.mockTrigger(runContextFactory, trigger);
-        var execution = trigger.evaluate(conditionContext.getKey(), conditionContext.getValue());
+        var output = Query.Output.builder()
+            .count(1)
+            .series(List.of(Map.of("average", 456.7)))
+            .build();
 
-        assertThat(execution.isPresent(), is(true));
+        try (MockedConstruction<Query> mockedQuery = mockConstruction(Query.class, (mock, context) ->
+            when(mock.run(any())).thenReturn(output)
+        )) {
+            var conditionContext = io.kestra.core.utils.TestsUtils.mockTrigger(runContextFactory, trigger);
+            var execution = trigger.evaluate(conditionContext.getKey(), conditionContext.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+            assertThat(mockedQuery.constructed(), hasSize(1));
+            verify(mockedQuery.constructed().getFirst()).run(any());
+        }
     }
 }

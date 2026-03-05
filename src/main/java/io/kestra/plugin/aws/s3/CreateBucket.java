@@ -50,11 +50,13 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
     }
 )
 @Schema(
-    title = "Create an S3 bucket."
+    title = "Create an S3 bucket",
+    description = "Creates a new bucket with optional ACL grants and Object Lock enablement. Uses provided region/endpoint from connection settings."
 )
 public class CreateBucket extends AbstractConnection implements AbstractS3, RunnableTask<CreateBucket.Output> {
     @Schema(
-        description = "The S3 bucket name to create."
+        title = "Bucket name",
+        description = "Name of the bucket to create."
     )
     @NotNull
     private Property<String> bucket;
