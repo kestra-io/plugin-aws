@@ -1,9 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -11,12 +12,14 @@ import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-
-import java.util.Map;
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -63,6 +66,7 @@ import jakarta.validation.constraints.NotNull;
                     region: "eu-central-1"
                     tableName: "persons"
                     keyConditionExpression: id = :id
+                    filterExpression: "lastname = :lastname"
                     expressionAttributeValues:
                       :id: "1"
                       :lastname: "Doe"

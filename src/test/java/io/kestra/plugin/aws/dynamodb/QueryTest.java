@@ -1,18 +1,20 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-
-import java.util.Map;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 
 class QueryTest extends AbstractDynamoDbTest {
 
@@ -68,6 +70,32 @@ class QueryTest extends AbstractDynamoDbTest {
 
         assertThat(output.getSize(), is(1L));
         assertThat(output.getRows().size(), is(1));
+        assertThat(output.getUri(), is(nullValue()));
+    }
+
+    @Test
+    void runFetchWithExpressionNoMatch() throws Exception {
+        var runContext = runContextFactory.of();
+        
+        var query = Query.builder()
+            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .tableName(Property.ofValue("persons"))
+            .keyConditionExpression(Property.ofValue("id = :id"))
+            .filterExpression(Property.ofValue("lastname = :lastname"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "1", ":lastname", "Baudelaire")))
+            .fetchType(Property.ofValue(FetchType.FETCH))
+            .build();
+
+        createTable(runContext, query);
+        initTable(runContext, query);
+
+        var output = query.run(runContext);
+
+        assertThat(output.getSize(), is(0L));
+        assertThat(output.getRows().size(), is(0));
         assertThat(output.getUri(), is(nullValue()));
     }
 
