@@ -34,7 +34,7 @@ public abstract class AbstractCloudFormation extends AbstractConnection {
         title = "Wait for completion",
         description = "When true (default), block until the stack reaches a terminal state for the requested operation."
     )
-    protected Property<Boolean> waitForCompletion = Property.of(true);
+    protected Property<Boolean> waitForCompletion = Property.ofValue(true);
 
     protected CloudFormationClient cfClient(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
