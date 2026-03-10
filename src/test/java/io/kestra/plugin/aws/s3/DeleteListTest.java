@@ -1,8 +1,9 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.property.Property;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+
+import io.kestra.core.models.property.Property;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;

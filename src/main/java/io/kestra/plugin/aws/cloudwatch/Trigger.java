@@ -1,5 +1,11 @@
 package io.kestra.plugin.aws.cloudwatch;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.*;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
@@ -7,14 +13,10 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -26,38 +28,37 @@ import java.util.Optional;
     description = "Polls a CloudWatch metric query at a fixed interval and fires when the query returns at least one datapoint. Reuses Query task parameters and AWS connection fields."
 )
 @Plugin(
-    examples =
-        @Example(
-            title = "Trigger when a CloudWatch metric query returns non-empty results",
-            full = true,
-            code = """
-                id: aws_cloudwatch_trigger
-                namespace: company.team
+    examples = @Example(
+        title = "Trigger when a CloudWatch metric query returns non-empty results",
+        full = true,
+        code = """
+            id: aws_cloudwatch_trigger
+            namespace: company.team
+            tasks:
+              - id: each
+                type: io.kestra.plugin.core.flow.ForEach
+                values: "{{ trigger.series }}"
                 tasks:
-                  - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
-                    values: "{{ trigger.series }}"
-                    tasks:
-                      - id: log
-                        type: io.kestra.plugin.core.log.Log
-                        message: "Datapoint: {{ json(taskrun.value) }}"
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "Datapoint: {{ json(taskrun.value) }}"
 
-                triggers:
-                  - id: watch
-                    type: io.kestra.plugin.aws.cloudwatch.Trigger
-                    interval: "PT1M"
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    region: "us-east-1"
-                    namespace: "AWS/EC2"
-                    metricName: "CPUUtilization"
-                    statistic: "Average"
-                    periodSeconds: 60
-                    window: PT5M
-                    dimensions:
-                      - name: "InstanceId"
-                        value: "i-0abcd1234ef567890"
-                """
+            triggers:
+              - id: watch
+                type: io.kestra.plugin.aws.cloudwatch.Trigger
+                interval: "PT1M"
+                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                region: "us-east-1"
+                namespace: "AWS/EC2"
+                metricName: "CPUUtilization"
+                statistic: "Average"
+                periodSeconds: 60
+                window: PT5M
+                dimensions:
+                  - name: "InstanceId"
+                    value: "i-0abcd1234ef567890"
+            """
     )
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Query.Output> {

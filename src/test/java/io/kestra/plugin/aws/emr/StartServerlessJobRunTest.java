@@ -1,11 +1,13 @@
 package io.kestra.plugin.aws.emr;
 
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
 import software.amazon.awssdk.services.emrserverless.model.StartJobRunRequest;
 import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
@@ -29,20 +31,24 @@ class StartServerlessJobRunTest {
         EmrServerlessClient client = mock(EmrServerlessClient.class);
 
         when(client.startJobRun(any(StartJobRunRequest.class)))
-            .thenReturn(StartJobRunResponse.builder()
-                .jobRunId("job-123")
-                .build());
+            .thenReturn(
+                StartJobRunResponse.builder()
+                    .jobRunId("job-123")
+                    .build()
+            );
 
         // Build task and spy it to override client(runContext)
-        var task = spy(StartServerlessJobRun.builder()
-            .id("start_job")
-            .type(StartServerlessJobRun.class.getName())
-            .region(Property.ofValue("eu-central-1"))
-            .applicationId(Property.ofValue("00f123abc456xyz"))
-            .executionRoleArn(Property.ofValue("arn:aws:iam::123456789012:role/EMRServerlessRole"))
-            .jobName(Property.ofValue("sample-spark-job"))
-            .entryPoint(Property.ofValue("s3://my-bucket/scripts/spark-app.py"))
-            .build());
+        var task = spy(
+            StartServerlessJobRun.builder()
+                .id("start_job")
+                .type(StartServerlessJobRun.class.getName())
+                .region(Property.ofValue("eu-central-1"))
+                .applicationId(Property.ofValue("00f123abc456xyz"))
+                .executionRoleArn(Property.ofValue("arn:aws:iam::123456789012:role/EMRServerlessRole"))
+                .jobName(Property.ofValue("sample-spark-job"))
+                .entryPoint(Property.ofValue("s3://my-bucket/scripts/spark-app.py"))
+                .build()
+        );
 
         // Force task to use mocked client instead of real AWS client
         doReturn(client).when(task).client(any());
@@ -53,8 +59,7 @@ class StartServerlessJobRunTest {
         assertThat(output.getJobRunId(), is("job-123"));
 
         // Capture the StartJobRunRequest sent to AWS
-        ArgumentCaptor<StartJobRunRequest> captor =
-            ArgumentCaptor.forClass(StartJobRunRequest.class);
+        ArgumentCaptor<StartJobRunRequest> captor = ArgumentCaptor.forClass(StartJobRunRequest.class);
 
         // Cast is required to disambiguate AWS SDK overloads (request vs consumer)
         verify(client, times(1))
@@ -68,8 +73,10 @@ class StartServerlessJobRunTest {
         // Validate Spark submit driver and entry point
         assertThat(req.jobDriver(), notNullValue());
         assertThat(req.jobDriver().sparkSubmit(), notNullValue());
-        assertThat(req.jobDriver().sparkSubmit().entryPoint(),
-            is("s3://my-bucket/scripts/spark-app.py"));
+        assertThat(
+            req.jobDriver().sparkSubmit().entryPoint(),
+            is("s3://my-bucket/scripts/spark-app.py")
+        );
 
         // Verify that the client is closed (try-with-resources)
         verify(client, times(1)).close();
@@ -84,15 +91,17 @@ class StartServerlessJobRunTest {
         when(client.startJobRun(any(StartJobRunRequest.class)))
             .thenThrow(RuntimeException.class);
 
-        var task = spy(StartServerlessJobRun.builder()
-            .id("start_job")
-            .type(StartServerlessJobRun.class.getName())
-            .region(Property.ofValue("eu-central-1"))
-            .applicationId(Property.ofValue("00f123abc456xyz"))
-            .executionRoleArn(Property.ofValue("arn:aws:iam::123456789012:role/EMRServerlessRole"))
-            .jobName(Property.ofValue("sample-spark-job"))
-            .entryPoint(Property.ofValue("s3://my-bucket/scripts/spark-app.py"))
-            .build());
+        var task = spy(
+            StartServerlessJobRun.builder()
+                .id("start_job")
+                .type(StartServerlessJobRun.class.getName())
+                .region(Property.ofValue("eu-central-1"))
+                .applicationId(Property.ofValue("00f123abc456xyz"))
+                .executionRoleArn(Property.ofValue("arn:aws:iam::123456789012:role/EMRServerlessRole"))
+                .jobName(Property.ofValue("sample-spark-job"))
+                .entryPoint(Property.ofValue("s3://my-bucket/scripts/spark-app.py"))
+                .build()
+        );
 
         doReturn(client).when(task).client(any());
 

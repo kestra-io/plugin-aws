@@ -1,6 +1,17 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
 import com.google.common.collect.ImmutableMap;
+
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
@@ -10,16 +21,8 @@ import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import jakarta.inject.Inject;
 
 @KestraTest
 @Testcontainers
@@ -32,9 +35,13 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
     protected StorageInterface storageInterface;
 
     protected static File file() throws URISyntaxException {
-        return new File(Objects.requireNonNull(AbstractTest.class.getClassLoader()
-                .getResource("application.yml"))
-            .toURI());
+        return new File(
+            Objects.requireNonNull(
+                AbstractTest.class.getClassLoader()
+                    .getResource("application.yml")
+            )
+                .toURI()
+        );
     }
 
     protected String createBucket() throws Exception {

@@ -1,5 +1,12 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.net.URI;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -10,20 +17,13 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
-import io.micronaut.data.annotation.By;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.net.URI;
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -58,7 +58,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
         @Metric(
             name = "sqs.consume.messages",
             type = Counter.TYPE,
-            unit = "messages", 
+            unit = "messages",
             description = "Number of messages consumed from the SQS queue."
         )
     }
@@ -117,14 +117,16 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                         .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
                         .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
-                    msg.messages().forEach(throwConsumer(m -> {
+                    msg.messages().forEach(throwConsumer(m ->
+                    {
                         FileSerde.write(outputFile, runContext.render(serdeType).as(SerdeType.class).orElseThrow().deserialize(m.body()));
 
                         if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
-                            sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                .queueUrl(queueUrl)
-                                .receiptHandle(m.receiptHandle())
-                                .build()
+                            sqsClient.deleteMessage(
+                                DeleteMessageRequest.builder()
+                                    .queueUrl(queueUrl)
+                                    .receiptHandle(m.receiptHandle())
+                                    .build()
                             );
                         }
                         total.getAndIncrement();

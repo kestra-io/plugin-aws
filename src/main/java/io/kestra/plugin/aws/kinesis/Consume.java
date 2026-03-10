@@ -1,5 +1,13 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,6 +17,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -16,14 +25,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 import software.amazon.awssdk.services.kinesis.model.Record;
-
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
 
 @SuperBuilder
 @ToString
@@ -147,8 +148,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
                 iterator = response.nextShardIterator();
 
-                if (Instant.now().isAfter(rMaxDuration) ||
-                    consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)) {
+                if (
+                    Instant.now().isAfter(rMaxDuration) ||
+                        consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)
+                ) {
                     break;
                 }
 
@@ -174,9 +177,11 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         var builder = GetShardIteratorRequest.builder()
             .streamName(stream)
             .shardId(shard.shardId())
-            .shardIteratorType(ShardIteratorType.fromValue(
-                runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name()
-            ));
+            .shardIteratorType(
+                ShardIteratorType.fromValue(
+                    runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name()
+                )
+            );
 
         if (startingSequenceNumber != null) {
             runContext.render(startingSequenceNumber)

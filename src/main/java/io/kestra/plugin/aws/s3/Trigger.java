@@ -1,6 +1,13 @@
 package io.kestra.plugin.aws.s3;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -10,17 +17,10 @@ import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.sql.Blob;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -105,7 +105,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractConnectionInterface, StatefulTriggerInterface {
+public class Trigger extends AbstractTrigger
+    implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, ListInterface, ActionInterface, AbstractS3ObjectInterface, AbstractConnectionInterface, StatefulTriggerInterface {
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -219,7 +220,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         java.util.List<S3Object> actionBlobs = new ArrayList<>();
 
         var toFire = run.getObjects().stream()
-            .flatMap(throwFunction(object -> {
+            .flatMap(throwFunction(object ->
+            {
                 var resolvedBucket = runContext.render(bucket).as(String.class).orElse("");
                 var uri = String.format("s3://%s/%s", resolvedBucket, object.getKey());
 
@@ -257,10 +259,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
                     actionBlobs.add(object);
 
-                    return Stream.of(TriggeredObject.builder()
-                        .object(downloaded)
-                        .changeType(changeType)
-                        .build());
+                    return Stream.of(
+                        TriggeredObject.builder()
+                            .object(downloaded)
+                            .changeType(changeType)
+                            .build()
+                    );
                 }
                 return Stream.empty();
             }))

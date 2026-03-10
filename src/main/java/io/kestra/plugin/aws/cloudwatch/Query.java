@@ -1,21 +1,20 @@
 package io.kestra.plugin.aws.cloudwatch;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+
 import io.kestra.core.models.annotations.*;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -29,27 +28,26 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Fetches metric statistics over a rolling window using GetMetricStatistics. Uses current time as end, start = end - window. Results are sorted by timestamp."
 )
 @Plugin(
-    examples =
-        @Example(
-            title = "Query CPU utilization over the last 5 minutes",
-            code = """
-                id: aws_cloudwatch_query
-                namespace: company.team
-                tasks:
-                  - id: query
-                    type: io.kestra.plugin.aws.cloudwatch.Query
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    region: "us-east-1"
-                    namespace: "AWS/EC2"
-                    metricName: "CPUUtilization"
-                    statistic: "Average"
-                    periodSeconds: 60
-                    window: PT5M
-                    dimensions:
-                      - name: "InstanceId"
-                        value: "i-0abcd1234ef567890"
-                """
+    examples = @Example(
+        title = "Query CPU utilization over the last 5 minutes",
+        code = """
+            id: aws_cloudwatch_query
+            namespace: company.team
+            tasks:
+              - id: query
+                type: io.kestra.plugin.aws.cloudwatch.Query
+                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                region: "us-east-1"
+                namespace: "AWS/EC2"
+                metricName: "CPUUtilization"
+                statistic: "Average"
+                periodSeconds: 60
+                window: PT5M
+                dimensions:
+                  - name: "InstanceId"
+                    value: "i-0abcd1234ef567890"
+            """
     )
 )
 public class Query extends AbstractCloudWatch implements RunnableTask<Query.Output> {
@@ -120,11 +118,14 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
             if (rDims != null && !rDims.isEmpty()) {
                 request.dimensions(
                     rDims.stream()
-                        .map(throwFunction(d -> Dimension.builder()
-                            .name(runContext.render(d.getName()).as(String.class).orElseThrow())
-                            .value(runContext.render(d.getValue()).as(String.class).orElseThrow())
-                            .build()
-                        ))
+                        .map(
+                            throwFunction(
+                                d -> Dimension.builder()
+                                    .name(runContext.render(d.getName()).as(String.class).orElseThrow())
+                                    .value(runContext.render(d.getValue()).as(String.class).orElseThrow())
+                                    .build()
+                            )
+                        )
                         .toList()
                 );
             }
@@ -133,9 +134,11 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
 
             List<Map<String, Object>> series = resp.datapoints().stream()
                 .sorted(Comparator.comparing(Datapoint::timestamp))
-                .map(dp -> {
+                .map(dp ->
+                {
                     Map<String, Object> map = new HashMap<>();
-                    dp.sdkFields().forEach(field -> {
+                    dp.sdkFields().forEach(field ->
+                    {
                         Object value = field.getValueOrDefault(dp);
                         if (value != null) {
                             if (value instanceof Instant instant) {

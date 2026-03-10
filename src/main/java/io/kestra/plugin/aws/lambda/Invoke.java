@@ -25,15 +25,14 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.retrys.AbstractRetry;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.core.utils.RetryUtils;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -50,9 +49,6 @@ import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
-import io.kestra.core.models.tasks.retrys.Exponential;
-
-import java.util.List;
 
 @SuperBuilder
 @ToString
@@ -132,7 +128,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         final Instant invocationStart = Instant.now().minusSeconds(5);
         var functionArn = runContext.render(this.functionArn).as(String.class).orElseThrow();
         var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ? null
-                : runContext.render(this.functionPayload).asMap(String.class, Object.class);
+            : runContext.render(this.functionPayload).asMap(String.class, Object.class);
         var logger = runContext.logger();
 
         try (var lambda = client(runContext)) {
@@ -239,19 +235,19 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
             for (int i = 0; i < maxAttempts; i++) {
                 FilterLogEventsRequest request = FilterLogEventsRequest.builder()
-                        .logGroupName(logGroupName)
-                        .startTime(startTime.toEpochMilli())
-                        .build();
+                    .logGroupName(logGroupName)
+                    .startTime(startTime.toEpochMilli())
+                    .build();
 
                 var response = logsClient.filterLogEvents(request);
                 var events = response.events();
 
                 if (events != null && !events.isEmpty()) {
                     events.stream()
-                            .limit(1000)
-                            .map(FilteredLogEvent::message)
-                            .filter(message -> message != null && !message.isBlank())
-                            .forEach(message -> logger.info("[lambda] {}", message.trim()));
+                        .limit(1000)
+                        .map(FilteredLogEvent::message)
+                        .filter(message -> message != null && !message.isBlank())
+                        .forEach(message -> logger.info("[lambda] {}", message.trim()));
 
                     logsFound = true;
                     break; // Exit early if found logs
@@ -291,28 +287,36 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         try {
             errorPayload = payload.asUtf8String();
         } catch (UncheckedIOException e) {
-            log.warn("Lambda function response payload cannot be read as UTF8 string: {}",
-                    e.getMessage());
+            log.warn(
+                "Lambda function response payload cannot be read as UTF8 string: {}",
+                e.getMessage()
+            );
             errorPayload = null;
         }
         if (log.isDebugEnabled()) {
-            log.debug("Lambda function error for {}: response type: {}, response payload: {}",
-                    functionArn, contentType, errorPayload);
+            log.debug(
+                "Lambda function error for {}: response type: {}, response payload: {}",
+                functionArn, contentType, errorPayload
+            );
         }
-        if (errorPayload != null
-                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+        if (
+            errorPayload != null
+                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())
+        ) {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task responded with error for function: " + functionArn
-                            + ". Error: " + errorPayload);
+                "Lambda Invoke task responded with error for function: " + functionArn
+                    + ". Error: " + errorPayload
+            );
         } else {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task responded with error for function: " + functionArn);
+                "Lambda Invoke task responded with error for function: " + functionArn
+            );
         }
     }
 
     @VisibleForTesting
     Output handleContent(RunContext runContext, String functionArn, ContentType contentType,
-            SdkBytes payload) {
+        SdkBytes payload) {
         var logger = runContext.logger();
         try (var dataStream = payload.asInputStream()) {
             File tempFile = runContext.workingDir().createTempFile().toFile();
@@ -324,16 +328,19 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             runContext.metric(Counter.of("file.size", size));
             var uri = runContext.storage().putFile(tempFile);
             if (logger.isDebugEnabled()) {
-                logger.debug("Lambda invokation task completed {}: response type: {}, file: `{}",
-                        functionArn, contentType, uri);
+                logger.debug(
+                    "Lambda invokation task completed {}: response type: {}, file: `{}",
+                    functionArn, contentType, uri
+                );
             }
             return Output.builder()
-                    .uri(uri)
-                    .contentLength(size)
-                    .contentType(contentType.toString()).build();
+                .uri(uri)
+                .contentLength(size)
+                .contentType(contentType.toString()).build();
         } catch (IOException e) {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task failed to read data for function: " + functionArn, e);
+                "Lambda Invoke task failed to read data for function: " + functionArn, e
+            );
         }
     }
 

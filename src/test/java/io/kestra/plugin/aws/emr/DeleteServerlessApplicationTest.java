@@ -1,17 +1,19 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
 import software.amazon.awssdk.services.emrserverless.model.DeleteApplicationRequest;
 import software.amazon.awssdk.services.emrserverless.model.DeleteApplicationResponse;
-
-import java.util.List;
-import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -36,12 +38,14 @@ class DeleteServerlessApplicationTest {
             .thenReturn(DeleteApplicationResponse.builder().build());
 
         // Build task and spy it to override client(runContext)
-        var task = spy(DeleteServerlessApplication.builder()
-            .id("delete_app")
-            .type(DeleteServerlessApplication.class.getName())
-            .region(Property.ofValue("eu-central-1"))
-            .applicationIds(Property.ofValue(List.of("00f123abc456xyz", "11g789def012uvw")))
-            .build());
+        var task = spy(
+            DeleteServerlessApplication.builder()
+                .id("delete_app")
+                .type(DeleteServerlessApplication.class.getName())
+                .region(Property.ofValue("eu-central-1"))
+                .applicationIds(Property.ofValue(List.of("00f123abc456xyz", "11g789def012uvw")))
+                .build()
+        );
 
         // Force task to use mocked client instead of real AWS client
         doReturn(client).when(task).client(any());
@@ -51,8 +55,7 @@ class DeleteServerlessApplicationTest {
 
         // Capture the Consumer<DeleteApplicationRequest.Builder> arguments
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Consumer<DeleteApplicationRequest.Builder>> captor =
-            ArgumentCaptor.forClass(Consumer.class);
+        ArgumentCaptor<Consumer<DeleteApplicationRequest.Builder>> captor = ArgumentCaptor.forClass(Consumer.class);
 
         verify(client, times(2)).deleteApplication(captor.capture());
 
@@ -80,12 +83,14 @@ class DeleteServerlessApplicationTest {
             .thenReturn(DeleteApplicationResponse.builder().build());
 
         // Build task for a single application deletion
-        var task = spy(DeleteServerlessApplication.builder()
-            .id("delete_app")
-            .type(DeleteServerlessApplication.class.getName())
-            .region(Property.ofValue("eu-central-1"))
-            .applicationIds(Property.ofValue(List.of("app-123")))
-            .build());
+        var task = spy(
+            DeleteServerlessApplication.builder()
+                .id("delete_app")
+                .type(DeleteServerlessApplication.class.getName())
+                .region(Property.ofValue("eu-central-1"))
+                .applicationIds(Property.ofValue(List.of("app-123")))
+                .build()
+        );
 
         // Force task to use mocked client
         doReturn(client).when(task).client(any());
@@ -93,8 +98,7 @@ class DeleteServerlessApplicationTest {
         task.run(runContext);
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Consumer<DeleteApplicationRequest.Builder>> captor =
-            ArgumentCaptor.forClass(Consumer.class);
+        ArgumentCaptor<Consumer<DeleteApplicationRequest.Builder>> captor = ArgumentCaptor.forClass(Consumer.class);
 
         verify(client, times(1)).deleteApplication(captor.capture());
 
@@ -112,12 +116,14 @@ class DeleteServerlessApplicationTest {
         EmrServerlessClient client = mock(EmrServerlessClient.class);
 
         // Build task with an empty list of application IDs
-        var task = spy(DeleteServerlessApplication.builder()
-            .id("delete_app")
-            .type(DeleteServerlessApplication.class.getName())
-            .region(Property.ofValue("eu-central-1"))
-            .applicationIds(Property.ofValue(List.of()))
-            .build());
+        var task = spy(
+            DeleteServerlessApplication.builder()
+                .id("delete_app")
+                .type(DeleteServerlessApplication.class.getName())
+                .region(Property.ofValue("eu-central-1"))
+                .applicationIds(Property.ofValue(List.of()))
+                .build()
+        );
 
         // Force task to use mocked client
         doReturn(client).when(task).client(any());

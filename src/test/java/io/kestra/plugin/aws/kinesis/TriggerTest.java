@@ -1,19 +1,18 @@
 package io.kestra.plugin.aws.kinesis;
 
-import io.kestra.core.models.conditions.ConditionContext;
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.plugin.aws.kinesis.model.Record;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.*;
-import software.amazon.awssdk.services.kinesis.model.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.junit.jupiter.api.*;
+
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.aws.kinesis.model.Record;
+
+import software.amazon.awssdk.services.kinesis.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;

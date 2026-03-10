@@ -1,13 +1,15 @@
 package io.kestra.plugin.aws.cloudformation;
 
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;

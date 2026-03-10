@@ -1,8 +1,15 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.reactivestreams.Publisher;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -11,23 +18,16 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
-
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
 @ToString
@@ -197,11 +197,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     }
 
     public Flux<Message> publisher(final Consume task,
-                                   final RunContext runContext) throws Exception {
+        final RunContext runContext) throws Exception {
         var renderedQueueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
 
         return Flux.create(
-            fluxSink -> {
+            fluxSink ->
+            {
                 try (SqsAsyncClient sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
                     while (isActive.get()) {
                         ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
@@ -218,11 +219,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             response.messages().forEach(message -> fluxSink.next(Message.builder().data(message.body()).build()));
 
                             if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
-                                response.messages().forEach(message ->
-                                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                        .queueUrl(renderedQueueUrl)
-                                        .receiptHandle(message.receiptHandle())
-                                        .build()
+                                response.messages().forEach(
+                                    message -> sqsClient.deleteMessage(
+                                        DeleteMessageRequest.builder()
+                                            .queueUrl(renderedQueueUrl)
+                                            .receiptHandle(message.receiptHandle())
+                                            .build()
                                     )
                                 );
                             }
@@ -239,7 +241,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     fluxSink.complete();
                     this.waitForTermination.countDown();
                 }
-            });
+            }
+        );
     }
 
     /**

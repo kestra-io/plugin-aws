@@ -1,9 +1,8 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
-import io.swagger.v3.oas.annotations.media.Schema;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 public interface ListInterface {
@@ -48,8 +47,8 @@ public interface ListInterface {
 
     @Schema(
         title = "A regexp to filter on full key.",
-        description = "ex:\n"+
-            "`regExp: .*` to match all files\n"+
+        description = "ex:\n" +
+            "`regExp: .*` to match all files\n" +
             "`regExp: .*2020-01-0.\\\\.csv` to match files between 01 and 09 of january ending with `.csv`"
     )
     Property<String> getRegexp();
@@ -58,7 +57,6 @@ public interface ListInterface {
         title = "The type of objects to filter: files, directory, or both."
     )
     Property<Filter> getFilter();
-
 
     enum Filter {
         FILES,

@@ -1,5 +1,10 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.time.Duration;
+import java.util.*;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -8,15 +13,11 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import jakarta.validation.constraints.NotNull;
-import org.slf4j.Logger;
-
-import java.time.Duration;
-import java.util.*;
 
 @SuperBuilder
 @ToString

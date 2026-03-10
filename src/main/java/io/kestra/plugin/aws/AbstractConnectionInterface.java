@@ -1,11 +1,12 @@
 package io.kestra.plugin.aws;
 
+import java.time.Duration;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
-import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.Duration;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface AbstractConnectionInterface {
 
@@ -81,7 +82,7 @@ public interface AbstractConnectionInterface {
         title = "Force path style access.",
         description = "Must only be used when `compatibilityMode` is enabled."
     )
-    default Property<Boolean> getForcePathStyle()  {
+    default Property<Boolean> getForcePathStyle() {
         return Property.ofValue(false);
     }
 

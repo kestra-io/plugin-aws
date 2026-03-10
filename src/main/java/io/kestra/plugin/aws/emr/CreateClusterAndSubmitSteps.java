@@ -1,5 +1,10 @@
 package io.kestra.plugin.aws.emr;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -8,16 +13,12 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
 import io.kestra.plugin.aws.emr.models.StepConfig;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emr.model.*;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -160,10 +161,10 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
     @Schema(
         title = "EC2 subnet ID",
         description = """
-        Applies to clusters that use the uniform instance group configuration.
-        To launch the cluster in Amazon Virtual Private Cloud (Amazon VPC), set this parameter to the identifier of the Amazon VPC subnet where you want the cluster to launch.
-        If you do not specify this value and your account supports EC2-Classic, the cluster launches in EC2-Classic.
-        """
+            Applies to clusters that use the uniform instance group configuration.
+            To launch the cluster in Amazon Virtual Private Cloud (Amazon VPC), set this parameter to the identifier of the Amazon VPC subnet where you want the cluster to launch.
+            If you do not specify this value and your account supports EC2-Classic, the cluster launches in EC2-Classic.
+            """
     )
     private Property<String> ec2SubnetId;
 
@@ -214,9 +215,11 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
                 .serviceRole(runContext.render(this.serviceRole).as(String.class).orElse(null))
                 .jobFlowRole(runContext.render(this.jobFlowRole).as(String.class).orElse(null))
                 .instances(instancesConfig)
-                .steps(steps == null ? null : steps.stream()
-                    .map(throwFunction(step -> step.toStep(runContext)))
-                    .toList()
+                .steps(
+                    steps == null ? null
+                        : steps.stream()
+                            .map(throwFunction(step -> step.toStep(runContext)))
+                            .toList()
                 )
                 .visibleToAllUsers(runContext.render(this.visibleToAllUsers).as(Boolean.class).orElseThrow())
                 .build();
@@ -235,7 +238,8 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
             final AtomicReference<DescribeClusterResponse> responseReference = new AtomicReference<>();
             try {
                 Await.until(
-                    () -> {
+                    () ->
+                    {
                         responseReference.set(emrClient.describeCluster(r -> r.clusterId(jobFlowId)));
                         ClusterState clusterState = responseReference.get().cluster().status().state();
 

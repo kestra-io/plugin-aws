@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.athena;
 
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
-
-import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -82,15 +84,17 @@ class QueryTest {
                     .build()
             );
 
-        Query task = spy(Query.builder()
-            .id("athena_store_test")
-            .type(Query.class.getName())
-            .database(Property.ofValue("db"))
-            .outputLocation(Property.ofValue("s3://dummy"))
-            .query(Property.ofValue("select 1"))
-            .fetchType(Property.ofValue(FetchType.FETCH))
-            .skipHeader(Property.ofValue(false))
-            .build());
+        Query task = spy(
+            Query.builder()
+                .id("athena_store_test")
+                .type(Query.class.getName())
+                .database(Property.ofValue("db"))
+                .outputLocation(Property.ofValue("s3://dummy"))
+                .query(Property.ofValue("select 1"))
+                .fetchType(Property.ofValue(FetchType.FETCH))
+                .skipHeader(Property.ofValue(false))
+                .build()
+        );
 
         doReturn(client).when(task).athenaClient(any());
 

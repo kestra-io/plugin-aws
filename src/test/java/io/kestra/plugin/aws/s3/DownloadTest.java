@@ -1,11 +1,12 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.utils.IdUtils;
+import java.net.URI;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.net.URI;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.utils.IdUtils;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -85,11 +86,13 @@ class DownloadTest extends AbstractTest {
         Download.Output outputFolder1 = downloadFolder1.run(runContext(downloadFolder1));
         assertThat(outputFolder1.getFiles().size(), is(3));
 
-        assertThat(outputFolder1.getFiles().keySet(), hasItems(
-            containsString("a1.txt"),
-            containsString("a2.txt"),
-            containsString("b1.json")
-        ));
+        assertThat(
+            outputFolder1.getFiles().keySet(), hasItems(
+                containsString("a1.txt"),
+                containsString("a2.txt"),
+                containsString("b1.json")
+            )
+        );
 
         // Test 2: Download only from folder1 with delimiter (only direct files in folder1)
         Download downloadFolder1Direct = Download.builder()
@@ -106,9 +109,11 @@ class DownloadTest extends AbstractTest {
 
         Download.Output outputFolder1Direct = downloadFolder1Direct.run(runContext(downloadFolder1Direct));
         assertThat(outputFolder1Direct.getFiles().size(), is(1));
-        assertThat(outputFolder1Direct.getFiles().keySet(), hasItems(
-            containsString("b1.json")
-        ));
+        assertThat(
+            outputFolder1Direct.getFiles().keySet(), hasItems(
+                containsString("b1.json")
+            )
+        );
 
         // Test 3: Use regexp to filter only .txt files from the entire hierarchy
         Download downloadTxtFiles = Download.builder()
@@ -126,10 +131,12 @@ class DownloadTest extends AbstractTest {
         Download.Output outputTxtFiles = downloadTxtFiles.run(runContext(downloadTxtFiles));
         assertThat(outputTxtFiles.getFiles().size(), is(2));
 
-        assertThat(outputTxtFiles.getFiles().keySet(), hasItems(
-            containsString("a1.txt"),
-            containsString("a2.txt")
-        ));
+        assertThat(
+            outputTxtFiles.getFiles().keySet(), hasItems(
+                containsString("a1.txt"),
+                containsString("a2.txt")
+            )
+        );
     }
 
     private void uploadFile(URI source, String key) throws Exception {
@@ -160,7 +167,6 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .region(Property.ofValue(localstack.getRegion()))
             .build();
-
 
         IllegalArgumentException exception = assertThrows(
             IllegalArgumentException.class,

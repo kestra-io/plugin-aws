@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -49,7 +50,7 @@ public class Delete extends AbstractCloudFormation implements RunnableTask<VoidO
         CloudFormationClient cfClient = this.cfClient(runContext);
         String rStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
         Boolean rWaitForCompletion = runContext.render(this.waitForCompletion).as(Boolean.class).orElse(true);
-        
+
         runContext.logger().info("Attempting to delete CloudFormation stack '{}'", rStackName);
 
         DeleteStackRequest deleteRequest = DeleteStackRequest.builder()
@@ -62,8 +63,7 @@ public class Delete extends AbstractCloudFormation implements RunnableTask<VoidO
             runContext.logger().info("Waiting for stack '{}' deletion to complete.", rStackName);
             try (CloudFormationWaiter waiter = cfClient.waiter()) {
                 waiter.waitUntilStackDeleteComplete(r -> r.stackName(rStackName));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 runContext.logger().error("Error while waiting for stack '{}' deletion to complete: {}", rStackName, e.getMessage());
                 throw e;
             }

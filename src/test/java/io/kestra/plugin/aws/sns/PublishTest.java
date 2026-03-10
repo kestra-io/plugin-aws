@@ -1,11 +1,12 @@
 package io.kestra.plugin.aws.sns;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.plugin.aws.sns.model.Message;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.util.List;
+import io.kestra.core.models.property.Property;
+import io.kestra.plugin.aws.sns.model.Message;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;

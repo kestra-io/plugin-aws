@@ -1,5 +1,16 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -7,9 +18,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
+
 import software.amazon.awssdk.crt.CRT;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -20,13 +29,6 @@ import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwPredicate;
 
@@ -65,8 +67,7 @@ public class S3Service {
         Copy.CopyObject moveTo,
         RunContext runContext,
         AbstractS3ObjectInterface abstractS3Object,
-        AbstractConnectionInterface abstractS3
-    ) throws Exception {
+        AbstractConnectionInterface abstractS3) throws Exception {
         var renderedAction = runContext.render(action).as(ActionInterface.Action.class).orElseThrow();
         if (renderedAction == ActionInterface.Action.DELETE) {
             for (S3Object object : s3Objects) {
@@ -105,16 +106,21 @@ public class S3Service {
                     .stsRoleSessionName(abstractS3.getStsRoleSessionName())
                     .stsRoleSessionDuration(abstractS3.getStsRoleSessionDuration())
                     .stsEndpointOverride(abstractS3.getStsEndpointOverride())
-                    .from(Copy.CopyObjectFrom.builder()
-                        .bucket(abstractS3Object.getBucket())
-                        .key(Property.ofValue(object.getKey()))
-                        .build()
+                    .from(
+                        Copy.CopyObjectFrom.builder()
+                            .bucket(abstractS3Object.getBucket())
+                            .key(Property.ofValue(object.getKey()))
+                            .build()
                     )
-                    .to(moveTo.toBuilder()
-                        .key(Property.ofValue(StringUtils.stripEnd(moveTo.getKey() + "/", "/")
-                            + "/" + FilenameUtils.getName(object.getKey())
-                        ))
-                        .build()
+                    .to(
+                        moveTo.toBuilder()
+                            .key(
+                                Property.ofValue(
+                                    StringUtils.stripEnd(moveTo.getKey() + "/", "/")
+                                        + "/" + FilenameUtils.getName(object.getKey())
+                                )
+                            )
+                            .build()
                     )
                     .delete(Property.ofValue(true))
                     .build();
@@ -165,11 +171,9 @@ public class S3Service {
     }
 
     private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
-        return
-            (regExp == null || object.key().matches(regExp)) &&
+        return (regExp == null || object.key().matches(regExp)) &&
             (filter == ListInterface.Filter.BOTH ||
                 (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
-                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/"))
-            );
+                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/")));
     }
 }

@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -93,10 +94,12 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
             String rEntryPoint = runContext.render(entryPoint).as(String.class).orElseThrow();
 
             // 1. Create Application
-            CreateApplicationResponse app = client.createApplication(CreateApplicationRequest.builder()
-                .releaseLabel(rReleaseLabel)
-                .type(rApplicationType)
-                .build());
+            CreateApplicationResponse app = client.createApplication(
+                CreateApplicationRequest.builder()
+                    .releaseLabel(rReleaseLabel)
+                    .type(rApplicationType)
+                    .build()
+            );
 
             // 2. Start Job
             StartJobRunRequest.Builder jobBuilder = StartJobRunRequest.builder()

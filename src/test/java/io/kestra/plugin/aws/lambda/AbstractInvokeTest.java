@@ -1,20 +1,22 @@
 package io.kestra.plugin.aws.lambda;
 
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
+import java.io.InputStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.plugin.aws.AbstractLocalStackTest;
+
+import jakarta.inject.Inject;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.services.lambda.LambdaClient;
-import software.amazon.awssdk.services.lambda.model.Runtime;
 import software.amazon.awssdk.services.lambda.model.*;
+import software.amazon.awssdk.services.lambda.model.Runtime;
 import software.amazon.awssdk.services.lambda.waiters.LambdaWaiter;
-
-import java.io.InputStream;
 
 @KestraTest
 @Testcontainers
@@ -30,7 +32,6 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
-
 
     void createFunction(LambdaClient client) {
         if (client.listFunctions().functions().stream().noneMatch(config -> config.functionName().equals(FUNCTION_NAME))) {
@@ -53,15 +54,12 @@ public class AbstractInvokeTest extends AbstractLocalStackTest {
 
             // Create a Lambda function using a waiter.
             CreateFunctionResponse functionResponse = client.createFunction(functionRequest);
-            GetFunctionRequest getFunctionRequest =
-                GetFunctionRequest.builder().functionName(FUNCTION_NAME).build();
-            WaiterResponse<GetFunctionResponse> waiterResponse =
-                waiter.waitUntilFunctionActiveV2(getFunctionRequest);
+            GetFunctionRequest getFunctionRequest = GetFunctionRequest.builder().functionName(FUNCTION_NAME).build();
+            WaiterResponse<GetFunctionResponse> waiterResponse = waiter.waitUntilFunctionActiveV2(getFunctionRequest);
             waiterResponse.matched().response().ifPresent(s -> LOG.info("{}", s));
             // FYI ARN can be found as follows
             //functionArn = functionResponse.functionArn();
         }
     }
-
 
 }

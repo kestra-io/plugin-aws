@@ -1,20 +1,5 @@
 package io.kestra.plugin.aws.eventbridge;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.plugin.aws.eventbridge.model.Entry;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -22,6 +7,23 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.eventbridge.model.Entry;
+
+import jakarta.inject.Inject;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.extern.jackson.Jacksonized;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -54,29 +56,35 @@ class PutEventsTest extends AbstractLocalStackTest {
         Entry entry = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
         Entry entry2 = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra 2",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra 2",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
         Entry entry3 = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra 3",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra 3",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
         var put = PutEvents.builder()
             .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
@@ -85,7 +93,6 @@ class PutEventsTest extends AbstractLocalStackTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .entries(List.of(entry, entry2, entry3))
             .build();
-
 
         List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
         assertThat(outputEntries, hasSize(3));
@@ -112,29 +119,35 @@ class PutEventsTest extends AbstractLocalStackTest {
         Entry entry = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
         Entry entry2 = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra 2",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra 2",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
         Entry entry3 = Entry.builder()
             .source("Kestra")
             .detailType("hello")
-            .detail(Map.of(
-                "details", "hello from kestra 3",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .detail(
+                Map.of(
+                    "details", "hello from kestra 3",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
 
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
@@ -149,7 +162,6 @@ class PutEventsTest extends AbstractLocalStackTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .entries(runContext.storage().putFile(tempFile).toString())
             .build();
-
 
         List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
 
@@ -179,10 +191,12 @@ class PutEventsTest extends AbstractLocalStackTest {
             .source("Kestra")
             .detailType("hello")
             .detail("{\"details\": \"hello from kestra\", \"firstname\": \"Jane\", \"lastname\": \"Doe\"}")
-            .resources(List.of(
-                "arn:aws:iam::123456789012:user/johndoe",
-                "arn:aws:iam::123456789012:user/janeoe"
-            ))
+            .resources(
+                List.of(
+                    "arn:aws:iam::123456789012:user/johndoe",
+                    "arn:aws:iam::123456789012:user/janeoe"
+                )
+            )
             .build();
         var put = PutEvents.builder()
             .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
@@ -209,10 +223,12 @@ class PutEventsTest extends AbstractLocalStackTest {
             .Source("Kestra")
             .DetailType("hello")
             .Detail("{\"details\": \"hello from kestra\", \"firstname\": \"Jane\", \"lastname\": \"Doe\"}")
-            .Resources(List.of(
-                "arn:aws:iam::123456789012:user/johndoe",
-                "arn:aws:iam::123456789012:user/janeoe"
-            ))
+            .Resources(
+                List.of(
+                    "arn:aws:iam::123456789012:user/johndoe",
+                    "arn:aws:iam::123456789012:user/janeoe"
+                )
+            )
             .build();
         var put = PutEvents.builder()
             .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))

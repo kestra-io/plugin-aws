@@ -1,9 +1,18 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -17,9 +26,8 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.kinesis.model.Record;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -29,14 +37,6 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
-
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -147,7 +147,7 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
     @Schema(
         title = "Records",
         description = "List of records or kestra:// URI to an ION file of records. Each requires data and partitionKey; optional explicitHashKey.",
-        anyOf = {String.class, Record[].class}
+        anyOf = { String.class, Record[].class }
     )
     @NotNull
     private Object records;
@@ -195,11 +195,9 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
                 throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
             }
 
-
             List<PutRecordsRequestEntry> putRecordsRequestEntryList = records.stream()
                 .map(throwFunction(record -> record.toPutRecordsRequestEntry(runContext)))
                 .collect(Collectors.toList());
-
 
             builder.records(putRecordsRequestEntryList);
             return client.putRecords(builder.build());
@@ -230,13 +228,15 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             Flux.fromIterable(records)
-                .zipWithIterable(putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
-                    .record(record)
-                    .sequenceNumber(response.sequenceNumber())
-                    .shardId(response.shardId())
-                    .errorCode(response.errorCode())
-                    .errorMessage(response.errorMessage())
-                    .build())
+                .zipWithIterable(
+                    putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
+                        .record(record)
+                        .sequenceNumber(response.sequenceNumber())
+                        .shardId(response.shardId())
+                        .errorCode(response.errorCode())
+                        .errorMessage(response.errorMessage())
+                        .build()
+                )
                 .doOnEach(throwConsumer(outputEntry -> FileSerde.write(stream, outputEntry.get())))
                 .collectList()
                 .block();

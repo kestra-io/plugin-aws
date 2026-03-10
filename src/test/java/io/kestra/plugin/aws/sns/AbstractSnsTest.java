@@ -1,10 +1,12 @@
 package io.kestra.plugin.aws.sns;
 
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
+
 import jakarta.inject.Inject;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
 

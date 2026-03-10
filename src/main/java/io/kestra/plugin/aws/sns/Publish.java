@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.sns;
 
+import java.util.List;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,13 +11,12 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.sns.model.Message;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
-
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -93,7 +94,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
     @Schema(
         title = Data.From.TITLE,
         description = Data.From.DESCRIPTION,
-        anyOf = {String.class, List.class, Message.class}
+        anyOf = { String.class, List.class, Message.class }
     )
     private Object from;
 
@@ -103,7 +104,8 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
         try (var snsClient = this.client(runContext)) {
             Integer count = Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
-                .map(throwFunction(message -> {
+                .map(throwFunction(message ->
+                {
                     var publishRequest = message.to(PublishRequest.builder().topicArn(topicArn), runContext);
                     snsClient.publish(publishRequest);
                     return 1;

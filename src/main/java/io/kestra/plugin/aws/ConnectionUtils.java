@@ -1,7 +1,12 @@
 package io.kestra.plugin.aws;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import java.net.URI;
+import java.time.Duration;
+
 import org.apache.commons.lang3.StringUtils;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+
 import software.amazon.awssdk.auth.credentials.*;
 import software.amazon.awssdk.awscore.AwsClient;
 import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
@@ -15,15 +20,12 @@ import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
-import java.net.URI;
-import java.time.Duration;
-
 public class ConnectionUtils {
     /**
      * Factory method for constructing a new {@link AwsCredentialsProvider} for the given AWS Client config.
      *
      * @param awsClientConfig The AwsClientConfig.
-     * @return  a new {@link AwsCredentialsProvider} instance.
+     * @return a new {@link AwsCredentialsProvider} instance.
      */
     public static AwsCredentialsProvider credentialsProvider(final AbstractConnection.AwsClientConfig awsClientConfig) {
 
@@ -33,8 +35,10 @@ public class ConnectionUtils {
         }
 
         // StaticCredentialsProvider
-        if (StringUtils.isNotEmpty(awsClientConfig.accessKeyId()) &&
-            StringUtils.isNotEmpty(awsClientConfig.secretKeyId())) {
+        if (
+            StringUtils.isNotEmpty(awsClientConfig.accessKeyId()) &&
+                StringUtils.isNotEmpty(awsClientConfig.secretKeyId())
+        ) {
             return staticCredentialsProvider(awsClientConfig);
         }
 
@@ -81,15 +85,13 @@ public class ConnectionUtils {
         StsClientBuilder builder = StsClient.builder();
 
         final String stsEndpointOverride = awsClientConfig.stsEndpointOverride();
-        if(StringUtils.isNotBlank(stsEndpointOverride)) {
-            builder.applyMutation(stsClientBuilder ->
-                stsClientBuilder.endpointOverride(URI.create(stsEndpointOverride.trim())));
+        if (StringUtils.isNotBlank(stsEndpointOverride)) {
+            builder.applyMutation(stsClientBuilder -> stsClientBuilder.endpointOverride(URI.create(stsEndpointOverride.trim())));
         }
 
         final String regionString = awsClientConfig.region();
         if (regionString != null) {
-            builder.applyMutation(stsClientBuilder ->
-                stsClientBuilder.region(Region.of(regionString)));
+            builder.applyMutation(stsClientBuilder -> stsClientBuilder.region(Region.of(regionString)));
         }
         return builder.build();
     }
@@ -131,11 +133,12 @@ public class ConnectionUtils {
 
         builder
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
-            .httpClientBuilder(serviceDefaults -> NettyNioAsyncHttpClient
-                .builder()
-                .maxConcurrency(maxConcurrency)
-                .connectionAcquisitionTimeout(connectionAcquisitionTimeout)
-                .build()
+            .httpClientBuilder(
+                serviceDefaults -> NettyNioAsyncHttpClient
+                    .builder()
+                    .maxConcurrency(maxConcurrency)
+                    .connectionAcquisitionTimeout(connectionAcquisitionTimeout)
+                    .build()
             )
             .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
         return configureClient(clientConfig, builder);

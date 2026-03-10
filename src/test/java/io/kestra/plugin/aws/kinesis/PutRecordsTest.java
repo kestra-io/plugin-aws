@@ -1,8 +1,24 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.util.List;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
@@ -10,31 +26,18 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.aws.kinesis.model.Record;
-import io.kestra.core.junit.annotations.KestraTest;
+
 import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.KinesisClientBuilder;
 import software.amazon.awssdk.services.kinesis.model.*;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -56,10 +59,12 @@ class PutRecordsTest {
         localstack.start();
 
         KinesisClient client = client(localstack);
-        client.createStream(CreateStreamRequest.builder()
-            .streamName("streamName")
-            .streamModeDetails(StreamModeDetails.builder().streamMode(StreamMode.PROVISIONED).build())
-            .build());
+        client.createStream(
+            CreateStreamRequest.builder()
+                .streamName("streamName")
+                .streamModeDetails(StreamModeDetails.builder().streamMode(StreamMode.PROVISIONED).build())
+                .build()
+        );
         DescribeStreamResponse stream = client.describeStream(DescribeStreamRequest.builder().streamName("streamName").build());
         while (stream.streamDescription().streamStatus() != StreamStatus.ACTIVE) {
             stream = client.describeStream(DescribeStreamRequest.builder().streamName("streamName").build());
@@ -88,10 +93,14 @@ class PutRecordsTest {
 
     private static KinesisClient client(LocalStackContainer runContext) throws IllegalVariableEvaluationException {
         KinesisClientBuilder builder = KinesisClient.builder()
-            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
-                localstack.getAccessKey(),
-                localstack.getSecretKey()
-            )))
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(
+                        localstack.getAccessKey(),
+                        localstack.getSecretKey()
+                    )
+                )
+            )
             .region(Region.of(localstack.getRegion()))
             .endpointOverride(localstack.getEndpoint());
 
@@ -124,7 +133,6 @@ class PutRecordsTest {
             .streamName(Property.ofValue("streamName"))
             .records(List.of(record, record2, record3))
             .build();
-
 
         List<PutRecords.OutputEntry> outputEntries = getOutputEntries(put, runContext);
         assertThat(outputEntries, hasSize(3));
@@ -177,7 +185,6 @@ class PutRecordsTest {
             .streamName(Property.ofValue("streamName"))
             .build();
 
-
         List<PutRecords.OutputEntry> outputEntries = getOutputEntries(put, runContext);
 
         assertThat(outputEntries, hasSize(3));
@@ -229,7 +236,6 @@ class PutRecordsTest {
             .records(runContext.storage().putFile(tempFile).toString())
             .streamName(Property.ofValue("streamName"))
             .build();
-
 
         List<PutRecords.OutputEntry> outputEntries = getOutputEntries(put, runContext);
 

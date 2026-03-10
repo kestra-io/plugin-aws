@@ -1,25 +1,27 @@
 package io.kestra.plugin.aws.s3;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
-import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -122,7 +124,6 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     )
     private Property<String> expectedBucketOwner;
 
-
     @Override
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
@@ -132,7 +133,9 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         } else if (isValidMultipleFilesMode()) {
             return downloadMultipleFiles(runContext, bucket);
         } else {
-            throw new IllegalArgumentException("Invalid configuration: either specify 'key' for single file download or at least one filtering parameter (prefix, delimiter, regexp) for multiple files download");
+            throw new IllegalArgumentException(
+                "Invalid configuration: either specify 'key' for single file download or at least one filtering parameter (prefix, delimiter, regexp) for multiple files download"
+            );
         }
     }
 
@@ -198,14 +201,16 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
                 String key = object.getKey();
-                files.put(key, FileInfo.builder()
-                    .uri(download.getRight())
-                    .contentLength(download.getLeft().contentLength())
-                    .contentType(download.getLeft().contentType())
-                    .metadata(download.getLeft().metadata())
-                    .eTag(download.getLeft().eTag())
-                    .versionId(download.getLeft().versionId())
-                    .build());
+                files.put(
+                    key, FileInfo.builder()
+                        .uri(download.getRight())
+                        .contentLength(download.getLeft().contentLength())
+                        .contentType(download.getLeft().contentType())
+                        .metadata(download.getLeft().metadata())
+                        .eTag(download.getLeft().eTag())
+                        .versionId(download.getLeft().versionId())
+                        .build()
+                );
             }
 
             return Output.builder()

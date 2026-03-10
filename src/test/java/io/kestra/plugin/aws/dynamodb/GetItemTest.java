@@ -1,11 +1,13 @@
 package io.kestra.plugin.aws.dynamodb;
 
-import io.kestra.core.models.property.Property;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
-import software.amazon.awssdk.services.dynamodb.model.*;
 
-import java.util.Map;
+import io.kestra.core.models.property.Property;
+
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -30,9 +32,9 @@ class GetItemTest extends AbstractDynamoDbTest {
         // create something to get
         try (var dynamoDbClient = get.client(runContext)) {
             Map<String, AttributeValue> item = Map.of(
-                "id",  AttributeValue.builder().s("1").build(),
-                "firstname",  AttributeValue.builder().s("John").build(),
-                "lastname",  AttributeValue.builder().s("Doe").build()
+                "id", AttributeValue.builder().s("1").build(),
+                "firstname", AttributeValue.builder().s("John").build(),
+                "lastname", AttributeValue.builder().s("Doe").build()
             );
 
             var putRequest = PutItemRequest.builder()

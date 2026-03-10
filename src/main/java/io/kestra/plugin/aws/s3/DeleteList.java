@@ -1,5 +1,11 @@
 package io.kestra.plugin.aws.s3;
 
+import java.util.NoSuchElementException;
+import java.util.function.Function;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,21 +15,16 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-
-import java.util.NoSuchElementException;
-import java.util.function.Function;
-
-import jakarta.validation.constraints.Min;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -109,13 +110,13 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         Logger logger = runContext.logger();
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
 
-
         try (S3Client client = this.client(runContext)) {
             Flux<S3Object> flowable = Flux
-                .create(throwConsumer(emitter -> {
+                .create(throwConsumer(emitter ->
+                {
                     S3Service
                         .list(runContext, client, this, this)
-                            .forEach(emitter::next);
+                        .forEach(emitter::next);
 
                     emitter.complete();
                 }), FluxSink.OverflowStrategy.BUFFER);
@@ -141,10 +142,11 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
             runContext.metric(Counter.of("s3.objects.deleted.size", finalResult.getRight()));
 
             if (runContext.render(errorOnEmpty).as(Boolean.class).orElseThrow() && finalResult.getLeft() == 0) {
-                throw new NoSuchElementException("Unable to find any files to delete on " +
-                    runContext.render(this.bucket).as(String.class).orElseThrow() + " " +
-                    "with regexp='" + runContext.render(this.regexp).as(String.class).orElse(null) + "', " +
-                    "prefix='" + runContext.render(this.prefix).as(String.class).orElse(null) + "'"
+                throw new NoSuchElementException(
+                    "Unable to find any files to delete on " +
+                        runContext.render(this.bucket).as(String.class).orElseThrow() + " " +
+                        "with regexp='" + runContext.render(this.regexp).as(String.class).orElse(null) + "', " +
+                        "prefix='" + runContext.render(this.prefix).as(String.class).orElse(null) + "'"
                 );
             }
 
@@ -159,7 +161,8 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     }
 
     private static Function<S3Object, Long> delete(Logger logger, S3Client client, String bucket) {
-        return o -> {
+        return o ->
+        {
             logger.debug("Deleting '{}'", o.getKey());
 
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
@@ -167,7 +170,6 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
                 .key(o.getKey());
 
             client.deleteObject(builder.build());
-
 
             return o.getSize();
         };

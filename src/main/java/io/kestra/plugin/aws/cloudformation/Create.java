@@ -1,21 +1,22 @@
 package io.kestra.plugin.aws.cloudformation;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 import software.amazon.awssdk.services.cloudformation.model.*;
 import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWaiter;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -81,9 +82,11 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
         String rStackName = runContext.render(this.stackName).as(String.class).orElseThrow();
         Boolean rWaitForCompletion = runContext.render(this.waitForCompletion).as(Boolean.class).orElse(true);
 
-        boolean stackExists = cfClient.listStacks(ListStacksRequest.builder()
+        boolean stackExists = cfClient.listStacks(
+            ListStacksRequest.builder()
                 .stackStatusFilters(StackStatus.CREATE_COMPLETE, StackStatus.UPDATE_COMPLETE, StackStatus.UPDATE_ROLLBACK_COMPLETE)
-                .build())
+                .build()
+        )
             .stackSummaries().stream().anyMatch(s -> s.stackName().equals(rStackName));
 
         if (stackExists) {
@@ -99,7 +102,6 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
 
             cfClient.updateStack(updateRequestBuilder.build());
 
-          
         } else {
             runContext.logger().info("Stack '{}' does not exist. Creating new stack.", rStackName);
             CreateStackRequest.Builder createRequestBuilder = CreateStackRequest.builder().stackName(rStackName);
@@ -122,8 +124,7 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
                 } else {
                     waiter.waitUntilStackCreateComplete(r -> r.stackName(rStackName));
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 runContext.logger().error("Error while waiting for stack '{}' operation to complete: {}", rStackName, e.getMessage());
                 throw e;
             }
@@ -137,10 +138,14 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
         return Output.builder()
             .stackId(finalStack.stackId())
             .stackName(finalStack.stackName())
-            .stackOutputs(finalStack.outputs().stream().collect(Collectors.toMap(
-                software.amazon.awssdk.services.cloudformation.model.Output::outputKey,
-                software.amazon.awssdk.services.cloudformation.model.Output::outputValue
-            )))
+            .stackOutputs(
+                finalStack.outputs().stream().collect(
+                    Collectors.toMap(
+                        software.amazon.awssdk.services.cloudformation.model.Output::outputKey,
+                        software.amazon.awssdk.services.cloudformation.model.Output::outputValue
+                    )
+                )
+            )
             .build();
     }
 
@@ -149,17 +154,21 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
             return null;
         }
         return params.entrySet().stream()
-            .map(throwFunction(entry -> Parameter.builder()
-                .parameterKey(entry.getKey())
-                .parameterValue(runContext.render(entry.getValue()))
-                .build()))
+            .map(
+                throwFunction(
+                    entry -> Parameter.builder()
+                        .parameterKey(entry.getKey())
+                        .parameterValue(runContext.render(entry.getValue()))
+                        .build()
+                )
+            )
             .collect(Collectors.toList());
     }
 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        
+
         @Schema(
             title = "Stack ID",
             description = "Unique identifier returned by CloudFormation."
@@ -168,7 +177,7 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
 
         @Schema(
             title = "Stack name"
-        ) 
+        )
         private final String stackName;
 
         @Schema(

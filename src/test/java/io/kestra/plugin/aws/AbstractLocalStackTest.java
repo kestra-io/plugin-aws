@@ -1,11 +1,12 @@
 package io.kestra.plugin.aws;
 
-import io.kestra.core.junit.annotations.KestraTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+
+import io.kestra.core.junit.annotations.KestraTest;
 
 @KestraTest
 @Testcontainers
