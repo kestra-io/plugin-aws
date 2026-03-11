@@ -1,10 +1,11 @@
 package io.kestra.plugin.aws.dynamodb;
 
-import io.kestra.core.models.property.Property;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.util.Map;
+import io.kestra.core.models.property.Property;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -21,11 +22,13 @@ class PutItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(localstack.getAccessKey()))
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .tableName(Property.ofValue("persons"))
-            .item(Map.of(
-                "id", "1",
-                "firstname", "John",
-                "lastname", "Doe"
-            ))
+            .item(
+                Map.of(
+                    "id", "1",
+                    "firstname", "John",
+                    "lastname", "Doe"
+                )
+            )
             .build();
 
         createTable(runContext, put);

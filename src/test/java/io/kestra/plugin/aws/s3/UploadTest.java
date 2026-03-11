@@ -1,12 +1,13 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.aws.s3.models.S3Object;
+import java.net.URI;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.net.URI;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.utils.IdUtils;
+import io.kestra.plugin.aws.s3.models.S3Object;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -60,7 +61,6 @@ class UploadTest extends AbstractTest {
         assertThat(listOutput.getObjects().size(), is(4));
         assertThat(listOutput.getObjects().stream().filter(s3Object -> s3Object.getKey().contains("1.yml")).count(), is(1L));
     }
-
 
     @Test
     void run_singleString() throws Exception {
@@ -233,11 +233,13 @@ class UploadTest extends AbstractTest {
         assertThat(uploadOutput.getKey(), is(baseKey));
         assertThat(uploadOutput.getFiles(), is(notNullValue()));
         assertThat(uploadOutput.getFiles().size(), is(3));
-        assertThat(uploadOutput.getFiles().keySet(), hasItems(
-            "custom/path/renamed1.yml",
-            "another/location/renamed2.yml",
-            "deep/nested/path/renamed3.yml"
-        ));
+        assertThat(
+            uploadOutput.getFiles().keySet(), hasItems(
+                "custom/path/renamed1.yml",
+                "another/location/renamed2.yml",
+                "deep/nested/path/renamed3.yml"
+            )
+        );
 
         // Verify files were uploaded to correct locations
         List list = List.builder()
@@ -253,12 +255,21 @@ class UploadTest extends AbstractTest {
 
         List.Output listOutput = list.run(runContext(list));
         assertThat(listOutput.getObjects().size(), is(3));
-        assertThat(listOutput.getObjects().stream()
-            .anyMatch(obj -> obj.getKey().endsWith("custom/path/renamed1.yml")), is(true));
-        assertThat(listOutput.getObjects().stream()
-            .anyMatch(obj -> obj.getKey().endsWith("another/location/renamed2.yml")), is(true));
-        assertThat(listOutput.getObjects().stream()
-            .anyMatch(obj -> obj.getKey().endsWith("deep/nested/path/renamed3.yml")), is(true));
+        assertThat(
+            listOutput.getObjects().stream()
+                .anyMatch(obj -> obj.getKey().endsWith("custom/path/renamed1.yml")),
+            is(true)
+        );
+        assertThat(
+            listOutput.getObjects().stream()
+                .anyMatch(obj -> obj.getKey().endsWith("another/location/renamed2.yml")),
+            is(true)
+        );
+        assertThat(
+            listOutput.getObjects().stream()
+                .anyMatch(obj -> obj.getKey().endsWith("deep/nested/path/renamed3.yml")),
+            is(true)
+        );
     }
 
     @Test
@@ -295,10 +306,12 @@ class UploadTest extends AbstractTest {
         assertThat(uploadOutput.getKey(), is(baseKey));
         assertThat(uploadOutput.getFiles(), is(notNullValue()));
         assertThat(uploadOutput.getFiles().size(), is(2));
-        assertThat(uploadOutput.getFiles().keySet(), hasItems(
-            "reports/2024/report1.yml",
-            "reports/2024/report2.yml"
-        ));
+        assertThat(
+            uploadOutput.getFiles().keySet(), hasItems(
+                "reports/2024/report1.yml",
+                "reports/2024/report2.yml"
+            )
+        );
 
         // Verify files in S3
         List list = List.builder()

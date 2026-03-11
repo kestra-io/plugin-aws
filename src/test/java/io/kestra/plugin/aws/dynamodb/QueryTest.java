@@ -2,10 +2,6 @@ package io.kestra.plugin.aws.dynamodb;
 
 import java.util.Map;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
@@ -13,8 +9,14 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 
 class QueryTest extends AbstractDynamoDbTest {
 
@@ -76,7 +78,7 @@ class QueryTest extends AbstractDynamoDbTest {
     @Test
     void runFetchWithExpressionNoMatch() throws Exception {
         var runContext = runContextFactory.of();
-        
+
         var query = Query.builder()
             .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
             .region(Property.ofValue(localstack.getRegion()))
@@ -153,7 +155,6 @@ class QueryTest extends AbstractDynamoDbTest {
         assertThat(output.getUri(), is(nullValue()));
     }
 
-
     @Test
     void runStored() throws Exception {
         var runContext = runContextFactory.of();
@@ -184,9 +185,9 @@ class QueryTest extends AbstractDynamoDbTest {
     private void initTable(RunContext runContext, Query query) throws IllegalVariableEvaluationException {
         try (var dynamoDbClient = query.client(runContext)) {
             Map<String, AttributeValue> item = Map.of(
-                "id",  AttributeValue.builder().s("1").build(),
-                "firstname",  AttributeValue.builder().s("John").build(),
-                "lastname",  AttributeValue.builder().s("Doe").build()
+                "id", AttributeValue.builder().s("1").build(),
+                "firstname", AttributeValue.builder().s("John").build(),
+                "lastname", AttributeValue.builder().s("Doe").build()
             );
             var putRequest = PutItemRequest.builder()
                 .tableName("persons")
@@ -195,9 +196,9 @@ class QueryTest extends AbstractDynamoDbTest {
             dynamoDbClient.putItem(putRequest);
 
             item = Map.of(
-                "id",  AttributeValue.builder().s("2").build(),
-                "firstname",  AttributeValue.builder().s("Jane").build(),
-                "lastname",  AttributeValue.builder().s("Doe").build()
+                "id", AttributeValue.builder().s("2").build(),
+                "firstname", AttributeValue.builder().s("Jane").build(),
+                "lastname", AttributeValue.builder().s("Doe").build()
             );
             putRequest = PutItemRequest.builder()
                 .tableName("persons")
@@ -206,9 +207,9 @@ class QueryTest extends AbstractDynamoDbTest {
             dynamoDbClient.putItem(putRequest);
 
             item = Map.of(
-                "id",  AttributeValue.builder().s("3").build(),
-                "firstname",  AttributeValue.builder().s("Charles").build(),
-                "lastname",  AttributeValue.builder().s("Baudelaire").build()
+                "id", AttributeValue.builder().s("3").build(),
+                "firstname", AttributeValue.builder().s("Charles").build(),
+                "lastname", AttributeValue.builder().s("Baudelaire").build()
             );
             putRequest = PutItemRequest.builder()
                 .tableName("persons")

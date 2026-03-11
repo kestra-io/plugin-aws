@@ -8,6 +8,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -16,11 +17,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 import software.amazon.awssdk.transfer.s3.model.CompletedCopy;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.transfer.s3.model.CopyRequest;
 
 @SuperBuilder
 @ToString
@@ -85,7 +86,8 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
             S3AsyncClient s3AsyncClient = this.asyncClient(runContext);
             S3TransferManager transferManager = S3TransferManager.builder()
                 .s3Client(s3AsyncClient)
-                .build()) {
+                .build()
+        ) {
 
             CopyObjectRequest.Builder copyObjectBuilder = CopyObjectRequest.builder()
                 .sourceBucket(runContext.render(this.from.bucket).as(String.class).orElseThrow())

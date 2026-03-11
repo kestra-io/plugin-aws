@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws;
 
 import org.junit.jupiter.api.Test;
+
 import software.amazon.awssdk.services.sts.StsClient;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,7 +16,8 @@ class ConnectionUtilsTest {
         when(config.region()).thenReturn("us-east-1");
         when(config.endpointOverride()).thenReturn("");
 
-        assertDoesNotThrow(() -> {
+        assertDoesNotThrow(() ->
+        {
             ConnectionUtils.configureClient(config, StsClient.builder());
         });
     }

@@ -4,10 +4,10 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
-
 
 @SuperBuilder
 @ToString

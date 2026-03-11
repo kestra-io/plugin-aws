@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,6 +10,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -96,7 +98,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
             if (list.size() > rMaxFiles) {
                 runContext.logger().warn(
                     "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
-                    "Increase the maxFiles property if you need more files.",
+                        "Increase the maxFiles property if you need more files.",
                     list.size(), rMaxFiles, rMaxFiles
                 );
                 list = list.subList(0, rMaxFiles);

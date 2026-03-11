@@ -1,23 +1,25 @@
 package io.kestra.plugin.aws.s3;
 
-import com.google.common.io.CharStreams;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.tenant.TenantService;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.S3Exception;
-
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.ExecutionException;
 
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+
+import com.google.common.io.CharStreams;
+
+import io.kestra.core.models.property.Property;
+import io.kestra.core.tenant.TenantService;
+
+import software.amazon.awssdk.services.s3.model.S3Exception;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class AllTest extends AbstractTest{
+class AllTest extends AbstractTest {
     @Test
     void run() throws Exception {
         this.createBucket();

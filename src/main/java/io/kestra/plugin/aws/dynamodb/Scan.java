@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,12 +11,11 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
-
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -72,7 +73,7 @@ import java.util.Map;
         )
     }
 )
-public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
+public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> {
 
     @Schema(
         title = "Fetch strategy",
@@ -99,25 +100,23 @@ public class Scan  extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     )
     private Property<Map<String, Object>> expressionAttributeValues;
 
-
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
         try (var dynamoDb = client(runContext)) {
             var scanBuilder = ScanRequest.builder()
                 .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow());
 
-            if(limit != null) {
+            if (limit != null) {
                 scanBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
             }
-            if(filterExpression != null){
+            if (filterExpression != null) {
                 var attributes = runContext.render(expressionAttributeValues).asMap(String.class, Object.class);
-                if(attributes.isEmpty()){
+                if (attributes.isEmpty()) {
                     throw new IllegalArgumentException("'expressionAttributeValues' must be provided when 'filterExpression' is used");
                 }
                 scanBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
                 scanBuilder.expressionAttributeValues(valueMapFrom(attributes));
             }
-
 
             var scan = scanBuilder.build();
             var items = dynamoDb.scan(scan).items();

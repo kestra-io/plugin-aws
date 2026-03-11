@@ -1,12 +1,14 @@
 package io.kestra.plugin.aws.glue;
 
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.glue.model.Output;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
@@ -46,21 +48,25 @@ class GetJobRunTest {
             .build();
 
         when(glueClient.getJobRuns(any(GetJobRunsRequest.class)))
-            .thenReturn(GetJobRunsResponse.builder()
-                .jobRuns(oldRun, latestRun)
-                .build()
+            .thenReturn(
+                GetJobRunsResponse.builder()
+                    .jobRuns(oldRun, latestRun)
+                    .build()
             );
 
         when(glueClient.getJobRun(any(GetJobRunRequest.class)))
-            .thenReturn(GetJobRunResponse.builder()
-                .jobRun(latestRun)
-                .build()
+            .thenReturn(
+                GetJobRunResponse.builder()
+                    .jobRun(latestRun)
+                    .build()
             );
 
-        GetJobRun task = spy(GetJobRun.builder()
-            .region(Property.ofValue("eu-west-3"))
-            .jobName(Property.ofValue("my-glue-job"))
-            .build());
+        GetJobRun task = spy(
+            GetJobRun.builder()
+                .region(Property.ofValue("eu-west-3"))
+                .jobName(Property.ofValue("my-glue-job"))
+                .build()
+        );
 
         doReturn(glueClient).when(task).glueClient(any(RunContext.class));
 

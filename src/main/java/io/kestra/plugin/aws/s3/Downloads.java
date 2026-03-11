@@ -1,6 +1,14 @@
 package io.kestra.plugin.aws.s3;
 
+import java.net.URI;
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,18 +17,13 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-
-import java.net.URI;
-import java.util.AbstractMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -86,7 +89,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
     @Builder.Default
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
-
     private Property<String> expectedBucketOwner;
 
     protected Property<String> regexp;
@@ -138,7 +140,8 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             java.util.List<S3Object> list = run
                 .getObjects()
                 .stream()
-                .map(throwFunction(object -> {
+                .map(throwFunction(object ->
+                {
                     GetObjectRequest.Builder builder = GetObjectRequest.builder()
                         .bucket(runContext.render(bucket).as(String.class).orElseThrow())
                         .key(object.getKey());

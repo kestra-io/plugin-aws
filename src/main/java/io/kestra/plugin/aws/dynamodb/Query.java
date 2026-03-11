@@ -11,6 +11,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.FetchOutput;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -124,10 +125,10 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
                 .keyConditionExpression(runContext.render(keyConditionExpression).as(String.class).orElseThrow())
                 .expressionAttributeValues(valueMapFrom(runContext.render(expressionAttributeValues).asMap(String.class, Object.class)));
 
-            if(limit != null) {
+            if (limit != null) {
                 queryBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
             }
-            if(filterExpression != null){
+            if (filterExpression != null) {
                 queryBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
             }
 

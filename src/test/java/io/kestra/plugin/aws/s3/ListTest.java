@@ -1,10 +1,11 @@
 package io.kestra.plugin.aws.s3;
 
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;

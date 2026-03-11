@@ -1,17 +1,19 @@
 package io.kestra.plugin.aws.kinesis;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.kinesis.model.Record;
-import org.junit.jupiter.api.*;
-import software.amazon.awssdk.services.kinesis.model.*;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+
+import org.junit.jupiter.api.*;
+
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.aws.kinesis.model.Record;
+
+import software.amazon.awssdk.services.kinesis.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;

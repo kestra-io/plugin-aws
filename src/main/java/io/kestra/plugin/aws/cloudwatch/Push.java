@@ -1,20 +1,20 @@
 package io.kestra.plugin.aws.cloudwatch;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
 import io.kestra.core.models.annotations.*;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -28,35 +28,34 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Writes one or more MetricDatum entries into a CloudWatch namespace. Uses current time for timestamps and optionally sets unit and dimensions."
 )
 @Plugin(
-    examples =
-        @Example(
-            full = true,
-            title = "Push custom metrics to CloudWatch",
-            code = """
-                id: aws_cloudwatch_push
-                namespace: company.team
+    examples = @Example(
+        full = true,
+        title = "Push custom metrics to CloudWatch",
+        code = """
+            id: aws_cloudwatch_push
+            namespace: company.team
 
-                tasks:
-                  - id: push_metric
-                    type: io.kestra.plugin.aws.cloudwatch.Push
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    region: "us-east-1"
-                    namespace: "Custom/MyApp"
-                    metrics:
-                      - metricName: "RequestsCount"
-                        value: 42.0
-                        unit: "Count"
-                        dimensions:
-                          env: "prod"
-                          service: "payments"
-                      - metricName: "LatencyMs"
-                        value: 123.4
-                        unit: "Milliseconds"
-                        dimensions:
-                          env: "prod"
-                          service: "payments"
-                """
+            tasks:
+              - id: push_metric
+                type: io.kestra.plugin.aws.cloudwatch.Push
+                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                region: "us-east-1"
+                namespace: "Custom/MyApp"
+                metrics:
+                  - metricName: "RequestsCount"
+                    value: 42.0
+                    unit: "Count"
+                    dimensions:
+                      env: "prod"
+                      service: "payments"
+                  - metricName: "LatencyMs"
+                    value: 123.4
+                    unit: "Milliseconds"
+                    dimensions:
+                      env: "prod"
+                      service: "payments"
+            """
     )
 )
 public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output> {
@@ -81,7 +80,8 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
 
         try (CloudWatchClient client = this.client(runContext)) {
             List<MetricDatum> data = rMetrics.stream()
-                .map(throwFunction(mv -> {
+                .map(throwFunction(mv ->
+                {
                     var rMetricName = runContext.render(mv.getMetricName()).as(String.class).orElseThrow();
                     var rValue = runContext.render(mv.getValue()).as(Double.class).orElseThrow();
 
@@ -96,10 +96,12 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
                     if (!rDims.isEmpty()) {
                         datum.dimensions(
                             rDims.entrySet().stream()
-                                .map(e -> Dimension.builder()
-                                    .name(e.getKey())
-                                    .value(String.valueOf(e.getValue()))
-                                    .build())
+                                .map(
+                                    e -> Dimension.builder()
+                                        .name(e.getKey())
+                                        .value(String.valueOf(e.getValue()))
+                                        .build()
+                                )
                                 .toList()
                         );
                     }
@@ -108,10 +110,12 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
                 }))
                 .toList();
 
-            client.putMetricData(PutMetricDataRequest.builder()
-                .namespace(rNamespace)
-                .metricData(data)
-                .build());
+            client.putMetricData(
+                PutMetricDataRequest.builder()
+                    .namespace(rNamespace)
+                    .metricData(data)
+                    .build()
+            );
 
             runContext.logger().info("Pushed {} datapoints to CloudWatch namespace {}", data.size(), rNamespace);
 

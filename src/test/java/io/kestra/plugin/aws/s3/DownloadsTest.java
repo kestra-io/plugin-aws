@@ -1,12 +1,11 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextFactory;
-import jakarta.inject.Inject;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.util.Map;
+import io.kestra.core.models.property.Property;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -58,9 +57,10 @@ class DownloadsTest extends AbstractTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .region(Property.ofValue(localstack.getRegion()))
             .action(Property.ofValue(ActionInterface.Action.MOVE))
-            .moveTo(Copy.CopyObject.builder()
-                .key(Property.ofValue("/tasks/s3-move"))
-                .build()
+            .moveTo(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue("/tasks/s3-move"))
+                    .build()
             )
             .build();
 

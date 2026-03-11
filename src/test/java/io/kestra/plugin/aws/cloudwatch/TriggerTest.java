@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.cloudwatch;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.utils.IdUtils;
-import io.kestra.core.models.property.Property;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedConstruction;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
+
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -35,12 +37,16 @@ class TriggerTest {
             .statistic(Property.ofValue("Average"))
             .periodSeconds(Property.ofValue(60))
             .window(Property.ofValue(Duration.ofMinutes(5)))
-            .dimensions(Property.ofValue(List.of(
-                Query.DimensionKV.builder()
-                    .name(Property.ofValue("env"))
-                    .value(Property.ofValue("test"))
-                    .build()
-            )))
+            .dimensions(
+                Property.ofValue(
+                    List.of(
+                        Query.DimensionKV.builder()
+                            .name(Property.ofValue("env"))
+                            .value(Property.ofValue("test"))
+                            .build()
+                    )
+                )
+            )
             .build();
 
         var output = Query.Output.builder()
@@ -48,9 +54,11 @@ class TriggerTest {
             .series(List.of(Map.of("average", 456.7)))
             .build();
 
-        try (MockedConstruction<Query> mockedQuery = mockConstruction(Query.class, (mock, context) ->
-            when(mock.run(any())).thenReturn(output)
-        )) {
+        try (
+            MockedConstruction<Query> mockedQuery = mockConstruction(
+                Query.class, (mock, context) -> when(mock.run(any())).thenReturn(output)
+            )
+        ) {
             var conditionContext = io.kestra.core.utils.TestsUtils.mockTrigger(runContextFactory, trigger);
             var execution = trigger.evaluate(conditionContext.getKey(), conditionContext.getValue());
 

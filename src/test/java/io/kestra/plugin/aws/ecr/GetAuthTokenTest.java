@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.ecr;
 
+import java.util.Base64;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.ecr.EcrClient;
 import software.amazon.awssdk.services.ecr.model.AuthorizationData;
 import software.amazon.awssdk.services.ecr.model.GetAuthorizationTokenResponse;
-
-import java.util.Base64;
-import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
@@ -33,17 +35,20 @@ class GetAuthTokenTest {
             .thenReturn(
                 GetAuthorizationTokenResponse.builder()
                     .authorizationData(
-                        List.of(AuthorizationData.builder()
-                            .authorizationToken(encoded)
-                            .build()
+                        List.of(
+                            AuthorizationData.builder()
+                                .authorizationToken(encoded)
+                                .build()
                         )
                     )
                     .build()
             );
 
-        GetAuthToken task = spy(GetAuthToken.builder()
-            .region(io.kestra.core.models.property.Property.ofValue("eu-west-3"))
-            .build());
+        GetAuthToken task = spy(
+            GetAuthToken.builder()
+                .region(io.kestra.core.models.property.Property.ofValue("eu-west-3"))
+                .build()
+        );
 
         doReturn(ecrClient).when(task).client(any(RunContext.class));
 

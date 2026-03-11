@@ -1,10 +1,13 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -12,8 +15,6 @@ import software.amazon.awssdk.awscore.retry.AwsRetryPolicy;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClientBuilder;
 import software.amazon.awssdk.services.sqs.SqsClient;
-
-import java.time.Duration;
 
 @SuperBuilder
 @ToString
@@ -48,7 +49,7 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
     }
 
     protected SqsAsyncClient asyncClient(final RunContext runContext,
-                                         final int retryMaxAttempts) throws IllegalVariableEvaluationException {
+        final int retryMaxAttempts) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
 
         SqsAsyncClientBuilder clientBuilder = ConnectionUtils.configureAsyncClient(
@@ -58,8 +59,8 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
             SqsAsyncClient.builder()
         );
 
-        clientBuilder = clientBuilder.overrideConfiguration(builder ->
-            builder.retryPolicy(
+        clientBuilder = clientBuilder.overrideConfiguration(
+            builder -> builder.retryPolicy(
                 AwsRetryPolicy.defaultRetryPolicy()
                     .toBuilder()
                     .numRetries(retryMaxAttempts)

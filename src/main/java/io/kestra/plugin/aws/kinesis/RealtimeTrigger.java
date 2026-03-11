@@ -1,32 +1,30 @@
 package io.kestra.plugin.aws.kinesis;
 
-import io.kestra.core.models.annotations.Plugin;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.reactivestreams.Publisher;
+
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-
-
 import io.kestra.plugin.aws.AbstractConnectionInterface;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
-import org.reactivestreams.Publisher;
-
 import reactor.core.publisher.FluxSink;
+import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
-import software.amazon.awssdk.core.async.SdkPublisher;
-
-import jakarta.validation.constraints.NotNull;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
 @ToString
@@ -179,19 +177,24 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .build();
 
         return Flux.from(createFlux(task, runContext))
-            .map(record -> TriggerService.generateRealtimeExecution(
-                this, conditionContext, context, record
-            ));
+            .map(
+                record -> TriggerService.generateRealtimeExecution(
+                    this, conditionContext, context, record
+                )
+            );
     }
 
     private Publisher<Consume.ConsumedRecord> createFlux(Consume task, RunContext runContext) {
-        return Flux.create(sink -> {
+        return Flux.create(sink ->
+        {
             try (KinesisAsyncClient client = task.asyncClient(runContext)) {
 
                 var rStreamName = runContext.render(streamName).as(String.class).orElseThrow();
                 var rConsumerArn = runContext.render(consumerArn).as(String.class).orElseThrow();
 
-                ShardManager manager = new ShardManager(client, sink, runContext, rStreamName, rConsumerArn, runContext.render(shardDiscoveryInterval).as(Duration.class).orElse(Duration.ofSeconds(30)));
+                ShardManager manager = new ShardManager(
+                    client, sink, runContext, rStreamName, rConsumerArn, runContext.render(shardDiscoveryInterval).as(Duration.class).orElse(Duration.ofSeconds(30))
+                );
 
                 manager.start();
 
@@ -215,11 +218,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         private final String consumerArn;
         private final Duration rediscoveryInterval;
 
-        private final ScheduledExecutorService scheduler =
-            Executors.newSingleThreadScheduledExecutor();
+        private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        private final ConcurrentHashMap<String, ShardSubscriber> subscribers =
-            new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<String, ShardSubscriber> subscribers = new ConcurrentHashMap<>();
 
         ShardManager(KinesisAsyncClient client, FluxSink<Consume.ConsumedRecord> sink, RunContext runContext, String stream, String consumerArn, Duration rediscoveryInterval) {
             this.client = client;
@@ -258,9 +259,11 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     .shards();
 
                 for (Shard shard : shards) {
-                    subscribers.computeIfAbsent(shard.shardId(), sid -> {
+                    subscribers.computeIfAbsent(shard.shardId(), sid ->
+                    {
                         try {
-                            return new ShardSubscriber(client, sink, runContext,
+                            return new ShardSubscriber(
+                                client, sink, runContext,
                                 stream, consumerArn, sid,
                                 getInitialStartingPosition(runContext)
                             );
@@ -305,7 +308,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
         private final AtomicBoolean running = new AtomicBoolean(false);
 
-        ShardSubscriber(KinesisAsyncClient client, FluxSink<Consume.ConsumedRecord> sink, RunContext runContext, String stream, String consumerArn, String shardId, StartingPosition startingPosition) {
+        ShardSubscriber(KinesisAsyncClient client, FluxSink<Consume.ConsumedRecord> sink, RunContext runContext, String stream, String consumerArn, String shardId,
+            StartingPosition startingPosition) {
             this.client = client;
             this.sink = sink;
             this.runContext = runContext;
@@ -317,7 +321,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         }
 
         void startSubscription() {
-            if (!running.compareAndSet(false, true)) return;
+            if (!running.compareAndSet(false, true))
+                return;
 
             subscribeOnce();
         }
@@ -332,9 +337,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             }
 
             StartingPosition pos = (lastSeq != null) ? StartingPosition.builder()
-                    .type(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
-                    .sequenceNumber(lastSeq)
-                    .build() : startingPosition;
+                .type(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
+                .sequenceNumber(lastSeq)
+                .build() : startingPosition;
 
             SubscribeToShardRequest req = SubscribeToShardRequest.builder()
                 .consumerARN(consumerArn)
@@ -350,9 +355,11 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
                 @Override
                 public void onEventStream(SdkPublisher<SubscribeToShardEventStream> publisher) {
-                    publisher.subscribe(evt -> {
+                    publisher.subscribe(evt ->
+                    {
                         if (evt instanceof SubscribeToShardEvent e) {
-                            e.records().forEach(record -> {
+                            e.records().forEach(record ->
+                            {
                                 lastSeq = record.sequenceNumber();
 
                                 sink.next(
@@ -386,9 +393,14 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         }
 
         private void resubscribe() {
-            CompletableFuture.runAsync(() -> {
-                if (!running.get()) return;
-                try { Thread.sleep(250); } catch (InterruptedException ignored) {}
+            CompletableFuture.runAsync(() ->
+            {
+                if (!running.get())
+                    return;
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException ignored) {
+                }
                 subscribeOnce();
             });
         }
@@ -405,7 +417,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     }
 
     private void stop(boolean wait) {
-        if (!isActive.compareAndSet(true, false)) return;
+        if (!isActive.compareAndSet(true, false))
+            return;
 
         waitForTermination.countDown();
 

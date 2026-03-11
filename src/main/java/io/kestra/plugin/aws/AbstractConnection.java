@@ -1,12 +1,13 @@
 package io.kestra.plugin.aws;
 
+import java.time.Duration;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
+
 import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.time.Duration;
 
 @SuperBuilder
 @ToString
@@ -46,7 +47,6 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
         @Nullable String stsEndpointOverride,
         Duration stsRoleSessionDuration,
         @Nullable String region,
-        @Nullable String endpointOverride
-    ) {
+        @Nullable String endpointOverride) {
     }
 }

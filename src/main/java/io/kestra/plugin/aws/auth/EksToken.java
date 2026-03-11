@@ -1,5 +1,13 @@
 package io.kestra.plugin.aws.auth;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.Base64;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -8,6 +16,7 @@ import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -17,14 +26,6 @@ import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.util.Base64;
 
 @SuperBuilder
 @ToString
@@ -74,7 +75,7 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Override
     public Output run(RunContext runContext) throws Exception {
         try {
-            if(this.getRegion() == null) {
+            if (this.getRegion() == null) {
                 throw new RuntimeException("Region is required");
             }
             final Region awsRegion = Region.of(runContext.render(this.getRegion()).as(String.class).orElseThrow());

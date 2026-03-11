@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -7,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -15,8 +18,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
-
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -64,9 +65,11 @@ public class DeleteServerlessApplication extends AbstractEmrServerlessTask imple
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
         try (EmrServerlessClient client = this.client(runContext)) {
             List<String> rApplicationIds = runContext.render(this.applicationIds).asList(String.class);
-            rApplicationIds.forEach(throwConsumer(appId ->
-                client.deleteApplication(r -> r.applicationId(appId))
-            ));
+            rApplicationIds.forEach(
+                throwConsumer(
+                    appId -> client.deleteApplication(r -> r.applicationId(appId))
+                )
+            );
             runContext.logger().info("Deleted {} EMR Serverless applications: {}", rApplicationIds.size(), rApplicationIds);
             return null;
         }

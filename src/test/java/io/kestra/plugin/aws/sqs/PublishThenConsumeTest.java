@@ -1,12 +1,13 @@
 package io.kestra.plugin.aws.sqs;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.plugin.aws.sqs.model.Message;
-import io.kestra.plugin.aws.sqs.model.SerdeType;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
-import java.util.List;
+import io.kestra.core.models.property.Property;
+import io.kestra.plugin.aws.sqs.model.Message;
+import io.kestra.plugin.aws.sqs.model.SerdeType;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;

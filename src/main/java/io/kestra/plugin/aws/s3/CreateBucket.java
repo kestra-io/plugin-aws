@@ -2,11 +2,11 @@ package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -26,26 +26,26 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
             title = "Create a new bucket with some options",
             full = true,
             code = """
-            id: aws_s3_create_bucket
-            namespace: company.team
+                id: aws_s3_create_bucket
+                namespace: company.team
 
-            inputs:
-              - id: bucket
-                type: STRING
-                defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-              - id: region
-                type: STRING
-                defaults: eu-central-1
-            
-            tasks:
-              - id: create_bucket
-                type: io.kestra.plugin.aws.s3.CreateBucket
-                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                region: "{{ inputs.region }}"
-                bucket: "{{ inputs.bucket }}"
-            """
+                  - id: region
+                    type: STRING
+                    defaults: eu-central-1
+
+                tasks:
+                  - id: create_bucket
+                    type: io.kestra.plugin.aws.s3.CreateBucket
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "{{ inputs.region }}"
+                    bucket: "{{ inputs.bucket }}"
+                """
         )
     }
 )
@@ -119,7 +119,6 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
             if (grantWrite != null) {
                 builder.grantWrite(runContext.render(this.grantWrite).as(String.class).orElseThrow());
             }
-
 
             if (grantWriteACP != null) {
                 builder.grantWriteACP(runContext.render(this.grantWriteACP).as(String.class).orElseThrow());

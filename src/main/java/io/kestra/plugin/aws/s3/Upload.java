@@ -1,5 +1,17 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.File;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.Instant;
+import java.util.*;
+import java.util.List;
+import java.util.function.Function;
+
+import org.apache.commons.io.FilenameUtils;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -10,27 +22,17 @@ import io.kestra.core.models.property.URIFetcher;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.FileInfo;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
 import reactor.core.publisher.Flux;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
-
-import java.io.File;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.time.Instant;
-import java.util.*;
-import java.util.List;
-import java.util.function.Function;
 
 @SuperBuilder
 @ToString
@@ -69,32 +71,32 @@ import java.util.function.Function;
             full = true,
             title = "Download a file and upload it to S3.",
             code = """
-                    id: upload_file_to_s3
-                    namespace: company.team
+                id: upload_file_to_s3
+                namespace: company.team
 
-                    inputs:
-                      - id: bucket
-                        type: STRING
-                        defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-                      - id: file_url
-                        type: STRING
-                        defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
+                  - id: file_url
+                    type: STRING
+                    defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
 
-                    tasks:
-                      - id: download_file
-                        type: io.kestra.plugin.core.http.Download
-                        uri: "{{ inputs.file_url }}"
+                tasks:
+                  - id: download_file
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "{{ inputs.file_url }}"
 
-                      - id: upload_to_s3
-                        type: io.kestra.plugin.aws.s3.Upload
-                        from: "{{ outputs.download_file.uri }}"
-                        key: powerplant/global_power_plant_database.zip
-                        bucket: "{{ inputs.bucket }}"
-                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    """
+                  - id: upload_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: "{{ outputs.download_file.uri }}"
+                    key: powerplant/global_power_plant_database.zip
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         ),
         @Example(
             full = true,
@@ -257,7 +259,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Schema(
         title = Data.From.TITLE,
         description = Data.From.DESCRIPTION,
-        anyOf = {List.class, String.class, Map.class}
+        anyOf = { List.class, String.class, Map.class }
     )
     @NotNull
     private Object from;
@@ -384,8 +386,10 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
         String key = runContext.render(this.key).as(String.class).orElseThrow();
 
-        try (S3AsyncClient client = this.asyncClient(runContext);
-             S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
+        try (
+            S3AsyncClient client = this.asyncClient(runContext);
+            S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()
+        ) {
 
             Map<String, String> filesToUpload = parseFromProperty(runContext);
 
@@ -417,7 +421,8 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
         Data data = Data.from(this.from);
         try {
-            Function<Map<String, Object>, Map<String, String>> mapper = map -> {
+            Function<Map<String, Object>, Map<String, String>> mapper = map ->
+            {
                 Map<String, String> result = new HashMap<>();
                 for (Map.Entry<String, Object> entry : map.entrySet()) {
                     result.put(entry.getKey(), entry.getValue().toString());
@@ -445,17 +450,19 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
-                                    String bucket, String key, String renderedFrom) throws Exception {
+        String bucket, String key, String renderedFrom) throws Exception {
         File tempFile = copyFileToTemp(runContext, renderedFrom);
 
         PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, key);
 
         runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-        FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-            .putObjectRequest(putObjectRequest)
-            .source(tempFile)
-            .build());
+        FileUpload upload = transferManager.uploadFile(
+            UploadFileRequest.builder()
+                .putObjectRequest(putObjectRequest)
+                .source(tempFile)
+                .build()
+        );
 
         PutObjectResponse response = upload.completionFuture().get().response();
 
@@ -471,7 +478,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
-                                       String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
+        String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
         Map<String, FileInfo> fileInfoMap = new HashMap<>();
 
         for (Map.Entry<String, String> entry : filesToUpload.entrySet()) {
@@ -485,10 +492,12 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
             runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-            FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-                .putObjectRequest(putObjectRequest)
-                .source(tempFile)
-                .build());
+            FileUpload upload = transferManager.uploadFile(
+                UploadFileRequest.builder()
+                    .putObjectRequest(putObjectRequest)
+                    .source(tempFile)
+                    .build()
+            );
 
             PutObjectResponse response = upload.completionFuture().get().response();
 
@@ -614,18 +623,21 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         }
 
         if (this.tagging != null) {
-            builder.tagging(Tagging.builder()
-                .tagSet(runContext.render(this.tagging).asMap(String.class, String.class)
-                    .entrySet()
-                    .stream()
-                    .map(e -> Tag.builder()
-                        .key(e.getKey())
-                        .value(e.getValue())
-                        .build()
+            builder.tagging(
+                Tagging.builder()
+                    .tagSet(
+                        runContext.render(this.tagging).asMap(String.class, String.class)
+                            .entrySet()
+                            .stream()
+                            .map(
+                                e -> Tag.builder()
+                                    .key(e.getKey())
+                                    .value(e.getValue())
+                                    .build()
+                            )
+                            .toList()
                     )
-                    .toList()
-                )
-                .build()
+                    .build()
             );
         }
     }
@@ -651,6 +663,5 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         )
         private final Map<String, FileInfo> files;
     }
-
 
 }

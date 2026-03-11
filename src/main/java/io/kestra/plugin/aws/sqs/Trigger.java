@@ -1,8 +1,12 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -10,14 +14,11 @@ import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.time.Duration;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -33,23 +34,23 @@ import java.util.Optional;
         @Example(
             full = true,
             code = """
-            id: sqs
-            namespace: company.team
+                id: sqs
+                namespace: company.team
 
-            tasks:
-              - id: log
-                type: io.kestra.plugin.core.log.Log
-                message: "{{ trigger.data }}"
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
 
-            triggers:
-              - id: trigger
-                type: io.kestra.plugin.aws.sqs.Trigger
-                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                region: "eu-central-1"
-                queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
-                maxRecords: 10
-            """
+                triggers:
+                  - id: trigger
+                    type: io.kestra.plugin.aws.sqs.Trigger
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                    maxRecords: 10
+                """
         )
     }
 )

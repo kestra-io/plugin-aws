@@ -5,6 +5,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -34,7 +35,7 @@ public abstract class AbstractCloudFormation extends AbstractConnection {
         title = "Wait for completion",
         description = "When true (default), block until the stack reaches a terminal state for the requested operation."
     )
-    protected Property<Boolean> waitForCompletion = Property.of(true);
+    protected Property<Boolean> waitForCompletion = Property.ofValue(true);
 
     protected CloudFormationClient cfClient(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);

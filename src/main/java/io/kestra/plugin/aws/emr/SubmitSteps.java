@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -8,6 +10,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.emr.models.StepConfig;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -15,8 +18,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -74,9 +75,9 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
     @Schema(
         title = "Execution role ARN",
         description = """
-        The Amazon Resource Name (ARN) of the runtime role for a step on the cluster. The runtime role can be a cross-account IAM role.
-        The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.
-        """
+            The Amazon Resource Name (ARN) of the runtime role for a step on the cluster. The runtime role can be a cross-account IAM role.
+            The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.
+            """
     )
     private Property<String> executionRoleArn;
 
@@ -87,11 +88,14 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
                 .map(throwFunction(stepConfig -> stepConfig.toStep(runContext)))
                 .toList();
 
-            emrClient.addJobFlowSteps(throwConsumer(request -> request
-                .steps(jobSteps)
-                .jobFlowId(runContext.render(this.clusterId).as(String.class).orElseThrow())
-                .executionRoleArn(runContext.render(this.executionRoleArn).as(String.class).orElse(null))
-            ));
+            emrClient.addJobFlowSteps(
+                throwConsumer(
+                    request -> request
+                        .steps(jobSteps)
+                        .jobFlowId(runContext.render(this.clusterId).as(String.class).orElseThrow())
+                        .executionRoleArn(runContext.render(this.executionRoleArn).as(String.class).orElse(null))
+                )
+            );
             return null;
         }
     }

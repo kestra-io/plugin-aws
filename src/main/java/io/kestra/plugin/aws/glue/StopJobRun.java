@@ -1,13 +1,18 @@
 package io.kestra.plugin.aws.glue;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Await;
 import io.kestra.plugin.aws.glue.model.Output;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -19,11 +24,6 @@ import software.amazon.awssdk.services.glue.model.GetJobRunRequest;
 import software.amazon.awssdk.services.glue.model.GetJobRunResponse;
 import software.amazon.awssdk.services.glue.model.JobRun;
 import software.amazon.awssdk.services.glue.model.JobRunState;
-
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 
@@ -130,9 +130,10 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
 
             var finalState = currentJobRun.get().jobRunState();
             if (!acceptableStopStates.contains(finalState)) {
-                throw new RuntimeException("Job failed to stop. Final state: " + finalState +
-                    (currentJobRun.get().errorMessage() != null ?
-                        ", Error message: " + currentJobRun.get().errorMessage() : ""));
+                throw new RuntimeException(
+                    "Job failed to stop. Final state: " + finalState +
+                        (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : "")
+                );
             }
 
             return buildOutput(rjobNameValue, rjobRunIdValue, currentJobRun.get());
@@ -140,9 +141,9 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
     }
 
     private void waitForJobStopped(RunContext runContext, GlueClient glueClient,
-                                   GetJobRunRequest getJobRunRequest,
-                                   AtomicReference<JobRun> currentJobRun,
-                                   Duration interval) {
+        GetJobRunRequest getJobRunRequest,
+        AtomicReference<JobRun> currentJobRun,
+        Duration interval) {
         runContext.logger().debug("Waiting for job to reach stopped state...");
 
         Await.until(
@@ -152,14 +153,16 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
     }
 
     private boolean pollAndUpdateJobState(GlueClient glueClient, GetJobRunRequest getJobRunRequest,
-                                          RunContext runContext,
-                                          AtomicReference<JobRun> currentJobRun) {
+        RunContext runContext,
+        AtomicReference<JobRun> currentJobRun) {
         GetJobRunResponse jobRunResponse = glueClient.getJobRun(getJobRunRequest);
         JobRun jobRun = jobRunResponse.jobRun();
         currentJobRun.set(jobRun);
 
-        runContext.logger().info("Job state: {}, Execution time: {} seconds",
-            jobRun.jobRunStateAsString(), jobRun.executionTime());
+        runContext.logger().info(
+            "Job state: {}, Execution time: {} seconds",
+            jobRun.jobRunStateAsString(), jobRun.executionTime()
+        );
 
         var state = jobRun.jobRunState();
 
@@ -176,10 +179,8 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
             .jobRunId(jobRunIdValue)
             .state(jobRun.jobRunStateAsString())
             .startedOn(ZonedDateTime.parse(jobRun.startedOn().toString()))
-            .completedOn(jobRun.completedOn() != null ?
-                ZonedDateTime.parse(jobRun.completedOn().toString()) : null)
-            .lastModifiedOn(jobRun.lastModifiedOn() != null ?
-                ZonedDateTime.parse(jobRun.lastModifiedOn().toString()) : null)
+            .completedOn(jobRun.completedOn() != null ? ZonedDateTime.parse(jobRun.completedOn().toString()) : null)
+            .lastModifiedOn(jobRun.lastModifiedOn() != null ? ZonedDateTime.parse(jobRun.lastModifiedOn().toString()) : null)
             .executionTime(jobRun.executionTime())
             .timeout(jobRun.timeout())
             .attempt(jobRun.attempt())

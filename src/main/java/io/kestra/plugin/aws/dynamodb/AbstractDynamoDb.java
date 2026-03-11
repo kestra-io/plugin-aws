@@ -1,5 +1,15 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.io.*;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -9,6 +19,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -16,18 +27,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
 import reactor.core.publisher.Flux;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-
-import java.io.*;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -51,7 +53,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     protected Map<String, Object> objectMapFrom(Map<String, AttributeValue> fields) {
         Map<String, Object> row = new HashMap<>();
-        for(var field : fields.entrySet()) {
+        for (var field : fields.entrySet()) {
             var key = field.getKey();
             var value = field.getValue();
             row.put(key, objectFrom(value));
@@ -60,16 +62,16 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     }
 
     protected Object objectFrom(AttributeValue value) {
-        if(value == null || (value.nul() != null && value.hasSs())){
+        if (value == null || (value.nul() != null && value.hasSs())) {
             return null;
         }
-        if(value.bool() != null && value.bool()) {
+        if (value.bool() != null && value.bool()) {
             return true;
         }
-        if(value.hasSs()) {
+        if (value.hasSs()) {
             return value.ss();
         }
-        if(value.hasM()) {
+        if (value.hasM()) {
             return objectMapFrom(value.m());
         }
 
@@ -79,7 +81,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     protected Map<String, AttributeValue> valueMapFrom(Map<String, Object> fields) {
         Map<String, AttributeValue> item = new HashMap<>();
-        for(var field : fields.entrySet()) {
+        for (var field : fields.entrySet()) {
             var key = field.getKey();
             var value = field.getValue();
             item.put(key, objectFrom(value));
@@ -89,19 +91,19 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     @SuppressWarnings("unchecked")
     protected AttributeValue objectFrom(Object value) {
-        if(value == null){
+        if (value == null) {
             return AttributeValue.fromNul(true);
         }
-        if(value instanceof String) {
+        if (value instanceof String) {
             return AttributeValue.fromS((String) value);
         }
-        if(value instanceof Boolean) {
+        if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
         }
-        if(value instanceof List) {
+        if (value instanceof List) {
             return AttributeValue.fromSs((List<String>) value);
         }
-        if(value instanceof Map) {
+        if (value instanceof Map) {
             return AttributeValue.fromM(valueMapFrom((Map<String, Object>) value));
         }
 
@@ -137,10 +139,12 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
         var output = outputBuilder.build();
 
-        runContext.metric(Counter.of(
-            "records", output.getSize(),
-            "tableName", runContext.render(getTableName()).as(String.class).orElseThrow()
-        ));
+        runContext.metric(
+            Counter.of(
+                "records", output.getSize(),
+                "tableName", runContext.render(getTableName()).as(String.class).orElseThrow()
+            )
+        );
 
         return output;
     }
@@ -162,14 +166,14 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         List<Object> result = new ArrayList<>();
         AtomicLong count = new AtomicLong();
 
-        items.forEach(throwConsumer(attributes -> {
+        items.forEach(throwConsumer(attributes ->
+        {
             count.incrementAndGet();
             result.add(objectMapFrom(attributes));
         }));
 
         return Pair.of(result, count.get());
     }
-
 
     private Map<String, Object> fetchOne(List<Map<String, AttributeValue>> items) {
         return items.stream()

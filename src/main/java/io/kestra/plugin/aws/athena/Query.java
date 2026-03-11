@@ -1,29 +1,5 @@
 package io.kestra.plugin.aws.athena;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Metric;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.executions.metrics.Counter;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.Output;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.common.FetchType;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.ConnectionUtils;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import software.amazon.awssdk.services.athena.AthenaClient;
-import software.amazon.awssdk.services.athena.model.*;
-
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -34,9 +10,30 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
-import static io.kestra.core.utils.Rethrow.throwConsumer;
+import org.apache.commons.lang3.tuple.Pair;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.Output;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.common.FetchType;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.ConnectionUtils;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import software.amazon.awssdk.services.athena.AthenaClient;
+import software.amazon.awssdk.services.athena.model.*;
 
 /**
  * This Query task is built with the Athena SDK, more info can be found here: https://docs.aws.amazon.com/athena/latest/ug/code-samples.html.
@@ -58,20 +55,20 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             full = true,
             code = {
                 """
-                id: aws_athena_query
-                namespace: company.team
+                    id: aws_athena_query
+                    namespace: company.team
 
-                tasks:
-                  - id: query
-                    type: io.kestra.plugin.aws.athena.Query
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    region: "eu-central-1"
-                    database: my_database
-                    outputLocation: s3://some-s3-bucket
-                    query: |
-                      select * from cloudfront_logs limit 10
-                """
+                    tasks:
+                      - id: query
+                        type: io.kestra.plugin.aws.athena.Query
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                        region: "eu-central-1"
+                        database: my_database
+                        outputLocation: s3://some-s3-bucket
+                        query: |
+                          select * from cloudfront_logs limit 10
+                    """
             }
         )
     },
@@ -170,7 +167,6 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Builder.Default
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
-
     private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
@@ -247,12 +243,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             if (fetchType == FetchType.FETCH_ONE) {
                 Map<String, Object> row = fetchOne(columnInfo, results);
                 output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
-            }
-            else if (fetchType == FetchType.FETCH) {
+            } else if (fetchType == FetchType.FETCH) {
                 List<Object> rows = fetch(columnInfo, results);
                 output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
-            }
-            else if (fetchType == FetchType.STORE) {
+            } else if (fetchType == FetchType.STORE) {
                 Pair<URI, Long> pair = store(columnInfo, results, runContext);
                 output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
             }
@@ -283,15 +277,17 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             var getQueryExecution = client.getQueryExecution(getQueryExecutionRequest);
             queryExecution = getQueryExecution.queryExecution();
             switch (queryExecution.status().state()) {
-                case FAILED -> throw new RuntimeException("Amazon Athena query failed to run with error message: " +
-                    getQueryExecution.queryExecution().status().stateChangeReason());
+                case FAILED -> throw new RuntimeException(
+                    "Amazon Athena query failed to run with error message: " +
+                        getQueryExecution.queryExecution().status().stateChangeReason()
+                );
                 case CANCELLED -> throw new RuntimeException("Amazon Athena query was cancelled.");
                 case UNKNOWN_TO_SDK_VERSION -> throw new RuntimeException("Amazon Athena failed for an unknown reason.");
-                case SUCCEEDED -> {}
+                case SUCCEEDED -> {
+                }
                 default -> Thread.sleep(500);
             }
-        }
-        while (queryExecution.status().state() != QueryExecutionState.SUCCEEDED);
+        } while (queryExecution.status().state() != QueryExecutionState.SUCCEEDED);
 
         return queryExecution != null ? queryExecution.statistics() : null;
     }
