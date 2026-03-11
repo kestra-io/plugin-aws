@@ -30,23 +30,23 @@ class DeleteTest extends AbstractLocalStackTest {
         String stackName = "kestra-delete-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
 
         Create create = Create.builder()
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .endpointOverride(Property.of(localstack.getEndpoint().toString()))
-            .stackName(Property.of(stackName))
-            .templateBody(Property.of(templateBody))
-            .waitForCompletion(Property.of(true))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .stackName(Property.ofValue(stackName))
+            .templateBody(Property.ofValue(templateBody))
+            .waitForCompletion(Property.ofValue(true))
             .build();
         create.run(runContext);
 
         Delete delete = Delete.builder()
-            .region(Property.of(localstack.getRegion()))
-            .accessKeyId(Property.of(localstack.getAccessKey()))
-            .secretKeyId(Property.of(localstack.getSecretKey()))
-            .endpointOverride(Property.of(localstack.getEndpoint().toString()))
-            .stackName(Property.of(stackName))
-            .waitForCompletion(Property.of(true))
+            .region(Property.ofValue(localstack.getRegion()))
+            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
+            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .stackName(Property.ofValue(stackName))
+            .waitForCompletion(Property.ofValue(true))
             .build();
         delete.run(runContext);
     }
