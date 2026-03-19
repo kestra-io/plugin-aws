@@ -14,7 +14,6 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
@@ -205,7 +204,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
             .withInterpreter(Property.ofValue(List.of("/bin/sh", "-c")))
-            .withCommands(new Property<>(JacksonMapper.ofJson().writeValueAsString(allCommands)))
+            .withCommands(Property.ofValue(allCommands))
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
