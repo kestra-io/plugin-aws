@@ -205,7 +205,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
             .withInterpreter(Property.ofValue(List.of("/bin/sh", "-c")))
-            .withCommands(new Property<>(JacksonMapper.ofJson().writeValueAsString(allCommands)))
+            .withCommands(Property.ofValue(JacksonMapper.ofJson().writeValueAsString(allCommands)))
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
