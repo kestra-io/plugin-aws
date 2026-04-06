@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -80,24 +81,28 @@ public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> 
         description = "STORE (default) writes rows to internal storage; FETCH loads all rows; FETCH_ONE returns the first row."
     )
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
         title = "Max results",
         description = "Maximum items to return."
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> limit;
 
     @Schema(
         title = "Filter expression",
         description = "Server-side filter applied after the scan; requires expressionAttributeValues."
     )
+    @PluginProperty(group = "processing")
     private Property<String> filterExpression;
 
     @Schema(
         title = "Expression attribute values",
         description = "Map of placeholders used in expressions."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> expressionAttributeValues;
 
     @Override

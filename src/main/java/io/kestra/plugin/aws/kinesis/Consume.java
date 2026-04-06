@@ -25,6 +25,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 import software.amazon.awssdk.services.kinesis.model.Record;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -64,6 +65,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "Stream name",
         description = "Name of the Kinesis stream to read from."
     )
+    @PluginProperty(group = "main")
     private Property<String> streamName;
 
     @Builder.Default
@@ -71,12 +73,14 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "Iterator type",
         description = "Start position: LATEST, TRIM_HORIZON, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER, AT_TIMESTAMP."
     )
+    @PluginProperty(group = "destination")
     private Property<IteratorType> iteratorType = Property.ofValue(IteratorType.LATEST);
 
     @Schema(
         title = "Starting sequence number",
         description = "Required when iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
     @Builder.Default
@@ -84,6 +88,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "Max records",
         description = "Stop after consuming this many records; default 1000."
     )
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxRecords = Property.ofValue(1000);
 
     @Builder.Default
@@ -91,6 +96,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "Max duration",
         description = "Stop after this duration elapses; default 30s."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofSeconds(30));
 
     @Builder.Default
@@ -98,6 +104,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         title = "Poll interval",
         description = "Sleep between GetRecords calls; default 1s."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
     @Override

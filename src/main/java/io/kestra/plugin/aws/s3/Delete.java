@@ -13,6 +13,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -49,11 +50,13 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
         description = "Key of the object to delete."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> key;
 
     @Schema(
         title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> bypassGovernanceRetention;
 
     @Schema(
@@ -62,11 +65,13 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
         description = "Required to permanently delete a versioned object if versioning is configured " +
             "with MFA delete enabled."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> mfa;
 
     @Schema(
         description = "Sets the value of the RequestPayer property for this object."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> requestPayer;
 
     @Override

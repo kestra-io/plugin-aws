@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -81,12 +82,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Max records",
         description = "Stop after consuming this many messages."
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxRecords;
 
     @Schema(
         title = "Max duration",
         description = "Stop after this duration elapses."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Builder.Default
@@ -95,6 +98,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Serde type",
         description = "Serializer/deserializer used for message bodies."
     )
+    @PluginProperty(group = "main")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole

@@ -7,6 +7,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.kestra.core.models.annotations.PluginProperty;
 
 public interface AbstractConnectionInterface {
 
@@ -16,58 +17,68 @@ public interface AbstractConnectionInterface {
         title = "Access Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getAccessKeyId();
 
     @Schema(
         title = "Secret Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getSecretKeyId();
 
     @Schema(
         title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "connection")
     Property<String> getSessionToken();
 
     @Schema(
         title = "AWS STS Role.",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleArn();
 
     @Schema(
         title = "AWS STS External Id.",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleExternalId();
 
     @Schema(
         title = "AWS STS Session name.",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleSessionName();
 
     @Schema(
         title = "AWS STS Session duration.",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "execution")
     Property<Duration> getStsRoleSessionDuration();
 
     @Schema(
         title = "The AWS STS endpoint with which the SDKClient should communicate."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsEndpointOverride();
 
     @Schema(
         title = "AWS region with which the SDK should communicate."
     )
+    @PluginProperty(group = "connection")
     Property<String> getRegion();
 
     @Schema(
         title = "The endpoint with which the SDK should communicate.",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getEndpointOverride();
 
     @Schema(

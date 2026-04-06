@@ -72,22 +72,30 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     description = "Lists objects with optional prefix/regex filters and deletes them (optionally in parallel). Can error when no match if errorOnEmpty is true."
 )
 public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteList.Output>, ListInterface {
+    @PluginProperty(group = "source")
     private Property<String> prefix;
 
+    @PluginProperty(group = "processing")
     private Property<String> delimiter;
 
+    @PluginProperty(group = "source")
     private Property<String> marker;
 
+    @PluginProperty(group = "advanced")
     private Property<String> encodingType;
 
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
     @Builder.Default
+    @PluginProperty(group = "processing")
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Min(2)
@@ -95,7 +103,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         title = "Parallel deletes",
         description = "Max concurrent delete operations when set."
     )
-    @PluginProperty
+    @PluginProperty(group = "execution")
     private Integer concurrent;
 
     @Schema(
@@ -103,6 +111,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         description = "If true, throw when no objects match filters."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private final Property<Boolean> errorOnEmpty = Property.ofValue(false);
 
     @Override

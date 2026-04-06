@@ -19,6 +19,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -96,6 +97,7 @@ public class Publish extends AbstractSns implements RunnableTask<Publish.Output>
         description = Data.From.DESCRIPTION,
         anyOf = { String.class, List.class, Message.class }
     )
+    @PluginProperty(group = "main")
     private Object from;
 
     @Override

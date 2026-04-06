@@ -24,6 +24,7 @@ import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -167,6 +168,7 @@ public class Trigger extends AbstractTrigger
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private Property<String> stateKey;

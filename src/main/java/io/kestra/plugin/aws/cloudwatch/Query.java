@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -55,6 +56,7 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         title = "Namespace",
         description = "Metric namespace; required for most metrics."
     )
+    @PluginProperty(group = "source")
     private Property<String> namespace;
 
     @Schema(
@@ -62,12 +64,14 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         description = "Name of the metric to retrieve."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> metricName;
 
     @Schema(
         title = "Dimensions",
         description = "Optional dimension filters applied to the metric."
     )
+    @PluginProperty(group = "advanced")
     private Property<List<DimensionKV>> dimensions;
 
     @Schema(
@@ -75,6 +79,7 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         description = "Statistic to return (Average, Sum, Maximum, Minimum, SampleCount); default Average."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> statistic = Property.ofValue("Average");
 
     @Schema(
@@ -82,6 +87,7 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         description = "Granularity for aggregation; default 60 seconds."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Integer> periodSeconds = Property.ofValue(60);
 
     @Schema(
@@ -89,6 +95,7 @@ public class Query extends AbstractCloudWatch implements RunnableTask<Query.Outp
         description = "Lookback duration from now, e.g., PT5M; default 5 minutes."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Duration> window = Property.ofValue(Duration.ofMinutes(5));
 
     @Override

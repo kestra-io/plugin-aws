@@ -22,6 +22,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -65,12 +66,14 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         title = "Object key",
         description = "Key to download in single-file mode."
     )
+    @PluginProperty(group = "connection")
     private Property<String> key;
 
     @Schema(
         title = "Version ID",
         description = "Specific version to fetch in single-file mode."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> versionId;
 
     @Schema(
@@ -78,24 +81,28 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         description = "Use default async client (limits transfers to ~2GB) for S3-compatible endpoints."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
     @Schema(
         title = "Prefix filter",
         description = "Enables multi-file mode; downloads keys starting with this prefix."
     )
+    @PluginProperty(group = "source")
     private Property<String> prefix;
 
     @Schema(
         title = "Delimiter",
         description = "Groups keys up to the delimiter; enables multi-file mode."
     )
+    @PluginProperty(group = "processing")
     private Property<String> delimiter;
 
     @Schema(
         title = "Marker",
         description = "Pagination start key for multi-file mode."
     )
+    @PluginProperty(group = "source")
     private Property<String> marker;
 
     @Schema(
@@ -103,12 +110,14 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         description = "Maximum keys per list request in multi-file mode; default 1000."
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
         title = "Regexp filter",
         description = "Regex on keys; enables multi-file mode."
     )
+    @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
     @Builder.Default
@@ -116,12 +125,14 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         title = "Max files",
         description = "Limit returned files in multi-file mode; default 25."
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Schema(
         title = "The account ID of the expected bucket owner",
         description = "Requests will fail with a Forbidden error (access denied) if the bucket is owned by a different account."
     )
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
     @Override

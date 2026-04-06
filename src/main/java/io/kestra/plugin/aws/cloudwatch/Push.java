@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -64,6 +65,7 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
         title = "CloudWatch namespace",
         description = "Target namespace for metric data, e.g., Custom/MyApp."
     )
+    @PluginProperty(group = "main")
     private Property<String> namespace;
 
     @Schema(
@@ -71,6 +73,7 @@ public class Push extends AbstractCloudWatch implements RunnableTask<Push.Output
         description = "List of metrics to publish; each becomes a MetricDatum."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<MetricValue>> metrics;
 
     @Override

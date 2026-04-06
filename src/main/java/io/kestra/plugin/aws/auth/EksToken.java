@@ -26,6 +26,7 @@ import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -62,6 +63,7 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
         description = "Cluster identifier passed in x-k8s-aws-id when presigning."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> clusterName;
 
     @Schema(
@@ -70,6 +72,7 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Long> expirationDuration = Property.ofValue(600L);
 
     @Override

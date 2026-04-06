@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sns.SnsClient;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -30,6 +31,7 @@ abstract class AbstractSns extends AbstractConnection {
         description = "Existing SNS topic to publish to."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> topicArn;
 
     protected SnsClient client(final RunContext runContext) throws IllegalVariableEvaluationException {

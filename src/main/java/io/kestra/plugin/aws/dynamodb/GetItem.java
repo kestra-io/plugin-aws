@@ -13,6 +13,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -50,6 +51,7 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
         title = "Item key",
         description = "Full primary key map (partition key, plus sort key when applicable)."
     )
+    @PluginProperty(group = "connection")
     private Property<Map<String, Object>> key;
 
     @Override

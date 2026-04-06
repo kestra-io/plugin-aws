@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.glue.model.JobRun;
 import software.amazon.awssdk.services.glue.model.JobRunState;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -65,6 +66,7 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         description = "Name of the Glue job containing the run to stop."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
@@ -72,6 +74,7 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         description = "Identifier of the job run to stop."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobRunId;
 
     @Schema(
@@ -79,6 +82,7 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         description = "If true (default), poll status until STOPPED/SUCCEEDED/FAILED/ERROR/TIMEOUT/EXPIRED."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
@@ -86,6 +90,7 @@ public class StopJobRun extends AbstractGlueTask implements RunnableTask<Output>
         description = "Delay between status checks; default 1s."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Duration> interval = Property.ofValue(Duration.ofSeconds(1));
 
     @Override

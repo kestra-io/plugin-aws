@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -89,12 +90,14 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
         description = "STORE (default) writes rows to internal storage; FETCH loads all rows; FETCH_ONE returns the first row."
     )
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
         title = "Max results",
         description = "Maximum items to return."
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> limit;
 
     @Schema(
@@ -102,6 +105,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
         description = "Expression using partition key (and sort key if defined)."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> keyConditionExpression;
 
     @Schema(
@@ -109,12 +113,14 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
         description = "Map of placeholders used in expressions."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Map<String, Object>> expressionAttributeValues;
 
     @Schema(
         title = "Filter expression",
         description = "Additional server-side filter; requires expressionAttributeValues."
     )
+    @PluginProperty(group = "processing")
     private Property<String> filterExpression;
 
     @Override

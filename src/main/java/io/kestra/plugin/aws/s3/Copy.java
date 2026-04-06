@@ -62,14 +62,14 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         title = "Source object",
         description = "Bucket/key (and optional versionId) to copy from."
     )
-    @PluginProperty
+    @PluginProperty(group = "source")
     private CopyObjectFrom from;
 
     @Schema(
         title = "Destination object",
         description = "Bucket/key to copy to; defaults to source when omitted."
     )
-    @PluginProperty
+    @PluginProperty(group = "destination")
     private CopyObject to;
 
     @Schema(
@@ -77,6 +77,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         description = "If true, deletes the source object once copy succeeds."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> delete = Property.ofValue(false);
 
     @Override

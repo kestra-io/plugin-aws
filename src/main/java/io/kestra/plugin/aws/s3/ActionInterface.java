@@ -11,6 +11,7 @@ public interface ActionInterface {
         title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering."
     )
     @NotNull
+    @PluginProperty(group = "main")
     Property<Action> getAction();
 
     @Schema(

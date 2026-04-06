@@ -16,28 +16,28 @@ import software.amazon.awssdk.services.sns.model.PublishRequest;
 @Jacksonized
 public class Message {
     @Schema(title = "The message data.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private String data;
 
     @Schema(title = "The message group ID.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String groupId;
 
     @Schema(title = "The message deduplication ID.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String deduplicationId;
 
     @Schema(title = "The message subject.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String subject;
 
     @Schema(title = "The message phone number.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String phoneNumber;
 
     @Schema(title = "The message structure.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String structure;
 
     public PublishRequest to(PublishRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException {

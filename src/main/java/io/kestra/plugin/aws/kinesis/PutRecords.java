@@ -129,21 +129,24 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         description = "If true (default), task fails when at least one record is rejected."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
         title = "Stream name",
         description = "Kinesis stream name; set this or streamArn."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> streamName;
 
     @Schema(
         title = "Stream ARN",
         description = "Kinesis stream ARN; set this or streamName."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> streamArn;
 
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @Schema(
         title = "Records",
         description = "List of records or kestra:// URI to an ION file of records. Each requires data and partitionKey; optional explicitHashKey.",

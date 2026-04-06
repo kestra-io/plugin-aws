@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -54,19 +55,26 @@ import software.amazon.awssdk.services.s3.S3Client;
     description = "Lists objects with optional prefix/regex filtering and caps returned items with maxFiles. Emits object count metric."
 )
 public class List extends AbstractS3Object implements RunnableTask<List.Output>, ListInterface {
+    @PluginProperty(group = "source")
     private Property<String> prefix;
 
+    @PluginProperty(group = "processing")
     private Property<String> delimiter;
 
+    @PluginProperty(group = "source")
     private Property<String> marker;
 
+    @PluginProperty(group = "advanced")
     private Property<String> encodingType;
 
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
     @Builder.Default
@@ -74,9 +82,11 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
         title = "Max files",
         description = "Truncates results to this count; default 25."
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Builder.Default
+    @PluginProperty(group = "processing")
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Override

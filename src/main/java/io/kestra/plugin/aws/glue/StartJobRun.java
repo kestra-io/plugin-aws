@@ -25,6 +25,7 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -64,12 +65,14 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         description = "Name of the Glue job to invoke."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
         title = "Job arguments",
         description = "Key/value pairs passed as job arguments."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> arguments;
 
     @Schema(
@@ -77,12 +80,14 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         description = "If true (default), poll status until the run leaves STARTING/RUNNING/WAITING."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
         title = "Job timeout",
         description = "Optional run timeout; converted to whole minutes. Otherwise Glue applies its defaults (8h for Glue 5.0 ETL, 48h for Glue 4.0 and earlier, none for streaming)."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Schema(
@@ -90,6 +95,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         description = "Delay between status checks; default 1s."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Duration> interval = Property.ofValue(Duration.ofMillis(1000));
 
     @Override

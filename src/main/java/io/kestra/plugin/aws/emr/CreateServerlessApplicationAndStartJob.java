@@ -13,6 +13,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
 import software.amazon.awssdk.services.emrserverless.model.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -54,6 +55,7 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
         description = "EMR Serverless release, e.g., emr-6.3.0 or emr-7.0.0."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> releaseLabel;
 
     @Schema(
@@ -61,6 +63,7 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
         description = "Valid values SPARK or HIVE; determines which job driver is built."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> applicationType;
 
     @Schema(
@@ -68,6 +71,7 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
         description = "IAM role assumed by EMR Serverless for the application."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> executionRoleArn;
 
     @Schema(
@@ -75,6 +79,7 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
         description = "Name reported for the started job run."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
@@ -82,6 +87,7 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
         description = "For SPARK, S3 URI to the main file passed to spark-submit; for HIVE, the Hive query text."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> entryPoint;
 
     @Override

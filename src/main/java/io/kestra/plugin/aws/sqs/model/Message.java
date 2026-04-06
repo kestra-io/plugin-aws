@@ -16,20 +16,20 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 @Jacksonized
 public class Message implements io.kestra.core.models.tasks.Output {
     @Schema(title = "The message data.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private String data;
 
     @Schema(title = "The message group ID.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String groupId;
 
     @Schema(title = "The message deduplication ID.")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String deduplicationId;
 
     @Schema(title = "The message delay in seconds.")
-    @PluginProperty
+    @PluginProperty(group = "advanced")
     private Integer delaySeconds;
 
     public SendMessageRequest to(SendMessageRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException {

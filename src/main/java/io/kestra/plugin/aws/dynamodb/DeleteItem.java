@@ -17,6 +17,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -54,6 +55,7 @@ public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOut
         title = "Item key",
         description = "Full primary key map (partition key, plus sort key when applicable)."
     )
+    @PluginProperty(group = "connection")
     private Property<Map<String, Object>> key;
 
     @Override
