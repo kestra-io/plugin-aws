@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -75,12 +76,14 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> 
         description = "Glue job whose run status is requested."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
         title = "Run ID",
         description = "Specific run ID; when omitted, the latest run is selected."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> runId;
 
     @Override

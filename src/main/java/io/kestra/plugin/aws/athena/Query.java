@@ -34,6 +34,7 @@ import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 /**
  * This Query task is built with the Athena SDK, more info can be found here: https://docs.aws.amazon.com/athena/latest/ug/code-samples.html.
@@ -128,6 +129,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         title = "Athena catalog",
         description = "Optional catalog name; use default if omitted."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> catalog;
 
     @Schema(
@@ -135,6 +137,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         description = "Target database for the query."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> database;
 
     @Schema(
@@ -142,6 +145,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         description = "Existing S3 URI where Athena writes result files (required by service)."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> outputLocation;
 
     @Schema(
@@ -149,6 +153,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         description = "SQL statement executed by Athena."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> query;
 
     @Schema(
@@ -157,6 +162,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
     @Schema(
@@ -165,6 +171,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
     private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");

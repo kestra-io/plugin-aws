@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @Getter
 @Builder
@@ -29,18 +30,21 @@ public class StepConfig {
         description = "JAR executed for the step, e.g., command-runner.jar."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jar;
 
     @Schema(
         title = "Main class",
         description = "Entry class name; omit if the JAR manifest defines Main-Class."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> mainClass;
 
     @Schema(
         title = "Arguments",
         description = "List of arguments; each string is split on spaces before being passed to the step."
     )
+    @PluginProperty(group = "advanced")
     private Property<List<String>> commands;
 
     @Schema(
@@ -48,6 +52,7 @@ public class StepConfig {
         description = "Label for the step, e.g., Run Spark job."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> name;
 
     @Schema(
@@ -55,6 +60,7 @@ public class StepConfig {
         description = "Behavior when the step fails: TERMINATE_CLUSTER, CANCEL_AND_WAIT, CONTINUE, or TERMINATE_JOB_FLOW."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Action> actionOnFailure;
 
     public software.amazon.awssdk.services.emr.model.StepConfig toStep(RunContext runContext) throws IllegalVariableEvaluationException {

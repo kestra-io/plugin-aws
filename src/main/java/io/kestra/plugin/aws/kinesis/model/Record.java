@@ -29,7 +29,7 @@ public class Record {
         title = "Partition key",
         description = "Determines the target shard for the record."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("PartitionKey")
     private String partitionKey;
@@ -38,7 +38,7 @@ public class Record {
         title = "Explicit hash key",
         description = "Optional hash value that overrides the partition key hash for shard selection."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "connection")
     @JsonAlias("ExplicitHashKey")
     private String explicitHashKey;
 
@@ -46,7 +46,7 @@ public class Record {
         title = "Data",
         description = "Data payload as a string; UTF-8 encoded before sending."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("Data")
     private String data;

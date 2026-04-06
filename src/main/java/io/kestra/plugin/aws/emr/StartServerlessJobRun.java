@@ -14,6 +14,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
 import software.amazon.awssdk.services.emrserverless.model.StartJobRunRequest;
 import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -59,6 +60,7 @@ public class StartServerlessJobRun extends AbstractEmrServerlessTask implements 
         description = "Existing EMR Serverless application to run the job on."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> applicationId;
 
     @Schema(
@@ -66,6 +68,7 @@ public class StartServerlessJobRun extends AbstractEmrServerlessTask implements 
         description = "IAM role assumed for this job run."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> executionRoleArn;
 
     @Schema(
@@ -73,6 +76,7 @@ public class StartServerlessJobRun extends AbstractEmrServerlessTask implements 
         description = "Displayed name for the job run."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
@@ -80,6 +84,7 @@ public class StartServerlessJobRun extends AbstractEmrServerlessTask implements 
         description = "Path to the Spark application file; passed to spark-submit."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> entryPoint;
 
     @Override

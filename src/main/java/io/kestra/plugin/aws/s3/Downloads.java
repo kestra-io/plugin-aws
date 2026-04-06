@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -71,15 +72,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Lists objects with filters, downloads them in bulk, emits metrics, and optionally performs a post-action (move/delete)."
 )
 public class Downloads extends AbstractS3Object implements RunnableTask<Downloads.Output>, ListInterface, ActionInterface {
+    @PluginProperty(group = "source")
     private Property<String> prefix;
 
+    @PluginProperty(group = "processing")
     private Property<String> delimiter;
 
+    @PluginProperty(group = "source")
     private Property<String> marker;
 
+    @PluginProperty(group = "advanced")
     private Property<String> encodingType;
 
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
@@ -87,13 +93,17 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
         description = "Use default async client for S3-compatible endpoints (limits transfers to ~2GB)."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
     @Builder.Default
+    @PluginProperty(group = "processing")
     protected final Property<Filter> filter = Property.ofValue(Filter.BOTH);
 
     @Builder.Default
@@ -101,6 +111,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
         title = "Max files",
         description = "Limit returned files; default 25."
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private Property<ActionInterface.Action> action;

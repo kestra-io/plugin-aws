@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -28,6 +29,7 @@ public abstract class AbstractCloudFormation extends AbstractConnection {
         title = "Stack name",
         description = "CloudFormation stack identifier used by create, update, and delete operations."
     )
+    @PluginProperty(group = "main")
     protected Property<String> stackName;
 
     @Builder.Default
@@ -35,6 +37,7 @@ public abstract class AbstractCloudFormation extends AbstractConnection {
         title = "Wait for completion",
         description = "When true (default), block until the stack reaches a terminal state for the requested operation."
     )
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> waitForCompletion = Property.ofValue(true);
 
     protected CloudFormationClient cfClient(final RunContext runContext) throws IllegalVariableEvaluationException {

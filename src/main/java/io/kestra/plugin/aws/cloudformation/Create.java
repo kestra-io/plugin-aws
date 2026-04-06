@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.cloudformation.model.*;
 import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWaiter;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -68,12 +69,14 @@ public class Create extends AbstractCloudFormation implements RunnableTask<Creat
         title = "Template body",
         description = "YAML or JSON template content."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> templateBody;
 
     @Schema(
         title = "Template parameters",
         description = "Key-value map rendered into CloudFormation parameters."
     )
+    @PluginProperty(group = "main")
     private Property<Map<String, String>> parameters;
 
     @Override

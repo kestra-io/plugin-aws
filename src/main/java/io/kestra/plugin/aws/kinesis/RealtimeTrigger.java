@@ -25,6 +25,7 @@ import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -65,52 +66,61 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         title = "AWS access key ID.",
         description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> accessKeyId;
 
     @Schema(
         title = "AWS secret access key.",
         description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> secretKeyId;
 
     @Schema(
         title = "AWS session token for temporary credentials.",
         description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "connection")
     private Property<String> sessionToken;
 
     @Schema(
         title = "AWS region with which the SDK should communicate."
     )
+    @PluginProperty(group = "connection")
     private Property<String> region;
 
     @Schema(
         title = "The endpoint with which the SDK should communicate.",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> endpointOverride;
 
     @Schema(
         title = "AWS STS Role.",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> stsRoleArn;
 
     @Schema(
         title = "AWS STS External Id.",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> stsRoleExternalId;
 
     @Schema(
         title = "AWS STS Session name.",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> stsRoleSessionName;
 
     @Schema(
         title = "The AWS STS endpoint with which the SDKClient should communicate."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
@@ -118,6 +128,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         title = "AWS STS Session duration.",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "execution")
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Schema(
@@ -125,6 +136,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         description = "Name of the Kinesis stream to subscribe to."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> streamName;
 
     @Builder.Default
@@ -138,6 +150,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         title = "Starting sequence number",
         description = "Required when iteratorType is AT_SEQUENCE_NUMBER or AFTER_SEQUENCE_NUMBER."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
     @NotNull
@@ -145,6 +158,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         title = "Consumer ARN",
         description = "ARN of a registered stream consumer for enhanced fan-out."
     )
+    @PluginProperty(group = "main")
     private Property<String> consumerArn;
 
     @Builder.Default

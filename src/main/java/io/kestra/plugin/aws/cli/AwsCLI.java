@@ -116,13 +116,14 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         description = "Shell fragments executed in order with /bin/sh -c; include aws ... and any needed piped tooling."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected List<String> commands;
 
     @Schema(
         title = "Extra environment variables",
         description = "Merged into the process environment alongside AWS credentials and AWS_DEFAULT_OUTPUT."
     )
-    @PluginProperty(
+    @PluginProperty(group = "execution", 
         additionalProperties = String.class,
         dynamic = true
     )
@@ -132,7 +133,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Deprecated Docker options",
         description = "Use taskRunner instead; retained for backward compatibility."
     )
-    @PluginProperty
+    @PluginProperty(group = "deprecated")
     @Deprecated
     private DockerOptions docker;
 
@@ -140,7 +141,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Task runner",
         description = "Runner implementation for executing the CLI; defaults to Docker runner."
     )
-    @PluginProperty
+    @PluginProperty(group = "execution")
     @Builder.Default
     @Valid
     private TaskRunner<?> taskRunner = Docker.instance();
@@ -149,7 +150,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Container image",
         description = "Image used when the runner is container-based; default amazon/aws-cli."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "execution")
     @Builder.Default
     private String containerImage = DEFAULT_IMAGE;
 
@@ -157,16 +158,20 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "AWS CLI output format",
         description = "Sets AWS_DEFAULT_OUTPUT; default json. CLI flags still take precedence."
     )
-    @PluginProperty
+    @PluginProperty(group = "processing")
     @Builder.Default
     protected OutputFormat outputFormat = OutputFormat.JSON;
 
+    @PluginProperty(group = "source")
     private NamespaceFiles namespaceFiles;
 
+    @PluginProperty(group = "source")
     private Object inputFiles;
 
+    @PluginProperty(group = "destination")
     private Property<List<String>> outputFiles;
 
+    @PluginProperty(group = "connection")
     private CredentialSource stsCredentialSource;
 
     @Override

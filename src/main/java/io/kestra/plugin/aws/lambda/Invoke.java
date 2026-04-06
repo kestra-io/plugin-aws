@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -114,12 +115,14 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         description = "Lambda ARN or name to invoke."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> functionArn;
 
     @Schema(
         title = "Function payload",
         description = "Optional map rendered to JSON and sent as the request payload."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> functionPayload;
 
     @Override

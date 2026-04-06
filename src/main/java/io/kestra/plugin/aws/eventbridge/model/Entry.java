@@ -31,7 +31,7 @@ public class Entry {
         title = "Event bus",
         description = "Name or ARN of the event bus that receives the event."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("EventBusName")
     private String eventBusName;
@@ -40,7 +40,7 @@ public class Entry {
         title = "Source",
         description = "Event source identifier, typically a domain or app name."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("Source")
     private String source;
@@ -49,7 +49,7 @@ public class Entry {
         title = "Detail type",
         description = "Classifier used by rules to interpret the detail payload."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("DetailType")
     private String detailType;
@@ -58,7 +58,7 @@ public class Entry {
         title = "Detail payload",
         description = "Event detail as JSON string or map; rendered then serialized to JSON."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     @JsonAlias("Detail")
     private Object detail;
 
@@ -66,7 +66,7 @@ public class Entry {
         title = "Resources",
         description = "Optional list of ARNs the event primarily concerns."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     @JsonAlias("Resources")
     private List<String> resources;
 

@@ -21,6 +21,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emr.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -73,6 +74,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "Name assigned to the EMR cluster."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> clusterName;
 
     @Schema(
@@ -81,24 +83,28 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> releaseLabel = Property.ofValue("emr-5.20.0");
 
     @Schema(
         title = "Steps to run",
         description = "Optional steps submitted with RunJobFlow; executed in order."
     )
+    @PluginProperty(group = "advanced")
     private List<StepConfig> steps;
 
     @Schema(
         title = "Applications",
         description = "EMR applications to install, e.g., Hive, Spark, Ganglia."
     )
+    @PluginProperty(group = "advanced")
     private Property<List<String>> applications;
 
     @Schema(
         title = "Log URI",
         description = "S3 URI for cluster logs; leave empty to disable logging."
     )
+    @PluginProperty(group = "connection")
     private Property<String> logUri;
 
     @Schema(
@@ -107,6 +113,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> jobFlowRole = Property.ofValue("EMR_EC2_DefaultRole");
 
     @Schema(
@@ -114,6 +121,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "When true (default), any IAM principal in the account with permissions can manage the cluster."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     private Property<Boolean> visibleToAllUsers = Property.ofValue(true);
 
     @Schema(
@@ -122,6 +130,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> serviceRole = Property.ofValue("EMR_DefaultRole");
 
     @Schema(
@@ -129,6 +138,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "EC2 instance type for the primary node."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> masterInstanceType;
 
     @Schema(
@@ -136,6 +146,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "EC2 instance type for core/task nodes."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> slaveInstanceType;
 
     @Schema(
@@ -143,6 +154,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "If true, cluster stays in WAITING after steps; default false terminates when done."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> keepJobFlowAliveWhenNoSteps = Property.ofValue(false);
 
     @Schema(
@@ -150,12 +162,14 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "Total number of instances in the cluster."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Integer> instanceCount;
 
     @Schema(
         title = "EC2 key pair",
         description = "Existing EC2 key pair for SSH access to the master as user hadoop."
     )
+    @PluginProperty(group = "connection")
     private Property<String> ec2KeyName;
 
     @Schema(
@@ -166,6 +180,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
             If you do not specify this value and your account supports EC2-Classic, the cluster launches in EC2-Classic.
             """
     )
+    @PluginProperty(group = "advanced")
     private Property<String> ec2SubnetId;
 
     @Schema(
@@ -173,6 +188,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "When true, poll cluster status until TERMINATED, TERMINATED_WITH_ERRORS, or WAITING; default false."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Boolean> wait = Property.ofValue(Boolean.FALSE);
 
     @Schema(
@@ -180,6 +196,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "Polling frequency while waiting; default 10s."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Duration> completionCheckInterval = Property.ofValue(Duration.ofSeconds(10));
 
     @Schema(
@@ -187,6 +204,7 @@ public class CreateClusterAndSubmitSteps extends AbstractEmrTask implements Runn
         description = "Maximum time to wait for WAITING or TERMINATED; default 1h."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Duration> waitUntilCompletion = Property.ofValue(Duration.ofHours(1));
 
     @Override

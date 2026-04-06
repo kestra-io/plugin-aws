@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -44,6 +45,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         description = "Target DynamoDB table for the operation."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> tableName;
 
     protected DynamoDbClient client(final RunContext runContext) throws IllegalVariableEvaluationException {

@@ -21,6 +21,7 @@ import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -63,6 +64,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
         description = "Identifier of the existing EMR cluster (jobFlowId)."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> clusterId;
 
     @Schema(
@@ -70,6 +72,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
         description = "Steps to append to the cluster; they execute in the order provided."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private List<StepConfig> steps;
 
     @Schema(
@@ -79,6 +82,7 @@ public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOut
             The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.
             """
     )
+    @PluginProperty(group = "advanced")
     private Property<String> executionRoleArn;
 
     @Override

@@ -20,6 +20,7 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emrserverless.EmrServerlessClient;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -59,6 +60,7 @@ public class DeleteServerlessApplication extends AbstractEmrServerlessTask imple
         description = "Identifiers of the EMR Serverless applications to delete."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<String>> applicationIds;
 
     @Override

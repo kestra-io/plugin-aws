@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -69,17 +70,20 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         title = "Max records",
         description = "Stop after consuming this many messages."
     )
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxRecords;
 
     @Schema(
         title = "Max duration",
         description = "Stop after this duration elapses."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Builder.Default
     @NotNull
     @Schema(title = "The serializer/deserializer to use.")
+    @PluginProperty(group = "advanced")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     @Schema(
@@ -87,6 +91,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         description = "If true (default), delete messages after processing."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Schema(
@@ -94,6 +99,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         description = "Seconds a received message stays hidden; default 30s."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
     @SuppressWarnings("BusyWait")

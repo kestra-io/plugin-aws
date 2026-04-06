@@ -133,9 +133,10 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         description = "If true (default), task fails when EventBridge rejects at least one entry."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> failOnUnsuccessfulEvents = Property.ofValue(true);
 
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @Schema(
         title = "Event entries",

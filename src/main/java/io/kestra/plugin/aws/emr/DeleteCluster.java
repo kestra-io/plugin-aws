@@ -19,6 +19,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -57,6 +58,7 @@ public class DeleteCluster extends AbstractEmrTask implements RunnableTask<VoidO
         description = "Job flow IDs to terminate, e.g., j-XXXXXXXXXXXXX."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<String>> clusterIds;
 
     @Override

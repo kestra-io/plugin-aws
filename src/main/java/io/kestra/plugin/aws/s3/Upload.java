@@ -33,6 +33,7 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -262,6 +263,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         anyOf = { List.class, String.class, Map.class }
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Object from;
 
     @Schema(
@@ -269,109 +271,129 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         description = "Full key for single upload or base prefix for multi-file uploads."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> key;
 
     @Schema(
         title = "Metadata",
         description = "Key/value metadata stored with the object."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> metadata;
 
     @Schema(
         title = "Cache-Control"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> cacheControl;
 
     @Schema(
         title = "Content-Type"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentType;
 
     @Schema(
         title = "Content-Encoding",
         description = "Applied encodings; informs how to decode to the Content-Type."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentEncoding;
 
     @Schema(
         title = "Content-Disposition"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentDisposition;
 
     @Schema(
         title = "Content-Language"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentLanguage;
 
     @Schema(
         title = "Content-Length",
         description = "Explicit length when it cannot be inferred."
     )
+    @PluginProperty(group = "advanced")
     private Property<Long> contentLength;
 
     @Schema(
         title = "Expires"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> expires;
 
     @Schema(
         title = "Canned ACL"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> acl;
 
     @Schema(
         title = "Storage class",
         description = "Defaults to STANDARD if not set."
     )
+    @PluginProperty(group = "destination")
     private Property<StorageClass> storageClass;
 
     @Schema(
         title = "Server-side encryption",
         description = "For example AES256, aws:kms, aws:kms:dsse."
     )
+    @PluginProperty(group = "connection")
     private Property<ServerSideEncryption> serverSideEncryption;
 
     @Schema(
         title = "Bucket key enabled",
         description = "Use S3 Bucket Key when SSE-KMS is selected."
     )
+    @PluginProperty(group = "connection")
     private Property<Boolean> bucketKeyEnabled;
 
     @Schema(
         title = "Checksum algorithm"
     )
+    @PluginProperty(group = "advanced")
     private Property<ChecksumAlgorithm> checksumAlgorithm;
 
     @Schema(
         title = "Expected bucket owner",
         description = "Reject if the bucket is owned by another account."
     )
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
     @Schema(
         title = "Object Lock mode"
     )
+    @PluginProperty(group = "advanced")
     private Property<ObjectLockMode> objectLockMode;
 
     @Schema(
         title = "Legal hold"
     )
+    @PluginProperty(group = "advanced")
     private Property<ObjectLockLegalHoldStatus> objectLockLegalHoldStatus;
 
     @Schema(
         title = "Retain until date"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> objectLockRetainUntilDate;
 
     @Schema(
         title = "Checksum value",
         description = "Must match the selected checksumAlgorithm."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> checksum;
 
     @Schema(
         title = "Tags"
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> tagging;
 
     @Schema(
@@ -379,6 +401,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         description = "Use default async client for S3-compatible endpoints (limits transfers to ~2GB)."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
     @Override

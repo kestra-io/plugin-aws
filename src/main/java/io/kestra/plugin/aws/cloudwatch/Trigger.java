@@ -17,6 +17,7 @@ import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -66,18 +67,21 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "AWS access key ID.",
         description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> accessKeyId;
 
     @Schema(
         title = "AWS secret access key.",
         description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> secretKeyId;
 
     @Schema(
         title = "AWS session token for temporary credentials.",
         description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
+    @PluginProperty(group = "connection")
     protected Property<String> sessionToken;
 
     protected Property<String> region;

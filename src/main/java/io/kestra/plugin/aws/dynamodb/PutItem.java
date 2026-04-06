@@ -110,7 +110,7 @@ public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput
         title = "Item",
         description = "Item content as a JSON string or map; rendered before write."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private Object item;
 
     @Override
