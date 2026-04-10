@@ -169,9 +169,9 @@ class TriggerTest extends AbstractTest {
 
         upload("trigger/on-create", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -196,14 +196,14 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        trigger.evaluate(context.getKey(), context.getValue());
+        trigger.evaluate(context.getKey(), context.getValue().context());
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -227,15 +227,15 @@ class TriggerTest extends AbstractTest {
 
         var key = upload("trigger/on-create-or-update", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat("Trigger should fire on CREATE", createExecution.isPresent(), is(true));
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(updateExecution.isPresent(), is(true));
     }
 
@@ -264,9 +264,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         // When maxFiles exceeded, List returns first 3 files, so Trigger should fire
         assertThat(execution.isPresent(), is(true));
     }
@@ -296,9 +296,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 }
