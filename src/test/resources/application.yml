@@ -9,3 +9,10 @@ kestra:
     type: memory
   repository:
     type: memory
+
+worker:
+  controllers:
+    type: STATIC
+    static:
+      endpoints:
+        - host: localhost

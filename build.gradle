@@ -127,6 +127,7 @@ dependencies {
     testImplementation group: "io.kestra", name: "repository-memory"
     testImplementation group: "io.kestra", name: "scheduler"
     testImplementation group: "io.kestra", name: "worker"
+    testImplementation group: "io.kestra", name: "indexer", version: kestraVersion
 
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:2.0.4"
