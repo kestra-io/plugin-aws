@@ -3,37 +3,26 @@ package io.kestra.plugin.aws.kinesis;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.*;
 
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
-import io.kestra.core.runners.FlowListeners;
-import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.aws.kinesis.model.Record;
-import io.kestra.scheduler.AbstractScheduler;
-import io.kestra.worker.DefaultWorker;
-
-import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.kinesis.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+@KestraTest(startRunner = true, startScheduler = true)
 class RealtimeTriggerTest extends AbstractKinesisTest {
-    @Inject
-    ApplicationContext applicationContext;
-
-    @Inject
-    FlowListeners flowListeners;
-
     @Inject
     DispatchQueueInterface<Execution> executionQueue;
 
@@ -50,12 +39,6 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
             lastExecution.set(e);
             latch.countDown();
         });
-
-        DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, UUID.randomUUID().toString(), 8, null);
-        try (AbstractScheduler scheduler = new JdbcScheduler(applicationContext, flowListeners)) {
-
-            worker.run();
-            scheduler.run();
 
             String yaml = """
                 id: realtime
@@ -104,6 +87,5 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
             assertThat(done, is(true));
 
             assertThat(lastExecution.get().getTrigger().getVariables().get("data"), is("hello"));
-        }
     }
 }
