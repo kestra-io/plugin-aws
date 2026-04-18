@@ -104,21 +104,9 @@ public abstract class AbstractS3Files extends AbstractConnection {
         }
     }
 
-    // -------------------------------------------------------------------------
     // HTTP request execution
-    // -------------------------------------------------------------------------
 
     /**
-     * Builds and executes a SigV4-signed HTTP request against the S3 Files control-plane
-     * endpoint.
-     *
-     * <p>
-     * The signing hostname is always the canonical AWS endpoint
-     * ({@code s3files.{region}.amazonaws.com}) regardless of {@code endpointOverride},
-     * ensuring the SigV4 signature covers the correct {@code Host} header.
-     * When {@code endpointOverride} is configured the physical TCP connection is made
-     * to that override URL instead (useful for LocalStack / testing).
-     * </p>
      *
      * @param runContext Kestra run context used for rendering properties
      * @param method HTTP method (GET, PUT, POST, DELETE)
