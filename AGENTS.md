@@ -7,8 +7,9 @@
 
 ## Why
 
-- This plugin integrates Kestra with Athena.
-- It provides tasks that run Amazon Athena SQL queries against data in S3 or federated sources, writing results to an S3 output location and optionally fetching rows.
+- What user problem does this solve? Teams need to aWS plugin for Kestra from orchestrated workflows instead of relying on manual console work, ad hoc scripts, or disconnected schedulers.
+- Why would a team adopt this plugin in a workflow? It keeps AWS steps in the same Kestra flow as upstream preparation, approvals, retries, notifications, and downstream systems.
+- What operational/business outcome does it enable? It reduces manual handoffs and fragmented tooling while improving reliability, traceability, and delivery speed for processes that depend on AWS.
 
 ## How
 
