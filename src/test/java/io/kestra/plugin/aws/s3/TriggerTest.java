@@ -16,15 +16,12 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import reactor.core.publisher.Flux;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -32,8 +29,7 @@ import static org.hamcrest.Matchers.is;
 @KestraTest(startRunner = true, startScheduler = true)
 class TriggerTest extends AbstractTest {
     @Inject
-    @Named(QueueFactoryInterface.EXECUTION_NAMED)
-    private QueueInterface<Execution> executionQueue;
+    private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
     protected LocalFlowRepositoryLoader repositoryLoader;
@@ -43,11 +39,11 @@ class TriggerTest extends AbstractTest {
         String bucket = "trigger-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
-            Execution execution = executionWithError.getLeft();
 
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -61,7 +57,6 @@ class TriggerTest extends AbstractTest {
 
         boolean await = queueCount.await(10, TimeUnit.SECONDS);
         assertThat(await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -82,9 +77,7 @@ class TriggerTest extends AbstractTest {
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
-            Execution execution = executionWithError.getLeft();
-
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen-none-action")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -98,7 +91,6 @@ class TriggerTest extends AbstractTest {
 
         boolean await = queueCount.await(10, TimeUnit.SECONDS);
         assertThat(await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -119,9 +111,8 @@ class TriggerTest extends AbstractTest {
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
-            Execution execution = executionWithError.getLeft();
 
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen-localhost-force-path-style")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -135,7 +126,6 @@ class TriggerTest extends AbstractTest {
 
         boolean await = queueCount.await(15, TimeUnit.SECONDS);
         assertThat("trigger should work with localhost endpoint + forcePathStyle", await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -169,9 +159,9 @@ class TriggerTest extends AbstractTest {
 
         upload("trigger/on-create", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -196,14 +186,14 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        trigger.evaluate(context.getKey(), context.getValue());
+        trigger.evaluate(context.getKey(), context.getValue().context());
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -227,15 +217,15 @@ class TriggerTest extends AbstractTest {
 
         var key = upload("trigger/on-create-or-update", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat("Trigger should fire on CREATE", createExecution.isPresent(), is(true));
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(updateExecution.isPresent(), is(true));
     }
 
@@ -264,9 +254,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         // When maxFiles exceeded, List returns first 3 files, so Trigger should fire
         assertThat(execution.isPresent(), is(true));
     }
@@ -296,9 +286,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 }
