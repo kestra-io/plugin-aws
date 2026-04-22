@@ -102,10 +102,13 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     private Property<String> queueUrl;
 
+    @PluginProperty(secret = true)
     private Property<String> accessKeyId;
 
+    @PluginProperty(secret = true)
     private Property<String> secretKeyId;
 
+    @PluginProperty(secret = true)
     private Property<String> sessionToken;
 
     private Property<String> region;

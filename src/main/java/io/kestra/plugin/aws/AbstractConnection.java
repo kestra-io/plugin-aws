@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import java.time.Duration;
 
 import io.kestra.core.models.property.Property;
@@ -22,8 +23,11 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
     protected Property<Boolean> forcePathStyle;
 
     // Configuration for StaticCredentialsProvider
+    @PluginProperty(secret = true)
     protected Property<String> accessKeyId;
+    @PluginProperty(secret = true)
     protected Property<String> secretKeyId;
+    @PluginProperty(secret = true)
     protected Property<String> sessionToken;
 
     // Configuration for AWS STS AssumeRole

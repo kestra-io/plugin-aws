@@ -58,21 +58,21 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Access Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     private Property<String> accessKeyId;
 
     @Schema(
         title = "Secret Key Id in order to connect to AWS.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     private Property<String> secretKeyId;
 
     @Schema(
         title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> sessionToken;
 
     @Schema(
