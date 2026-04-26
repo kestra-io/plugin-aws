@@ -66,21 +66,21 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         title = "AWS access key ID.",
         description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     private Property<String> accessKeyId;
 
     @Schema(
         title = "AWS secret access key.",
         description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     private Property<String> secretKeyId;
 
     @Schema(
         title = "AWS session token for temporary credentials.",
         description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> sessionToken;
 
     @Schema(
