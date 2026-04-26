@@ -111,13 +111,10 @@ public class Trigger extends AbstractTrigger
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @PluginProperty(secret = true)
     protected Property<String> accessKeyId;
 
-    @PluginProperty(secret = true)
     protected Property<String> secretKeyId;
 
-    @PluginProperty(secret = true)
     protected Property<String> sessionToken;
 
     protected Property<String> region;
