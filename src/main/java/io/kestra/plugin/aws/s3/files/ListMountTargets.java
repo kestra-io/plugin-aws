@@ -103,7 +103,7 @@ public class ListMountTargets extends AbstractS3Files implements RunnableTask<Li
         );
 
         return Output.builder()
-            .mountTargets(parsed.getMountTargets())
+            .mountTargets(parsed.getMountTargets() != null ? parsed.getMountTargets() : List.of())
             .nextToken(parsed.getNextToken())
             .build();
     }

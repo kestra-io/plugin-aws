@@ -103,7 +103,7 @@ public class ListFileSystems extends AbstractS3Files implements RunnableTask<Lis
         runContext.logger().info("Listed {} S3 Files file system(s)", parsed.getFileSystems() != null ? parsed.getFileSystems().size() : 0);
 
         return Output.builder()
-            .fileSystems(parsed.getFileSystems())
+            .fileSystems(parsed.getFileSystems() != null ? parsed.getFileSystems() : List.of())
             .nextToken(parsed.getNextToken())
             .build();
     }
