@@ -131,9 +131,18 @@ public abstract class AbstractS3Files extends AbstractConnection {
 
         String serviceHost = S3_FILES_SERVICE + "." + regionStr + ".amazonaws.com";
 
-        String baseUrl = cfg.endpointOverride() != null
-            ? cfg.endpointOverride().replaceAll("/$", "")
-            : "https://" + serviceHost;
+        String baseUrl;
+        String hostHeader;
+        if (cfg.endpointOverride() != null) {
+            baseUrl = cfg.endpointOverride().replaceAll("/$", "");
+            URI overrideUri = URI.create(cfg.endpointOverride());
+            hostHeader = overrideUri.getPort() > 0
+                ? overrideUri.getHost() + ":" + overrideUri.getPort()
+                : overrideUri.getHost();
+        } else {
+            baseUrl = "https://" + serviceHost;
+            hostHeader = serviceHost;
+        }
 
         URI requestUri = URI.create(baseUrl + path);
 
@@ -143,7 +152,7 @@ public abstract class AbstractS3Files extends AbstractConnection {
             .method(method)
             .uri(requestUri)
             .putHeader("Content-Type", "application/json")
-            .putHeader("Host", serviceHost);
+            .putHeader("Host", hostHeader);
 
         if (bodyBytes.length > 0) {
             requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(bodyBytes));
