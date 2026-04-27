@@ -43,9 +43,7 @@ public abstract class AbstractS3Files extends AbstractConnection {
     private static final String S3_FILES_SERVICE = "s3files";
     private static final ApacheHttpClient HTTP_CLIENT = (ApacheHttpClient) ApacheHttpClient.create();
 
-    protected AwsCredentialsProvider credentialsProvider(RunContext runContext) throws Exception {
-        AbstractConnection.AwsClientConfig cfg = this.awsClientConfig(runContext);
-
+    protected AwsCredentialsProvider credentialsProvider(AbstractConnection.AwsClientConfig cfg) {
         if (cfg.stsRoleArn() != null) {
             return stsCredentialsProvider(cfg);
         }
@@ -154,7 +152,7 @@ public abstract class AbstractS3Files extends AbstractConnection {
         SdkHttpFullRequest unsignedRequest = requestBuilder.build();
 
         Aws4SignerParams signerParams = Aws4SignerParams.builder()
-            .awsCredentials(credentialsProvider(runContext).resolveCredentials())
+            .awsCredentials(credentialsProvider(cfg).resolveCredentials())
             .signingName(S3_FILES_SERVICE)
             .signingRegion(region)
             .build();
