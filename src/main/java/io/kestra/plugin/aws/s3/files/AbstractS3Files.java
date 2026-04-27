@@ -40,7 +40,8 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 @NoArgsConstructor
 public abstract class AbstractS3Files extends AbstractConnection {
 
-    static final String S3_FILES_SERVICE = "s3files";
+    private static final String S3_FILES_SERVICE = "s3files";
+    private static final ApacheHttpClient HTTP_CLIENT = (ApacheHttpClient) ApacheHttpClient.create();
 
     protected AwsCredentialsProvider credentialsProvider(RunContext runContext) throws Exception {
         AbstractConnection.AwsClientConfig cfg = this.awsClientConfig(runContext);
@@ -160,35 +161,33 @@ public abstract class AbstractS3Files extends AbstractConnection {
 
         SdkHttpFullRequest signedRequest = Aws4Signer.create().sign(unsignedRequest, signerParams);
 
-        try (ApacheHttpClient httpClient = (ApacheHttpClient) ApacheHttpClient.create()) {
-            ExecutableHttpRequest executableRequest = httpClient.prepareRequest(
-                HttpExecuteRequest.builder()
-                    .request(signedRequest)
-                    .contentStreamProvider(
-                        bodyBytes.length > 0
-                            ? () -> new ByteArrayInputStream(bodyBytes)
-                            : null
-                    )
-                    .build()
-            );
+        ExecutableHttpRequest executableRequest = HTTP_CLIENT.prepareRequest(
+            HttpExecuteRequest.builder()
+                .request(signedRequest)
+                .contentStreamProvider(
+                    bodyBytes.length > 0
+                        ? () -> new ByteArrayInputStream(bodyBytes)
+                        : null
+                )
+                .build()
+        );
 
-            HttpExecuteResponse response = executableRequest.call();
-            int statusCode = response.httpResponse().statusCode();
+        HttpExecuteResponse response = executableRequest.call();
+        int statusCode = response.httpResponse().statusCode();
 
-            String responseBody = "";
-            if (response.responseBody().isPresent()) {
-                try (InputStream is = response.responseBody().get()) {
-                    responseBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                }
+        String responseBody = "";
+        if (response.responseBody().isPresent()) {
+            try (InputStream is = response.responseBody().get()) {
+                responseBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
-
-            if (statusCode < 200 || statusCode >= 300) {
-                throw new RuntimeException(
-                    "S3 Files API error [HTTP " + statusCode + "]: " + responseBody
-                );
-            }
-
-            return new S3FilesService.Response(statusCode, responseBody);
         }
+
+        if (statusCode < 200 || statusCode >= 300) {
+            throw new RuntimeException(
+                "S3 Files API error [HTTP " + statusCode + "]: " + responseBody
+            );
+        }
+
+        return new S3FilesService.Response(statusCode, responseBody);
     }
 }
