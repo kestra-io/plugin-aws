@@ -90,12 +90,9 @@ public class CreateFileSystem extends AbstractS3Files implements RunnableTask<Cr
         runContext.render(prefix).as(String.class).ifPresent(v -> body.put("prefix", v));
         runContext.render(kmsKeyId).as(String.class).ifPresent(v -> body.put("kmsKeyId", v));
         runContext.render(clientToken).as(String.class).ifPresent(v -> body.put("clientToken", v));
-        runContext.render(acceptBucketWarning).as(Boolean.class)
-            .ifPresent(v ->
-            {
-                if (Boolean.TRUE.equals(v))
-                    body.put("acceptBucketWarning", true);
-            });
+        if (Boolean.TRUE.equals(runContext.render(acceptBucketWarning).as(Boolean.class).orElse(false))) {
+            body.put("acceptBucketWarning", true);
+        }
 
         if (tags != null) {
             Map<String, String> tagMap = runContext.render(tags).asMap(String.class, String.class);

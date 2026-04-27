@@ -106,11 +106,10 @@ public abstract class AbstractS3Files extends AbstractConnection {
     // HTTP request execution
 
     /**
-     *
      * @param runContext Kestra run context used for rendering properties
      * @param method HTTP method (GET, PUT, POST, DELETE)
-     * @param path API path, e.g. {@code "/file-systems"} or
-     *        {@code "/file-systems/fs-abc/mount-targets"}
+     * @param path API path, e.g. {@code "/filesystems"} or
+     *        {@code "/filesystems/fs-abc/mounttargets"}
      * @param body request body bytes; {@code null} for bodyless methods (GET/DELETE)
      * @return {@link S3FilesService.Response} containing the HTTP status and raw JSON body
      * @throws RuntimeException if the API returns a non-2xx status code
@@ -166,6 +165,7 @@ public abstract class AbstractS3Files extends AbstractConnection {
             .signingRegion(region)
             .build();
 
+        // TODO: replace Aws4Signer (deprecated) with the generated s3files SDK client once published to Maven Central
         SdkHttpFullRequest signedRequest = Aws4Signer.create().sign(unsignedRequest, signerParams);
 
         ExecutableHttpRequest executableRequest = HTTP_CLIENT.prepareRequest(
