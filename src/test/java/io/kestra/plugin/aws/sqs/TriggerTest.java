@@ -1,20 +1,22 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.DispatchQueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.runners.Scheduler;
 import io.kestra.plugin.aws.sqs.model.Message;
 import jakarta.inject.Inject;
 
@@ -28,13 +30,16 @@ class TriggerTest extends AbstractSqsTest {
     private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
-    protected LocalFlowRepositoryLoader repositoryLoader;
+    protected Scheduler scheduler;
 
     @Inject
     protected RunContextFactory runContextFactory;
 
     @Test
+    @LoadFlows({"flows/sqs/sqs-listen.yaml"})
     void flow() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> lastExecution = new AtomicReference<>();
         executionQueue.addListener(execution -> {
@@ -42,8 +47,6 @@ class TriggerTest extends AbstractSqsTest {
             queueCount.countDown();
             assertThat(execution.getFlowId(), is("sqs-listen"));
         });
-
-        repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/sqs/sqs-listen.yaml")));
 
         Publish task = Publish.builder()
             .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))

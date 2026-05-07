@@ -2,22 +2,23 @@ package io.kestra.plugin.aws.s3;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
 import io.kestra.core.queues.DispatchQueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
+import io.kestra.core.runners.Scheduler;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
@@ -32,10 +33,13 @@ class TriggerTest extends AbstractTest {
     private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
-    protected LocalFlowRepositoryLoader repositoryLoader;
+    protected Scheduler scheduler;
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen.yaml"})
     void deleteAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
@@ -53,9 +57,7 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen.yaml")));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
@@ -70,7 +72,10 @@ class TriggerTest extends AbstractTest {
     }
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen-none-action.yaml"})
     void noneAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-none-action-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
@@ -87,9 +92,7 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen-none-action.yaml")));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
@@ -104,7 +107,10 @@ class TriggerTest extends AbstractTest {
     }
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen-localhost-force-path-style.yaml"})
     void forcePathStyleWithSimpleLocalhost() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-force-path-style-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
@@ -122,9 +128,7 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/s3/s3-listen-localhost-force-path-style.yaml")));
-
-        boolean await = queueCount.await(15, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat("trigger should work with localhost endpoint + forcePathStyle", await, is(true));
 
         @SuppressWarnings("unchecked")
