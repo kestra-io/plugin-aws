@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.kestra.core.models.conditions.ConditionContext;
 
 @KestraTest
 class TriggerTest {
@@ -59,8 +60,8 @@ class TriggerTest {
                 Query.class, (mock, context) -> when(mock.run(any())).thenReturn(output)
             )
         ) {
-            var conditionContext = io.kestra.core.utils.TestsUtils.mockTrigger(runContextFactory, trigger);
-            var execution = trigger.evaluate(conditionContext.getKey(), conditionContext.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> conditionContext = io.kestra.core.utils.TestsUtils.mockTrigger(runContextFactory, trigger);
+            var execution = trigger.evaluate(conditionContext.getKey(), conditionContext.getValue().context());
 
             assertThat(execution.isPresent(), is(true));
             assertThat(mockedQuery.constructed(), hasSize(1));
