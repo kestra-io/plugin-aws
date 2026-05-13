@@ -1,3 +1,5 @@
+# How to Use the AWS Plugin
+
 ### Authentication
 
 All tasks must be authenticated for the AWS Platform.
