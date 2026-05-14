@@ -115,9 +115,9 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "AWS CLI commands",
         description = "Shell fragments executed in order with /bin/sh -c; include aws ... and any needed piped tooling."
     )
-    @NotNull
     @PluginProperty(group = "main")
-    protected List<String> commands;
+    @NotNull
+    protected Property<List<String>> commands;
 
     @Schema(
         title = "Extra environment variables",
@@ -199,7 +199,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             allCommands.add("aws configure set credential_source " + this.stsCredentialSource.value);
         }
 
-        allCommands.addAll(this.commands);
+        allCommands.addAll(runContext.render(this.commands).asList(String.class));
 
         var renderedOutputFiles = runContext.render(outputFiles).asList(String.class);
 
