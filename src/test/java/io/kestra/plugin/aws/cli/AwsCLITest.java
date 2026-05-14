@@ -11,6 +11,7 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
@@ -49,7 +50,7 @@ public class AwsCLITest extends AbstractLocalStackTest {
             .secretKeyId(Property.ofValue(localstack.getSecretKey()))
             .region(Property.ofValue(localstack.getRegion()))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
-            .commands(
+            .commands(Property.ofExpression(JacksonMapper.ofJson().writeValueAsString(
                 List.of(
                     "echo \"::{\\\"outputs\\\":{" +
                         "\\\"endpoint\\\":\\\"$AWS_ENDPOINT_URL\\\"," +
@@ -59,13 +60,13 @@ public class AwsCLITest extends AbstractLocalStackTest {
                         "\\\"format\\\":\\\"$AWS_DEFAULT_OUTPUT\\\"," +
                         "\\\"customEnv\\\":\\\"$" + envKey + "\\\"" +
                         "}}::\"",
-                    "aws s3 mb s3://test-bucket",
+                    "aws s3 mb s3://{{ inputs.bucketName }}",
                     "echo \"::{\\\"outputs\\\":$(aws s3api list-buckets | tr -d '\\n')}::\""
                 )
-            )
+            )))
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, execute, Map.of("envKey", envKey, "envValue", envValue));
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, execute, Map.of("envKey", envKey, "envValue", envValue, "bucketName", "test-bucket"));
 
         ScriptOutput runOutput = execute.run(runContext);
 
