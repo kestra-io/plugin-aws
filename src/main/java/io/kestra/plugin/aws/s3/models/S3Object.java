@@ -17,6 +17,10 @@ public class S3Object {
     Long size;
     Instant lastModified;
     Owner owner;
+    @With
+    String checksumAlgorithm;
+    @With
+    String checksumValue;
 
     public static S3Object of(software.amazon.awssdk.services.s3.model.S3Object object) {
         return S3Object.builder()
