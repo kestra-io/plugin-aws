@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
@@ -49,6 +50,24 @@ import io.kestra.core.models.annotations.PluginProperty;
                     region: "eu-central-1"
                     bucket: "my-bucket"
                     prefix: "sub-dir"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Download a prefix and verify the stored S3 checksum on each object.",
+            code = """
+                id: aws_s3_downloads_validate_checksum
+                namespace: company.team
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.aws.s3.Downloads
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    prefix: "sub-dir"
+                    validateChecksum: true
                 """
         )
     },
@@ -118,6 +137,16 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
 
     private Copy.CopyObject moveTo;
 
+    @Schema(
+        title = "Validate checksum after download",
+        description = "When true, requests S3 to return the stored checksum and the AWS SDK verifies the downloaded bytes during transfer. " +
+            "Each object must have been uploaded with a checksum algorithm (SHA1, SHA256, CRC32, or CRC32C) for verification to occur; " +
+            "if an object has no stored checksum, a warning is logged and the download is not verified."
+    )
+    @Builder.Default
+    @PluginProperty(group = "reliability")
+    private Property<Boolean> validateChecksum = Property.ofValue(false);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         List task = List.builder()
@@ -147,6 +176,8 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             .build();
         List.Output run = task.run(runContext);
 
+        boolean validate = runContext.render(this.validateChecksum).as(Boolean.class).orElse(false);
+
         try (S3AsyncClient client = this.asyncClient(runContext)) {
             java.util.List<S3Object> list = run
                 .getObjects()
@@ -157,9 +188,17 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                         .bucket(runContext.render(bucket).as(String.class).orElseThrow())
                         .key(object.getKey());
 
-                    Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
+                    if (validate) {
+                        builder.checksumMode(ChecksumMode.ENABLED);
+                    }
 
-                    return object.withUri(download.getRight());
+                    Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, builder.build());
+                    Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
+
+                    return object
+                        .withUri(download.getRight())
+                        .withChecksumAlgorithm(checksum.getLeft())
+                        .withChecksumValue(checksum.getRight());
                 }))
                 .filter(object -> !object.getKey().endsWith("/")) // filter directory
                 .collect(Collectors.toList());
@@ -177,7 +216,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
 
             Map<String, URI> outputFiles = list.stream()
                 .map(obj -> new AbstractMap.SimpleEntry<>(obj.getKey(), obj.getUri()))
-                .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
 
             S3Service.performAction(
                 run.getObjects(),

@@ -22,6 +22,7 @@ import io.kestra.plugin.aws.s3.models.S3Object;
 import software.amazon.awssdk.crt.CRT;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
@@ -57,8 +58,35 @@ public class S3Service {
 
             runContext.metric(Counter.of("file.size", response.contentLength()));
 
+            if (request.checksumMode() == ChecksumMode.ENABLED && extractChecksum(response).getLeft() == null) {
+                runContext.logger().warn(
+                    "Checksum validation requested for key '{}' but the object has no stored checksum; transfer was not verified.",
+                    request.key()
+                );
+            }
+
             return Pair.of(response, runContext.storage().putFile(tempFile));
         }
+    }
+
+    /**
+     * Returns the first non-null checksum from a {@link GetObjectResponse} as an (algorithm, base64-value) pair.
+     * Both elements are null when the response carries no checksum.
+     */
+    public static Pair<String, String> extractChecksum(GetObjectResponse response) {
+        if (response.checksumSHA256() != null) {
+            return Pair.of("SHA256", response.checksumSHA256());
+        }
+        if (response.checksumSHA1() != null) {
+            return Pair.of("SHA1", response.checksumSHA1());
+        }
+        if (response.checksumCRC32() != null) {
+            return Pair.of("CRC32", response.checksumCRC32());
+        }
+        if (response.checksumCRC32C() != null) {
+            return Pair.of("CRC32C", response.checksumCRC32C());
+        }
+        return Pair.of(null, null);
     }
 
     static void performAction(
