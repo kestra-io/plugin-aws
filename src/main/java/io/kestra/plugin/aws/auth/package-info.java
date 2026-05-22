@@ -1,5 +1,5 @@
 @PluginSubGroup(
-    title = "Authentication",
+    title = "AWS Authentication",
     description = "Tasks that generate authentication material for AWS services, such as short-lived tokens to access Amazon EKS clusters.",
     categories = { PluginSubGroup.PluginCategory.CLOUD }
 )
