@@ -214,7 +214,7 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+            try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
                 return FileSerde.readAll(inputStream, Record.class)
                     .collectList().block();
             }

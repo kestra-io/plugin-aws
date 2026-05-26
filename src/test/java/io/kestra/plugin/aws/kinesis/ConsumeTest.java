@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.kinesis;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.BufferedInputStream;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -20,8 +19,8 @@ import static org.hamcrest.Matchers.*;
 
 class ConsumeTest extends AbstractKinesisTest {
     private static List<Consume.ConsumedRecord> loadOutput(RunContext ctx, URI uri) throws Exception {
-        try (BufferedReader r = new BufferedReader(new InputStreamReader(ctx.storage().getFile(uri)))) {
-            return FileSerde.readAll(r, Consume.ConsumedRecord.class).collectList().block();
+        try (var inputStream = new BufferedInputStream(ctx.storage().getFile(uri), FileSerde.BUFFER_SIZE)) {
+            return FileSerde.readAll(inputStream, Consume.ConsumedRecord.class).collectList().block();
         }
     }
 

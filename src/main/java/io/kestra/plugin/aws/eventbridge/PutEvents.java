@@ -218,7 +218,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+            try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
                 return FileSerde.readAll(inputStream, Entry.class)
                     .collectList().block();
             }
