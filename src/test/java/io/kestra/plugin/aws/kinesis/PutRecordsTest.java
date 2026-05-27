@@ -1,9 +1,8 @@
 package io.kestra.plugin.aws.kinesis;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 
@@ -85,7 +84,7 @@ class PutRecordsTest {
         if (!from.getScheme().equals("kestra")) {
             throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
         }
-        try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+        try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
             outputEntries = FileSerde.readAll(inputStream, PutRecords.OutputEntry.class).collectList().block();
         }
         return outputEntries;
