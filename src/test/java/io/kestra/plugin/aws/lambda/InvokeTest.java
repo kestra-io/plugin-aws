@@ -46,7 +46,7 @@ public class InvokeTest extends AbstractInvokeTest {
         // Then
         assertNotNull(output.getUri(), "File URI should be present");
         assertEquals(
-            "text/plain; charset=UTF-8", output.getContentType(),
+            "application/json", output.getContentType(),
             "Output content type should be present"
         );
         assertTrue(output.getContentLength() > 10, "Output content length should have a value");

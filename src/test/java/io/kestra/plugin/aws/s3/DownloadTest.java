@@ -39,6 +39,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .key(Property.ofValue(key))
             .build();
 
@@ -86,6 +87,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(folder1))
             .build();
 
@@ -110,6 +112,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(folder1))
             .delimiter(Property.ofValue("/"))
             .build();
@@ -132,6 +135,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .regexp(Property.ofValue(".*\\.txt$"))
             .build();
@@ -157,6 +161,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .build();
@@ -173,6 +178,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .checksumAlgorithm(Property.ofValue(ChecksumAlgorithm.SHA256))
@@ -212,6 +218,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .key(Property.ofValue(key))
             .validateChecksum(Property.ofValue(true))
             .build();
@@ -241,6 +248,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .key(Property.ofValue(key))
             .validateChecksum(Property.ofValue(true))
             .build();
@@ -275,6 +283,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .validateChecksum(Property.ofValue(true))
             .build();
@@ -301,6 +310,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .build();
 
         IllegalArgumentException exception = assertThrows(
@@ -336,6 +346,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .maxFiles(Property.ofValue(3))
             .build();
@@ -368,6 +379,7 @@ class DownloadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .maxFiles(Property.ofValue(10))
             .build();

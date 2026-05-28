@@ -32,6 +32,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(java.util.List.of(source1.toString(), source2.toString(), source3.toString(), source4.toString()))
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
@@ -55,6 +56,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(upload.getKey())
             .build();
 
@@ -78,6 +80,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(IdUtils.create() + "/single.yml"))
             .build();
@@ -98,6 +101,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(upload.getKey())
             .build();
 
@@ -124,6 +128,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(jsonArray)
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
@@ -145,6 +150,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(upload.getKey())
             .build();
 
@@ -168,6 +174,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(emptyJsonArray)
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
@@ -193,6 +200,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(java.util.Collections.emptyList())
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
@@ -230,6 +238,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(filesMap)
             .key(Property.ofValue(baseKey))
             .build();
@@ -259,6 +268,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(baseKey))
             .build();
 
@@ -306,6 +316,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(jsonMap)
             .key(Property.ofValue(baseKey))
             .build();
@@ -333,6 +344,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(baseKey))
             .build();
 
@@ -353,6 +365,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(java.util.Collections.emptyMap())
             .key(Property.ofValue(IdUtils.create() + "/"))
             .build();
@@ -380,6 +393,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(IdUtils.create() + "/manifest.json"))
             .build();
@@ -399,6 +413,7 @@ class UploadTest extends AbstractTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(upload.getKey())
             .build();
 

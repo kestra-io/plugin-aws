@@ -57,6 +57,7 @@ public abstract class AbstractTest extends AbstractFlociTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -90,6 +91,7 @@ public abstract class AbstractTest extends AbstractFlociTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(dir + "/" + out + ".yml"))
             .build();
@@ -118,6 +120,7 @@ public abstract class AbstractTest extends AbstractFlociTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .build();
@@ -136,7 +139,8 @@ public abstract class AbstractTest extends AbstractFlociTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
-            .forcePathStyle(Property.ofValue(true));
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true));
     }
 
     protected RunContext runContext(Task task) {
