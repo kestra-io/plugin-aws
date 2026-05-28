@@ -35,6 +35,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .action(Property.ofValue(ActionInterface.Action.DELETE))
             .build();
 
@@ -64,6 +65,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .action(Property.ofValue(ActionInterface.Action.MOVE))
             .moveTo(
                 Copy.CopyObject.builder()
@@ -104,6 +106,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .prefix(Property.ofValue("/tasks/s3-maxfiles"))
             .maxFiles(Property.ofValue(3))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -138,6 +141,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .validateChecksum(Property.ofValue(true))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -161,6 +165,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .checksumAlgorithm(Property.ofValue(ChecksumAlgorithm.SHA256))
@@ -199,6 +204,7 @@ class DownloadsTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .prefix(Property.ofValue("/tasks/s3-maxfiles-ok"))
             .maxFiles(Property.ofValue(10))
             .action(Property.ofValue(ActionInterface.Action.NONE))

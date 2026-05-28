@@ -26,6 +26,7 @@ class DeleteListTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .concurrent(5)
             .build();
         DeleteList.Output run = task.run(runContext(task));

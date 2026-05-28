@@ -1,9 +1,11 @@
 package io.kestra.plugin.aws;
 
+import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.api.model.Volume;
 import io.kestra.core.junit.annotations.KestraTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -32,7 +34,8 @@ public class AbstractLocalStackTest {
                 HostConfig hostConfig = HostConfig.newHostConfig()
                     .withPortBindings(new PortBinding(
                         Ports.Binding.bindPort(ENDPOINT_PORT),
-                        new ExposedPort(ENDPOINT_PORT)));
+                        new ExposedPort(ENDPOINT_PORT)))
+                    .withBinds(new Bind("/var/run/docker.sock", new Volume("/var/run/docker.sock")));
                 cmd.withHostConfig(hostConfig);
             })
             .withExposedPorts(ENDPOINT_PORT)

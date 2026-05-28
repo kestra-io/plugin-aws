@@ -34,6 +34,7 @@ class AllTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .prefix(Property.ofValue("tasks/aws/upload/"))
             .build();
 
@@ -49,6 +50,7 @@ class AllTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .key(Property.ofValue(key))
             .build();
         Download.Output run = download.run(runContext(download));
@@ -68,6 +70,7 @@ class AllTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .key(Property.ofValue(key))
             .build();
         Delete.Output deleteOutput = delete.run(runContext(delete));

@@ -82,6 +82,6 @@ public class AwsCLITest extends AbstractLocalStackTest {
                 Matchers.hasItem(hasEntry("Name", "test-bucket"))
             )
         );
-        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "webfile"));
+        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "owner"));
     }
 }

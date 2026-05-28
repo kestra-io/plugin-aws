@@ -23,6 +23,7 @@ class CopyTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))
@@ -77,6 +78,7 @@ class CopyTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))
@@ -110,6 +112,7 @@ class CopyTest extends AbstractTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))

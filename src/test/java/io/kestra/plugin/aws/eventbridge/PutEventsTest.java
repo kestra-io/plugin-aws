@@ -4,11 +4,18 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
+import software.amazon.awssdk.services.eventbridge.model.ResourceAlreadyExistsException;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -34,6 +41,21 @@ class PutEventsTest extends AbstractLocalStackTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
+
+    @BeforeAll
+    static void createTestBus() throws URISyntaxException {
+        try (var client = EventBridgeClient.builder()
+            .endpointOverride(new URI(endpointUrl()))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .region(Region.of(REGION))
+            .build()) {
+            try {
+                client.createEventBus(r -> r.name("test-bus"));
+            } catch (ResourceAlreadyExistsException ignored) {
+            }
+        }
+    }
 
     private static List<PutEvents.OutputEntry> getOutputEntries(PutEvents put, RunContext runContext) throws Exception {
         var output = put.run(runContext);

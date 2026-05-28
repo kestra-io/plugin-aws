@@ -56,6 +56,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -88,6 +89,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(dir + "/" + out + ".yml"))
             .build();
@@ -115,6 +117,7 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .build();
@@ -132,7 +135,8 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .endpointOverride(Property.ofValue(endpointUrl()))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .region(Property.ofValue(REGION));
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true));
     }
 
     protected RunContext runContext(Task task) {
