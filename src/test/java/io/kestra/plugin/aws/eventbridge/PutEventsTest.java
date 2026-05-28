@@ -86,10 +86,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry2, entry3))
             .build();
 
@@ -155,10 +155,10 @@ class PutEventsTest extends AbstractLocalStackTest {
         }
 
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(runContext.storage().putFile(tempFile).toString())
             .build();
 
@@ -198,10 +198,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry, entry))
             .build();
 
@@ -230,10 +230,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry, entry))
             .build();
 

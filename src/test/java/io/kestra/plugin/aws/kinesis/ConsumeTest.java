@@ -34,10 +34,10 @@ class ConsumeTest extends AbstractKinesisTest {
             .build();
 
         var put = PutRecords.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .streamName(Property.ofValue(streamName))
             .records(List.of(record))
             .build();
@@ -45,10 +45,10 @@ class ConsumeTest extends AbstractKinesisTest {
         put.run(runContext);
 
         var consume = Consume.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .streamName(Property.ofValue(streamName))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
             .maxRecords(Property.ofValue(1))

@@ -34,10 +34,10 @@ class CreateTest extends AbstractLocalStackTest {
         String stackName = "kestra-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
 
         Create create = Create.builder()
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .stackName(Property.ofValue(stackName))
             .templateBody(Property.ofValue(templateBody))
             .waitForCompletion(Property.ofValue(true))

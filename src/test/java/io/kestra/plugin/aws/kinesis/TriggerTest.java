@@ -36,10 +36,10 @@ class TriggerTest extends AbstractKinesisTest {
             .build();
 
         var put = PutRecords.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .streamName(Property.ofValue(streamName))
             .records(List.of(record, record2, record3))
             .build();
@@ -52,10 +52,10 @@ class TriggerTest extends AbstractKinesisTest {
             .streamName(Property.ofValue(streamName))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
             .maxRecords(Property.ofValue(3))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .build();
 
         Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);

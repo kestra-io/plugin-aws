@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.sns;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.sns.model.Message;
@@ -17,11 +16,11 @@ class PublishTest extends AbstractSnsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SNS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .topicArn(Property.ofValue(TOPIC_ARN))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build(),

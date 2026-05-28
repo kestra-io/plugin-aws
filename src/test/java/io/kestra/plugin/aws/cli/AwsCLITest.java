@@ -6,7 +6,6 @@ import java.util.Map;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -45,10 +44,10 @@ public class AwsCLITest extends AbstractLocalStackTest {
                     .entryPoint(Collections.emptyList())
                     .build()
             )
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
             .commands(Property.ofExpression(JacksonMapper.ofJson().writeValueAsString(
                 List.of(
@@ -71,10 +70,10 @@ public class AwsCLITest extends AbstractLocalStackTest {
         ScriptOutput runOutput = execute.run(runContext);
 
         assertThat(runOutput.getExitCode(), is(0));
-        assertThat(runOutput.getVars().get("endpoint"), is(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()));
-        assertThat(runOutput.getVars().get("accessKeyId"), is(localstack.getAccessKey()));
-        assertThat(runOutput.getVars().get("secretKeyId"), is(localstack.getSecretKey()));
-        assertThat(runOutput.getVars().get("region"), is(localstack.getRegion()));
+        assertThat(runOutput.getVars().get("endpoint"), is(endpointUrl()));
+        assertThat(runOutput.getVars().get("accessKeyId"), is(ACCESS_KEY));
+        assertThat(runOutput.getVars().get("secretKeyId"), is(SECRET_KEY));
+        assertThat(runOutput.getVars().get("region"), is(REGION));
         assertThat(runOutput.getVars().get("format"), is("json"));
         assertThat(runOutput.getVars().get("customEnv"), is(envValue));
         assertThat(

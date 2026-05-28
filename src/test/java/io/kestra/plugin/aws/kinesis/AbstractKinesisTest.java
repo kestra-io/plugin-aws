@@ -27,11 +27,11 @@ public class AbstractKinesisTest extends AbstractLocalStackTest {
             KinesisClient kinesisClient = KinesisClient.builder()
                 .credentialsProvider(
                     StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
                     )
                 )
-                .region(Region.of(localstack.getRegion()))
-                .endpointOverride(localstack.getEndpoint())
+                .region(Region.of(REGION))
+                .endpointOverride(java.net.URI.create(endpointUrl()))
                 .build()
         ) {
 
@@ -58,13 +58,13 @@ public class AbstractKinesisTest extends AbstractLocalStackTest {
                 .credentialsProvider(
                     StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(
-                            localstack.getAccessKey(),
-                            localstack.getSecretKey()
+                            ACCESS_KEY,
+                            SECRET_KEY
                         )
                     )
                 )
-                .region(Region.of(localstack.getRegion()))
-                .endpointOverride(localstack.getEndpoint())
+                .region(Region.of(REGION))
+                .endpointOverride(java.net.URI.create(endpointUrl()))
                 .build()
         ) {
 

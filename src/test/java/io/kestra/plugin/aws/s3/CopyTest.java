@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.IdUtils;
@@ -20,10 +19,10 @@ class CopyTest extends AbstractTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(List.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))
@@ -74,10 +73,10 @@ class CopyTest extends AbstractTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(Copy.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))
@@ -107,10 +106,10 @@ class CopyTest extends AbstractTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(Copy.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .from(
                 Copy.CopyObjectFrom.builder()
                     .bucket(Property.ofValue(this.BUCKET))

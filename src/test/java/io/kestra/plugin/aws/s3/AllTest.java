@@ -6,7 +6,6 @@ import java.io.InputStreamReader;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import com.google.common.io.CharStreams;
 
@@ -31,10 +30,10 @@ class AllTest extends AbstractTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .prefix(Property.ofValue("tasks/aws/upload/"))
             .build();
 
@@ -46,10 +45,10 @@ class AllTest extends AbstractTest {
             .id(AllTest.class.getSimpleName())
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .key(Property.ofValue(key))
             .build();
         Download.Output run = download.run(runContext(download));
@@ -65,10 +64,10 @@ class AllTest extends AbstractTest {
             .id(AllTest.class.getSimpleName())
             .type(Delete.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .key(Property.ofValue(key))
             .build();
         Delete.Output deleteOutput = delete.run(runContext(delete));

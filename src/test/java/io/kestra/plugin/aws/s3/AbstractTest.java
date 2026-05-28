@@ -6,7 +6,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.google.common.collect.ImmutableMap;
@@ -53,10 +52,10 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(CreateBucket.class.getName())
             .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -85,10 +84,10 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .from(source.toString())
             .key(Property.ofValue(dir + "/" + out + ".yml"))
             .build();
@@ -112,10 +111,10 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .from(source.toString())
             .key(Property.ofValue(key))
             .build();
@@ -130,10 +129,10 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()));
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION));
     }
 
     protected RunContext runContext(Task task) {
