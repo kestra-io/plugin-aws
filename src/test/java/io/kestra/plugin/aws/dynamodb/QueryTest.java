@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.dynamodb;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
@@ -25,10 +24,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
@@ -52,10 +51,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .filterExpression(Property.ofValue("lastname = :lastname"))
@@ -80,10 +79,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .filterExpression(Property.ofValue("lastname = :lastname"))
@@ -106,10 +105,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
@@ -133,10 +132,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
@@ -160,10 +159,10 @@ class QueryTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var query = Query.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))

@@ -1,12 +1,11 @@
 package io.kestra.plugin.aws.sqs;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -17,7 +16,7 @@ import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 
 @KestraTest
 @Testcontainers
-public class AbstractSqsTest extends AbstractLocalStackTest {
+public class AbstractSqsTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
@@ -27,11 +26,11 @@ public class AbstractSqsTest extends AbstractLocalStackTest {
         try (
             SqsClient sqsClient = SqsClient
                 .builder()
-                .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.SQS))
-                .region(Region.of(localstack.getRegion()))
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
                 .credentialsProvider(
                     StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
                     )
                 )
                 .build()
@@ -43,7 +42,7 @@ public class AbstractSqsTest extends AbstractLocalStackTest {
     }
 
     String queueUrl() {
-        return localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString() + "/000000000000/test-queue";
+        return endpointUrl() + "/000000000000/test-queue";
     }
 
 }

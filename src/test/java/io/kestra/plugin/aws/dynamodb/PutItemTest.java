@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.dynamodb;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 
@@ -17,10 +16,10 @@ class PutItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var put = PutItem.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .item(
                 Map.of(
@@ -43,10 +42,10 @@ class PutItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var put = PutItem.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .item("{\"id\": \"1\", \"firstname\": \"Jane\", \"lastname\": \"Doe\"}")
             .build();

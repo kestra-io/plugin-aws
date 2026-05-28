@@ -57,10 +57,10 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 region: "us-east-1"
                 accessKeyId: "test"
                 secretKeyId: "test"
-                endpointOverride: "http://localhost:4566"
+                endpointOverride: "%s"
                 iteratorType: TRIM_HORIZON
             """
-            .formatted(streamName, consumerArn);
+            .formatted(streamName, consumerArn, endpointUrl());
 
         File tempFlow = File.createTempFile("kinesis-realtime", ".yaml");
         Files.writeString(tempFlow.toPath(), yaml);
@@ -73,10 +73,10 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
             .build();
 
         var put = PutRecords.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .streamName(Property.ofValue(streamName))
             .records(List.of(record))
             .build();

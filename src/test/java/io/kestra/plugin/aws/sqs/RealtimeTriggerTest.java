@@ -1,12 +1,12 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
@@ -40,14 +40,34 @@ class RealtimeTriggerTest extends AbstractSqsTest {
             assertThat(execution.getLeft().getFlowId(), is("realtime"));
         });
 
-        repositoryLoader.load(Objects.requireNonNull(RealtimeTriggerTest.class.getClassLoader().getResource("flows/sqs/realtime.yaml")));
+        String yaml = """
+            id: realtime
+            namespace: io.kestra.tests
+
+            triggers:
+              - id: watch
+                type: io.kestra.plugin.aws.sqs.RealtimeTrigger
+                endpointOverride: "%s"
+                queueUrl: "%s"
+                region: "us-east-1"
+                accessKeyId: "accesskey"
+                secretKeyId: "secretkey"
+
+            tasks:
+              - id: end
+                type: io.kestra.plugin.core.debug.Return
+                format: "{{task.id}} > {{taskrun.startDate}}"
+            """.formatted(endpointUrl(), queueUrl());
+        File tempFlow = File.createTempFile("sqs-realtime", ".yaml");
+        Files.writeString(tempFlow.toPath(), yaml);
+        repositoryLoader.load(tempFlow);
 
         Publish task = Publish.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build()
