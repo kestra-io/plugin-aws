@@ -1,7 +1,8 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -44,7 +45,29 @@ class TriggerTest extends AbstractSqsTest {
             assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
         });
 
-        repositoryLoader.load(Objects.requireNonNull(TriggerTest.class.getClassLoader().getResource("flows/sqs/sqs-listen.yaml")));
+        String yaml = """
+            id: sqs-listen
+            namespace: io.kestra.tests
+
+            triggers:
+              - id: watch
+                type: io.kestra.plugin.aws.sqs.Trigger
+                endpointOverride: "%s"
+                queueUrl: "%s"
+                region: "us-east-1"
+                accessKeyId: "accesskey"
+                secretKeyId: "secretkey"
+                maxRecords: 2
+                interval: PT10S
+
+            tasks:
+              - id: end
+                type: io.kestra.plugin.core.debug.Return
+                format: "{{task.id}} > {{taskrun.startDate}}"
+            """.formatted(endpointUrl(), queueUrl());
+        File tempFlow = File.createTempFile("sqs-listen", ".yaml");
+        Files.writeString(tempFlow.toPath(), yaml);
+        repositoryLoader.load(tempFlow);
 
         Publish task = Publish.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))

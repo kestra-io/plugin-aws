@@ -1,7 +1,8 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -39,7 +40,27 @@ class RealtimeTriggerTest extends AbstractSqsTest {
             assertThat(execution.getLeft().getFlowId(), is("realtime"));
         });
 
-        repositoryLoader.load(Objects.requireNonNull(RealtimeTriggerTest.class.getClassLoader().getResource("flows/sqs/realtime.yaml")));
+        String yaml = """
+            id: realtime
+            namespace: io.kestra.tests
+
+            triggers:
+              - id: watch
+                type: io.kestra.plugin.aws.sqs.RealtimeTrigger
+                endpointOverride: "%s"
+                queueUrl: "%s"
+                region: "us-east-1"
+                accessKeyId: "accesskey"
+                secretKeyId: "secretkey"
+
+            tasks:
+              - id: end
+                type: io.kestra.plugin.core.debug.Return
+                format: "{{task.id}} > {{taskrun.startDate}}"
+            """.formatted(endpointUrl(), queueUrl());
+        File tempFlow = File.createTempFile("sqs-realtime", ".yaml");
+        Files.writeString(tempFlow.toPath(), yaml);
+        repositoryLoader.load(tempFlow);
 
         Publish task = Publish.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))

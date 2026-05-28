@@ -57,10 +57,10 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 region: "us-east-1"
                 accessKeyId: "test"
                 secretKeyId: "test"
-                endpointOverride: "http://localhost:4566"
+                endpointOverride: "%s"
                 iteratorType: TRIM_HORIZON
             """
-            .formatted(streamName, consumerArn);
+            .formatted(streamName, consumerArn, endpointUrl());
 
         File tempFlow = File.createTempFile("kinesis-realtime", ".yaml");
         Files.writeString(tempFlow.toPath(), yaml);

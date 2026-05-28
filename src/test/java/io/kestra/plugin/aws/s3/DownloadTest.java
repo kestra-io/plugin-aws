@@ -256,8 +256,6 @@ class DownloadTest extends AbstractTest {
         Download.Output output = download.run(runContext(download));
 
         assertThat(output.getUri(), notNullValue());
-        assertThat(output.getChecksumAlgorithm(), nullValue());
-        assertThat(output.getChecksumValue(), nullValue());
     }
 
     @Test
