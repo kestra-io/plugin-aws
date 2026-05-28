@@ -4,7 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -13,7 +13,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 
-public class AbstractKinesisTest extends AbstractLocalStackTest {
+public class AbstractKinesisTest extends AbstractFlociTest {
     @Inject
     protected RunContextFactory runContextFactory;
     protected String streamArn;

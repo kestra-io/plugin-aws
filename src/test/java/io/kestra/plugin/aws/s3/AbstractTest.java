@@ -19,13 +19,13 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 
 @KestraTest
 @Testcontainers
-public abstract class AbstractTest extends AbstractLocalStackTest {
+public abstract class AbstractTest extends AbstractFlociTest {
     @Inject
     protected final String BUCKET = IdUtils.create().toLowerCase();
     @Inject

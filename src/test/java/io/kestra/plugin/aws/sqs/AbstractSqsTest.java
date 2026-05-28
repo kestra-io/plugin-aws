@@ -5,7 +5,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -16,7 +16,7 @@ import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 
 @KestraTest
 @Testcontainers
-public class AbstractSqsTest extends AbstractLocalStackTest {
+public class AbstractSqsTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;

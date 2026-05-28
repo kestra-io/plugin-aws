@@ -6,14 +6,14 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 @KestraTest
 @Testcontainers
-public abstract class AbstractDynamoDbTest extends AbstractLocalStackTest {
+public abstract class AbstractDynamoDbTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;

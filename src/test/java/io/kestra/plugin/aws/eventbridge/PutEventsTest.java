@@ -22,7 +22,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 
 import jakarta.inject.Inject;
@@ -37,7 +37,7 @@ import static org.hamcrest.Matchers.*;
 
 @KestraTest
 @Testcontainers
-class PutEventsTest extends AbstractLocalStackTest {
+class PutEventsTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
