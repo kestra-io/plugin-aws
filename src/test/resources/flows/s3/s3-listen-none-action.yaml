@@ -12,6 +12,7 @@ triggers:
     accessKeyId: accesskey
     secretKeyId: secretkey
     forcePathStyle: true
+    compatibilityMode: true
 
 tasks:
   - id: end
