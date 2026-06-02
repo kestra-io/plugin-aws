@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.dynamodb;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 
@@ -20,10 +19,10 @@ class DeleteItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var delete = DeleteItem.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
             .key(Property.ofValue(Map.of("id", "1")))
             .build();

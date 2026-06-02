@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -45,6 +46,24 @@ import io.kestra.core.models.annotations.PluginProperty;
                     region: "eu-central-1"
                     bucket: "my-bucket"
                     key: "path/to/file"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Download a file and verify the stored S3 checksum during transfer.",
+            code = """
+                id: aws_s3_download_validate_checksum
+                namespace: company.team
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.aws.s3.Download
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    key: "path/to/file"
+                    validateChecksum: true
                 """
         )
     },
@@ -135,6 +154,16 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @Schema(
+        title = "Validate checksum after download",
+        description = "When true, requests S3 to return the stored checksum and the AWS SDK verifies the downloaded bytes during transfer. " +
+            "The object must have been uploaded with a checksum algorithm (SHA1, SHA256, CRC32, or CRC32C) for verification to occur; " +
+            "if the object has no stored checksum, a warning is logged and the download is not verified."
+    )
+    @Builder.Default
+    @PluginProperty(group = "reliability")
+    private Property<Boolean> validateChecksum = Property.ofValue(false);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
@@ -166,6 +195,8 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             GetObjectRequest request = buildGetObjectRequest(runContext, bucket, key);
             Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
+            Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
+
             return Output.builder()
                 .uri(download.getRight())
                 .eTag(download.getLeft().eTag())
@@ -173,6 +204,8 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 .contentType(download.getLeft().contentType())
                 .metadata(download.getLeft().metadata())
                 .versionId(download.getLeft().versionId())
+                .checksumAlgorithm(checksum.getLeft())
+                .checksumValue(checksum.getRight())
                 .build();
         }
     }
@@ -194,6 +227,10 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
         }
 
+        if (runContext.render(this.validateChecksum).as(Boolean.class).orElse(false)) {
+            builder.checksumMode(ChecksumMode.ENABLED);
+        }
+
         return builder.build();
     }
 
@@ -212,6 +249,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
                 String key = object.getKey();
+                Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
                 files.put(
                     key, FileInfo.builder()
                         .uri(download.getRight())
@@ -220,6 +258,8 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                         .metadata(download.getLeft().metadata())
                         .eTag(download.getLeft().eTag())
                         .versionId(download.getLeft().versionId())
+                        .checksumAlgorithm(checksum.getLeft())
+                        .checksumValue(checksum.getRight())
                         .build()
                 );
             }
@@ -285,5 +325,16 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         )
         private final Map<String, FileInfo> files;
 
+        @Schema(
+            title = "Checksum algorithm reported by S3",
+            description = "One of SHA1, SHA256, CRC32, CRC32C. Null when validateChecksum was not enabled or the object has no stored checksum."
+        )
+        private final String checksumAlgorithm;
+
+        @Schema(
+            title = "Checksum value reported by S3 (base64-encoded)",
+            description = "Populated when validateChecksum is true and the object has a stored checksum."
+        )
+        private final String checksumValue;
     }
 }

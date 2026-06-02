@@ -1,12 +1,16 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.InputStream;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.util.Base64;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -30,10 +34,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .key(Property.ofValue(key))
             .build();
 
@@ -76,10 +82,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-folder1")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(folder1))
             .build();
 
@@ -99,10 +107,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-folder1Direct")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(folder1))
             .delimiter(Property.ofValue("/"))
             .build();
@@ -120,10 +130,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-txtFiles")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .regexp(Property.ofValue(".*\\.txt$"))
             .build();
@@ -144,14 +156,143 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(key))
             .build();
         upload.run(runContext(upload));
+    }
+
+    private void uploadFileWithSha256(URI source, String key, String sha256Base64) throws Exception {
+        Upload upload = Upload.builder()
+            .id(DownloadTest.class.getSimpleName())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .checksumAlgorithm(Property.ofValue(ChecksumAlgorithm.SHA256))
+            .checksum(Property.ofValue(sha256Base64))
+            .build();
+        upload.run(runContext(upload));
+    }
+
+    private String sha256Base64(URI storageUri) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream in = storageInterface.get(TenantService.MAIN_TENANT, null, storageUri)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                digest.update(buf, 0, n);
+            }
+        }
+        return Base64.getEncoder().encodeToString(digest.digest());
+    }
+
+    @Test
+    void runWithValidateChecksumSuccess() throws Exception {
+        this.createBucket();
+
+        String key = IdUtils.create() + "/test.yml";
+        URI sourceFile = storagePut("test.yml");
+        String expectedSha256 = sha256Base64(sourceFile);
+
+        uploadFileWithSha256(sourceFile, key, expectedSha256);
+
+        Download download = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-validateChecksum")
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .key(Property.ofValue(key))
+            .validateChecksum(Property.ofValue(true))
+            .build();
+
+        Download.Output output = download.run(runContext(download));
+
+        assertThat(output.getUri(), notNullValue());
+        assertThat(output.getChecksumAlgorithm(), is("SHA256"));
+        assertThat(output.getChecksumValue(), is(expectedSha256));
+    }
+
+    @Test
+    void runWithValidateChecksumNoStoredChecksum() throws Exception {
+        this.createBucket();
+
+        String key = IdUtils.create() + "/test.yml";
+        URI sourceFile = storagePut("test.yml");
+
+        uploadFile(sourceFile, key);
+
+        Download download = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-validateChecksumMissing")
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .key(Property.ofValue(key))
+            .validateChecksum(Property.ofValue(true))
+            .build();
+
+        Download.Output output = download.run(runContext(download));
+
+        assertThat(output.getUri(), notNullValue());
+    }
+
+    @Test
+    void runWithValidateChecksumMultiFile() throws Exception {
+        this.createBucket();
+
+        String basePrefix = IdUtils.create() + "/multi-checksum/";
+
+        URI fileA = storagePut("a.txt");
+        URI fileB = storagePut("b.txt");
+        String shaA = sha256Base64(fileA);
+        String shaB = sha256Base64(fileB);
+
+        uploadFileWithSha256(fileA, basePrefix + "a.txt", shaA);
+        uploadFileWithSha256(fileB, basePrefix + "b.txt", shaB);
+
+        Download download = Download.builder()
+            .id(DownloadTest.class.getSimpleName() + "-validateChecksumMulti")
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .prefix(Property.ofValue(basePrefix))
+            .validateChecksum(Property.ofValue(true))
+            .build();
+
+        Download.Output output = download.run(runContext(download));
+
+        assertThat(output.getFiles().size(), is(2));
+        output.getFiles().values().forEach(fileInfo -> {
+            assertThat(fileInfo.getChecksumAlgorithm(), is("SHA256"));
+            assertThat(fileInfo.getChecksumValue(), notNullValue());
+        });
     }
 
     @Test
@@ -162,10 +303,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-invalid")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .build();
 
         IllegalArgumentException exception = assertThrows(
@@ -196,10 +339,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-maxFilesExceeded")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .maxFiles(Property.ofValue(3))
             .build();
@@ -227,10 +372,12 @@ class DownloadTest extends AbstractTest {
             .id(DownloadTest.class.getSimpleName() + "-maxFilesNotExceeded")
             .type(Download.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .prefix(Property.ofValue(basePrefix))
             .maxFiles(Property.ofValue(10))
             .build();

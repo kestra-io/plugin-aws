@@ -1,22 +1,28 @@
 package io.kestra.plugin.aws.eventbridge;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
+import software.amazon.awssdk.services.eventbridge.model.ResourceAlreadyExistsException;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 
 import jakarta.inject.Inject;
@@ -31,10 +37,25 @@ import static org.hamcrest.Matchers.*;
 
 @KestraTest
 @Testcontainers
-class PutEventsTest extends AbstractLocalStackTest {
+class PutEventsTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
+
+    @BeforeAll
+    static void createTestBus() throws URISyntaxException {
+        try (var client = EventBridgeClient.builder()
+            .endpointOverride(new URI(endpointUrl()))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .region(Region.of(REGION))
+            .build()) {
+            try {
+                client.createEventBus(r -> r.name("test-bus"));
+            } catch (ResourceAlreadyExistsException ignored) {
+            }
+        }
+    }
 
     private static List<PutEvents.OutputEntry> getOutputEntries(PutEvents put, RunContext runContext) throws Exception {
         var output = put.run(runContext);
@@ -43,7 +64,7 @@ class PutEventsTest extends AbstractLocalStackTest {
         if (!from.getScheme().equals("kestra")) {
             throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entry.");
         }
-        try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+        try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
             outputEntries = FileSerde.readAll(inputStream, PutEvents.OutputEntry.class).collectList().block();
         }
         return outputEntries;
@@ -87,10 +108,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry2, entry3))
             .build();
 
@@ -156,10 +177,10 @@ class PutEventsTest extends AbstractLocalStackTest {
         }
 
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(runContext.storage().putFile(tempFile).toString())
             .build();
 
@@ -199,10 +220,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry, entry))
             .build();
 
@@ -231,10 +252,10 @@ class PutEventsTest extends AbstractLocalStackTest {
             )
             .build();
         var put = PutEvents.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .entries(List.of(entry, entry, entry))
             .build();
 

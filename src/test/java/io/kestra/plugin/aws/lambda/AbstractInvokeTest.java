@@ -8,7 +8,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.core.SdkBytes;
@@ -20,7 +20,7 @@ import software.amazon.awssdk.services.lambda.waiters.LambdaWaiter;
 
 @KestraTest
 @Testcontainers
-public class AbstractInvokeTest extends AbstractLocalStackTest {
+public class AbstractInvokeTest extends AbstractFlociTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokeTest.class);
 

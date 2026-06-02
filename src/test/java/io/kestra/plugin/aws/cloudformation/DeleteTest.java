@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 
-class DeleteTest extends AbstractLocalStackTest {
+class DeleteTest extends AbstractFlociTest {
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -30,10 +30,10 @@ class DeleteTest extends AbstractLocalStackTest {
         String stackName = "kestra-delete-test-stack-" + UUID.randomUUID().toString().substring(0, 8);
 
         Create create = Create.builder()
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .stackName(Property.ofValue(stackName))
             .templateBody(Property.ofValue(templateBody))
             .waitForCompletion(Property.ofValue(true))
@@ -41,10 +41,10 @@ class DeleteTest extends AbstractLocalStackTest {
         create.run(runContext);
 
         Delete delete = Delete.builder()
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .stackName(Property.ofValue(stackName))
             .waitForCompletion(Property.ofValue(true))
             .build();

@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
 import jakarta.inject.Inject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Disabled("LocalStack 3.4.0 does not yet support the S3 Files control-plane API")
-class S3FilesIntegrationTest extends AbstractLocalStackTest {
+class S3FilesIntegrationTest extends AbstractFlociTest {
 
     @Inject
     RunContextFactory runContextFactory;

@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -9,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.junit.annotations.LoadFlows;
@@ -142,6 +143,15 @@ class TriggerTest extends AbstractTest {
         assertThat(remainingFilesOnBucket, is(0));
     }
 
+    private File flowWithFlociEndpoint(String resource) throws Exception {
+        String yaml = new String(TriggerTest.class.getClassLoader().getResourceAsStream(resource).readAllBytes());
+        yaml = yaml.replace("http://localhost:4566", endpointUrl())
+                   .replace("http://127.0.0.1:4566", endpointUrl());
+        File tempFlow = File.createTempFile("s3-trigger", ".yaml");
+        Files.writeString(tempFlow.toPath(), yaml);
+        return tempFlow;
+    }
+
     @Test
     void shouldExecuteOnCreate() throws Exception {
         String bucket = "trigger-on-create";
@@ -150,10 +160,12 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-create"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -179,10 +191,12 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-update"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -209,10 +223,12 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/on-create-or-update"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -247,10 +263,12 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/maxfiles"))
             .action(Property.ofValue(ActionInterface.Action.NONE))
@@ -279,10 +297,12 @@ class TriggerTest extends AbstractTest {
         Trigger trigger = Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .bucket(Property.ofValue(bucket))
             .prefix(Property.ofValue("trigger/maxfiles-ok"))
             .action(Property.ofValue(ActionInterface.Action.NONE))

@@ -46,4 +46,18 @@ public class FileInfo {
     )
     @PluginProperty(group = "advanced")
     private String eTag;
+
+    @Schema(
+        title = "Checksum algorithm reported by S3",
+        description = "One of SHA1, SHA256, CRC32, CRC32C. Null when validateChecksum was not enabled or the object has no stored checksum."
+    )
+    @PluginProperty(group = "advanced")
+    private String checksumAlgorithm;
+
+    @Schema(
+        title = "Checksum value reported by S3 (base64-encoded)",
+        description = "Populated when validateChecksum is true and the object has a stored checksum."
+    )
+    @PluginProperty(group = "advanced")
+    private String checksumValue;
 }

@@ -6,11 +6,11 @@ import java.util.Map;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.AbstractLocalStackTest;
@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 
-public class AwsCLITest extends AbstractLocalStackTest {
+public class AwsCLITest extends AbstractFlociTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -45,12 +45,12 @@ public class AwsCLITest extends AbstractLocalStackTest {
                     .entryPoint(Collections.emptyList())
                     .build()
             )
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
-            .commands(
+            .commands(Property.ofExpression(JacksonMapper.ofJson().writeValueAsString(
                 List.of(
                     "echo \"::{\\\"outputs\\\":{" +
                         "\\\"endpoint\\\":\\\"$AWS_ENDPOINT_URL\\\"," +
@@ -60,21 +60,21 @@ public class AwsCLITest extends AbstractLocalStackTest {
                         "\\\"format\\\":\\\"$AWS_DEFAULT_OUTPUT\\\"," +
                         "\\\"customEnv\\\":\\\"$" + envKey + "\\\"" +
                         "}}::\"",
-                    "aws s3 mb s3://test-bucket",
+                    "aws s3 mb s3://{{ inputs.bucketName }}",
                     "echo \"::{\\\"outputs\\\":$(aws s3api list-buckets | tr -d '\\n')}::\""
                 )
-            )
+            )))
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, execute, Map.of("envKey", envKey, "envValue", envValue));
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, execute, Map.of("envKey", envKey, "envValue", envValue, "bucketName", "test-bucket"));
 
         ScriptOutput runOutput = execute.run(runContext);
 
         assertThat(runOutput.getExitCode(), is(0));
-        assertThat(runOutput.getVars().get("endpoint"), is(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()));
-        assertThat(runOutput.getVars().get("accessKeyId"), is(localstack.getAccessKey()));
-        assertThat(runOutput.getVars().get("secretKeyId"), is(localstack.getSecretKey()));
-        assertThat(runOutput.getVars().get("region"), is(localstack.getRegion()));
+        assertThat(runOutput.getVars().get("endpoint"), is(endpointUrl()));
+        assertThat(runOutput.getVars().get("accessKeyId"), is(ACCESS_KEY));
+        assertThat(runOutput.getVars().get("secretKeyId"), is(SECRET_KEY));
+        assertThat(runOutput.getVars().get("region"), is(REGION));
         assertThat(runOutput.getVars().get("format"), is("json"));
         assertThat(runOutput.getVars().get("customEnv"), is(envValue));
         assertThat(
@@ -83,6 +83,6 @@ public class AwsCLITest extends AbstractLocalStackTest {
                 Matchers.hasItem(hasEntry("Name", "test-bucket"))
             )
         );
-        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "webfile"));
+        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "owner"));
     }
 }
