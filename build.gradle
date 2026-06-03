@@ -22,7 +22,7 @@ repositories {
     }
 }
 
-final targetJavaVersion = JavaVersion.VERSION_21
+final targetJavaVersion = JavaVersion.VERSION_25
 
 java {
     sourceCompatibility = targetJavaVersion
@@ -132,29 +132,6 @@ dependencies {
     testImplementation "org.testcontainers:testcontainers:2.0.5"
     testImplementation "org.testcontainers:junit-jupiter:1.21.4"
     testImplementation "io.floci:testcontainers-floci:2.8.0"
-}
-
-/**********************************************************************************************************************\
- * Allure Reports
- **********************************************************************************************************************/
-dependencies {
-    testAnnotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
-    testImplementation "io.qameta.allure:allure-junit5"
-}
-
-configurations {
-    agent {
-        canBeResolved = true
-        canBeConsumed = true
-    }
-}
-
-dependencies {
-    agent "org.aspectj:aspectjweaver:1.9.25.1"
-}
-
-test {
-    jvmArgs = [ "-javaagent:${configurations.agent.singleFile}" ]
 }
 
 /**********************************************************************************************************************\

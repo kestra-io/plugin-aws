@@ -13,9 +13,9 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.aws.AbstractFlociTest;
-import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
+import io.kestra.plugin.aws.AbstractLocalStackTest;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
+import io.kestra.plugin.scripts.runner.docker.Docker;
 
 import jakarta.inject.Inject;
 
@@ -36,8 +36,9 @@ public class AwsCLITest extends AbstractFlociTest {
         AwsCLI execute = AwsCLI.builder()
             .id(IdUtils.create())
             .type(AwsCLI.class.getName())
-            .docker(
-                DockerOptions.builder()
+            .taskRunner(
+                Docker.builder()
+                    .type(Docker.class.getName())
                     // needed to be able to reach localstack from inside the container
                     .networkMode("host")
                     .image("amazon/aws-cli")
