@@ -1,6 +1,6 @@
 group: io.kestra.plugin.aws.ecr
 name: "ecr"
-title: "ECR"
+title: "AWS ECR"
 description: "Tasks that fetch an Amazon ECR authorization token for Docker or OCI registry logins, useful before building or pulling images in workflows."
 body: ""
 videos: []
