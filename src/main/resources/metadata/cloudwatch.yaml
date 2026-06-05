@@ -1,6 +1,6 @@
 group: io.kestra.plugin.aws.cloudwatch
 name: "cloudwatch"
-title: "CloudWatch"
+title: "AWS CloudWatch"
 description: "Tasks that push custom metrics, query recent CloudWatch metric statistics, and trigger flows when metric queries return data."
 body: "These tasks provide lightweight observability hooks without managing agents."
 videos: []
