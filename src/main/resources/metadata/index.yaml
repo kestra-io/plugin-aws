@@ -1,7 +1,7 @@
 group: io.kestra.plugin.aws
 name: "aws"
 title: "AWS"
-description: "AWS plugin for Kestra"
+description: "Tasks and triggers that integrate Amazon Web Services with Kestra workflows, spanning storage (S3, DynamoDB), analytics (Athena, EMR, Glue), messaging and streaming (SNS, SQS, Kinesis, EventBridge), compute (Lambda, CLI), infrastructure (CloudFormation, ECR), monitoring (CloudWatch), and authentication (EKS tokens)."
 body: ""
 videos: []
 createdBy: "Kestra Core Team"
