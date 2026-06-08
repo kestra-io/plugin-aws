@@ -2,7 +2,7 @@ group: io.kestra.plugin.aws
 name: "aws"
 title: "AWS"
 description: "Tasks and triggers that integrate Amazon Web Services with Kestra workflows, spanning storage (S3, DynamoDB), analytics (Athena, EMR, Glue), messaging and streaming (SNS, SQS, Kinesis, EventBridge), compute (Lambda, CLI), infrastructure (CloudFormation, ECR), monitoring (CloudWatch), and authentication (EKS tokens)."
-body: ""
+body: "Authenticate every task and trigger with static credentials (`accessKeyId` and `secretKeyId`, optionally a `sessionToken`), by assuming an IAM role through `stsRoleArn`, or by relying on the default AWS credentials provider chain when none are set. Set `region` for the target service, and override `endpointOverride` with `compatibilityMode` enabled to reach S3-compatible storage backends."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
