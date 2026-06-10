@@ -1,8 +1,13 @@
 package io.kestra.plugin.aws.sqs.model;
 
+import java.io.IOException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -18,7 +23,7 @@ public class Message implements io.kestra.core.models.tasks.Output {
     @Schema(title = "The message data.")
     @PluginProperty(dynamic = true, group = "main")
     @NotNull
-    private String data;
+    private Object data;
 
     @Schema(title = "The message group ID.")
     @PluginProperty(dynamic = true, group = "advanced")
@@ -32,12 +37,21 @@ public class Message implements io.kestra.core.models.tasks.Output {
     @PluginProperty(group = "advanced")
     private Integer delaySeconds;
 
-    public SendMessageRequest to(SendMessageRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException {
+    public SendMessageRequest to(SendMessageRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException, IOException {
         return builder
-            .messageBody(runContext.render(data))
+            .messageBody(toMessageBody(runContext))
             .messageGroupId(runContext.render(groupId))
             .messageDeduplicationId(runContext.render(deduplicationId))
             .delaySeconds(delaySeconds)
             .build();
+    }
+
+    private String toMessageBody(RunContext runContext) throws IllegalVariableEvaluationException, JsonProcessingException {
+        if (data instanceof String s) {
+            // preserve Pebble templating for string data
+            return runContext.render(s);
+        }
+        // non-string objects (e.g. parsed JSON from RealtimeTrigger output) are serialized back to JSON
+        return JacksonMapper.ofJson().writeValueAsString(data);
     }
 }
