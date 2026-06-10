@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -187,13 +188,29 @@ public class S3Service {
         }
 
         String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
+        var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
 
-        ListObjectsResponse listObjectsResponse = client.listObjects(builder.build());
+        ListObjectsRequest baseRequest = builder.build();
+        List<software.amazon.awssdk.services.s3.model.S3Object> allContents = new ArrayList<>();
 
-        return listObjectsResponse
-            .contents()
+        ListObjectsRequest currentRequest = baseRequest;
+        ListObjectsResponse response;
+        do {
+            response = client.listObjects(currentRequest);
+            allContents.addAll(response.contents());
+
+            if (response.isTruncated()) {
+                // nextMarker is only present when a delimiter is used; otherwise fall back to the last returned key
+                String nextMarker = response.nextMarker() != null
+                    ? response.nextMarker()
+                    : response.contents().getLast().key();
+                currentRequest = baseRequest.toBuilder().marker(nextMarker).build();
+            }
+        } while (response.isTruncated());
+
+        return allContents
             .stream()
-            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow())))
+            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
             .map(S3Object::of)
             .collect(Collectors.toList());
     }

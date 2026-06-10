@@ -6,6 +6,7 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -231,21 +232,32 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 }
             }
 
-            var getQueryResult = GetQueryResultsRequest.builder()
+            var firstRequest = GetQueryResultsRequest.builder()
                 .queryExecutionId(startQueryExecution.queryExecutionId())
                 .build();
-            var getQueryResultsResults = client.getQueryResults(getQueryResult);
-            List<Row> results = getQueryResultsResults.resultSet().rows();
-            if (runContext.render(skipHeader).as(Boolean.class).orElseThrow() && results != null && !results.isEmpty()) {
+            var firstPage = client.getQueryResults(firstRequest);
+
+            List<ColumnInfo> columnInfo = firstPage.resultSet().resultSetMetadata().columnInfo();
+
+            // Collect all rows across pages. The header row (column names) appears only on the first page.
+            List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
+            String nextToken = firstPage.nextToken();
+            while (nextToken != null) {
+                var nextRequest = GetQueryResultsRequest.builder()
+                    .queryExecutionId(startQueryExecution.queryExecutionId())
+                    .nextToken(nextToken)
+                    .build();
+                var nextPage = client.getQueryResults(nextRequest);
+                results.addAll(nextPage.resultSet().rows());
+                nextToken = nextPage.nextToken();
+            }
+
+            if (runContext.render(skipHeader).as(Boolean.class).orElseThrow() && !results.isEmpty()) {
                 // we skip the first row, this is usually needed as by default Athena returns the header as the first row
                 results = results.subList(1, results.size());
             }
 
-            if (results != null) {
-                runContext.metric(Counter.of("total.rows", results.size()));
-            }
-
-            List<ColumnInfo> columnInfo = getQueryResultsResults.resultSet().resultSetMetadata().columnInfo();
+            runContext.metric(Counter.of("total.rows", results.size()));
             QueryOutput output = null;
             if (fetchType == FetchType.FETCH_ONE) {
                 Map<String, Object> row = fetchOne(columnInfo, results);
