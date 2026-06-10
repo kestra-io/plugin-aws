@@ -63,7 +63,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     tableName: "persons"
-                    item: "{{ outputs.task_id.data | json }}"
+                    item: "{{ outputs.task_id.data | toJson }}"
                 """
         ),
         @Example(
