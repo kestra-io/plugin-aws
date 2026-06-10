@@ -33,7 +33,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 
@@ -238,36 +237,43 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             var firstPage = client.getQueryResults(firstRequest);
 
             List<ColumnInfo> columnInfo = firstPage.resultSet().resultSetMetadata().columnInfo();
+            boolean rSkipHeader = runContext.render(skipHeader).as(Boolean.class).orElseThrow();
 
-            // Collect all rows across pages. The header row (column names) appears only on the first page.
-            List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
-            String nextToken = firstPage.nextToken();
-            while (nextToken != null) {
-                var nextRequest = GetQueryResultsRequest.builder()
-                    .queryExecutionId(startQueryExecution.queryExecutionId())
-                    .nextToken(nextToken)
-                    .build();
-                var nextPage = client.getQueryResults(nextRequest);
-                results.addAll(nextPage.resultSet().rows());
-                nextToken = nextPage.nextToken();
-            }
-
-            if (runContext.render(skipHeader).as(Boolean.class).orElseThrow() && !results.isEmpty()) {
-                // we skip the first row, this is usually needed as by default Athena returns the header as the first row
-                results = results.subList(1, results.size());
-            }
-
-            runContext.metric(Counter.of("total.rows", results.size()));
             QueryOutput output = null;
-            if (fetchType == FetchType.FETCH_ONE) {
-                Map<String, Object> row = fetchOne(columnInfo, results);
-                output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
-            } else if (fetchType == FetchType.FETCH) {
-                List<Object> rows = fetch(columnInfo, results);
-                output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
-            } else if (fetchType == FetchType.STORE) {
-                Pair<URI, Long> pair = store(columnInfo, results, runContext);
+            if (fetchType == FetchType.STORE) {
+                // Stream pages directly to disk to avoid buffering the full result set in memory.
+                Pair<URI, Long> pair = storeStreaming(
+                    client, startQueryExecution.queryExecutionId(), columnInfo, firstPage, rSkipHeader, runContext
+                );
+                runContext.metric(Counter.of("total.rows", pair.getRight()));
                 output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
+            } else {
+                // For FETCH / FETCH_ONE the result set is intentionally bounded; accumulate in memory.
+                List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
+                String nextToken = firstPage.nextToken();
+                while (nextToken != null) {
+                    var nextRequest = GetQueryResultsRequest.builder()
+                        .queryExecutionId(startQueryExecution.queryExecutionId())
+                        .nextToken(nextToken)
+                        .build();
+                    var nextPage = client.getQueryResults(nextRequest);
+                    results.addAll(nextPage.resultSet().rows());
+                    nextToken = nextPage.nextToken();
+                }
+
+                if (rSkipHeader && !results.isEmpty()) {
+                    // Header row appears only on the first page as the very first row.
+                    results = results.subList(1, results.size());
+                }
+
+                runContext.metric(Counter.of("total.rows", results.size()));
+                if (fetchType == FetchType.FETCH_ONE) {
+                    Map<String, Object> row = fetchOne(columnInfo, results);
+                    output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
+                } else if (fetchType == FetchType.FETCH) {
+                    List<Object> rows = fetch(columnInfo, results);
+                    output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
+                }
             }
 
             if (output != null) {
@@ -328,21 +334,49 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         return results.stream().map(row -> (Object) map(columnInfo, row)).toList();
     }
 
-    private Pair<URI, Long> store(List<ColumnInfo> columnInfo, List<Row> results, RunContext runContext) throws IOException {
-        if (results == null || results.isEmpty()) {
-            return Pair.of(null, 0L);
-        }
-
+    private Pair<URI, Long> storeStreaming(
+        AthenaClient client,
+        String queryExecutionId,
+        List<ColumnInfo> columnInfo,
+        GetQueryResultsResponse firstPage,
+        boolean skipHeader,
+        RunContext runContext
+    ) throws IOException {
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        long count = 0;
 
-        try (var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
-            Long count = FileSerde.writeAll(output, Flux.fromIterable(results).mapNotNull(row -> map(columnInfo, row))).block();
+        try (var out = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
+            var firstRows = firstPage.resultSet().rows();
+            // Header row appears only on the first page as the very first row.
+            var dataRows = skipHeader && !firstRows.isEmpty() ? firstRows.subList(1, firstRows.size()) : firstRows;
+            for (var row : dataRows) {
+                var mapped = map(columnInfo, row);
+                if (mapped != null) {
+                    FileSerde.write(out, mapped);
+                    count++;
+                }
+            }
 
-            return Pair.of(
-                runContext.storage().putFile(tempFile),
-                count
-            );
+            String nextToken = firstPage.nextToken();
+            while (nextToken != null) {
+                var nextPage = client.getQueryResults(
+                    GetQueryResultsRequest.builder()
+                        .queryExecutionId(queryExecutionId)
+                        .nextToken(nextToken)
+                        .build()
+                );
+                for (var row : nextPage.resultSet().rows()) {
+                    var mapped = map(columnInfo, row);
+                    if (mapped != null) {
+                        FileSerde.write(out, mapped);
+                        count++;
+                    }
+                }
+                nextToken = nextPage.nextToken();
+            }
         }
+
+        return Pair.of(runContext.storage().putFile(tempFile), count);
     }
 
     private Map<String, Object> map(List<ColumnInfo> columnInfo, Row row) {

@@ -6,7 +6,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -159,9 +158,11 @@ public class S3Service {
     }
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
+        Integer maxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(null);
+
         ListObjectsRequest.Builder builder = ListObjectsRequest.builder()
             .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            .maxKeys(runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000));
+            .maxKeys(maxKeys != null ? maxKeys : 1000);
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -199,20 +200,37 @@ public class S3Service {
             response = client.listObjects(currentRequest);
             allContents.addAll(response.contents());
 
+            // Stop early once we have collected maxKeys total objects (maxKeys is a total cap, not a per-page size).
+            if (maxKeys != null && allContents.size() >= maxKeys) {
+                break;
+            }
+
             if (response.isTruncated()) {
-                // nextMarker is only present when a delimiter is used; otherwise fall back to the last returned key
+                // nextMarker is only present when a delimiter is used; otherwise fall back to the last returned key.
                 String nextMarker = response.nextMarker() != null
                     ? response.nextMarker()
-                    : response.contents().getLast().key();
+                    : (response.contents().isEmpty() ? null : response.contents().getLast().key());
+
+                if (nextMarker == null) {
+                    // S3 signaled truncation but gave no usable marker; stop to avoid an infinite loop.
+                    runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no next marker available.");
+                    break;
+                }
+
                 currentRequest = baseRequest.toBuilder().marker(nextMarker).build();
             }
         } while (response.isTruncated());
 
-        return allContents
+        // Enforce the total cap on accumulated raw objects before filtering.
+        var capped = maxKeys != null && allContents.size() > maxKeys
+            ? allContents.subList(0, maxKeys)
+            : allContents;
+
+        return capped
             .stream()
             .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
             .map(S3Object::of)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
