@@ -5,6 +5,8 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
@@ -22,10 +24,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
-import static io.kestra.core.utils.Rethrow.throwConsumer;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -110,36 +113,42 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
         }
 
+        // Render once outside the polling loop to avoid repeated template evaluation per message.
+        var rSerdeType = runContext.render(serdeType).as(SerdeType.class).orElseThrow();
+        var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
+        var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
+
         try (var sqsClient = this.client(runContext)) {
             var total = new AtomicInteger();
             var started = ZonedDateTime.now();
             var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+            var pendingDeletes = new ArrayList<String>();
 
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
                     var receiveRequest = ReceiveMessageRequest.builder()
                         .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
                         .queueUrl(queueUrl)
-                        .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
+                        .visibilityTimeout(rVisibilityTimeout)
                         .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
-                    msg.messages().forEach(throwConsumer(m ->
-                    {
-                        FileSerde.write(outputFile, runContext.render(serdeType).as(SerdeType.class).orElseThrow().deserialize(m.body()));
-
-                        if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
-                            sqsClient.deleteMessage(
-                                DeleteMessageRequest.builder()
-                                    .queueUrl(queueUrl)
-                                    .receiptHandle(m.receiptHandle())
-                                    .build()
-                            );
+                    for (var m : msg.messages()) {
+                        FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
+                        if (rAutoDelete) {
+                            pendingDeletes.add(m.receiptHandle());
+                            if (pendingDeletes.size() == 10) {
+                                flushDeletes(sqsClient, queueUrl, pendingDeletes);
+                            }
                         }
                         total.getAndIncrement();
-                    }));
+                    }
 
                     Thread.sleep(100);
                 } while (!this.ended(total, started, runContext));
+
+                if (rAutoDelete && !pendingDeletes.isEmpty()) {
+                    flushDeletes(sqsClient, queueUrl, pendingDeletes);
+                }
 
                 runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
                 outputFile.flush();
@@ -150,6 +159,25 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 .count(total.get())
                 .build();
         }
+    }
+
+    private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles) {
+        var entries = new ArrayList<DeleteMessageBatchRequestEntry>(receiptHandles.size());
+        for (int i = 0; i < receiptHandles.size(); i++) {
+            entries.add(
+                DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(receiptHandles.get(i))
+                    .build()
+            );
+        }
+        sqsClient.deleteMessageBatch(
+            DeleteMessageBatchRequest.builder()
+                .queueUrl(queueUrl)
+                .entries(entries)
+                .build()
+        );
+        receiptHandles.clear();
     }
 
     private boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {

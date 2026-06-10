@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -81,6 +82,41 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         var consumeOutput = consume.run(runContextFactory.of());
         assertThat(consumeOutput.getCount(), is(2));
+    }
+
+    @Test
+    void publishMoreThan10MessagesUsesBatching() throws Exception {
+        var runContext = runContextFactory.of();
+
+        // 15 messages spans two batch requests (10 + 5), verifying the buffer(10) path.
+        var messages = new ArrayList<Message>(15);
+        for (int i = 0; i < 15; i++) {
+            messages.add(Message.builder().data("batch-msg-" + i).build());
+        }
+
+        var publish = Publish.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .from(messages)
+            .build();
+
+        var publishOutput = publish.run(runContext);
+        assertThat(publishOutput.getMessagesCount(), is(15));
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .maxRecords(Property.ofValue(15))
+            .build();
+
+        var consumeOutput = consume.run(runContextFactory.of());
+        assertThat(consumeOutput.getCount(), is(15));
     }
 
     @Test

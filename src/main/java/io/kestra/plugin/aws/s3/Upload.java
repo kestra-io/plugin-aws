@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import org.apache.commons.io.FilenameUtils;
@@ -502,37 +503,43 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
         String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
-        Map<String, FileInfo> fileInfoMap = new HashMap<>();
+        // Collect all entries with their prepared temp files and upload handles so we can start all uploads
+        // before blocking, letting TransferManager pipeline them concurrently.
+        record UploadEntry(String fileKey, File tempFile, FileUpload upload) {}
 
-        for (Map.Entry<String, String> entry : filesToUpload.entrySet()) {
-            String fileKey = entry.getKey();
-            String finalKey = Path.of(baseKey, fileKey).toString();
-            String renderedFrom = entry.getValue();
-
-            File tempFile = copyFileToTemp(runContext, renderedFrom);
-
-            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
+        var uploadEntries = new ArrayList<UploadEntry>(filesToUpload.size());
+        for (var entry : filesToUpload.entrySet()) {
+            var fileKey = entry.getKey();
+            var finalKey = Path.of(baseKey, fileKey).toString();
+            var tempFile = copyFileToTemp(runContext, entry.getValue());
+            var putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
 
             runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-            FileUpload upload = transferManager.uploadFile(
+            var upload = transferManager.uploadFile(
                 UploadFileRequest.builder()
                     .putObjectRequest(putObjectRequest)
                     .source(tempFile)
                     .build()
             );
+            uploadEntries.add(new UploadEntry(fileKey, tempFile, upload));
+        }
 
-            PutObjectResponse response = upload.completionFuture().get().response();
+        // Wait for all uploads concurrently; join() re-throws the first CompletionException on failure.
+        var futures = uploadEntries.stream()
+            .map(e -> e.upload().completionFuture())
+            .toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(futures).join();
 
-            FileInfo fileInfo = FileInfo.builder()
+        Map<String, FileInfo> fileInfoMap = new HashMap<>(uploadEntries.size());
+        for (var e : uploadEntries) {
+            var response = e.upload().completionFuture().join().response();
+            fileInfoMap.put(e.fileKey(), FileInfo.builder()
                 .eTag(response.eTag())
                 .versionId(response.versionId())
-                .contentLength(tempFile.length())
-                .build();
-
-            fileInfoMap.put(fileKey, fileInfo);
-
-            recordMetrics(runContext, tempFile);
+                .contentLength(e.tempFile().length())
+                .build());
+            recordMetrics(runContext, e.tempFile());
         }
 
         return Output.builder()

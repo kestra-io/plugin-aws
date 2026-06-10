@@ -104,7 +104,11 @@ public class ConnectionUtils {
 
         builder
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
-            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build())
+            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder()
+                .maxConnections(200)
+                .connectionTimeout(Duration.ofSeconds(10))
+                .socketTimeout(Duration.ofSeconds(30))
+                .build())
             .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
 
         return configureClient(clientConfig, builder);

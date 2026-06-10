@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -16,9 +18,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -99,23 +103,49 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
-            Integer count = Data.from(from)
-                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
-                .map(throwFunction(message ->
-                {
-                    var sendMessageRequest = message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext);
-                    sqsClient.sendMessage(sendMessageRequest);
-                    return 1;
-                }))
-                .reduce(Integer::sum)
-                .blockOptional()
-                .orElse(0);
+            var total = new AtomicInteger();
 
-            // metrics
-            runContext.metric(Counter.of("sqs.publish.messages", count, "queue", queueUrl));
+            // Buffer messages into groups of up to 10 and send each group as a single batch request.
+            Data.from(from)
+                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
+                .buffer(10)
+                .doOnNext(throwConsumer(batch -> {
+                    var entries = new ArrayList<SendMessageBatchRequestEntry>(batch.size());
+                    for (int i = 0; i < batch.size(); i++) {
+                        var msg = batch.get(i);
+                        var rendered = msg.to(
+                            SendMessageRequest.builder().queueUrl(queueUrl),
+                            runContext
+                        );
+                        entries.add(
+                            SendMessageBatchRequestEntry.builder()
+                                .id(String.valueOf(i))
+                                .messageBody(rendered.messageBody())
+                                .messageGroupId(rendered.messageGroupId())
+                                .messageDeduplicationId(rendered.messageDeduplicationId())
+                                .delaySeconds(rendered.delaySeconds())
+                                .build()
+                        );
+                    }
+                    var batchRequest = SendMessageBatchRequest.builder()
+                        .queueUrl(queueUrl)
+                        .entries(entries)
+                        .build();
+                    var result = sqsClient.sendMessageBatch(batchRequest);
+                    if (!result.failed().isEmpty()) {
+                        var failedIds = result.failed().stream()
+                            .map(f -> f.id() + ": " + f.message())
+                            .toList();
+                        throw new RuntimeException("SQS batch send had " + result.failed().size() + " failure(s): " + failedIds);
+                    }
+                    total.addAndGet(result.successful().size());
+                }))
+                .blockLast();
+
+            runContext.metric(Counter.of("sqs.publish.messages", total.get(), "queue", queueUrl));
 
             return Output.builder()
-                .messagesCount(count)
+                .messagesCount(total.get())
                 .build();
         }
     }
