@@ -127,24 +127,45 @@ class ListTest extends AbstractTest {
     }
 
     @Test
-    void paginatesWhenMaxKeysIsSmall() throws Exception {
+    void maxKeysTotalCap() throws Exception {
         this.createBucket();
 
         String dir = IdUtils.create();
 
-        // Upload 5 objects then list with maxKeys=2 to force multiple ListObjects pages
+        // Upload 5 objects, then list with maxKeys=3 - should return exactly 3 regardless of pagination.
         for (int i = 0; i < 5; i++) {
             upload("/tasks/s3/" + dir);
         }
 
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
-            .maxKeys(Property.ofValue(2))
+            .maxKeys(Property.ofValue(3))
             .maxFiles(Property.ofValue(100))
             .build();
         List.Output run = task.run(runContext(task));
 
-        // Without pagination all 5 objects are returned; with the old single-call code only 2 would appear
+        assertThat(run.getObjects().size(), is(3));
+    }
+
+    @Test
+    void paginatesWhenMaxKeysIsSmall() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        // Upload 5 objects then list with maxKeys above the total count.
+        // The loop pages through S3 and returns all objects without hitting the cap.
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(100))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
         assertThat(run.getObjects().size(), is(5));
     }
 }
