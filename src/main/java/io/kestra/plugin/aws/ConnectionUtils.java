@@ -107,7 +107,6 @@ public class ConnectionUtils {
             .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder()
                 .maxConnections(200)
                 .connectionTimeout(Duration.ofSeconds(10))
-                .socketTimeout(Duration.ofSeconds(30))
                 .build())
             .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
 

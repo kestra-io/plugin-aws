@@ -113,7 +113,6 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
         }
 
-        // Render once outside the polling loop to avoid repeated template evaluation per message.
         var rSerdeType = runContext.render(serdeType).as(SerdeType.class).orElseThrow();
         var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
         var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
@@ -171,12 +170,20 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     .build()
             );
         }
-        sqsClient.deleteMessageBatch(
+        var response = sqsClient.deleteMessageBatch(
             DeleteMessageBatchRequest.builder()
                 .queueUrl(queueUrl)
                 .entries(entries)
                 .build()
         );
+        if (!response.failed().isEmpty()) {
+            var failedDetails = response.failed().stream()
+                .map(f -> "id=" + f.id() + " code=" + f.code() + " message=" + f.message())
+                .toList();
+            throw new RuntimeException(
+                "SQS batch delete had " + response.failed().size() + " failure(s): " + failedDetails
+            );
+        }
         receiptHandles.clear();
     }
 

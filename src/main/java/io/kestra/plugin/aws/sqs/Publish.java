@@ -20,7 +20,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -104,28 +103,16 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
             var total = new AtomicInteger();
+            var batchCounter = new AtomicInteger();
 
-            // Buffer messages into groups of up to 10 and send each group as a single batch request.
             Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
                 .buffer(10)
                 .doOnNext(throwConsumer(batch -> {
+                    var batchNum = batchCounter.incrementAndGet();
                     var entries = new ArrayList<SendMessageBatchRequestEntry>(batch.size());
                     for (int i = 0; i < batch.size(); i++) {
-                        var msg = batch.get(i);
-                        var rendered = msg.to(
-                            SendMessageRequest.builder().queueUrl(queueUrl),
-                            runContext
-                        );
-                        entries.add(
-                            SendMessageBatchRequestEntry.builder()
-                                .id(String.valueOf(i))
-                                .messageBody(rendered.messageBody())
-                                .messageGroupId(rendered.messageGroupId())
-                                .messageDeduplicationId(rendered.messageDeduplicationId())
-                                .delaySeconds(rendered.delaySeconds())
-                                .build()
-                        );
+                        entries.add(batch.get(i).toBatchEntry(String.valueOf(i), runContext));
                     }
                     var batchRequest = SendMessageBatchRequest.builder()
                         .queueUrl(queueUrl)
@@ -133,10 +120,17 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                         .build();
                     var result = sqsClient.sendMessageBatch(batchRequest);
                     if (!result.failed().isEmpty()) {
-                        var failedIds = result.failed().stream()
-                            .map(f -> f.id() + ": " + f.message())
+                        var failedDetails = result.failed().stream()
+                            .map(f -> {
+                                var msg = batch.get(Integer.parseInt(f.id()));
+                                var preview = msg.getData() == null ? "<null>" :
+                                    msg.getData().length() > 50 ? msg.getData().substring(0, 50) + "..." : msg.getData();
+                                return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message() + " body_preview=" + preview;
+                            })
                             .toList();
-                        throw new RuntimeException("SQS batch send had " + result.failed().size() + " failure(s): " + failedIds);
+                        throw new RuntimeException(
+                            "SQS batch " + batchNum + " had " + result.failed().size() + " failure(s): " + failedDetails
+                        );
                     }
                     total.addAndGet(result.successful().size());
                 }))
