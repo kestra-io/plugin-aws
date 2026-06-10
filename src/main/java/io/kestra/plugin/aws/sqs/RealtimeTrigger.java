@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +27,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
@@ -105,10 +107,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     private static final Duration POLL_ERROR_BACKOFF_BASE = Duration.ofSeconds(1);
     private static final Duration POLL_ERROR_BACKOFF_MAX = Duration.ofSeconds(30);
-    // Slice size for interruptible sleep so stop() is responsive within this window.
     private static final Duration POLL_SLEEP_SLICE = Duration.ofMillis(200);
 
-    // SQS error codes that indicate a permanent configuration problem, not a transient one.
     private static final Set<String> FATAL_ERROR_CODES = Set.of(
         "AWS.SimpleQueueService.NonExistentQueue",
         "QueueDoesNotExist",
@@ -229,10 +229,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             fluxSink ->
             {
                 Logger logger = runContext.logger();
-                // Tracks whether fluxSink.error() was already called so we skip complete() afterward.
                 var signalledError = false;
                 try (SqsAsyncClient sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
-                    // Render once before the loop to avoid redundant rendering on every iteration.
                     var rWaitTimeSeconds = (int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds();
                     var rMaxNumberOfMessages = runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow();
                     var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
@@ -244,61 +242,28 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     var currentBackoff = POLL_ERROR_BACKOFF_BASE;
 
                     while (isActive.get()) {
-                        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
+                        var receiveRequest = ReceiveMessageRequest.builder()
                             .queueUrl(renderedQueueUrl)
                             .waitTimeSeconds(rWaitTimeSeconds)
                             .maxNumberOfMessages(rMaxNumberOfMessages)
                             .visibilityTimeout(rVisibilityTimeout)
                             .build();
 
-                        final CompletableFuture<ReceiveMessageResponse> future = sqsClient.receiveMessage(receiveRequest);
+                        var future = sqsClient.receiveMessage(receiveRequest);
 
                         try {
                             ReceiveMessageResponse response = future.get();
 
-                            // Reset backoff after a successful poll cycle.
                             currentBackoff = POLL_ERROR_BACKOFF_BASE;
 
                             if (!response.messages().isEmpty()) {
                                 logger.debug("Received {} message(s) from queue '{}'.", response.messages().size(), renderedQueueUrl);
                             }
 
-                            for (var message : response.messages()) {
-                                // Deserialize: a bad message body must not kill the whole loop.
-                                Object body;
-                                try {
-                                    body = rSerdeType.deserialize(message.body());
-                                } catch (java.io.IOException e) {
-                                    logger.warn("Failed to deserialize SQS message body (skipping): {}", e.getMessage());
-                                    continue;
-                                }
-
-                                fluxSink.next(Message.builder().data(body).build());
-
-                                if (rAutoDelete) {
-                                    try {
-                                        sqsClient.deleteMessage(
-                                            DeleteMessageRequest.builder()
-                                                .queueUrl(renderedQueueUrl)
-                                                .receiptHandle(message.receiptHandle())
-                                                .build()
-                                        ).get();
-                                    } catch (InterruptedException ie) {
-                                        // Restore interrupt flag and shut down cleanly.
-                                        Thread.currentThread().interrupt();
-                                        isActive.set(false);
-                                        break;
-                                    } catch (ExecutionException de) {
-                                        // Accept at-least-once redelivery rather than mixing delete
-                                        // failures into the receive-error/backoff path.
-                                        var cause = de.getCause() != null ? de.getCause() : de;
-                                        logger.warn("Failed to delete SQS message (will be redelivered): {}", cause.getMessage());
-                                    }
-                                }
-                            }
+                            emitAndDelete(fluxSink, sqsClient, renderedQueueUrl, response.messages(), rAutoDelete, rSerdeType, logger);
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
-                            isActive.set(false); // proactively stop polling
+                            isActive.set(false);
                         } catch (ExecutionException e) {
                             var cause = e.getCause() != null ? e.getCause() : e;
                             if (cause instanceof SqsException sqsEx && isFatal(sqsEx)) {
@@ -307,8 +272,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                                 isActive.set(false);
                                 fluxSink.error(cause);
                             } else {
-                                // Transient error (connection-pool timeout, throttling, network blip).
-                                // Apply capped exponential backoff to avoid a busy-loop under hard-down endpoints.
                                 logger.warn("Transient error while polling queue '{}': {}. Retrying in {}.", renderedQueueUrl, cause.getMessage(), currentBackoff);
                                 sleepInterruptibly(currentBackoff);
                                 currentBackoff = min(currentBackoff.multipliedBy(2), POLL_ERROR_BACKOFF_MAX);
@@ -326,6 +289,49 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 }
             }
         );
+    }
+
+    private void emitAndDelete(
+        FluxSink<Message> sink,
+        SqsAsyncClient client,
+        String queueUrl,
+        List<software.amazon.awssdk.services.sqs.model.Message> messages,
+        boolean autoDelete,
+        SerdeType serdeType,
+        Logger logger
+    ) {
+        for (var message : messages) {
+            Object body;
+            try {
+                body = serdeType.deserialize(message.body());
+            } catch (java.io.IOException e) {
+                logger.warn("Failed to deserialize SQS message body (skipping): {}", e.getMessage());
+                continue;
+            }
+
+            sink.next(Message.builder().data(body).build());
+
+            if (autoDelete) {
+                try {
+                    client.deleteMessage(
+                        DeleteMessageRequest.builder()
+                            .queueUrl(queueUrl)
+                            .receiptHandle(message.receiptHandle())
+                            .build()
+                    ).get();
+                } catch (InterruptedException ie) {
+                    // Restore interrupt flag and shut down cleanly.
+                    Thread.currentThread().interrupt();
+                    isActive.set(false);
+                    break;
+                } catch (ExecutionException de) {
+                    // Accept at-least-once redelivery rather than mixing delete
+                    // failures into the receive-error/backoff path.
+                    var cause = de.getCause() != null ? de.getCause() : de;
+                    logger.warn("Failed to delete SQS message (will be redelivered): {}", cause.getMessage());
+                }
+            }
+        }
     }
 
     /**

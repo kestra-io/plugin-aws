@@ -55,10 +55,8 @@ public class Message implements io.kestra.core.models.tasks.Output {
 
     private String toMessageBody(RunContext runContext) throws IllegalVariableEvaluationException, JsonProcessingException {
         if (data instanceof String s) {
-            // preserve Pebble templating for string data
             return runContext.render(s);
         }
-        // non-string objects (e.g. parsed JSON from RealtimeTrigger output) are serialized back to JSON
         return JacksonMapper.ofJson().writeValueAsString(data);
     }
 }

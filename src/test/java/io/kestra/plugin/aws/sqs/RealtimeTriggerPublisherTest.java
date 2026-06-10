@@ -112,22 +112,13 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
     }
 
     /**
-     * A transient receive failure must not terminate the publisher. The loop must
-     * recover and continue polling after the backoff.
-     *
-     * We inject a mock SqsAsyncClient that fails on the first receiveMessage call
-     * (simulating a transient error) and succeeds on subsequent calls by delegating
-     * to a real long-lived client.
-     *
-     * The publisher runs on a separate thread (subscribeOn) so the main test thread
-     * can await the result independently.
+     * A transient receive failure must not terminate the publisher; it recovers and keeps delivering.
      */
     @Test
     @Timeout(30)
     void transientReceiveErrorDoesNotTerminatePublisher() throws Exception {
         var runContext = runContextFactory.of();
 
-        // Publish one real message that we expect to receive after the transient failure.
         Publish publish = Publish.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
@@ -152,8 +143,6 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             var callCount = new AtomicInteger(0);
             var mockClient = mock(SqsAsyncClient.class);
 
-            // First call: fail with a transient exception.
-            // Subsequent calls: delegate to the shared real client.
             when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
                 int call = callCount.incrementAndGet();
                 if (call == 1) {
@@ -166,14 +155,6 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             when(mockClient.deleteMessage(any(DeleteMessageRequest.class))).thenAnswer(inv ->
                 realClient.deleteMessage((DeleteMessageRequest) inv.getArgument(0))
             );
-
-            Consume consumeWithMock = new Consume() {
-                @Override
-                public SqsAsyncClient asyncClient(RunContext rc, int retryMaxAttempts)
-                    throws io.kestra.core.exceptions.IllegalVariableEvaluationException {
-                    return mockClient;
-                }
-            };
 
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-rt-transient")
@@ -188,8 +169,7 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             CountDownLatch received = new CountDownLatch(1);
             var messages = new CopyOnWriteArrayList<Message>();
 
-            // subscribeOn so the publisher loop runs on its own thread, not the test thread.
-            trigger.publisher(consumeWithMock, runContext)
+            trigger.publisher(consumeWithClient(mockClient), runContext)
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(msg -> {
                     messages.add(msg);
@@ -207,28 +187,18 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
 
     /**
      * stop() must return promptly even when the trigger is mid-backoff.
-     * The backoff slice is 200 ms; we give stop() 500 ms to complete.
      */
     @Test
     @Timeout(10)
     void stopReturnsDuringBackoff() throws Exception {
         var runContext = runContextFactory.of();
 
-        // A mock client that always fails so the publisher enters backoff immediately.
         var mockClient = mock(SqsAsyncClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
             var failed = new CompletableFuture<ReceiveMessageResponse>();
             failed.completeExceptionally(new RuntimeException("always failing"));
             return failed;
         });
-
-        Consume consumeWithMock = new Consume() {
-            @Override
-            public SqsAsyncClient asyncClient(RunContext rc, int retryMaxAttempts)
-                throws io.kestra.core.exceptions.IllegalVariableEvaluationException {
-                return mockClient;
-            }
-        };
 
         RealtimeTrigger trigger = RealtimeTrigger.builder()
             .id("test-rt-stop-backoff")
@@ -240,20 +210,26 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .build();
 
-        var errors = new CopyOnWriteArrayList<Throwable>();
-        // Run the publisher on a background thread so the test thread is free to call stop().
-        trigger.publisher(consumeWithMock, runContext)
+        trigger.publisher(consumeWithClient(mockClient), runContext)
             .subscribeOn(Schedulers.boundedElastic())
-            .subscribe(msg -> {}, errors::add);
+            .subscribe(msg -> {}, err -> {});
 
-        // Wait until the publisher has entered the backoff sleep (at least one failure recorded).
         Thread.sleep(300);
 
         long stopStart = System.currentTimeMillis();
         trigger.stop();
         long elapsed = System.currentTimeMillis() - stopStart;
 
-        // stop() must return well within one full backoff (1 s); 500 ms is a generous bound.
         assertThat("stop() blocked longer than expected during backoff", elapsed < 500, is(true));
+    }
+
+    private static Consume consumeWithClient(SqsAsyncClient client) {
+        return new Consume() {
+            @Override
+            public SqsAsyncClient asyncClient(RunContext rc, int retryMaxAttempts)
+                throws io.kestra.core.exceptions.IllegalVariableEvaluationException {
+                return client;
+            }
+        };
     }
 }
