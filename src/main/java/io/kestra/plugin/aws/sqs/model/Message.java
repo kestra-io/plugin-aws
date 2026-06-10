@@ -20,8 +20,15 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 @Builder
 @Jacksonized
 public class Message implements io.kestra.core.models.tasks.Output {
-    @Schema(title = "The message data.")
-    @PluginProperty(dynamic = true, group = "main")
+    @Schema(
+        title = "The message data.",
+        description = """
+            Accepts a string (Pebble-templated, e.g. "{{ inputs.payload }}") or a structured value \
+            (map, list) that is serialized to JSON before sending. \
+            String values are rendered at runtime; non-string values are passed through Jackson.\
+            """
+    )
+    @PluginProperty(group = "main")
     @NotNull
     private Object data;
 

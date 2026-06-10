@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -29,6 +30,7 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.SqsException;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -105,6 +107,16 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private static final Duration POLL_ERROR_BACKOFF_MAX = Duration.ofSeconds(30);
     // Slice size for interruptible sleep so stop() is responsive within this window.
     private static final Duration POLL_SLEEP_SLICE = Duration.ofMillis(200);
+
+    // SQS error codes that indicate a permanent configuration problem, not a transient one.
+    private static final Set<String> FATAL_ERROR_CODES = Set.of(
+        "AWS.SimpleQueueService.NonExistentQueue",
+        "QueueDoesNotExist",
+        "InvalidClientTokenId",
+        "AccessDenied",
+        "AuthFailure",
+        "UnrecognizedClientException"
+    );
 
     private Property<String> queueUrl;
 
@@ -217,6 +229,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             fluxSink ->
             {
                 Logger logger = runContext.logger();
+                // Tracks whether fluxSink.error() was already called so we skip complete() afterward.
+                var signalledError = false;
                 try (SqsAsyncClient sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
                     // Render once before the loop to avoid redundant rendering on every iteration.
                     var rWaitTimeSeconds = (int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds();
@@ -250,39 +264,64 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             }
 
                             for (var message : response.messages()) {
+                                // Deserialize: a bad message body must not kill the whole loop.
+                                Object body;
                                 try {
-                                    fluxSink.next(Message.builder().data(rSerdeType.deserialize(message.body())).build());
+                                    body = rSerdeType.deserialize(message.body());
                                 } catch (java.io.IOException e) {
                                     logger.warn("Failed to deserialize SQS message body (skipping): {}", e.getMessage());
+                                    continue;
                                 }
-                            }
 
-                            if (rAutoDelete) {
-                                for (var message : response.messages()) {
-                                    sqsClient.deleteMessage(
-                                        DeleteMessageRequest.builder()
-                                            .queueUrl(renderedQueueUrl)
-                                            .receiptHandle(message.receiptHandle())
-                                            .build()
-                                    ).get();
+                                fluxSink.next(Message.builder().data(body).build());
+
+                                if (rAutoDelete) {
+                                    try {
+                                        sqsClient.deleteMessage(
+                                            DeleteMessageRequest.builder()
+                                                .queueUrl(renderedQueueUrl)
+                                                .receiptHandle(message.receiptHandle())
+                                                .build()
+                                        ).get();
+                                    } catch (InterruptedException ie) {
+                                        // Restore interrupt flag and shut down cleanly.
+                                        Thread.currentThread().interrupt();
+                                        isActive.set(false);
+                                        break;
+                                    } catch (ExecutionException de) {
+                                        // Accept at-least-once redelivery rather than mixing delete
+                                        // failures into the receive-error/backoff path.
+                                        var cause = de.getCause() != null ? de.getCause() : de;
+                                        logger.warn("Failed to delete SQS message (will be redelivered): {}", cause.getMessage());
+                                    }
                                 }
                             }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             isActive.set(false); // proactively stop polling
                         } catch (ExecutionException e) {
-                            // Transient error (connection-pool timeout, throttling, network blip).
-                            // Apply capped exponential backoff to avoid a busy-loop under hard-down endpoints.
                             var cause = e.getCause() != null ? e.getCause() : e;
-                            logger.warn("Transient error while polling queue '{}': {}. Retrying in {}.", renderedQueueUrl, cause.getMessage(), currentBackoff);
-                            sleepInterruptibly(currentBackoff);
-                            currentBackoff = min(currentBackoff.multipliedBy(2), POLL_ERROR_BACKOFF_MAX);
+                            if (cause instanceof SqsException sqsEx && isFatal(sqsEx)) {
+                                logger.error("Fatal SQS error on queue '{}': {}. Stopping trigger.", renderedQueueUrl, cause.getMessage());
+                                signalledError = true;
+                                isActive.set(false);
+                                fluxSink.error(cause);
+                            } else {
+                                // Transient error (connection-pool timeout, throttling, network blip).
+                                // Apply capped exponential backoff to avoid a busy-loop under hard-down endpoints.
+                                logger.warn("Transient error while polling queue '{}': {}. Retrying in {}.", renderedQueueUrl, cause.getMessage(), currentBackoff);
+                                sleepInterruptibly(currentBackoff);
+                                currentBackoff = min(currentBackoff.multipliedBy(2), POLL_ERROR_BACKOFF_MAX);
+                            }
                         }
                     }
                 } catch (Throwable e) {
+                    signalledError = true;
                     fluxSink.error(e);
                 } finally {
-                    fluxSink.complete();
+                    if (!signalledError) {
+                        fluxSink.complete();
+                    }
                     this.waitForTermination.countDown();
                 }
             }
@@ -341,5 +380,13 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     private static Duration min(Duration a, Duration b) {
         return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    private static boolean isFatal(SqsException ex) {
+        var details = ex.awsErrorDetails();
+        if (details == null) {
+            return false;
+        }
+        return FATAL_ERROR_CODES.contains(details.errorCode());
     }
 }
