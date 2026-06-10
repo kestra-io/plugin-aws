@@ -125,4 +125,26 @@ class ListTest extends AbstractTest {
 
         assertThat(run.getObjects().size(), is(25));
     }
+
+    @Test
+    void paginatesWhenMaxKeysIsSmall() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        // Upload 5 objects then list with maxKeys=2 to force multiple ListObjects pages
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(2))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        // Without pagination all 5 objects are returned; with the old single-call code only 2 would appear
+        assertThat(run.getObjects().size(), is(5));
+    }
 }
