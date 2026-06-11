@@ -263,7 +263,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                             emitAndDelete(fluxSink, sqsClient, renderedQueueUrl, response.messages(), rAutoDelete, rSerdeType, logger);
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
-                            isActive.set(false);
+                            isActive.set(false); // proactively stop polling
                         } catch (ExecutionException e) {
                             var cause = e.getCause() != null ? e.getCause() : e;
                             if (cause instanceof SqsException sqsEx && isFatal(sqsEx)) {
