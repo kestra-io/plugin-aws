@@ -537,7 +537,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             CompletableFuture.allOf(futures).join();
 
             for (var e : windowEntries) {
-                var response = e.upload().completionFuture().getNow(null).response();
+                var response = e.upload().completionFuture().join().response();
                 fileInfoMap.put(e.fileKey(), FileInfo.builder()
                     .eTag(response.eTag())
                     .versionId(response.versionId())

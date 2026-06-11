@@ -8,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -161,15 +162,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     }
 
     private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles) {
-        var entries = new ArrayList<DeleteMessageBatchRequestEntry>(receiptHandles.size());
-        for (int i = 0; i < receiptHandles.size(); i++) {
-            entries.add(
-                DeleteMessageBatchRequestEntry.builder()
-                    .id(String.valueOf(i))
-                    .receiptHandle(receiptHandles.get(i))
-                    .build()
-            );
-        }
+        var entries = IntStream.range(0, receiptHandles.size())
+            .mapToObj(i -> DeleteMessageBatchRequestEntry.builder()
+                .id(String.valueOf(i))
+                .receiptHandle(receiptHandles.get(i))
+                .build())
+            .toList();
         var response = sqsClient.deleteMessageBatch(
             DeleteMessageBatchRequest.builder()
                 .queueUrl(queueUrl)

@@ -349,13 +349,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             var firstRows = firstPage.resultSet().rows();
             // Athena header row is only on the first page.
             var dataRows = skipHeader && !firstRows.isEmpty() ? firstRows.subList(1, firstRows.size()) : firstRows;
-            for (var row : dataRows) {
-                var mapped = map(columnInfo, row);
-                if (mapped != null) {
-                    FileSerde.write(out, mapped);
-                    count++;
-                }
-            }
+            count += writeRows(out, columnInfo, dataRows);
 
             String nextToken = firstPage.nextToken();
             while (nextToken != null) {
@@ -365,18 +359,24 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                         .nextToken(nextToken)
                         .build()
                 );
-                for (var row : nextPage.resultSet().rows()) {
-                    var mapped = map(columnInfo, row);
-                    if (mapped != null) {
-                        FileSerde.write(out, mapped);
-                        count++;
-                    }
-                }
+                count += writeRows(out, columnInfo, nextPage.resultSet().rows());
                 nextToken = nextPage.nextToken();
             }
         }
 
         return Pair.of(runContext.storage().putFile(tempFile), count);
+    }
+
+    private long writeRows(BufferedOutputStream out, List<ColumnInfo> columnInfo, List<Row> rows) throws IOException {
+        long written = 0;
+        for (var row : rows) {
+            var mapped = map(columnInfo, row);
+            if (mapped != null) {
+                FileSerde.write(out, mapped);
+                written++;
+            }
+        }
+        return written;
     }
 
     private Map<String, Object> map(List<ColumnInfo> columnInfo, Row row) {

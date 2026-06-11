@@ -221,12 +221,9 @@ public class S3Service {
             }
         } while (response.isTruncated());
 
-        var capped = allContents.size() > rMaxKeys
-            ? allContents.subList(0, rMaxKeys)
-            : allContents;
+        var contents = allContents.size() > rMaxKeys ? allContents.subList(0, rMaxKeys) : allContents;
 
-        return capped
-            .stream()
+        return contents.stream()
             .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
             .map(S3Object::of)
             .toList();

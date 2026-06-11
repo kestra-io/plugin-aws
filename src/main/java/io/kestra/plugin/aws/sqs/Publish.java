@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 
@@ -121,12 +122,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                     var result = sqsClient.sendMessageBatch(batchRequest);
                     if (!result.failed().isEmpty()) {
                         var failedDetails = result.failed().stream()
-                            .map(f -> {
-                                var msg = batch.get(Integer.parseInt(f.id()));
-                                var preview = msg.getData() == null ? "<null>" :
-                                    msg.getData().length() > 50 ? msg.getData().substring(0, 50) + "..." : msg.getData();
-                                return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message() + " body_preview=" + preview;
-                            })
+                            .map(f -> failedEntryDetail(f, batch))
                             .toList();
                         throw new RuntimeException(
                             "SQS batch " + batchNum + " had " + result.failed().size() + " failure(s): " + failedDetails
@@ -143,6 +139,13 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                 .messagesCount(total.get())
                 .build();
         }
+    }
+
+    private static String failedEntryDetail(BatchResultErrorEntry f, List<Message> batch) {
+        var message = batch.get(Integer.parseInt(f.id()));
+        var data = message.getData();
+        var preview = data == null ? "<null>" : data.length() > 50 ? data.substring(0, 50) + "..." : data;
+        return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message() + " body_preview=" + preview;
     }
 
     @Builder
