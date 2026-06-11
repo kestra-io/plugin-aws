@@ -112,7 +112,7 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
     }
 
     /**
-     * A transient receive failure must not terminate the publisher; it recovers and keeps delivering.
+     * A transient receive failure must not terminate the publisher. It recovers and keeps delivering.
      */
     @Test
     @Timeout(30)

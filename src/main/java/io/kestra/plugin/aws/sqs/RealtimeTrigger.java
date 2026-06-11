@@ -325,8 +325,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                     isActive.set(false);
                     break;
                 } catch (ExecutionException de) {
-                    // Accept at-least-once redelivery rather than mixing delete
-                    // failures into the receive-error/backoff path.
+                    // Accept at-least-once redelivery instead of routing delete failures to backoff.
                     var cause = de.getCause() != null ? de.getCause() : de;
                     logger.warn("Failed to delete SQS message (will be redelivered): {}", cause.getMessage());
                 }
