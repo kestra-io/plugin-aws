@@ -92,6 +92,12 @@ public class ConnectionUtils {
         final String regionString = awsClientConfig.region();
         if (regionString != null) {
             builder.applyMutation(stsClientBuilder -> stsClientBuilder.region(Region.of(regionString)));
+        } else {
+            // STS is a global AWS service, but AWS SDK v2 requires an explicit region to build
+            // the endpoint URL. Without one it triggers DefaultAwsRegionProviderChain, which
+            // throws a confusing "Unable to load region" error on non-AWS hosts (e.g. GCP/Azure).
+            // Fall back to us-east-1, the canonical STS global endpoint region.
+            builder.applyMutation(stsClientBuilder -> stsClientBuilder.region(Region.US_EAST_1));
         }
         return builder.build();
     }
