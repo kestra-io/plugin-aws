@@ -136,6 +136,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                 }))
                 .blockLast();
 
+            // metrics
             runContext.metric(Counter.of("sqs.publish.messages", total.get(), "queue", queueUrl));
 
             return Output.builder()

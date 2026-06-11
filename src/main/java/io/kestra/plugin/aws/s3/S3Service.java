@@ -36,11 +36,12 @@ import static io.kestra.core.utils.Rethrow.throwPredicate;
 public class S3Service {
 
     public static void initCrt() {
+        // This will init CRT and loads the native library
         CRT.getArchIdentifier();
     }
 
     public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest request) throws IOException, ExecutionException, InterruptedException {
-        // S3 CRT requires the destination path to not exist before download.
+        // s3 require non existing files
         File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(request.key())).toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
@@ -68,6 +69,10 @@ public class S3Service {
         }
     }
 
+    /**
+     * Returns the first non-null checksum from a {@link GetObjectResponse} as an (algorithm, base64-value) pair.
+     * Both elements are null when the response carries no checksum.
+     */
     public static Pair<String, String> extractChecksum(GetObjectResponse response) {
         if (response.checksumSHA256() != null) {
             return Pair.of("SHA256", response.checksumSHA256());

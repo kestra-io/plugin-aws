@@ -36,6 +36,10 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 
+/**
+ * This Query task is built with the Athena SDK, more info can be found here: https://docs.aws.amazon.com/athena/latest/ug/code-samples.html.
+ * A JDBC driver also exists.
+ */
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -175,11 +179,13 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
+        // The QueryExecutionContext allows us to set the database.
         var queryExecutionContext = QueryExecutionContext.builder()
             .catalog(catalog != null ? runContext.render(catalog).as(String.class).orElseThrow() : null)
             .database(runContext.render(database).as(String.class).orElseThrow())
             .build();
 
+        // The result configuration specifies where the results of the query should go.
         var resultConfiguration = ResultConfiguration.builder()
             .outputLocation(runContext.render(outputLocation).as(String.class).orElseThrow())
             .build();
@@ -256,7 +262,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 }
 
                 if (rSkipHeader && !results.isEmpty()) {
-                    // Athena header row is only on the first page.
+                    // we skip the first row, this is usually needed as by default Athena returns the header as the first row
                     results = results.subList(1, results.size());
                 }
 
@@ -386,7 +392,8 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     }
 
     private Object mapCell(ColumnInfo columnInfo, Datum datum) {
-        // All Athena data arrives as varchar, coerce to a native type where possible.
+        // We try our best to convert the result to a precise type as all data comes as a varchar.
+        // See https://docs.aws.amazon.com/athena/latest/ug/data-types.html for the list of supported types.
         return switch (columnInfo.type()) {
             case "boolean" -> Boolean.valueOf(datum.varCharValue());
             case "tinyint", "smallint", "int", "integer" -> Integer.valueOf(datum.varCharValue());
@@ -396,7 +403,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             case "decimal" -> new BigDecimal(datum.varCharValue());
             case "date" -> LocalDate.parse(datum.varCharValue(), dateFormatter);
             case "timestamp" -> LocalDateTime.parse(datum.varCharValue(), timestampFormatter);
-            // char, varchar, string, binary, array, map, struct all fall through as raw string
+            // default correspond to the types char, varchar, string, binary, array, map, struct
             default -> datum.varCharValue();
         };
     }

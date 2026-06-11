@@ -75,6 +75,7 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
+        // List with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .maxFiles(Property.ofValue(3))
@@ -95,6 +96,7 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
+        // List with maxFiles=10 (more than 5 files) - should return all 5 files
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .maxFiles(Property.ofValue(10))
@@ -115,6 +117,7 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
+        // List WITHOUT specifying maxFiles - should use default of 25 and return first 25 files
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .build();
