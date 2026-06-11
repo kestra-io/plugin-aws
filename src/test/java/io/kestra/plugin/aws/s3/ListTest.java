@@ -75,7 +75,6 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
-        // List with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .maxFiles(Property.ofValue(3))
@@ -96,7 +95,6 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
-        // List with maxFiles=10 (more than 5 files) - should return all 5 files
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .maxFiles(Property.ofValue(10))
@@ -117,7 +115,6 @@ class ListTest extends AbstractTest {
             upload("/tasks/s3/" + dir);
         }
 
-        // List WITHOUT specifying maxFiles - should use default of 25 and return first 25 files
         List task = list()
             .prefix(Property.ofValue("/tasks/s3/" + dir))
             .build();
@@ -132,7 +129,6 @@ class ListTest extends AbstractTest {
 
         String dir = IdUtils.create();
 
-        // Upload 5 objects, then list with maxKeys=3 - should return exactly 3 regardless of pagination.
         for (int i = 0; i < 5; i++) {
             upload("/tasks/s3/" + dir);
         }
@@ -153,8 +149,6 @@ class ListTest extends AbstractTest {
 
         String dir = IdUtils.create();
 
-        // Upload 5 objects then list with maxKeys above the total count.
-        // The loop pages through S3 and returns all objects without hitting the cap.
         for (int i = 0; i < 5; i++) {
             upload("/tasks/s3/" + dir);
         }

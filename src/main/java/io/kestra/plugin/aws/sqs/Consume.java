@@ -126,7 +126,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
                     var receiveRequest = ReceiveMessageRequest.builder()
-                        .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
+                        .waitTimeSeconds(1) // long-poll to avoid busy-looping when the queue is empty
                         .queueUrl(queueUrl)
                         .visibilityTimeout(rVisibilityTimeout)
                         .build();

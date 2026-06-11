@@ -150,11 +150,10 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         Thread.sleep(1500);
 
-        // we verify that the message is still in the queue
         var secondConsume = consume.run(runContext);
         assertThat(secondConsume.getCount(), is(1));
 
-        // for cleanup for other tests, we delete the message
+        // cleanup: delete the message so it does not leak into other tests
         var consumeTrue = Consume.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))

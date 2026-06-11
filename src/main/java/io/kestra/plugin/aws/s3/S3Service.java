@@ -36,12 +36,11 @@ import static io.kestra.core.utils.Rethrow.throwPredicate;
 public class S3Service {
 
     public static void initCrt() {
-        // This will init CRT and loads the native library
         CRT.getArchIdentifier();
     }
 
     public static Pair<GetObjectResponse, URI> download(RunContext runContext, S3AsyncClient client, GetObjectRequest request) throws IOException, ExecutionException, InterruptedException {
-        // s3 require non existing files
+        // S3 CRT requires the destination path to not exist before download.
         File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(request.key())).toFile();
         //noinspection ResultOfMethodCallIgnored
         tempFile.delete();
@@ -69,10 +68,6 @@ public class S3Service {
         }
     }
 
-    /**
-     * Returns the first non-null checksum from a {@link GetObjectResponse} as an (algorithm, base64-value) pair.
-     * Both elements are null when the response carries no checksum.
-     */
     public static Pair<String, String> extractChecksum(GetObjectResponse response) {
         if (response.checksumSHA256() != null) {
             return Pair.of("SHA256", response.checksumSHA256());
@@ -200,19 +195,19 @@ public class S3Service {
             response = client.listObjects(currentRequest);
             allContents.addAll(response.contents());
 
-            // Stop early once we have collected maxKeys total objects (maxKeys is a total cap, not a per-page size).
+            // maxKeys is a total cap, not a per-page limit.
             if (maxKeys != null && allContents.size() >= maxKeys) {
                 break;
             }
 
             if (response.isTruncated()) {
-                // nextMarker is only present when a delimiter is used; otherwise fall back to the last returned key.
+                // nextMarker is only set when a delimiter is used, otherwise fall back to the last key.
                 String nextMarker = response.nextMarker() != null
                     ? response.nextMarker()
                     : (response.contents().isEmpty() ? null : response.contents().getLast().key());
 
                 if (nextMarker == null) {
-                    // S3 signaled truncation but gave no usable marker; stop to avoid an infinite loop.
+                    // S3 may set isTruncated=true with no usable marker, stop to avoid an infinite loop.
                     runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no next marker available.");
                     break;
                 }
@@ -221,7 +216,6 @@ public class S3Service {
             }
         } while (response.isTruncated());
 
-        // Enforce the total cap on accumulated raw objects before filtering.
         var capped = maxKeys != null && allContents.size() > maxKeys
             ? allContents.subList(0, maxKeys)
             : allContents;

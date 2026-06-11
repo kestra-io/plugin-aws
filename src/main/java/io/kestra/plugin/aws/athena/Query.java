@@ -36,10 +36,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
 
-/**
- * This Query task is built with the Athena SDK, more info can be found here: https://docs.aws.amazon.com/athena/latest/ug/code-samples.html.
- * A JDBC driver also exists.
- */
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -179,13 +175,11 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
-        // The QueryExecutionContext allows us to set the database.
         var queryExecutionContext = QueryExecutionContext.builder()
             .catalog(catalog != null ? runContext.render(catalog).as(String.class).orElseThrow() : null)
             .database(runContext.render(database).as(String.class).orElseThrow())
             .build();
 
-        // The result configuration specifies where the results of the query should go.
         var resultConfiguration = ResultConfiguration.builder()
             .outputLocation(runContext.render(outputLocation).as(String.class).orElseThrow())
             .build();
@@ -241,14 +235,14 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
             QueryOutput output = null;
             if (fetchType == FetchType.STORE) {
-                // Stream pages directly to disk to avoid buffering the full result set in memory.
+                // Stream pages to disk to avoid holding the full result set in memory.
                 Pair<URI, Long> pair = storeStreaming(
                     client, startQueryExecution.queryExecutionId(), columnInfo, firstPage, rSkipHeader, runContext
                 );
                 runContext.metric(Counter.of("total.rows", pair.getRight()));
                 output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
             } else {
-                // For FETCH / FETCH_ONE the result set is intentionally bounded; accumulate in memory.
+                // FETCH/FETCH_ONE results are bounded by design, safe to accumulate in memory.
                 List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
                 String nextToken = firstPage.nextToken();
                 while (nextToken != null) {
@@ -262,7 +256,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 }
 
                 if (rSkipHeader && !results.isEmpty()) {
-                    // Header row appears only on the first page as the very first row.
+                    // Athena header row is only on the first page.
                     results = results.subList(1, results.size());
                 }
 
@@ -347,7 +341,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
         try (var out = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
             var firstRows = firstPage.resultSet().rows();
-            // Header row appears only on the first page as the very first row.
+            // Athena header row is only on the first page.
             var dataRows = skipHeader && !firstRows.isEmpty() ? firstRows.subList(1, firstRows.size()) : firstRows;
             for (var row : dataRows) {
                 var mapped = map(columnInfo, row);
@@ -392,8 +386,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     }
 
     private Object mapCell(ColumnInfo columnInfo, Datum datum) {
-        // We try our best to convert the result to a precise type as all data comes as a varchar.
-        // See https://docs.aws.amazon.com/athena/latest/ug/data-types.html for the list of supported types.
+        // All Athena data arrives as varchar, coerce to a native type where possible.
         return switch (columnInfo.type()) {
             case "boolean" -> Boolean.valueOf(datum.varCharValue());
             case "tinyint", "smallint", "int", "integer" -> Integer.valueOf(datum.varCharValue());
@@ -403,7 +396,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             case "decimal" -> new BigDecimal(datum.varCharValue());
             case "date" -> LocalDate.parse(datum.varCharValue(), dateFormatter);
             case "timestamp" -> LocalDateTime.parse(datum.varCharValue(), timestampFormatter);
-            // default correspond to the types char, varchar, string, binary, array, map, struct
+            // char, varchar, string, binary, array, map, struct all fall through as raw string
             default -> datum.varCharValue();
         };
     }

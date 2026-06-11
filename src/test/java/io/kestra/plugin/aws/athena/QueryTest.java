@@ -93,10 +93,7 @@ class QueryTest {
         assertThat(row.get("name"), is("foo"));
     }
 
-    /**
-     * Verifies that rows beyond the first Athena page are not silently dropped.
-     * The first page contains the header + page-1 rows; the second page contains page-2 rows.
-     */
+    // Regression: rows beyond the first Athena page must not be silently dropped.
     @SuppressWarnings("unchecked")
     @Test
     void runFetch_paginatesAcrossMultiplePages() throws Exception {
@@ -120,7 +117,7 @@ class QueryTest {
                             .build()
                     )
                     .rows(
-                        // row 0 is the header (Athena convention; skipHeader=true will drop it)
+                        // row 0 is the Athena header, skipHeader=true will drop it
                         Row.builder().data(Datum.builder().varCharValue("id").build()).build(),
                         Row.builder().data(Datum.builder().varCharValue("1").build()).build()
                     )
@@ -143,7 +140,7 @@ class QueryTest {
             )
             .build();
 
-        // Route pages by nextToken: null token = first page, "page2token" = second page
+        // null token returns first page, "page2token" returns second page
         when(client.getQueryResults(any(GetQueryResultsRequest.class)))
             .thenAnswer(inv -> {
                 GetQueryResultsRequest req = inv.getArgument(0);
@@ -166,7 +163,7 @@ class QueryTest {
 
         Query.QueryOutput output = task.run(runContext);
 
-        // Must contain rows from both pages (header skipped from page 1, no header on page 2)
+        // header skipped from page 1, no header on page 2
         assertThat(output.getRows(), hasSize(2));
         assertThat(((Map<String, Object>) output.getRows().get(0)).get("id"), is(1));
         assertThat(((Map<String, Object>) output.getRows().get(1)).get("id"), is(2));

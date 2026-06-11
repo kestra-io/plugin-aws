@@ -427,8 +427,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         }
     }
 
-    // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
-    // as values where in this case, file names are just the file name part of the file URIs.
+    // Converts a URI list to a map keyed by filename for uniform handling in uploadMultipleFiles.
     private Map<String, String> uriListToMap(List<String> rUriList) {
         Map<String, String> rUriMap = new HashMap<>();
         for (String rUri : rUriList) {
@@ -502,7 +501,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     private static final int UPLOAD_WINDOW_SIZE = 50;
 
-    // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
+    // Map keys are relative file names, values are Kestra internal storage URIs.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
         String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
         record UploadEntry(String fileKey, File tempFile, FileUpload upload) {}
