@@ -158,11 +158,11 @@ public class S3Service {
     }
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
-        Integer maxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(null);
+        Integer rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(null);
 
         ListObjectsRequest.Builder builder = ListObjectsRequest.builder()
             .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            .maxKeys(maxKeys != null ? maxKeys : 1000);
+            .maxKeys(rMaxKeys != null ? rMaxKeys : 1000);
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -201,7 +201,7 @@ public class S3Service {
             allContents.addAll(response.contents());
 
             // maxKeys is a total cap, not a per-page limit.
-            if (maxKeys != null && allContents.size() >= maxKeys) {
+            if (rMaxKeys != null && allContents.size() >= rMaxKeys) {
                 break;
             }
 
@@ -221,8 +221,8 @@ public class S3Service {
             }
         } while (response.isTruncated());
 
-        var capped = maxKeys != null && allContents.size() > maxKeys
-            ? allContents.subList(0, maxKeys)
+        var capped = rMaxKeys != null && allContents.size() > rMaxKeys
+            ? allContents.subList(0, rMaxKeys)
             : allContents;
 
         return capped
