@@ -68,7 +68,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     private Property<String> encodingType;
 
     @Builder.Default
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @PluginProperty(group = "connection")

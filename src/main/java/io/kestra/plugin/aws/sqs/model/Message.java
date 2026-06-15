@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 @Getter
@@ -46,6 +47,16 @@ public class Message implements io.kestra.core.models.tasks.Output {
 
     public SendMessageRequest to(SendMessageRequest.Builder builder, RunContext runContext) throws IllegalVariableEvaluationException, IOException {
         return builder
+            .messageBody(toMessageBody(runContext))
+            .messageGroupId(runContext.render(groupId))
+            .messageDeduplicationId(runContext.render(deduplicationId))
+            .delaySeconds(delaySeconds)
+            .build();
+    }
+
+    public SendMessageBatchRequestEntry toBatchEntry(String id, RunContext runContext) throws IllegalVariableEvaluationException, IOException {
+        return SendMessageBatchRequestEntry.builder()
+            .id(id)
             .messageBody(toMessageBody(runContext))
             .messageGroupId(runContext.render(groupId))
             .messageDeduplicationId(runContext.render(deduplicationId))
