@@ -105,7 +105,8 @@ public class ConnectionUtils {
         builder
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
             .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder()
-                .maxConnections(200)
+                // 100 balances burst headroom against file-descriptor exhaustion under concurrent executions.
+                .maxConnections(100)
                 .connectionTimeout(Duration.ofSeconds(10))
                 .build())
             .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));

@@ -158,7 +158,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all rows to internal storage; FETCH loads all rows into memory; FETCH_ONE returns the first row; NONE submits without waiting."
+        description = "Default STORE writes all rows to internal storage (recommended for large result sets). FETCH loads ALL rows into memory and should only be used for small, bounded result sets. FETCH_ONE returns the first row. NONE submits the query without waiting for results."
     )
     @NotNull
     @Builder.Default
@@ -174,8 +174,8 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @PluginProperty(group = "advanced")
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
-    private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+    private static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
@@ -248,7 +248,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 runContext.metric(Counter.of("total.rows", pair.getRight()));
                 output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
             } else if (fetchType == FetchType.FETCH_ONE) {
-                // Only the first page is needed; skip pagination to avoid unnecessary API calls.
+                // Only the first page is needed. Skip pagination to avoid unnecessary API calls.
                 var firstRows = new ArrayList<>(firstPage.resultSet().rows());
                 if (rSkipHeader && !firstRows.isEmpty()) {
                     // we skip the first row, this is usually needed as by default Athena returns the header as the first row
@@ -258,7 +258,6 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 Map<String, Object> row = fetchOne(columnInfo, firstRows);
                 output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
             } else {
-                // FETCH results are bounded by design, safe to accumulate in memory.
                 List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
                 String nextToken = firstPage.nextToken();
                 while (nextToken != null) {
@@ -327,7 +326,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             return null;
         }
 
-        Row row = results.get(0);
+        Row row = results.getFirst();
         return map(columnInfo, row);
     }
 
@@ -369,7 +368,6 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             }
         }
 
-        // Match original behavior: return a null URI and count 0 when the result set is empty.
         if (count == 0) {
             return Pair.of(null, 0L);
         }

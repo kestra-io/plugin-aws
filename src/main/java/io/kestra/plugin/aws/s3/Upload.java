@@ -407,7 +407,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     @Schema(
         title = "Max concurrent file uploads",
-        description = "Number of files uploaded in parallel when uploading multiple files. Defaults to 50."
+        description = "Max upload futures submitted to the TransferManager before waiting for the window to complete. Effective I/O concurrency is also bounded by the HTTP connection pool. Defaults to 50."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
@@ -545,9 +545,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             try {
                 CompletableFuture.allOf(futures).join();
             } catch (Exception ex) {
-                // Cancel in-flight uploads in this window so the transfer manager can be closed cleanly.
-                for (var f : futures) {
-                    f.cancel(true);
+                // CompletableFuture.cancel does not abort in-flight S3 SDK transfers.
+                // The try-with-resources on transferManager handles cleanup.
+                if (ex instanceof java.util.concurrent.CompletionException ce && ce.getCause() != null) {
+                    var cause = ce.getCause();
+                    if (cause instanceof RuntimeException re) throw re;
+                    if (cause instanceof Exception e2) throw e2;
+                    throw new RuntimeException(cause);
                 }
                 throw ex;
             }

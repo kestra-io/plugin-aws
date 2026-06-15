@@ -25,8 +25,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
@@ -160,7 +160,7 @@ public class S3Service {
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
 
-        ListObjectsRequest.Builder builder = ListObjectsRequest.builder()
+        ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
             .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
             .maxKeys(rMaxKeys);
 
@@ -172,8 +172,9 @@ public class S3Service {
             builder.delimiter(runContext.render(list.getDelimiter()).as(String.class).orElseThrow());
         }
 
+        // V2 uses startAfter instead of marker (same "list after this key" semantics).
         if (list.getMarker() != null) {
-            builder.marker(runContext.render(list.getMarker()).as(String.class).orElseThrow());
+            builder.startAfter(runContext.render(list.getMarker()).as(String.class).orElseThrow());
         }
 
         if (list.getEncodingType() != null) {
@@ -191,13 +192,13 @@ public class S3Service {
         String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
         var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
 
-        ListObjectsRequest baseRequest = builder.build();
+        ListObjectsV2Request baseRequest = builder.build();
         List<software.amazon.awssdk.services.s3.model.S3Object> allContents = new ArrayList<>();
 
-        ListObjectsRequest currentRequest = baseRequest;
-        ListObjectsResponse response;
+        ListObjectsV2Request currentRequest = baseRequest;
+        ListObjectsV2Response response;
         do {
-            response = client.listObjects(currentRequest);
+            response = client.listObjectsV2(currentRequest);
             allContents.addAll(response.contents());
 
             // maxKeys is a total cap across pages, the per-page size is capped at 1000 by S3.
@@ -206,18 +207,13 @@ public class S3Service {
             }
 
             if (response.isTruncated()) {
-                // nextMarker is only set when a delimiter is used, otherwise fall back to the last key.
-                String nextMarker = response.nextMarker() != null
-                    ? response.nextMarker()
-                    : (response.contents().isEmpty() ? null : response.contents().getLast().key());
-
-                if (nextMarker == null) {
-                    // S3 may set isTruncated=true with no usable marker, stop to avoid an infinite loop.
-                    runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no next marker available.");
+                String nextToken = response.nextContinuationToken();
+                if (nextToken == null) {
+                    // Guard: isTruncated=true but no token returned, stop to avoid an infinite loop.
+                    runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no continuation token available.");
                     break;
                 }
-
-                currentRequest = baseRequest.toBuilder().marker(nextMarker).build();
+                currentRequest = baseRequest.toBuilder().continuationToken(nextToken).build();
             }
         } while (response.isTruncated());
 

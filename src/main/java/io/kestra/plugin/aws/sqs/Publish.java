@@ -124,7 +124,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                         var failedDetails = result.failed().stream()
                             .map(f -> failedEntryDetail(f))
                             .toList();
-                        throw new RuntimeException(
+                        throw new IllegalStateException(
                             "SQS batch " + batchNum + " had " + result.failed().size() + " failure(s): " + failedDetails
                         );
                     }

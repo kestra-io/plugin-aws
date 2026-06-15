@@ -127,7 +127,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
                     var receiveRequest = ReceiveMessageRequest.builder()
-                        .waitTimeSeconds(1) // long-poll to avoid busy-looping when the queue is empty
+                        .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
                         .queueUrl(queueUrl)
                         .visibilityTimeout(rVisibilityTimeout)
                         .build();
@@ -140,7 +140,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                         if (rAutoDelete) {
                             pendingDeletes.add(m.receiptHandle());
                             if (pendingDeletes.size() == 10) {
-                                flushDeletes(sqsClient, queueUrl, pendingDeletes);
+                                flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
                             }
                         }
                     }
@@ -149,7 +149,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 } while (!this.ended(total, started, runContext));
 
                 if (rAutoDelete && !pendingDeletes.isEmpty()) {
-                    flushDeletes(sqsClient, queueUrl, pendingDeletes);
+                    flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
                 }
 
                 runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
@@ -163,7 +163,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
     }
 
-    private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles) {
+    private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles, RunContext runContext) {
         var entries = IntStream.range(0, receiptHandles.size())
             .mapToObj(i -> DeleteMessageBatchRequestEntry.builder()
                 .id(String.valueOf(i))
@@ -180,7 +180,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             var failedDetails = response.failed().stream()
                 .map(f -> "id=" + f.id() + " code=" + f.code() + " message=" + f.message())
                 .toList();
-            throw new RuntimeException(
+            runContext.logger().error("SQS batch delete had {} failure(s): {}", response.failed().size(), failedDetails);
+            throw new IllegalStateException(
                 "SQS batch delete had " + response.failed().size() + " failure(s): " + failedDetails
             );
         }
