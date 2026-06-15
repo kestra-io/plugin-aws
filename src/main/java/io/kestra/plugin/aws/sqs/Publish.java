@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -16,9 +18,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
+import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -99,25 +103,46 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
     public Output run(RunContext runContext) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         try (var sqsClient = this.client(runContext)) {
-            Integer count = Data.from(from)
+            var total = new AtomicInteger();
+            var batchCounter = new AtomicInteger();
+
+            Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
-                .map(throwFunction(message ->
-                {
-                    var sendMessageRequest = message.to(SendMessageRequest.builder().queueUrl(queueUrl), runContext);
-                    sqsClient.sendMessage(sendMessageRequest);
-                    return 1;
+                .buffer(10)
+                .doOnNext(throwConsumer(batch -> {
+                    var batchNum = batchCounter.incrementAndGet();
+                    var entries = new ArrayList<SendMessageBatchRequestEntry>(batch.size());
+                    for (int i = 0; i < batch.size(); i++) {
+                        entries.add(batch.get(i).toBatchEntry(String.valueOf(i), runContext));
+                    }
+                    var batchRequest = SendMessageBatchRequest.builder()
+                        .queueUrl(queueUrl)
+                        .entries(entries)
+                        .build();
+                    var result = sqsClient.sendMessageBatch(batchRequest);
+                    if (!result.failed().isEmpty()) {
+                        var failedDetails = result.failed().stream()
+                            .map(f -> failedEntryDetail(f))
+                            .toList();
+                        throw new IllegalStateException(
+                            "SQS batch " + batchNum + " had " + result.failed().size() + " failure(s): " + failedDetails
+                        );
+                    }
+                    total.addAndGet(result.successful().size());
                 }))
-                .reduce(Integer::sum)
-                .blockOptional()
-                .orElse(0);
+                .blockLast();
 
             // metrics
-            runContext.metric(Counter.of("sqs.publish.messages", count, "queue", queueUrl));
+            runContext.metric(Counter.of("sqs.publish.messages", total.get(), "queue", queueUrl));
 
             return Output.builder()
-                .messagesCount(count)
+                .messagesCount(total.get())
                 .build();
         }
+    }
+
+    private static String failedEntryDetail(BatchResultErrorEntry f) {
+        return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message();
     }
 
     @Builder

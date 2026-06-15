@@ -125,4 +125,44 @@ class ListTest extends AbstractTest {
 
         assertThat(run.getObjects().size(), is(25));
     }
+
+    @Test
+    void maxKeysTotalCap() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(3))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(3));
+    }
+
+    @Test
+    void paginatesWhenMaxKeysIsSmall() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(100))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(5));
+    }
 }

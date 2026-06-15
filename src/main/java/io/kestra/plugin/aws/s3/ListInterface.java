@@ -40,8 +40,8 @@ public interface ListInterface {
     Property<String> getEncodingType();
 
     @Schema(
-        title = "Sets the maximum number of keys returned in the response.",
-        description = "By default, the action returns up to 1,000 key names. The response might contain fewer keys but will never contain more."
+        title = "Maximum number of objects returned across all paginated S3 calls.",
+        description = "Total upper bound on the objects returned. It also sets the per-page size sent to S3, which AWS caps at 1000. The listing pages until this total is reached or the bucket is exhausted. Default 1000."
     )
     @PluginProperty(group = "execution")
     Property<Integer> getMaxKeys();
