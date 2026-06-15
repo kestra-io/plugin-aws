@@ -134,13 +134,15 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     for (var m : msg.messages()) {
                         FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
+                        // Increment immediately after write so count always reflects what is in the file,
+                        // even if a subsequent flushDeletes call throws.
+                        total.getAndIncrement();
                         if (rAutoDelete) {
                             pendingDeletes.add(m.receiptHandle());
                             if (pendingDeletes.size() == 10) {
                                 flushDeletes(sqsClient, queueUrl, pendingDeletes);
                             }
                         }
-                        total.getAndIncrement();
                     }
 
                     Thread.sleep(100);

@@ -122,7 +122,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
                     var result = sqsClient.sendMessageBatch(batchRequest);
                     if (!result.failed().isEmpty()) {
                         var failedDetails = result.failed().stream()
-                            .map(f -> failedEntryDetail(f, batch))
+                            .map(f -> failedEntryDetail(f))
                             .toList();
                         throw new RuntimeException(
                             "SQS batch " + batchNum + " had " + result.failed().size() + " failure(s): " + failedDetails
@@ -141,11 +141,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
         }
     }
 
-    private static String failedEntryDetail(BatchResultErrorEntry f, List<Message> batch) {
-        var message = batch.get(Integer.parseInt(f.id()));
-        var data = message.getData();
-        var preview = data == null ? "<null>" : data.length() > 50 ? data.substring(0, 50) + "..." : data;
-        return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message() + " body_preview=" + preview;
+    private static String failedEntryDetail(BatchResultErrorEntry f) {
+        return "entry[" + f.id() + "] code=" + f.code() + " message=" + f.message();
     }
 
     @Builder

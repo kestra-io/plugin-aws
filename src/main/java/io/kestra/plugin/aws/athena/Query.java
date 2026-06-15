@@ -247,8 +247,18 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 );
                 runContext.metric(Counter.of("total.rows", pair.getRight()));
                 output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
+            } else if (fetchType == FetchType.FETCH_ONE) {
+                // Only the first page is needed; skip pagination to avoid unnecessary API calls.
+                var firstRows = new ArrayList<>(firstPage.resultSet().rows());
+                if (rSkipHeader && !firstRows.isEmpty()) {
+                    // we skip the first row, this is usually needed as by default Athena returns the header as the first row
+                    firstRows = new ArrayList<>(firstRows.subList(1, firstRows.size()));
+                }
+                runContext.metric(Counter.of("total.rows", firstRows.size()));
+                Map<String, Object> row = fetchOne(columnInfo, firstRows);
+                output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
             } else {
-                // FETCH/FETCH_ONE results are bounded by design, safe to accumulate in memory.
+                // FETCH results are bounded by design, safe to accumulate in memory.
                 List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
                 String nextToken = firstPage.nextToken();
                 while (nextToken != null) {
@@ -267,13 +277,8 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 }
 
                 runContext.metric(Counter.of("total.rows", results.size()));
-                if (fetchType == FetchType.FETCH_ONE) {
-                    Map<String, Object> row = fetchOne(columnInfo, results);
-                    output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
-                } else if (fetchType == FetchType.FETCH) {
-                    List<Object> rows = fetch(columnInfo, results);
-                    output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
-                }
+                List<Object> rows = fetch(columnInfo, results);
+                output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
             }
 
             if (output != null) {
@@ -364,6 +369,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             }
         }
 
+        // Match original behavior: return a null URI and count 0 when the result set is empty.
+        if (count == 0) {
+            return Pair.of(null, 0L);
+        }
         return Pair.of(runContext.storage().putFile(tempFile), count);
     }
 

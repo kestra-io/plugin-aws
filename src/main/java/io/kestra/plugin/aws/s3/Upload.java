@@ -405,6 +405,14 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
+    @Schema(
+        title = "Max concurrent file uploads",
+        description = "Number of files uploaded in parallel when uploading multiple files. Defaults to 50."
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    private Property<Integer> concurrentUploads = Property.ofValue(50);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
@@ -500,18 +508,18 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             .build();
     }
 
-    private static final int UPLOAD_WINDOW_SIZE = 50;
-
     // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
         String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
         record UploadEntry(String fileKey, File tempFile, FileUpload upload) {}
 
+        int rConcurrentUploads = Math.max(1, runContext.render(concurrentUploads).as(Integer.class).orElse(50));
+
         var allEntries = new ArrayList<Map.Entry<String, String>>(filesToUpload.entrySet());
         Map<String, FileInfo> fileInfoMap = new HashMap<>(allEntries.size());
 
-        for (int windowStart = 0; windowStart < allEntries.size(); windowStart += UPLOAD_WINDOW_SIZE) {
-            var window = allEntries.subList(windowStart, Math.min(windowStart + UPLOAD_WINDOW_SIZE, allEntries.size()));
+        for (int windowStart = 0; windowStart < allEntries.size(); windowStart += rConcurrentUploads) {
+            var window = allEntries.subList(windowStart, Math.min(windowStart + rConcurrentUploads, allEntries.size()));
             var windowEntries = new ArrayList<UploadEntry>(window.size());
 
             for (var entry : window) {
@@ -534,7 +542,15 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             var futures = windowEntries.stream()
                 .map(e -> e.upload().completionFuture())
                 .toArray(CompletableFuture[]::new);
-            CompletableFuture.allOf(futures).join();
+            try {
+                CompletableFuture.allOf(futures).join();
+            } catch (Exception ex) {
+                // Cancel in-flight uploads in this window so the transfer manager can be closed cleanly.
+                for (var f : futures) {
+                    f.cancel(true);
+                }
+                throw ex;
+            }
 
             for (var e : windowEntries) {
                 var response = e.upload().completionFuture().join().response();
