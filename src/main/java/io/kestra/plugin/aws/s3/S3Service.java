@@ -162,7 +162,8 @@ public class S3Service {
 
         ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
             .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            .maxKeys(rMaxKeys);
+            // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages
+            .maxKeys(Math.min(rMaxKeys, 1000));
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
