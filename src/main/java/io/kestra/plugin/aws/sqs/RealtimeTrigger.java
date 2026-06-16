@@ -1,12 +1,15 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -24,10 +27,12 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.SqsException;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -99,6 +104,10 @@ import io.kestra.core.models.annotations.PluginProperty;
     }
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Message>, SqsConnectionInterface {
+
+    private static final Duration POLL_ERROR_BACKOFF_BASE = Duration.ofSeconds(1);
+    private static final Duration POLL_ERROR_BACKOFF_MAX = Duration.ofSeconds(30);
+    private static final Duration POLL_SLEEP_SLICE = Duration.ofMillis(200);
 
     private Property<String> queueUrl;
 
@@ -207,49 +216,131 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         final RunContext runContext) throws Exception {
         var renderedQueueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
 
-        return Flux.create(
-            fluxSink ->
-            {
-                try (SqsAsyncClient sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
-                    while (isActive.get()) {
-                        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                            .queueUrl(renderedQueueUrl)
-                            .waitTimeSeconds((int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds())
-                            .maxNumberOfMessages(runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow())
-                            .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
-                            .build();
+        return Flux.create(fluxSink -> {
+            var logger = runContext.logger();
+            var signalledError = false;
+            try (var sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
+                var rWaitTimeSeconds = (int) runContext.render(waitTime).as(Duration.class).orElseThrow().toSeconds();
+                var rMaxNumberOfMessages = runContext.render(maxNumberOfMessage).as(Integer.class).orElseThrow();
+                var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
+                var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
+                var rSerdeType = runContext.render(serdeType).as(SerdeType.class).orElse(SerdeType.STRING);
 
-                        final CompletableFuture<ReceiveMessageResponse> future = sqsClient.receiveMessage(receiveRequest);
+                logger.info("Starting SQS consumption from queue '{}'.", renderedQueueUrl);
 
-                        try {
-                            ReceiveMessageResponse response = future.get();
-                            response.messages().forEach(message -> fluxSink.next(Message.builder().data(message.body()).build()));
+                var currentBackoff = POLL_ERROR_BACKOFF_BASE;
 
-                            if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
-                                response.messages().forEach(
-                                    message -> sqsClient.deleteMessage(
-                                        DeleteMessageRequest.builder()
-                                            .queueUrl(renderedQueueUrl)
-                                            .receiptHandle(message.receiptHandle())
-                                            .build()
-                                    )
-                                );
+                while (isActive.get()) {
+                    var receiveRequest = ReceiveMessageRequest.builder()
+                        .queueUrl(renderedQueueUrl)
+                        .waitTimeSeconds(rWaitTimeSeconds)
+                        .maxNumberOfMessages(rMaxNumberOfMessages)
+                        .visibilityTimeout(rVisibilityTimeout)
+                        .build();
+
+                    try {
+                        var response = sqsClient.receiveMessage(receiveRequest).get();
+
+                        currentBackoff = POLL_ERROR_BACKOFF_BASE;
+
+                        if (!response.messages().isEmpty()) {
+                            logger.debug("Received {} message(s) from queue '{}'.", response.messages().size(), renderedQueueUrl);
+                        }
+
+                        emitAndDelete(fluxSink, sqsClient, renderedQueueUrl, response.messages(), rAutoDelete, rSerdeType, logger);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        isActive.set(false); // proactively stop polling
+                    } catch (ExecutionException e) {
+                        var cause = e.getCause() != null ? e.getCause() : e;
+                        if (cause instanceof SqsException sqsEx && isNonRetryable(sqsEx)) {
+                            logger.error("Fatal SQS error on queue '{}': {}. Stopping trigger.", renderedQueueUrl, cause.getMessage());
+                            signalledError = true;
+                            isActive.set(false);
+                            fluxSink.error(cause);
+                        } else {
+                            logger.warn("Transient error while polling queue '{}': {}. Retrying in {}.", renderedQueueUrl, cause.getMessage(), currentBackoff);
+                            sleepInterruptibly(currentBackoff);
+                            currentBackoff = currentBackoff.multipliedBy(2);
+                            if (currentBackoff.compareTo(POLL_ERROR_BACKOFF_MAX) > 0) {
+                                currentBackoff = POLL_ERROR_BACKOFF_MAX;
                             }
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            isActive.set(false); // proactively stop polling
                         }
                     }
-                } catch (ExecutionException e) {
-                    fluxSink.error(e.getCause() != null ? e.getCause() : e);
-                } catch (Throwable e) {
-                    fluxSink.error(e);
-                } finally {
-                    fluxSink.complete();
-                    this.waitForTermination.countDown();
                 }
+            } catch (Throwable e) {
+                signalledError = true;
+                fluxSink.error(e);
+            } finally {
+                if (!signalledError) {
+                    fluxSink.complete();
+                }
+                this.waitForTermination.countDown();
             }
-        );
+        });
+    }
+
+    private void emitAndDelete(
+        FluxSink<Message> sink,
+        SqsAsyncClient client,
+        String queueUrl,
+        List<software.amazon.awssdk.services.sqs.model.Message> messages,
+        boolean autoDelete,
+        SerdeType serdeType,
+        Logger logger
+    ) {
+        var handles = new ArrayList<String>(messages.size());
+
+        for (var message : messages) {
+            Object body;
+            try {
+                body = serdeType.deserialize(message.body());
+            } catch (IOException e) {
+                // emit raw so a poison message is delivered once and deleted, not looped on
+                logger.warn("Failed to deserialize SQS message body, emitting raw: {}", e.getMessage());
+                body = message.body();
+            }
+
+            sink.next(Message.builder().data(body).build());
+
+            if (autoDelete) {
+                handles.add(message.receiptHandle());
+            }
+        }
+
+        if (handles.isEmpty()) {
+            return;
+        }
+
+        // one batch covers a poll: SQS caps maxNumberOfMessages and deleteMessageBatch at 10
+        var entries = new ArrayList<DeleteMessageBatchRequestEntry>(handles.size());
+        for (int i = 0; i < handles.size(); i++) {
+            entries.add(DeleteMessageBatchRequestEntry.builder()
+                .id(String.valueOf(i))
+                .receiptHandle(handles.get(i))
+                .build());
+        }
+
+        try {
+            var response = client.deleteMessageBatch(
+                DeleteMessageBatchRequest.builder().queueUrl(queueUrl).entries(entries).build()
+            ).get();
+
+            if (!response.failed().isEmpty()) {
+                // partial failures are redelivered, log and keep polling
+                logger.warn(
+                    "SQS batch delete had {} failure(s), will be redelivered: {}",
+                    response.failed().size(),
+                    response.failed().stream().map(f -> f.id() + " " + f.code()).toList()
+                );
+            }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            isActive.set(false);
+        } catch (ExecutionException de) {
+            var cause = de.getCause() != null ? de.getCause() : de;
+            logger.warn("Failed to delete SQS message batch, will be redelivered: {}", cause.getMessage());
+        }
     }
 
     /**
@@ -279,5 +370,26 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    // sliced so stop() can cut the wait short instead of blocking the whole backoff
+    private void sleepInterruptibly(Duration delay) {
+        var remaining = delay.toMillis();
+        while (isActive.get() && remaining > 0) {
+            var sleepMs = Math.min(remaining, POLL_SLEEP_SLICE.toMillis());
+            try {
+                Thread.sleep(sleepMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                isActive.set(false);
+                return;
+            }
+            remaining -= sleepMs;
+        }
+    }
+
+    // a non-throttling 4xx is a permanent config or permission error, retrying will not help
+    private static boolean isNonRetryable(SqsException ex) {
+        return ex.statusCode() >= 400 && ex.statusCode() < 500 && !ex.isThrottlingException();
     }
 }
