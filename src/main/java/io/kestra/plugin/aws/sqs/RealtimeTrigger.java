@@ -289,15 +289,15 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         SerdeType serdeType,
         Logger logger
     ) {
-        var handles = autoDelete ? new ArrayList<String>(messages.size()) : null;
+        var handles = new ArrayList<String>(messages.size());
 
         for (var message : messages) {
             Object body;
             try {
                 body = serdeType.deserialize(message.body());
             } catch (IOException e) {
-                // Emit raw to avoid infinite redelivery: poison messages are deleted, not skipped.
-                logger.warn("Failed to deserialize SQS message body, emitting raw and deleting to avoid a redelivery loop: {}", e.getMessage());
+                // emit raw so a poison message is delivered once and deleted, not looped on
+                logger.warn("Failed to deserialize SQS message body, emitting raw: {}", e.getMessage());
                 body = message.body();
             }
 
@@ -308,11 +308,11 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             }
         }
 
-        if (handles == null || handles.isEmpty()) {
+        if (handles.isEmpty()) {
             return;
         }
 
-        // One batch covers the whole poll: SQS caps both maxNumberOfMessages and deleteMessageBatch at 10.
+        // one batch covers a poll: SQS caps maxNumberOfMessages and deleteMessageBatch at 10
         var entries = new ArrayList<DeleteMessageBatchRequestEntry>(handles.size());
         for (int i = 0; i < handles.size(); i++) {
             entries.add(DeleteMessageBatchRequestEntry.builder()
@@ -323,27 +323,23 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
         try {
             var response = client.deleteMessageBatch(
-                DeleteMessageBatchRequest.builder()
-                    .queueUrl(queueUrl)
-                    .entries(entries)
-                    .build()
+                DeleteMessageBatchRequest.builder().queueUrl(queueUrl).entries(entries).build()
             ).get();
 
             if (!response.failed().isEmpty()) {
-                // Partial failures cause at-least-once redelivery; log and continue.
-                var failedIds = response.failed().stream()
-                    .map(f -> "id=" + f.id() + " code=" + f.code() + " msg=" + f.message())
-                    .toList();
-                logger.warn("SQS batch delete had {} partial failure(s) (will be redelivered): {}", response.failed().size(), failedIds);
+                // partial failures are redelivered, log and keep polling
+                logger.warn(
+                    "SQS batch delete had {} failure(s), will be redelivered: {}",
+                    response.failed().size(),
+                    response.failed().stream().map(f -> f.id() + " " + f.code()).toList()
+                );
             }
         } catch (InterruptedException ie) {
-            // Restore interrupt flag and shut down cleanly.
             Thread.currentThread().interrupt();
             isActive.set(false);
         } catch (ExecutionException de) {
-            // Accept at-least-once redelivery instead of routing delete failures to backoff.
             var cause = de.getCause() != null ? de.getCause() : de;
-            logger.warn("Failed to delete SQS message batch (will be redelivered): {}", cause.getMessage());
+            logger.warn("Failed to delete SQS message batch, will be redelivered: {}", cause.getMessage());
         }
     }
 
