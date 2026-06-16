@@ -68,6 +68,6 @@ public class Message implements io.kestra.core.models.tasks.Output {
         if (data instanceof String s) {
             return runContext.render(s);
         }
-        return JacksonMapper.ofJson().writeValueAsString(data);
+        return JacksonMapper.ofJson(false).writeValueAsString(data);
     }
 }

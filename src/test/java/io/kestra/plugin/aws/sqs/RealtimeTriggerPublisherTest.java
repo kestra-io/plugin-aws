@@ -265,6 +265,78 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         assertThat(errors.getFirst(), instanceOf(SqsException.class));
     }
 
+    /**
+     * A malformed (non-JSON) message must be emitted with the raw body and then deleted so it
+     * never reappears (poison-message loop prevention).
+     */
+    @Test
+    @Timeout(60)
+    void poisonMessageIsEmittedRawAndDeleted() throws Exception {
+        var runContext = runContextFactory.of();
+
+        // Publish a non-JSON body directly via the AWS SDK to bypass SerdeType serialization.
+        try (var sqsClient = SqsClient.builder()
+            .endpointOverride(java.net.URI.create(endpointUrl()))
+            .region(Region.of(REGION))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .build()) {
+            sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("not-json"));
+        }
+
+        RealtimeTrigger trigger = RealtimeTrigger.builder()
+            .id("test-rt-poison")
+            .type(RealtimeTrigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .serdeType(Property.ofValue(SerdeType.JSON))
+            .autoDelete(Property.ofValue(true))
+            .build();
+
+        Consume task = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .serdeType(Property.ofValue(SerdeType.JSON))
+            .autoDelete(Property.ofValue(true))
+            .build();
+
+        CountDownLatch received = new CountDownLatch(1);
+        var messages = new CopyOnWriteArrayList<Message>();
+
+        trigger.publisher(task, runContext)
+            .subscribe(msg -> {
+                messages.add(msg);
+                received.countDown();
+                trigger.stop();
+            });
+
+        boolean got = received.await(1, TimeUnit.MINUTES);
+        assertThat("timed out waiting for poison message", got, is(true));
+        assertThat("exactly one execution must be emitted for the poison message", messages.size(), is(1));
+        assertThat("raw body must be a String", messages.getFirst().getData(), instanceOf(String.class));
+        assertThat("raw body value must match the original payload", messages.getFirst().getData(), is("not-json"));
+
+        // Confirm the message was deleted: queue must be empty after a short drain wait.
+        try (var sqsClient = SqsClient.builder()
+            .endpointOverride(java.net.URI.create(endpointUrl()))
+            .region(Region.of(REGION))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .build()) {
+            var remaining = sqsClient.receiveMessage(b -> b
+                .queueUrl(queueUrl())
+                .maxNumberOfMessages(10)
+                .waitTimeSeconds(2));
+            assertThat("queue must be empty after poison message was deleted", remaining.messages().isEmpty(), is(true));
+        }
+    }
+
     private static Consume consumeWithClient(SqsAsyncClient client) {
         return new Consume() {
             @Override

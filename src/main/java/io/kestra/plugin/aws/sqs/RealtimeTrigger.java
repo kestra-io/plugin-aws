@@ -292,8 +292,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             try {
                 body = serdeType.deserialize(message.body());
             } catch (IOException e) {
-                logger.warn("Failed to deserialize SQS message body (skipping): {}", e.getMessage());
-                continue;
+                // Emit raw to avoid infinite redelivery: poison messages are deleted, not skipped.
+                logger.warn("Failed to deserialize SQS message body, emitting raw and deleting to avoid a redelivery loop: {}", e.getMessage());
+                body = message.body();
             }
 
             sink.next(Message.builder().data(body).build());
