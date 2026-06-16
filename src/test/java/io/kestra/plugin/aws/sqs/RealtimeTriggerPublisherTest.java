@@ -37,11 +37,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests RealtimeTrigger.publisher() JSON deserialization in isolation,
- * without starting the full Kestra runner/scheduler to avoid inter-test
- * message consumption by other active triggers.
- */
 @KestraTest
 class RealtimeTriggerPublisherTest extends AbstractSqsTest {
 
