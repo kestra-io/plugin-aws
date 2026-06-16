@@ -3,7 +3,6 @@ package io.kestra.plugin.aws.sqs;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -107,15 +106,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private static final Duration POLL_ERROR_BACKOFF_BASE = Duration.ofSeconds(1);
     private static final Duration POLL_ERROR_BACKOFF_MAX = Duration.ofSeconds(30);
     private static final Duration POLL_SLEEP_SLICE = Duration.ofMillis(200);
-
-    private static final Set<String> FATAL_ERROR_CODES = Set.of(
-        "AWS.SimpleQueueService.NonExistentQueue",
-        "QueueDoesNotExist",
-        "InvalidClientTokenId",
-        "AccessDenied",
-        "AuthFailure",
-        "UnrecognizedClientException"
-    );
 
     private Property<String> queueUrl;
 
@@ -377,7 +367,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     }
 
     private static boolean isFatal(SqsException ex) {
-        var details = ex.awsErrorDetails();
-        return details != null && FATAL_ERROR_CODES.contains(details.errorCode());
+        // client-side errors (4xx) other than throttling are config/permission problems that retrying will not fix
+        return ex.statusCode() >= 400 && ex.statusCode() < 500 && !ex.isThrottlingException();
     }
 }

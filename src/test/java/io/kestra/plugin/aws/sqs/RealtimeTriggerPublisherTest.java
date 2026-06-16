@@ -28,6 +28,7 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.SqsException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -221,6 +222,52 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         long elapsed = System.currentTimeMillis() - stopStart;
 
         assertThat("stop() blocked longer than expected during backoff", elapsed < 500, is(true));
+    }
+
+    /**
+     * A 403 (AccessDenied) SqsException must terminate the publisher with onError, not retry.
+     */
+    @Test
+    @Timeout(10)
+    void fatalSqsErrorTerminatesPublisher() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var fatalException = SqsException.builder()
+            .statusCode(403)
+            .message("Access to the resource https://sqs.us-east-1.amazonaws.com/000/q is denied.")
+            .build();
+
+        var mockClient = mock(SqsAsyncClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
+            var failed = new CompletableFuture<ReceiveMessageResponse>();
+            failed.completeExceptionally(fatalException);
+            return failed;
+        });
+
+        RealtimeTrigger trigger = RealtimeTrigger.builder()
+            .id("test-rt-fatal-403")
+            .type(RealtimeTrigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .build();
+
+        var errors = new CopyOnWriteArrayList<Throwable>();
+        var terminated = new CountDownLatch(1);
+
+        trigger.publisher(consumeWithClient(mockClient), runContext)
+            .subscribeOn(Schedulers.boundedElastic())
+            .subscribe(
+                msg -> {},
+                err -> { errors.add(err); terminated.countDown(); },
+                terminated::countDown
+            );
+
+        assertThat("publisher did not terminate after fatal 403", terminated.await(5, TimeUnit.SECONDS), is(true));
+        assertThat("publisher must signal onError for fatal exceptions", errors.size(), is(1));
+        assertThat(errors.getFirst(), instanceOf(SqsException.class));
     }
 
     private static Consume consumeWithClient(SqsAsyncClient client) {
