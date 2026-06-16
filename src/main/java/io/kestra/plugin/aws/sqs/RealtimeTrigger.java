@@ -251,7 +251,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                         isActive.set(false); // proactively stop polling
                     } catch (ExecutionException e) {
                         var cause = e.getCause() != null ? e.getCause() : e;
-                        if (cause instanceof SqsException sqsEx && isFatal(sqsEx)) {
+                        if (cause instanceof SqsException sqsEx && isNonRetryable(sqsEx)) {
                             logger.error("Fatal SQS error on queue '{}': {}. Stopping trigger.", renderedQueueUrl, cause.getMessage());
                             signalledError = true;
                             isActive.set(false);
@@ -349,7 +349,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         }
     }
 
-    // Sliced so stop() (isActive=false) cuts the wait within one slice, not the full backoff.
+    // sliced so stop() can cut the wait short instead of blocking the whole backoff
     private void sleepInterruptibly(Duration delay) {
         var remaining = delay.toMillis();
         while (isActive.get() && remaining > 0) {
@@ -365,8 +365,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         }
     }
 
-    private static boolean isFatal(SqsException ex) {
-        // client-side errors (4xx) other than throttling are config/permission problems that retrying will not fix
+    // a non-throttling 4xx is a permanent config or permission error, retrying will not help
+    private static boolean isNonRetryable(SqsException ex) {
         return ex.statusCode() >= 400 && ex.statusCode() < 500 && !ex.isThrottlingException();
     }
 }
