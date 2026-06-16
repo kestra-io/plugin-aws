@@ -259,7 +259,10 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                         } else {
                             logger.warn("Transient error while polling queue '{}': {}. Retrying in {}.", renderedQueueUrl, cause.getMessage(), currentBackoff);
                             sleepInterruptibly(currentBackoff);
-                            currentBackoff = min(currentBackoff.multipliedBy(2), POLL_ERROR_BACKOFF_MAX);
+                            currentBackoff = currentBackoff.multipliedBy(2);
+                            if (currentBackoff.compareTo(POLL_ERROR_BACKOFF_MAX) > 0) {
+                                currentBackoff = POLL_ERROR_BACKOFF_MAX;
+                            }
                         }
                     }
                 }
@@ -360,10 +363,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             }
             remaining -= sleepMs;
         }
-    }
-
-    private static Duration min(Duration a, Duration b) {
-        return a.compareTo(b) <= 0 ? a : b;
     }
 
     private static boolean isFatal(SqsException ex) {
