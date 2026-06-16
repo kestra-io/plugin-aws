@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -28,7 +29,8 @@ import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SqsException;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -287,6 +289,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         SerdeType serdeType,
         Logger logger
     ) {
+        var handles = autoDelete ? new ArrayList<String>(messages.size()) : null;
+
         for (var message : messages) {
             Object body;
             try {
@@ -300,24 +304,46 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             sink.next(Message.builder().data(body).build());
 
             if (autoDelete) {
-                try {
-                    client.deleteMessage(
-                        DeleteMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .receiptHandle(message.receiptHandle())
-                            .build()
-                    ).get();
-                } catch (InterruptedException ie) {
-                    // Restore interrupt flag and shut down cleanly.
-                    Thread.currentThread().interrupt();
-                    isActive.set(false);
-                    break;
-                } catch (ExecutionException de) {
-                    // Accept at-least-once redelivery instead of routing delete failures to backoff.
-                    var cause = de.getCause() != null ? de.getCause() : de;
-                    logger.warn("Failed to delete SQS message (will be redelivered): {}", cause.getMessage());
-                }
+                handles.add(message.receiptHandle());
             }
+        }
+
+        if (handles == null || handles.isEmpty()) {
+            return;
+        }
+
+        // One batch covers the whole poll: SQS caps both maxNumberOfMessages and deleteMessageBatch at 10.
+        var entries = new ArrayList<DeleteMessageBatchRequestEntry>(handles.size());
+        for (int i = 0; i < handles.size(); i++) {
+            entries.add(DeleteMessageBatchRequestEntry.builder()
+                .id(String.valueOf(i))
+                .receiptHandle(handles.get(i))
+                .build());
+        }
+
+        try {
+            var response = client.deleteMessageBatch(
+                DeleteMessageBatchRequest.builder()
+                    .queueUrl(queueUrl)
+                    .entries(entries)
+                    .build()
+            ).get();
+
+            if (!response.failed().isEmpty()) {
+                // Partial failures cause at-least-once redelivery; log and continue.
+                var failedIds = response.failed().stream()
+                    .map(f -> "id=" + f.id() + " code=" + f.code() + " msg=" + f.message())
+                    .toList();
+                logger.warn("SQS batch delete had {} partial failure(s) (will be redelivered): {}", response.failed().size(), failedIds);
+            }
+        } catch (InterruptedException ie) {
+            // Restore interrupt flag and shut down cleanly.
+            Thread.currentThread().interrupt();
+            isActive.set(false);
+        } catch (ExecutionException de) {
+            // Accept at-least-once redelivery instead of routing delete failures to backoff.
+            var cause = de.getCause() != null ? de.getCause() : de;
+            logger.warn("Failed to delete SQS message batch (will be redelivered): {}", cause.getMessage());
         }
     }
 

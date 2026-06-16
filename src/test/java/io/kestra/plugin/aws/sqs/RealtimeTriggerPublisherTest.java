@@ -24,7 +24,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -148,8 +148,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
                 }
                 return realClient.receiveMessage((ReceiveMessageRequest) inv.getArgument(0));
             });
-            when(mockClient.deleteMessage(any(DeleteMessageRequest.class))).thenAnswer(inv ->
-                realClient.deleteMessage((DeleteMessageRequest) inv.getArgument(0))
+            when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class))).thenAnswer(inv ->
+                realClient.deleteMessageBatch((DeleteMessageBatchRequest) inv.getArgument(0))
             );
 
             RealtimeTrigger trigger = RealtimeTrigger.builder()
@@ -334,6 +334,78 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
                 .maxNumberOfMessages(10)
                 .waitTimeSeconds(2));
             assertThat("queue must be empty after poison message was deleted", remaining.messages().isEmpty(), is(true));
+        }
+    }
+
+    /**
+     * When a single poll returns multiple messages, all of them must be deleted via a single batch
+     * call and the queue must be empty afterward.
+     */
+    @Test
+    @Timeout(60)
+    void multipleMessagesInOnePollAreAllDeletedViaBatch() throws Exception {
+        var runContext = runContextFactory.of();
+
+        // Publish 3 messages so a single poll can return them together.
+        try (var sqsClient = SqsClient.builder()
+            .endpointOverride(java.net.URI.create(endpointUrl()))
+            .region(Region.of(REGION))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .build()) {
+            sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-1"));
+            sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-2"));
+            sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-3"));
+        }
+
+        RealtimeTrigger trigger = RealtimeTrigger.builder()
+            .id("test-rt-batch-delete")
+            .type(RealtimeTrigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .maxNumberOfMessage(Property.ofValue(10))
+            .autoDelete(Property.ofValue(true))
+            .build();
+
+        Consume task = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .build();
+
+        CountDownLatch received = new CountDownLatch(3);
+        var messages = new CopyOnWriteArrayList<Message>();
+
+        trigger.publisher(task, runContext)
+            .subscribe(msg -> {
+                messages.add(msg);
+                received.countDown();
+                if (received.getCount() == 0) {
+                    trigger.stop();
+                }
+            });
+
+        boolean got = received.await(1, TimeUnit.MINUTES);
+        assertThat("timed out waiting for all 3 messages", got, is(true));
+        assertThat(messages.size(), is(3));
+
+        // All 3 must have been deleted via the batch path: queue drains to 0.
+        try (var sqsClient = SqsClient.builder()
+            .endpointOverride(java.net.URI.create(endpointUrl()))
+            .region(Region.of(REGION))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .build()) {
+            var remaining = sqsClient.receiveMessage(b -> b
+                .queueUrl(queueUrl())
+                .maxNumberOfMessages(10)
+                .waitTimeSeconds(2));
+            assertThat("queue must be empty after batch delete", remaining.messages().isEmpty(), is(true));
         }
     }
 
