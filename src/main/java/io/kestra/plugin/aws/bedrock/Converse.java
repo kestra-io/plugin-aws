@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -27,8 +28,10 @@ import java.util.Map;
 @NoArgsConstructor
 @Schema(
     title = "Converse with an Amazon Bedrock foundation model",
-    description = "Sends a structured multi-turn conversation to any Bedrock model using the unified Converse API. " +
-        "Supports system prompts, multi-turn message history, and inference configuration such as max tokens and temperature."
+    description = """
+        Sends a structured multi-turn conversation to any Bedrock model using the unified Converse API.
+        Supports system prompts, multi-turn message history, and inference configuration such as max tokens and temperature.
+        """
 )
 @Plugin(
     examples = {
@@ -70,6 +73,7 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
         title = "Model ID",
         description = "The Bedrock model identifier, e.g. `anthropic.claude-3-5-sonnet-20241022-v2:0`."
     )
+    @PluginProperty(group = "main")
     @NotNull
     private Property<String> modelId;
 
@@ -77,6 +81,7 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
         title = "Messages",
         description = "Ordered list of conversation turns. Each entry must have a `role` (`user` or `assistant`) and `content` (text string)."
     )
+    @PluginProperty(group = "main")
     @NotEmpty
     private Property<List<Map<String, String>>> messages;
 
@@ -84,59 +89,65 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
         title = "System prompt",
         description = "Optional system-level instruction prepended before the conversation."
     )
+    @PluginProperty(group = "processing")
     private Property<String> system;
 
     @Schema(
         title = "Inference configuration",
         description = "Optional inference parameters. Supported keys: `maxTokens` (integer), `temperature` (float 0–1), `topP` (float 0–1), `stopSequences` (list of strings)."
     )
+    @PluginProperty(group = "processing")
     private Property<Map<String, Object>> inferenceConfig;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        String resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
+        var resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> rawMessages = (List<Map<String, String>>) (List<?>)
-            runContext.render(this.messages).asList(Map.class);
+        List<Map<String, String>> rawMessages;
+        try {
+            @SuppressWarnings("unchecked")
+            var cast = (List<Map<String, String>>) (List<?>) runContext.render(this.messages).asList(Map.class);
+            rawMessages = cast;
+        } catch (ClassCastException e) {
+            throw new IllegalArgumentException("messages must be a list of {role, content} maps", e);
+        }
 
-        List<Message> sdkMessages = BedrockUtils.buildMessages(rawMessages);
+        var sdkMessages = BedrockUtils.buildMessages(rawMessages);
 
-        ConverseRequest.Builder requestBuilder = ConverseRequest.builder()
+        var requestBuilder = ConverseRequest.builder()
             .modelId(resolvedModelId)
             .messages(sdkMessages);
 
         if (this.system != null) {
-            String resolvedSystem = runContext.render(this.system).as(String.class).orElse(null);
+            var resolvedSystem = runContext.render(this.system).as(String.class).orElse(null);
             if (resolvedSystem != null && !resolvedSystem.isBlank()) {
                 requestBuilder.system(SystemContentBlock.fromText(resolvedSystem));
             }
         }
 
         if (this.inferenceConfig != null) {
-            Map<String, Object> ic = runContext.render(this.inferenceConfig).asMap(String.class, Object.class);
+            var ic = runContext.render(this.inferenceConfig).asMap(String.class, Object.class);
             requestBuilder.inferenceConfig(BedrockUtils.buildInferenceConfig(ic));
         }
 
         logger.debug("Invoking Bedrock Converse for model '{}'", resolvedModelId);
 
-        try (BedrockRuntimeClient client = client(runContext)) {
-            ConverseResponse response = client.converse(requestBuilder.build());
-            Message outputMessage = response.output().message();
+        try (var client = client(runContext)) {
+            var response = client.converse(requestBuilder.build());
+            var outputMessage = response.output().message();
 
-            String content = outputMessage.content().stream()
+            var content = outputMessage.content().stream()
                 .filter(cb -> cb.text() != null)
                 .map(ContentBlock::text)
                 .findFirst()
                 .orElse("");
 
-            String stopReason = response.stopReason() != null ? response.stopReason().toString() : null;
-
-            TokenUsage usage = response.usage();
-            Integer inputTokens = usage != null ? usage.inputTokens() : null;
-            Integer outputTokens = usage != null ? usage.outputTokens() : null;
+            var stopReason = response.stopReason() != null ? response.stopReason().toString() : null;
+            var usage = response.usage();
+            var inputTokens = usage != null ? usage.inputTokens() : null;
+            var outputTokens = usage != null ? usage.outputTokens() : null;
 
             logger.debug("Converse completed. stopReason={}, inputTokens={}, outputTokens={}",
                 stopReason, inputTokens, outputTokens);

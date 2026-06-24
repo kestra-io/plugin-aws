@@ -1,14 +1,12 @@
 package io.kestra.plugin.aws.bedrock;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -17,15 +15,14 @@ import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
+
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -34,8 +31,10 @@ import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
 @NoArgsConstructor
 @Schema(
     title = "Invoke an Amazon Bedrock foundation model",
-    description = "Sends a raw JSON payload to any Bedrock-supported foundation model and returns the parsed response body. " +
-        "The caller is responsible for providing a `body` that matches the model's own request schema."
+    description = """
+        Sends a raw JSON payload to any Bedrock-supported foundation model and returns the parsed response body.
+        The caller is responsible for providing a `body` that matches the model's own request schema.
+        """
 )
 @Plugin(
     examples = {
@@ -80,6 +79,7 @@ public class InvokeModel extends AbstractConnection implements RunnableTask<Invo
         title = "Model ID",
         description = "The Bedrock model identifier, e.g. `amazon.titan-text-express-v1` or `anthropic.claude-3-5-sonnet-20241022-v2:0`."
     )
+    @PluginProperty(group = "main")
     @NotNull
     private Property<String> modelId;
 
@@ -87,6 +87,7 @@ public class InvokeModel extends AbstractConnection implements RunnableTask<Invo
         title = "Request body",
         description = "Model-specific request payload as a map. The structure must match the target model's API schema."
     )
+    @PluginProperty(group = "main")
     @NotNull
     private Property<Map<String, Object>> body;
 
@@ -94,15 +95,15 @@ public class InvokeModel extends AbstractConnection implements RunnableTask<Invo
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        String resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
-        Map<String, Object> resolvedBody = runContext.render(this.body).asMap(String.class, Object.class);
+        var resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
+        var resolvedBody = runContext.render(this.body).asMap(String.class, Object.class);
 
-        String requestJson = MAPPER.writeValueAsString(resolvedBody);
-        // Log only model ID and byte length — never the body content, which may contain PII.
+        var requestJson = MAPPER.writeValueAsString(resolvedBody);
+        // Log only model ID and byte length — never body content, which may contain PII.
         logger.debug("Invoking Bedrock model '{}', request size={} bytes", resolvedModelId, requestJson.length());
 
-        try (BedrockRuntimeClient client = client(runContext)) {
-            InvokeModelRequest request = InvokeModelRequest.builder()
+        try (var client = client(runContext)) {
+            var request = InvokeModelRequest.builder()
                 .modelId(resolvedModelId)
                 .contentType("application/json")
                 .accept("application/json")
@@ -110,11 +111,11 @@ public class InvokeModel extends AbstractConnection implements RunnableTask<Invo
                 .build();
 
             InvokeModelResponse response = client.invokeModel(request);
-            String responseBody = response.body().asUtf8String();
+            var responseBody = response.body().asUtf8String();
             // Log only byte length — response may contain confidential business data.
             logger.debug("Bedrock model '{}' responded, response size={} bytes", resolvedModelId, responseBody.length());
 
-            Map<String, Object> parsedBody = MAPPER.readValue(responseBody, MAP_TYPE);
+            var parsedBody = MAPPER.readValue(responseBody, MAP_TYPE);
 
             return Output.builder()
                 .modelId(resolvedModelId)

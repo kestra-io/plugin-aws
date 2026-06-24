@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -19,7 +20,6 @@ import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,8 +31,10 @@ import java.util.concurrent.atomic.AtomicReference;
 @NoArgsConstructor
 @Schema(
     title = "Stream a conversation with an Amazon Bedrock foundation model",
-    description = "Streaming variant of the Converse task. Accumulates all streamed tokens and returns the complete " +
-        "assistant message once generation finishes. Use this when you want lower time-to-first-token latency for long responses."
+    description = """
+        Streaming variant of the Converse task. Accumulates all streamed tokens and returns the complete
+        assistant message once generation finishes. Use this when you want lower time-to-first-token latency for long responses.
+        """
 )
 @Plugin(
     examples = {
@@ -74,6 +76,7 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
         title = "Model ID",
         description = "The Bedrock model identifier, e.g. `anthropic.claude-3-5-sonnet-20241022-v2:0`."
     )
+    @PluginProperty(group = "main")
     @NotNull
     private Property<String> modelId;
 
@@ -81,6 +84,7 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
         title = "Messages",
         description = "Ordered list of conversation turns. Each entry must have a `role` (`user` or `assistant`) and `content` (text string)."
     )
+    @PluginProperty(group = "main")
     @NotEmpty
     private Property<List<Map<String, String>>> messages;
 
@@ -88,62 +92,69 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
         title = "System prompt",
         description = "Optional system-level instruction prepended before the conversation."
     )
+    @PluginProperty(group = "processing")
     private Property<String> system;
 
     @Schema(
         title = "Inference configuration",
         description = "Optional inference parameters. Supported keys: `maxTokens` (integer), `temperature` (float 0–1), `topP` (float 0–1), `stopSequences` (list of strings)."
     )
+    @PluginProperty(group = "processing")
     private Property<Map<String, Object>> inferenceConfig;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        String resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
+        var resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, String>> rawMessages = (List<Map<String, String>>) (List<?>)
-            runContext.render(this.messages).asList(Map.class);
+        List<Map<String, String>> rawMessages;
+        try {
+            @SuppressWarnings("unchecked")
+            var cast = (List<Map<String, String>>) (List<?>) runContext.render(this.messages).asList(Map.class);
+            rawMessages = cast;
+        } catch (ClassCastException e) {
+            throw new IllegalArgumentException("messages must be a list of {role, content} maps", e);
+        }
 
-        List<Message> sdkMessages = BedrockUtils.buildMessages(rawMessages);
+        var sdkMessages = BedrockUtils.buildMessages(rawMessages);
 
-        ConverseStreamRequest.Builder requestBuilder = ConverseStreamRequest.builder()
+        var requestBuilder = ConverseStreamRequest.builder()
             .modelId(resolvedModelId)
             .messages(sdkMessages);
 
         if (this.system != null) {
-            String resolvedSystem = runContext.render(this.system).as(String.class).orElse(null);
+            var resolvedSystem = runContext.render(this.system).as(String.class).orElse(null);
             if (resolvedSystem != null && !resolvedSystem.isBlank()) {
                 requestBuilder.system(SystemContentBlock.fromText(resolvedSystem));
             }
         }
 
         if (this.inferenceConfig != null) {
-            Map<String, Object> ic = runContext.render(this.inferenceConfig).asMap(String.class, Object.class);
+            var ic = runContext.render(this.inferenceConfig).asMap(String.class, Object.class);
             requestBuilder.inferenceConfig(BedrockUtils.buildInferenceConfig(ic));
         }
 
         logger.debug("Starting Bedrock ConverseStream for model '{}'", resolvedModelId);
 
         // StringBuffer for thread-safe appends from the SDK event subscriber thread.
-        StringBuffer accumulated = new StringBuffer();
-        AtomicReference<String> stopReason = new AtomicReference<>();
-        AtomicInteger inputTokens = new AtomicInteger();
-        AtomicInteger outputTokens = new AtomicInteger();
+        var accumulated = new StringBuffer();
+        var stopReason = new AtomicReference<String>();
+        var inputTokens = new AtomicInteger();
+        var outputTokens = new AtomicInteger();
 
-        try (BedrockRuntimeAsyncClient client = asyncClient(runContext)) {
-            ConverseStreamResponseHandler handler = ConverseStreamResponseHandler.builder()
+        try (var client = asyncClient(runContext)) {
+            var handler = ConverseStreamResponseHandler.builder()
                 .onEventStream(publisher -> publisher.subscribe(event -> {
                     if (event instanceof ContentBlockDeltaEvent delta) {
-                        ContentBlockDelta d = delta.delta();
+                        var d = delta.delta();
                         if (d != null && d.text() != null) {
                             accumulated.append(d.text());
                         }
                     } else if (event instanceof MessageStopEvent stop) {
                         stopReason.set(stop.stopReason() != null ? stop.stopReason().toString() : null);
                     } else if (event instanceof ConverseStreamMetadataEvent meta) {
-                        TokenUsage usage = meta.usage();
+                        var usage = meta.usage();
                         if (usage != null) {
                             inputTokens.set(usage.inputTokens() != null ? usage.inputTokens() : 0);
                             outputTokens.set(usage.outputTokens() != null ? usage.outputTokens() : 0);
@@ -152,17 +163,21 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
                 }))
                 .build();
 
-            CompletableFuture<Void> future = client.converseStream(requestBuilder.build(), handler);
-            // Use get() instead of join() so the original BedrockRuntimeException is not wrapped
-            // in CompletionException and propagates cleanly to Kestra's error reporting.
+            var future = client.converseStream(requestBuilder.build(), handler);
+            // Use get() + unwrap so the original BedrockRuntimeException propagates cleanly
+            // to Kestra's error reporting rather than being wrapped in CompletionException.
             try {
                 future.get();
             } catch (ExecutionException e) {
-                throw (Exception) e.getCause();
+                var cause = e.getCause();
+                if (cause instanceof Exception ex) {
+                    throw ex;
+                }
+                throw new RuntimeException(cause);
             }
         }
 
-        String content = accumulated.toString();
+        var content = accumulated.toString();
         logger.debug("ConverseStream completed. stopReason={}, inputTokens={}, outputTokens={}, chars={}",
             stopReason.get(), inputTokens.get(), outputTokens.get(), content.length());
 

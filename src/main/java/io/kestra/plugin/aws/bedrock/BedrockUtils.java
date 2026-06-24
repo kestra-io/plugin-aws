@@ -1,13 +1,9 @@
 package io.kestra.plugin.aws.bedrock;
 
-import java.util.ArrayList;
+import software.amazon.awssdk.services.bedrockruntime.model.*;
+
 import java.util.List;
 import java.util.Map;
-
-import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
-import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
-import software.amazon.awssdk.services.bedrockruntime.model.InferenceConfiguration;
-import software.amazon.awssdk.services.bedrockruntime.model.Message;
 
 /**
  * Shared utilities for building Bedrock Converse API request components,
@@ -24,14 +20,13 @@ final class BedrockUtils {
      *                                  or a missing content value.
      */
     static List<Message> buildMessages(List<Map<String, String>> rawMessages) {
-        List<Message> sdkMessages = new ArrayList<>();
-        for (int i = 0; i < rawMessages.size(); i++) {
-            Map<String, String> msg = rawMessages.get(i);
+        return rawMessages.stream().map((msg) -> {
+            var index = rawMessages.indexOf(msg);
 
-            String role = msg.get("role");
+            var role = msg.get("role");
             if (role == null || role.isBlank()) {
                 throw new IllegalArgumentException(
-                    "Message at index " + i + " is missing required field 'role'.");
+                    "Message at index " + index + " is missing required field 'role'.");
             }
 
             ConversationRole sdkRole;
@@ -41,42 +36,63 @@ final class BedrockUtils {
                 sdkRole = ConversationRole.ASSISTANT;
             } else {
                 throw new IllegalArgumentException(
-                    "Message at index " + i + " has unsupported role '" + role +
+                    "Message at index " + index + " has unsupported role '" + role +
                     "'. Allowed values: 'user', 'assistant'.");
             }
 
-            String content = msg.get("content");
+            var content = msg.get("content");
             if (content == null) {
                 throw new IllegalArgumentException(
-                    "Message at index " + i + " is missing required field 'content'.");
+                    "Message at index " + index + " is missing required field 'content'.");
             }
 
-            sdkMessages.add(Message.builder()
+            return Message.builder()
                 .role(sdkRole)
                 .content(ContentBlock.fromText(content))
-                .build());
-        }
-        return sdkMessages;
+                .build();
+        }).toList();
     }
 
     /**
      * Builds an {@link InferenceConfiguration} from a rendered config map.
+     *
+     * @throws IllegalArgumentException if a key has the wrong value type.
      */
     static InferenceConfiguration buildInferenceConfig(Map<String, Object> ic) {
-        InferenceConfiguration.Builder icBuilder = InferenceConfiguration.builder();
+        var icBuilder = InferenceConfiguration.builder();
         if (ic.containsKey("maxTokens")) {
-            icBuilder.maxTokens(((Number) ic.get("maxTokens")).intValue());
+            try {
+                icBuilder.maxTokens(((Number) ic.get("maxTokens")).intValue());
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException(
+                    "inferenceConfig.maxTokens must be an integer, got: " + ic.get("maxTokens"), e);
+            }
         }
         if (ic.containsKey("temperature")) {
-            icBuilder.temperature(((Number) ic.get("temperature")).floatValue());
+            try {
+                icBuilder.temperature(((Number) ic.get("temperature")).floatValue());
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException(
+                    "inferenceConfig.temperature must be a number between 0 and 1, got: " + ic.get("temperature"), e);
+            }
         }
         if (ic.containsKey("topP")) {
-            icBuilder.topP(((Number) ic.get("topP")).floatValue());
+            try {
+                icBuilder.topP(((Number) ic.get("topP")).floatValue());
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException(
+                    "inferenceConfig.topP must be a number between 0 and 1, got: " + ic.get("topP"), e);
+            }
         }
         if (ic.containsKey("stopSequences")) {
-            @SuppressWarnings("unchecked")
-            List<String> stops = (List<String>) ic.get("stopSequences");
-            icBuilder.stopSequences(stops);
+            try {
+                @SuppressWarnings("unchecked")
+                var stops = (List<String>) ic.get("stopSequences");
+                icBuilder.stopSequences(stops);
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException(
+                    "inferenceConfig.stopSequences must be a list of strings, got: " + ic.get("stopSequences"), e);
+            }
         }
         return icBuilder.build();
     }
