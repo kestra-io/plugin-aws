@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.bedrock;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.common.annotations.VisibleForTesting;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -16,7 +17,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -98,34 +98,16 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
 
         String resolvedModelId = runContext.render(this.modelId).as(String.class).orElseThrow();
 
-        List<Map<String, String>> resolvedMessages = runContext.render(this.messages)
-            .asList(Map.class)
-            .stream()
-            .map(m -> {
-                @SuppressWarnings("unchecked")
-                Map<String, String> entry = (Map<String, String>) m;
-                return entry;
-            })
-            .toList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> rawMessages = (List<Map<String, String>>) (List<?>)
+            runContext.render(this.messages).asList(Map.class);
 
-        List<Message> sdkMessages = new ArrayList<>();
-        for (Map<String, String> msg : resolvedMessages) {
-            String role = msg.get("role");
-            String content = msg.get("content");
-            ConversationRole sdkRole = "assistant".equalsIgnoreCase(role)
-                ? ConversationRole.ASSISTANT
-                : ConversationRole.USER;
-            sdkMessages.add(Message.builder()
-                .role(sdkRole)
-                .content(ContentBlock.fromText(content))
-                .build());
-        }
+        List<Message> sdkMessages = BedrockUtils.buildMessages(rawMessages);
 
         ConverseRequest.Builder requestBuilder = ConverseRequest.builder()
             .modelId(resolvedModelId)
             .messages(sdkMessages);
 
-        // System prompt
         if (this.system != null) {
             String resolvedSystem = runContext.render(this.system).as(String.class).orElse(null);
             if (resolvedSystem != null && !resolvedSystem.isBlank()) {
@@ -133,25 +115,9 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
             }
         }
 
-        // Inference config
         if (this.inferenceConfig != null) {
             Map<String, Object> ic = runContext.render(this.inferenceConfig).asMap(String.class, Object.class);
-            InferenceConfiguration.Builder icBuilder = InferenceConfiguration.builder();
-            if (ic.containsKey("maxTokens")) {
-                icBuilder.maxTokens(((Number) ic.get("maxTokens")).intValue());
-            }
-            if (ic.containsKey("temperature")) {
-                icBuilder.temperature(((Number) ic.get("temperature")).floatValue());
-            }
-            if (ic.containsKey("topP")) {
-                icBuilder.topP(((Number) ic.get("topP")).floatValue());
-            }
-            if (ic.containsKey("stopSequences")) {
-                @SuppressWarnings("unchecked")
-                List<String> stops = (List<String>) ic.get("stopSequences");
-                icBuilder.stopSequences(stops);
-            }
-            requestBuilder.inferenceConfig(icBuilder.build());
+            requestBuilder.inferenceConfig(BedrockUtils.buildInferenceConfig(ic));
         }
 
         logger.debug("Invoking Bedrock Converse for model '{}'", resolvedModelId);
@@ -172,7 +138,8 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
             Integer inputTokens = usage != null ? usage.inputTokens() : null;
             Integer outputTokens = usage != null ? usage.outputTokens() : null;
 
-            logger.debug("Converse completed. stopReason={}, inputTokens={}, outputTokens={}", stopReason, inputTokens, outputTokens);
+            logger.debug("Converse completed. stopReason={}, inputTokens={}, outputTokens={}",
+                stopReason, inputTokens, outputTokens);
 
             return Output.builder()
                 .modelId(resolvedModelId)
@@ -184,6 +151,7 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
         }
     }
 
+    @VisibleForTesting
     BedrockRuntimeClient client(RunContext runContext) throws Exception {
         var clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, BedrockRuntimeClient.builder()).build();

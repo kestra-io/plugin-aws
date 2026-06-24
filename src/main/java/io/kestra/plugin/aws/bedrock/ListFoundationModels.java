@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.bedrock;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.common.annotations.VisibleForTesting;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -16,9 +17,9 @@ import software.amazon.awssdk.services.bedrock.model.FoundationModelSummary;
 import software.amazon.awssdk.services.bedrock.model.ListFoundationModelsRequest;
 import software.amazon.awssdk.services.bedrock.model.ListFoundationModelsResponse;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @SuperBuilder
 @ToString
@@ -96,7 +97,7 @@ public class ListFoundationModels extends AbstractConnection implements Runnable
 
             List<Map<String, Object>> models = response.modelSummaries().stream()
                 .map(ListFoundationModels::summaryToMap)
-                .collect(Collectors.toList());
+                .toList();
 
             logger.debug("Found {} foundation models", models.size());
 
@@ -107,19 +108,27 @@ public class ListFoundationModels extends AbstractConnection implements Runnable
     }
 
     private static Map<String, Object> summaryToMap(FoundationModelSummary m) {
-        return Map.of(
-            "modelId", m.modelId() != null ? m.modelId() : "",
-            "modelName", m.modelName() != null ? m.modelName() : "",
-            "providerName", m.providerName() != null ? m.providerName() : "",
-            "outputModalities", m.outputModalities() != null
-                ? m.outputModalities().stream().map(Object::toString).collect(Collectors.toList())
-                : List.of(),
-            "inferenceTypesSupported", m.inferenceTypesSupported() != null
-                ? m.inferenceTypesSupported().stream().map(Object::toString).collect(Collectors.toList())
-                : List.of()
-        );
+        Map<String, Object> map = new HashMap<>();
+        map.put("modelId", m.modelId() != null ? m.modelId() : "");
+        map.put("modelName", m.modelName() != null ? m.modelName() : "");
+        map.put("providerName", m.providerName() != null ? m.providerName() : "");
+        map.put("outputModalities", m.outputModalities() != null
+            ? m.outputModalities().stream().map(Object::toString).toList()
+            : List.of());
+        map.put("inputModalities", m.inputModalities() != null
+            ? m.inputModalities().stream().map(Object::toString).toList()
+            : List.of());
+        map.put("inferenceTypesSupported", m.inferenceTypesSupported() != null
+            ? m.inferenceTypesSupported().stream().map(Object::toString).toList()
+            : List.of());
+        map.put("customizationsSupported", m.customizationsSupported() != null
+            ? m.customizationsSupported().stream().map(Object::toString).toList()
+            : List.of());
+        map.put("responseStreamingSupported", m.responseStreamingSupported());
+        return map;
     }
 
+    @VisibleForTesting
     BedrockClient client(RunContext runContext) throws Exception {
         var clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, BedrockClient.builder()).build();
@@ -132,7 +141,9 @@ public class ListFoundationModels extends AbstractConnection implements Runnable
 
         @Schema(
             title = "Foundation models",
-            description = "List of available foundation models. Each entry contains `modelId`, `modelName`, `providerName`, `outputModalities`, and `inferenceTypesSupported`."
+            description = "List of available foundation models. Each entry contains `modelId`, `modelName`, " +
+                "`providerName`, `outputModalities`, `inputModalities`, `inferenceTypesSupported`, " +
+                "`customizationsSupported`, and `responseStreamingSupported`."
         )
         private final List<Map<String, Object>> models;
     }
