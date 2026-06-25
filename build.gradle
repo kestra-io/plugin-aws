@@ -135,7 +135,7 @@ dependencies {
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:2.0.5"
     testImplementation "org.testcontainers:junit-jupiter:1.21.4"
-    testImplementation "io.floci:testcontainers-floci:2.9.0"
+    testImplementation "io.floci:testcontainers-floci:2.11.0"
 }
 
 /**********************************************************************************************************************\
