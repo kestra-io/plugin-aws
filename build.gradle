@@ -79,6 +79,10 @@ dependencies {
     api 'software.amazon.awssdk:glue'
     api 'software.amazon.awssdk:cloudwatch'
     api 'software.amazon.awssdk:cloudformation'
+    // AWS SDK — Amazon Bedrock (management: list models)
+    api 'software.amazon.awssdk:bedrock'
+    // AWS SDK — Amazon Bedrock Runtime (model invocation)
+    api 'software.amazon.awssdk:bedrockruntime'
 }
 
 /**********************************************************************************************************************\
