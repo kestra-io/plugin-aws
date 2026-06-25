@@ -1,6 +1,6 @@
 plugins {
     id 'io.kestra.gradle.spotless-conventions' version '1.1.0'
-    id "com.vanniktech.maven.publish" version "0.36.0"
+    id "com.vanniktech.maven.publish" version "0.37.0"
     id "io.kestra.gradle.inject-bom-versions" version "1.1.0"
     id 'java-library'
     id "idea"
@@ -79,6 +79,10 @@ dependencies {
     api 'software.amazon.awssdk:glue'
     api 'software.amazon.awssdk:cloudwatch'
     api 'software.amazon.awssdk:cloudformation'
+    // AWS SDK — Amazon Bedrock (management: list models)
+    api 'software.amazon.awssdk:bedrock'
+    // AWS SDK — Amazon Bedrock Runtime (model invocation)
+    api 'software.amazon.awssdk:bedrockruntime'
 }
 
 /**********************************************************************************************************************\
@@ -131,7 +135,7 @@ dependencies {
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:2.0.5"
     testImplementation "org.testcontainers:junit-jupiter:1.21.4"
-    testImplementation "io.floci:testcontainers-floci:2.9.0"
+    testImplementation "io.floci:testcontainers-floci:2.11.0"
 }
 
 /**********************************************************************************************************************\
