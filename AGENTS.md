@@ -49,6 +49,10 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.kinesis.PutRecords`
 - `io.kestra.plugin.aws.kinesis.RealtimeTrigger`
 - `io.kestra.plugin.aws.kinesis.Trigger`
+- `io.kestra.plugin.aws.bedrock.Converse`
+- `io.kestra.plugin.aws.bedrock.ConverseStream`
+- `io.kestra.plugin.aws.bedrock.InvokeModel`
+- `io.kestra.plugin.aws.bedrock.ListFoundationModels`
 - `io.kestra.plugin.aws.lambda.Invoke`
 - `io.kestra.plugin.aws.s3.Copy`
 - `io.kestra.plugin.aws.s3.CreateBucket`
