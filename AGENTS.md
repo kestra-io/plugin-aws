@@ -53,6 +53,15 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.bedrock.ConverseStream`
 - `io.kestra.plugin.aws.bedrock.InvokeModel`
 - `io.kestra.plugin.aws.bedrock.ListFoundationModels`
+- `io.kestra.plugin.aws.healthlake.CreateDatastore`
+- `io.kestra.plugin.aws.healthlake.DeleteDatastore`
+- `io.kestra.plugin.aws.healthlake.DescribeDatastore`
+- `io.kestra.plugin.aws.healthlake.DescribeExportJob`
+- `io.kestra.plugin.aws.healthlake.DescribeImportJob`
+- `io.kestra.plugin.aws.healthlake.ListDatastores`
+- `io.kestra.plugin.aws.healthlake.StartExportJob`
+- `io.kestra.plugin.aws.healthlake.StartImportJob`
+- `io.kestra.plugin.aws.healthlake.Trigger`
 - `io.kestra.plugin.aws.lambda.Invoke`
 - `io.kestra.plugin.aws.s3.Copy`
 - `io.kestra.plugin.aws.s3.CreateBucket`
