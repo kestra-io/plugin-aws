@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Plugin(
     examples = {
         @Example(
-            title = "Stream a response from Claude on Bedrock and log the accumulated reply.",
+            title = "Stream a response from Claude on Bedrock and log the accumulated reply",
             full = true,
             code = """
                 id: bedrock_converse_stream

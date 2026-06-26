@@ -34,7 +34,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             full = true,
-            title = "Create a simple S3 bucket with CloudFormation and wait for completion.",
+            title = "Create a simple S3 bucket with CloudFormation and wait for completion",
             code = """
                 id: aws_cfn_create_stack
                 namespace: dev

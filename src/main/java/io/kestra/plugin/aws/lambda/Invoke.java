@@ -63,7 +63,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Invoke given Lambda function and wait for its completion.",
+            title = "Invoke given Lambda function and wait for its completion",
             full = true,
             code = """
                 id: aws_lambda_invoke
@@ -79,7 +79,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
+            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items",
             full = true,
             code = """
                 id: aws_lambda_invoke

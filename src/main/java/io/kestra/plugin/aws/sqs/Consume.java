@@ -86,7 +86,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
     @Builder.Default
     @NotNull
-    @Schema(title = "The serializer/deserializer to use.")
+    @Schema(title = "The serializer/deserializer to use")
     @PluginProperty(group = "advanced")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 

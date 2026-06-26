@@ -64,54 +64,68 @@ import io.kestra.core.models.annotations.PluginProperty;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Query.Output> {
     @Schema(
-        title = "AWS access key ID.",
+        title = "AWS access key ID",
         description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "advanced")
     protected Property<String> accessKeyId;
 
     @Schema(
-        title = "AWS secret access key.",
+        title = "AWS secret access key",
         description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "advanced")
     protected Property<String> secretKeyId;
 
     @Schema(
-        title = "AWS session token for temporary credentials.",
+        title = "AWS session token for temporary credentials",
         description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> sessionToken;
 
+    @Schema(title = "Region")
     protected Property<String> region;
 
+    @Schema(title = "Endpoint override")
     protected Property<String> endpointOverride;
 
+    @Schema(title = "Sts role arn")
     protected Property<String> stsRoleArn;
 
+    @Schema(title = "Sts role external id")
     protected Property<String> stsRoleExternalId;
 
+    @Schema(title = "Sts role session name")
     protected Property<String> stsRoleSessionName;
 
+    @Schema(title = "Sts endpoint override")
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
+    @Schema(title = "Sts role session duration")
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
+    @Schema(title = "Interval")
     private final Duration interval = Duration.ofSeconds(60);
 
+    @Schema(title = "Namespace")
     private Property<String> namespace;
 
+    @Schema(title = "Metric name")
     private Property<String> metricName;
 
+    @Schema(title = "Statistic")
     private Property<String> statistic;
 
+    @Schema(title = "Period seconds")
     private Property<Integer> periodSeconds;
 
+    @Schema(title = "Window")
     private Property<Duration> window;
 
+    @Schema(title = "Dimensions")
     private Property<List<Query.DimensionKV>> dimensions;
 
     @Override

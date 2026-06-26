@@ -49,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload.",
+            title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload",
             full = true,
             code = """
                 id: aws_kinesis_put_records
@@ -71,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 """
         ),
         @Example(
-            title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams.",
+            title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams",
             full = true,
             code = """
                 id: aws_kinesis_put_records
@@ -260,12 +260,12 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         private URI uri;
 
         @Schema(
-            title = "The number of failed records."
+            title = "The number of failed records"
         )
         private int failedRecordsCount;
 
         @Schema(
-            title = "The total number of records sent to AWS Kinesis Data Streams."
+            title = "The total number of records sent to AWS Kinesis Data Streams"
         )
         private int recordCount;
 
@@ -279,27 +279,27 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
     @Getter
     public static class OutputEntry {
         @Schema(
-            title = "The sequence number for an individual record result."
+            title = "The sequence number for an individual record result"
         )
         private final String sequenceNumber;
 
         @Schema(
-            title = "The shard ID for an individual record result."
+            title = "The shard ID for an individual record result"
         )
         private final String shardId;
 
         @Schema(
-            title = "The error code that indicates the failure."
+            title = "The error code that indicates the failure"
         )
         private final String errorCode;
 
         @Schema(
-            title = "The error message that explains the failure."
+            title = "The error message that explains the failure"
         )
         private final String errorMessage;
 
         @Schema(
-            title = "The original record."
+            title = "The original record"
         )
         private final Record record;
     }

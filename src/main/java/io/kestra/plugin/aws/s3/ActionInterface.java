@@ -8,16 +8,16 @@ import jakarta.validation.constraints.NotNull;
 
 public interface ActionInterface {
     @Schema(
-        title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering."
+        title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering"
     )
     @NotNull
     @PluginProperty(group = "main")
     Property<Action> getAction();
 
     @Schema(
-        title = "The destination bucket and key for `MOVE` action."
+        title = "The destination bucket and key for `MOVE` action"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "destination")
     Copy.CopyObject getMoveTo();
 
     enum Action {

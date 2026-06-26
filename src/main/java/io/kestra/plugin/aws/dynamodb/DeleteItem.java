@@ -31,7 +31,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Delete an item by its key.",
+            title = "Delete an item by its key",
             full = true,
             code = """
                 id: aws_dynamodb_delete_item

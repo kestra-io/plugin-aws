@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 @Jacksonized
 public class Message implements io.kestra.core.models.tasks.Output {
     @Schema(
-        title = "The message data.",
+        title = "The message data",
         description = """
             Accepts a string (Pebble-templated, e.g. "{{ inputs.payload }}") or a structured value \
             (map, list) that is serialized to JSON before sending. \
@@ -33,15 +33,15 @@ public class Message implements io.kestra.core.models.tasks.Output {
     @NotNull
     private Object data;
 
-    @Schema(title = "The message group ID.")
+    @Schema(title = "The message group ID")
     @PluginProperty(dynamic = true, group = "advanced")
     private String groupId;
 
-    @Schema(title = "The message deduplication ID.")
+    @Schema(title = "The message deduplication ID")
     @PluginProperty(dynamic = true, group = "advanced")
     private String deduplicationId;
 
-    @Schema(title = "The message delay in seconds.")
+    @Schema(title = "The message delay in seconds")
     @PluginProperty(group = "advanced")
     private Integer delaySeconds;
 
