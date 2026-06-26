@@ -137,7 +137,9 @@ public class CreateServerlessApplicationAndStartJob extends AbstractEmrServerles
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Application id")
         private final String applicationId;
+        @Schema(title = "Job run id")
         private final String jobRunId;
     }
 }

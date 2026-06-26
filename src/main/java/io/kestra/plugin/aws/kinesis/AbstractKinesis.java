@@ -23,7 +23,7 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
     title = "Shared Kinesis connection",
     description = "Provides Kinesis sync/async clients using standard AWS connection settings."
 )
-public class AbstractKinesis extends AbstractConnection {
+public abstract class AbstractKinesis extends AbstractConnection {
     protected KinesisAsyncClient asyncClient(final RunContext runContext) throws Exception {
         final AwsClientConfig config = awsClientConfig(runContext);
         return ConnectionUtils.configureAsyncClient(config, KinesisAsyncClient.builder()).build();

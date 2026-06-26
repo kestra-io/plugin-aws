@@ -38,7 +38,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Wait for a list of files on a s3 bucket and iterate through the files.",
+            title = "Wait for a list of files on a s3 bucket and iterate through the files",
             full = true,
             code = """
                 id: s3_listen
@@ -69,7 +69,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering.",
+            title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering",
             full = true,
             code = """
                 id: s3_listen
@@ -307,7 +307,7 @@ public class Trigger extends AbstractTrigger
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of S3 objects that triggered the flow, each with its change type.")
+        @Schema(title = "List of S3 objects that triggered the flow, each with its change type")
         private final java.util.List<TriggeredObject> objects;
     }
 }

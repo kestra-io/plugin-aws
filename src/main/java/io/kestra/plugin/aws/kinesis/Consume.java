@@ -202,7 +202,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Getter
     @Builder
     public static class ConsumedRecord implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The data payload returned by Kinesis.")
+        @Schema(title = "The data payload returned by Kinesis")
         private final String data;
 
         @Schema(

@@ -54,7 +54,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Download a prefix and verify the stored S3 checksum on each object.",
+            title = "Download a prefix and verify the stored S3 checksum on each object",
             code = """
                 id: aws_s3_downloads_validate_checksum
                 namespace: company.team

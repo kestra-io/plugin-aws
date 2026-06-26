@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.cloudformation.waiters.CloudFormationWait
     examples = {
         @Example(
             full = true,
-            title = "Delete a CloudFormation stack and wait for it to be fully removed.",
+            title = "Delete a CloudFormation stack and wait for it to be fully removed",
             code = """
                 id: aws_cfn_delete_stack
                 namespace: dev

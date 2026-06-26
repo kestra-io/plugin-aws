@@ -30,7 +30,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 @Plugin(
     examples = {
         @Example(
-            title = "Put an item in map form into a table.",
+            title = "Put an item in map form into a table",
             full = true,
             code = """
                 id: aws_dynamodb_put_item
@@ -50,7 +50,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                 """
         ),
         @Example(
-            title = "Put an item in JSON string form into a table.",
+            title = "Put an item in JSON string form into a table",
             full = true,
             code = """
                 id: aws_dynamodb_put_item

@@ -54,16 +54,16 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
     private Property<String> key;
 
     @Schema(
-        title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
+        title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation"
     )
     @PluginProperty(group = "advanced")
     private Property<Boolean> bypassGovernanceRetention;
 
     @Schema(
         title = "The concatenation of the authentication device's serial number, a space, and the value that is displayed on " +
-            "your authentication device.",
+            "your authentication device",
         description = "Required to permanently delete a versioned object if versioning is configured " +
-            "with MFA delete enabled."
+            "with MFA delete enabled"
     )
     @PluginProperty(group = "advanced")
     private Property<String> mfa;
@@ -111,17 +111,17 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Returns the version ID of the delete marker created as a result of the DELETE operation."
+            title = "Returns the version ID of the delete marker created as a result of the DELETE operation"
         )
         private final String versionId;
 
         @Schema(
-            title = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker."
+            title = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker"
         )
         private final Boolean deleteMarker;
 
         @Schema(
-            title = "Returns the value of the RequestCharged property for this object."
+            title = "Returns the value of the RequestCharged property for this object"
         )
         private final String requestCharged;
 

@@ -39,7 +39,7 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Generate text with Amazon Titan via InvokeModel.",
+            title = "Generate text with Amazon Titan via InvokeModel",
             full = true,
             code = """
                 id: bedrock_invoke_model

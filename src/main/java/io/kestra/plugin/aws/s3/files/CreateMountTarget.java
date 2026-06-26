@@ -62,7 +62,7 @@ public class CreateMountTarget extends AbstractS3Files implements RunnableTask<C
     private Property<String> ipAddress;
 
     @Schema(title = "Security group IDs", description = "Up to 5 security group IDs to associate with the mount target's network interface.")
-    @PluginProperty(dynamic = false)
+    @PluginProperty(dynamic = false, group = "main")
     private Property<List<String>> securityGroups;
 
     @Override

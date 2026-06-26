@@ -50,7 +50,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Download a file and verify the stored S3 checksum during transfer.",
+            title = "Download a file and verify the stored S3 checksum during transfer",
             code = """
                 id: aws_s3_download_validate_checksum
                 namespace: company.team
@@ -302,6 +302,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     @SuperBuilder
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Uri")
         private final URI uri;
 
         @Schema(

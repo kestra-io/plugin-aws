@@ -8,53 +8,53 @@ import io.kestra.core.models.annotations.PluginProperty;
 
 public interface ListInterface {
     @Schema(
-        title = "The S3 bucket where to download the file."
+        title = "The S3 bucket where to download the file"
     )
     @NotNull
     @PluginProperty(group = "main")
     Property<String> getBucket();
 
     @Schema(
-        title = "Limits the response to keys that begin with the specified prefix."
+        title = "Limits the response to keys that begin with the specified prefix"
     )
     @PluginProperty(group = "advanced")
     Property<String> getPrefix();
 
     @Schema(
-        title = "A delimiter is a character you use to group keys."
+        title = "A delimiter is a character you use to group keys"
     )
     @PluginProperty(group = "processing")
     Property<String> getDelimiter();
 
     @Schema(
-        title = "Marker is where you want Amazon S3 to start listing from.",
+        title = "Marker is where you want Amazon S3 to start listing from",
         description = "Amazon S3 starts listing after this specified key. Marker can be any key in the bucket."
     )
     @PluginProperty(group = "advanced")
     Property<String> getMarker();
 
     @Schema(
-        title = "The EncodingType property for this object."
+        title = "The EncodingType property for this object"
     )
     @PluginProperty(group = "advanced")
     Property<String> getEncodingType();
 
     @Schema(
-        title = "Maximum number of objects returned across all paginated S3 calls.",
+        title = "Maximum number of objects returned across all paginated S3 calls",
         description = "Total upper bound on the objects returned. It also sets the per-page size sent to S3, which AWS caps at 1000. The listing pages until this total is reached or the bucket is exhausted. Default 1000."
     )
     @PluginProperty(group = "execution")
     Property<Integer> getMaxKeys();
 
     @Schema(
-        title = "The account ID of the expected bucket owner.",
+        title = "The account ID of the expected bucket owner",
         description = "If the bucket is owned by a different account, the request fails with the HTTP status code 403 Forbidden (access denied)."
     )
     @PluginProperty(group = "advanced")
     Property<String> getExpectedBucketOwner();
 
     @Schema(
-        title = "A regexp to filter on full key.",
+        title = "A regexp to filter on full key",
         description = "ex:\n" +
             "`regExp: .*` to match all files\n" +
             "`regExp: .*2020-01-0.\\\\.csv` to match files between 01 and 09 of january ending with `.csv`"
@@ -63,7 +63,7 @@ public interface ListInterface {
     Property<String> getRegexp();
 
     @Schema(
-        title = "The type of objects to filter: files, directory, or both."
+        title = "The type of objects to filter: files, directory, or both"
     )
     @PluginProperty(group = "processing")
     Property<Filter> getFilter();

@@ -34,7 +34,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Delete a couple of EMR Serverless applications providing their IDs.",
+            title = "Delete a couple of EMR Serverless applications providing their IDs",
             full = true,
             code = """
                 id: delete_emr_serverless_app
