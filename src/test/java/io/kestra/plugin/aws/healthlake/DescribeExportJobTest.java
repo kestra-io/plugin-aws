@@ -17,49 +17,56 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @KestraTest
-class DescribeImportJobTest {
+class DescribeExportJobTest {
 
     @Inject
     RunContextFactory runContextFactory;
 
     @Test
-    void givenJobId_whenDescribe_thenOutputContainsStatus() throws Exception {
+    void givenJobId_whenDescribeExport_thenOutputContainsStatusAndS3Uri() throws Exception {
         var runContext = runContextFactory.of();
 
-        var task = DescribeImportJob.builder()
-            .id("test-describe-import")
-            .type(DescribeImportJob.class.getName())
+        var task = DescribeExportJob.builder()
+            .id("test-describe-export")
+            .type(DescribeExportJob.class.getName())
             .region(Property.ofValue("us-east-1"))
             .accessKeyId(Property.ofValue("test-key"))
             .secretKeyId(Property.ofValue("test-secret"))
             .datastoreId(Property.ofValue("ds-abc123"))
-            .jobId(Property.ofValue("job-import-001"))
+            .jobId(Property.ofValue("job-export-001"))
             .build();
 
-        var props = ImportJobProperties.builder()
-            .jobId("job-import-001")
-            .jobName("my-import")
+        var props = ExportJobProperties.builder()
+            .jobId("job-export-001")
+            .jobName("my-export")
             .jobStatus(JobStatus.COMPLETED)
             .datastoreId("ds-abc123")
             .submitTime(Instant.parse("2024-01-01T10:00:00Z"))
-            .endTime(Instant.parse("2024-01-01T10:30:00Z"))
+            .endTime(Instant.parse("2024-01-01T10:45:00Z"))
+            .outputDataConfig(OutputDataConfig.builder()
+                .s3Configuration(S3Configuration.builder()
+                    .s3Uri("s3://my-bucket/fhir/export/")
+                    .build())
+                .build())
             .build();
 
-        var mockResponse = DescribeFHIRImportJobResponse.builder()
-            .importJobProperties(props)
+        var mockResponse = DescribeFHIRExportJobResponse.builder()
+            .exportJobProperties(props)
             .build();
 
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.describeFHIRImportJob(any(DescribeFHIRImportJobRequest.class))).thenReturn(mockResponse);
+        when(mockClient.describeFHIRExportJob(any(DescribeFHIRExportJobRequest.class))).thenReturn(mockResponse);
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
         var output = spy.run(runContext);
 
-        assertThat(output.getJobId(), is("job-import-001"));
+        assertThat(output.getJobId(), is("job-export-001"));
         assertThat(output.getJobStatus(), is("COMPLETED"));
-        assertThat(output.getJobName(), is("my-import"));
+        assertThat(output.getOutputS3Uri(), is("s3://my-bucket/fhir/export/"));
         assertThat(output.getEndTime(), notNullValue());
+        assertThat(output.getJobName(), is("my-export"));
+        assertThat(output.getDatastoreId(), is("ds-abc123"));
     }
 }

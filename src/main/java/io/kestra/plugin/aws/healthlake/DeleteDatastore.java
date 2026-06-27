@@ -93,10 +93,10 @@ public class DeleteDatastore extends AbstractConnection implements RunnableTask<
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Output implements io.kestra.core.models.tasks.Output {
 
-        @Schema(title = "Data store ID")
+        @Schema(title = "Data store ID", description = "The ID of the deleted data store.")
         private final String datastoreId;
 
-        @Schema(title = "Data store ARN")
+        @Schema(title = "Data store ARN", description = "The Amazon Resource Name of the deleted data store.")
         private final String datastoreArn;
 
         @Schema(title = "Data store status", description = "Status after deletion request, typically `DELETING`.")

@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,8 +28,9 @@ import java.util.Map;
 @Schema(
     title = "List Amazon HealthLake FHIR data stores",
     description = """
-        Returns all FHIR data stores in the configured AWS region, with optional filtering by name or status.
-        Paginates automatically and returns the full list.
+        Returns FHIR data stores in the configured AWS region with optional filtering by name or status.
+        Paginates automatically. Results are capped at 100 entries per call; for larger accounts use the
+        AWS Console or CLI for full enumeration.
         """
 )
 @Plugin(
@@ -58,6 +58,8 @@ import java.util.Map;
 )
 public class ListDatastores extends AbstractConnection implements RunnableTask<ListDatastores.Output> {
 
+    private static final int MAX_RESULTS = 100;
+
     @Schema(
         title = "Filter by name",
         description = "Optional data store name substring filter."
@@ -70,7 +72,7 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
         description = "Optional status filter. Valid values: `CREATING`, `ACTIVE`, `DELETING`, `DELETED`, `CREATE_FAILED`."
     )
     @PluginProperty(group = "processing")
-    private Property<String> filterStatus;
+    private Property<DatastoreStatus> filterStatus;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -81,15 +83,7 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
             filterBuilder.datastoreName(runContext.render(filterName).as(String.class).orElse(null));
         }
         if (filterStatus != null) {
-            var status = runContext.render(filterStatus).as(String.class).orElse(null);
-            if (status != null) {
-                var resolved = DatastoreStatus.fromValue(status);
-                if (resolved == DatastoreStatus.UNKNOWN_TO_SDK_VERSION) {
-                    throw new IllegalArgumentException(
-                        "filterStatus '" + status + "' is not valid. Valid values: CREATING, ACTIVE, DELETING, DELETED, CREATE_FAILED.");
-                }
-                filterBuilder.datastoreStatus(resolved);
-            }
+            filterBuilder.datastoreStatus(runContext.render(filterStatus).as(DatastoreStatus.class).orElse(null));
         }
 
         var datastores = new ArrayList<Map<String, Object>>();
@@ -105,16 +99,21 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
                 }
                 var response = client.listFHIRDatastores(reqBuilder.build());
                 for (var props : response.datastorePropertiesList()) {
-                    var map = new HashMap<String, Object>();
-                    map.put("datastoreId", props.datastoreId());
-                    map.put("datastoreArn", props.datastoreArn());
-                    map.put("datastoreName", props.datastoreName() != null ? props.datastoreName() : "");
-                    map.put("datastoreStatus", props.datastoreStatus().toString());
-                    map.put("datastoreEndpoint", props.datastoreEndpoint() != null ? props.datastoreEndpoint() : "");
-                    map.put("createdAt", props.createdAt() != null ? props.createdAt().toString() : null);
-                    datastores.add(map);
+                    datastores.add(Map.of(
+                        "datastoreId", props.datastoreId() != null ? props.datastoreId() : "",
+                        "datastoreArn", props.datastoreArn() != null ? props.datastoreArn() : "",
+                        "datastoreName", props.datastoreName() != null ? props.datastoreName() : "",
+                        "datastoreStatus", props.datastoreStatus().toString(),
+                        "datastoreEndpoint", props.datastoreEndpoint() != null ? props.datastoreEndpoint() : "",
+                        "createdAt", props.createdAt() != null ? props.createdAt().toString() : ""
+                    ));
+                    if (datastores.size() >= MAX_RESULTS) {
+                        logger.warn("Result cap of {} reached; further data stores are omitted.", MAX_RESULTS);
+                        nextToken = null;
+                        break;
+                    }
                 }
-                nextToken = response.nextToken();
+                nextToken = datastores.size() < MAX_RESULTS ? response.nextToken() : null;
             } while (nextToken != null);
         }
 
@@ -136,10 +135,10 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Output implements io.kestra.core.models.tasks.Output {
 
-        @Schema(title = "Data stores", description = "List of data store entries, each containing `datastoreId`, `datastoreArn`, `datastoreName`, `datastoreStatus`, `datastoreEndpoint`, and `createdAt`.")
+        @Schema(title = "Data stores", description = "List of data store entries (capped at 100), each containing `datastoreId`, `datastoreArn`, `datastoreName`, `datastoreStatus`, `datastoreEndpoint`, and `createdAt`.")
         private final List<Map<String, Object>> datastores;
 
-        @Schema(title = "Total", description = "Total number of data stores returned.")
+        @Schema(title = "Total", description = "Number of data stores returned (max 100).")
         private final Integer total;
     }
 }

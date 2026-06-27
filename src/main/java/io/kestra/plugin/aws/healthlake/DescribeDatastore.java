@@ -15,7 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
-import software.amazon.awssdk.services.healthlake.model.*;
+import software.amazon.awssdk.services.healthlake.model.DescribeFHIRDatastoreRequest;
 
 @SuperBuilder
 @ToString
@@ -109,7 +109,7 @@ public class DescribeDatastore extends AbstractConnection implements RunnableTas
         @Schema(title = "Data store endpoint", description = "The FHIR endpoint URL.")
         private final String datastoreEndpoint;
 
-        @Schema(title = "Created at", description = "ISO-8601 creation timestamp.")
+        @Schema(title = "Created at", description = "ISO-8601 timestamp when the data store was created.")
         private final String createdAt;
     }
 }

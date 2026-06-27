@@ -82,7 +82,7 @@ public class StartImportJob extends AbstractConnection implements RunnableTask<S
     private Property<String> outputS3Uri;
 
     @Schema(title = "Data access role ARN", description = "IAM role ARN that HealthLake assumes to read from the input S3 bucket and write to the output bucket.")
-    @PluginProperty(group = "main", secret = true)
+    @PluginProperty(group = "connection", secret = true)
     @NotNull
     private Property<String> dataAccessRoleArn;
 
