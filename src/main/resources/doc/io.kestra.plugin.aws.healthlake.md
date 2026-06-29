@@ -1,4 +1,4 @@
-# How to use the Amazon HealthLake plugin
+# How to use the AWS HealthLake plugin
 
 The `healthlake` sub-plugin lets you manage FHIR R4 data stores and orchestrate bulk import and export jobs directly from your Kestra workflows, using the same AWS credentials as the rest of your `plugin-aws` tasks.
 
