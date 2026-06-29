@@ -34,3 +34,5 @@ Tasks span the most commonly used AWS services. The `s3` package covers uploads,
 For data and compute, `athena` queries S3 data with SQL, `glue` manages ETL jobs, `emr` runs Spark and Hadoop workloads, and `lambda` invokes serverless functions. `dynamodb` covers key-value reads and writes, `cloudwatch` handles metrics and log querying, and `eventbridge` publishes events to an event bus. Use `cli.AwsCLI` for any operation not covered by a dedicated task.
 
 For AI workloads, `bedrock` provides direct access to Amazon Bedrock foundation models: `InvokeModel` sends raw payloads to any model, `Converse` and `ConverseStream` use the unified Converse API for model-agnostic multi-turn chat, and `ListFoundationModels` discovers available models in your region.
+
+For FHIR healthcare workloads, `healthlake` integrates with Amazon HealthLake: `CreateDatastore`, `DescribeDatastore`, `ListDatastores`, and `DeleteDatastore` manage FHIR R4 data stores, while `StartImportJob`, `DescribeImportJob`, `StartExportJob`, and `DescribeExportJob` orchestrate bulk FHIR data movement from and to S3. A `Trigger` fires flows when import or export jobs reach a terminal state.

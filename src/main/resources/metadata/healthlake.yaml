@@ -1,0 +1,7 @@
+group: io.kestra.plugin.aws.healthlake
+name: "healthlake"
+title: "AWS HealthLake"
+description: "Tasks to manage Amazon HealthLake FHIR R4 data stores and orchestrate bulk import and export jobs as part of healthcare data pipelines."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
