@@ -73,25 +73,4 @@ class ListDatastoresTest {
         assertThat(output.getDatastores().get(1).get("datastoreStatus"), is("CREATING"));
     }
 
-    @Test
-    void givenInvalidStatusFilter_whenList_thenThrowsIllegalArgumentException() throws Exception {
-        var runContext = runContextFactory.of();
-
-        var task = ListDatastores.builder()
-            .id("test-list-datastores-bad-filter")
-            .type(ListDatastores.class.getName())
-            .region(Property.ofValue("us-east-1"))
-            .accessKeyId(Property.ofValue("test-key"))
-            .secretKeyId(Property.ofValue("test-secret"))
-            .filterStatus(Property.ofValue("INVALID_STATUS"))
-            .build();
-
-        var mockClient = mock(HealthLakeClient.class);
-        var spy = spy(task);
-        doReturn(mockClient).when(spy).client(any(RunContext.class));
-
-        org.junit.jupiter.api.Assertions.assertThrows(
-            IllegalArgumentException.class, () -> spy.run(runContext)
-        );
-    }
 }

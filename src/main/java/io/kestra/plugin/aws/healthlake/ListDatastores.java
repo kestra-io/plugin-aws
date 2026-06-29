@@ -74,7 +74,7 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
         description = "Optional status filter. Valid values: `CREATING`, `ACTIVE`, `DELETING`, `DELETED`, `CREATE_FAILED`."
     )
     @PluginProperty(group = "processing")
-    private Property<String> filterStatus;
+    private Property<DatastoreStatus> filterStatus;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -85,14 +85,7 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
             filterBuilder.datastoreName(runContext.render(filterName).as(String.class).orElse(null));
         }
         if (filterStatus != null) {
-            var statusStr = runContext.render(filterStatus).as(String.class).orElse(null);
-            if (statusStr != null) {
-                var status = DatastoreStatus.fromValue(statusStr);
-                if (status == DatastoreStatus.UNKNOWN_TO_SDK_VERSION) {
-                    throw new IllegalArgumentException("Unknown DatastoreStatus: " + statusStr);
-                }
-                filterBuilder.datastoreStatus(status);
-            }
+            filterBuilder.datastoreStatus(runContext.render(filterStatus).as(DatastoreStatus.class).orElse(null));
         }
 
         var datastores = new ArrayList<Map<String, Object>>();
