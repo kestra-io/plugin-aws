@@ -45,7 +45,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             full = true,
-            title = "Upload a FILE input to S3.",
+            title = "Upload a FILE input to S3",
             code = """
                 id: aws_s3_upload
                 namespace: company.team
@@ -71,7 +71,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Download a file and upload it to S3.",
+            title = "Download a file and upload it to S3",
             code = """
                 id: upload_file_to_s3
                 namespace: company.team
@@ -102,7 +102,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON array.",
+            title = "Upload multiple files to S3 using a JSON array",
             code = """
                 id: upload_multiple_files_from_json_array
                 namespace: company.team
@@ -137,7 +137,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Collection.",
+            title = "Upload multiple files to S3 using a Collection",
             code = """
                 id: upload_multiple_files_to_s3
                 namespace: company.team
@@ -170,7 +170,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON map.",
+            title = "Upload multiple files to S3 using a JSON map",
             code = """
                 id: upload_multiple_files_from_json_map
                 namespace: company.team
@@ -205,7 +205,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Map.",
+            title = "Upload multiple files to S3 using a Map",
             code = """
                 id: upload_multiple_files_to_s3_from_map
                 namespace: company.team

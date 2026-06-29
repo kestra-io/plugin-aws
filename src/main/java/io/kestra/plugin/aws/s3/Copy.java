@@ -190,7 +190,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
         Property<String> key;
 
         @Schema(
-            title = "Server side encryption to apply to the target object.",
+            title = "Server side encryption to apply to the target object",
             description = "Example: AES256 or AWS_KMS"
         )
         private Property<S3ServerSideEncryption> serverSideEncryption;
@@ -207,7 +207,7 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     public static class CopyObjectFrom extends CopyObject {
 
         @Schema(
-            title = "The specific version of the object."
+            title = "The specific version of the object"
         )
         private Property<String> versionId;
     }
@@ -217,7 +217,9 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
     @NoArgsConstructor
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
 
+        @Schema(title = "Bucket")
         private String bucket;
+        @Schema(title = "Key")
         private String key;
     }
 }

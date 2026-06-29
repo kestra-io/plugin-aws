@@ -35,7 +35,7 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Discover available text-output models and log their IDs.",
+            title = "Discover available text-output models and log their IDs",
             full = true,
             code = """
                 id: bedrock_list_models

@@ -30,7 +30,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Scan all items from a table.",
+            title = "Scan all items from a table",
             full = true,
             code = """
                 id: aws_dynamo_db_scan
@@ -46,7 +46,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Scan items from a table with a filter expression.",
+            title = "Scan items from a table with a filter expression",
             full = true,
             code = """
                 id: aws_dynamo_db_scan

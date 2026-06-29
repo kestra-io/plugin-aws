@@ -35,7 +35,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Query items from a table.",
+            title = "Query items from a table",
             full = true,
             code = """
                 id: aws_dynamo_db_query
@@ -54,7 +54,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Query items from a table with a filter expression.",
+            title = "Query items from a table with a filter expression",
             full = true,
             code = """
                 id: aws_dynamo_db_query

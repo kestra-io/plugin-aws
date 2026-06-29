@@ -33,7 +33,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Shutdown a couple of EMR cluster providing their IDs.",
+            title = "Shutdown a couple of EMR cluster providing their IDs",
             full = true,
             code = """
                 id: aws_emr_delete_cluster

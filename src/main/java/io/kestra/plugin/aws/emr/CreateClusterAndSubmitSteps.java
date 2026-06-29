@@ -35,7 +35,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Create an EMR Cluster, submit a Spark job, wait until the job is terminated.",
+            title = "Create an EMR Cluster, submit a Spark job, wait until the job is terminated",
             full = true,
             code = """
                 id: aws_emr_create_cluster

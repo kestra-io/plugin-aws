@@ -49,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules.",
+            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules",
             full = true,
             code = """
                 id: aws_event_bridge_put_events
@@ -70,7 +70,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 """
         ),
         @Example(
-            title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules.",
+            title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules",
             full = true,
             code = """
                 id: aws_event_bridge_put_events
@@ -86,7 +86,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       - eventBusName: "events"
                         source: "Kestra"
                         detailType: "my_object"
-                        detail: "{\"message\": \"hello from EventBridge and Kestra\"}"
+                        detail: '{"message": "hello from EventBridge and Kestra"}'
                         resources:
                           - "arn:aws:iam::123456789012:user/johndoe"
                 """
@@ -235,7 +235,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The URI of the stored data.",
+            title = "The URI of the stored data",
             description = "The successfully and unsuccessfully ingested events. " +
                 "If the ingestion was successful, the entry has the event ID in it. " +
                 "Otherwise, you can use the error code and error message to identify the problem with the entry."
@@ -243,12 +243,12 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         private URI uri;
 
         @Schema(
-            title = "The number of failed entries."
+            title = "The number of failed entries"
         )
         private int failedEntryCount;
 
         @Schema(
-            title = "The total number of entries."
+            title = "The total number of entries"
         )
         private int entryCount;
 
@@ -262,22 +262,22 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     @Getter
     public static class OutputEntry {
         @Schema(
-            title = "The ID of the event."
+            title = "The ID of the event"
         )
         private final String eventId;
 
         @Schema(
-            title = "The error code that indicates why the event submission failed."
+            title = "The error code that indicates why the event submission failed"
         )
         private final String errorCode;
 
         @Schema(
-            title = "The error message that explains why the event submission failed."
+            title = "The error message that explains why the event submission failed"
         )
         private final String errorMessage;
 
         @Schema(
-            title = "The original entry."
+            title = "The original entry"
         )
         private final Entry entry;
     }

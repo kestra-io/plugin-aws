@@ -74,7 +74,7 @@ public class CreateFileSystem extends AbstractS3Files implements RunnableTask<Cr
     private Property<String> clientToken;
 
     @Schema(title = "Tags", description = "Key-value tags to apply to the file system.")
-    @PluginProperty(dynamic = false)
+    @PluginProperty(dynamic = false, group = "main")
     private Property<Map<String, String>> tags;
 
     @Schema(title = "Accept bucket warning", description = "Set to true to acknowledge any bucket configuration warnings and proceed with creation.")

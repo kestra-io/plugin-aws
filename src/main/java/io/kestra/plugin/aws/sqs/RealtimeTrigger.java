@@ -48,7 +48,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             full = true,
-            title = "Consume a message from an SQS queue in real-time.",
+            title = "Consume a message from an SQS queue in real-time",
             code = """
                 id: sqs
                 namespace: company.team
@@ -129,7 +129,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     @Builder.Default
     @NotNull
-    @Schema(title = "The serializer/deserializer to use.")
+    @Schema(title = "The serializer/deserializer to use")
     @PluginProperty(group = "main")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
@@ -142,13 +142,13 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     // Default read timeout is 20s, so we cannot use a bigger wait time, or we would need to increase the read timeout.
-    @Schema(title = "The duration for which the SQS client waits for a message.")
+    @Schema(title = "The duration for which the SQS client waits for a message")
     @Builder.Default
     @PluginProperty(group = "advanced")
     protected Property<Duration> waitTime = Property.ofValue(Duration.ofSeconds(20));
 
     @Schema(
-        title = "The maximum number of messages returned from request made to SQS.",
+        title = "The maximum number of messages returned from request made to SQS",
         description = "Increasing this value can reduce the number of requests made to SQS. Amazon SQS never returns more messages than this value (fewer messages might be returned). Valid values: 1 to 10. Setting this value to 1 would increase your AWS cost and latency because it requires more API requests to SQS. **Note that Realtime Triggers always create one execution per message, regardless of the value of this property.**"
     )
     @Builder.Default
@@ -156,7 +156,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     protected Property<Integer> maxNumberOfMessage = Property.ofValue(5);
 
     @Schema(
-        title = "The maximum number of attempts used by the SQS client's retry strategy."
+        title = "The maximum number of attempts used by the SQS client's retry strategy"
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
@@ -171,7 +171,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private final CountDownLatch waitForTermination = new CountDownLatch(1);
 
     @Schema(
-        title = "Delete consumed messages automatically.",
+        title = "Delete consumed messages automatically",
         description = "When set to true (default), the message is automatically deleted from SQS after being consumed. Set to false if you want to handle deletion manually."
     )
     @Builder.Default
@@ -179,7 +179,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Schema(
-        title = "Visibility timeout for consumed messages.",
+        title = "Visibility timeout for consumed messages",
         description = "When set, a received message stays hidden from other consumers for this amount of time (in seconds). The default value is 30 seconds."
 
     )

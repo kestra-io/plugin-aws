@@ -36,7 +36,7 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Structured chat with Claude via the Bedrock Converse API.",
+            title = "Structured chat with Claude via the Bedrock Converse API",
             full = true,
             code = """
                 id: bedrock_converse

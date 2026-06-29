@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.ecr.model.AuthorizationData;
 @Plugin(
     examples = {
         @Example(
-            title = "Retrieve the AWS ECR authorization token.",
+            title = "Retrieve the AWS ECR authorization token",
             full = true,
             code = """
                 id: aws_ecr_get_auth_token

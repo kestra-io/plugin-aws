@@ -42,7 +42,7 @@ public class FileInfo {
     private String versionId;
 
     @Schema(
-        title = "An ETag is an opaque identifier assigned by a web server to a specific version of a resource found at a URL."
+        title = "An ETag is an opaque identifier assigned by a web server to a specific version of a resource found at a URL"
     )
     @PluginProperty(group = "advanced")
     private String eTag;
