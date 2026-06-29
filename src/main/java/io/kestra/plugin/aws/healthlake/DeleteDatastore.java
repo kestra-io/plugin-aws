@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.healthlake;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,6 +11,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -65,7 +67,7 @@ public class DeleteDatastore extends AbstractConnection implements RunnableTask<
         var logger = runContext.logger();
         var rId = runContext.render(datastoreId).as(String.class).orElseThrow();
 
-        var request = DeleteFHIRDatastoreRequest.builder()
+        var request = DeleteFhirDatastoreRequest.builder()
             .datastoreId(rId)
             .build();
 

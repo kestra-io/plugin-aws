@@ -1,7 +1,10 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.util.UUID;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,14 +13,13 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.util.UUID;
 
 @SuperBuilder
 @ToString
@@ -67,7 +69,7 @@ public class CreateDatastore extends AbstractConnection implements RunnableTask<
         var logger = runContext.logger();
         var rName = runContext.render(datastoreName).as(String.class).orElseThrow();
 
-        var request = CreateFHIRDatastoreRequest.builder()
+        var request = CreateFhirDatastoreRequest.builder()
             .datastoreName(rName)
             .datastoreTypeVersion(FHIRVersion.R4)
             .clientToken(UUID.randomUUID().toString())

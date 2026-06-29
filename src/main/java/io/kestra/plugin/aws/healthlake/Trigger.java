@@ -1,6 +1,13 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -8,21 +15,15 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
-import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -35,7 +36,7 @@ import java.util.Optional;
         Polls HealthLake import or export jobs at a fixed interval and fires when the most recently submitted
         job for the given data store reaches a terminal state (`COMPLETED`, `COMPLETED_WITH_ERRORS`, or `FAILED`).
         Exposes `{{ trigger.jobId }}` and `{{ trigger.jobStatus }}` to downstream tasks.
-        Note: `listFHIRImportJobs`/`listFHIRExportJobs` with `maxResults(1)` returns the most recently submitted job
+        Note: `listFhirImportJobs`/`listFhirExportJobs` with `maxResults(1)` returns the most recently submitted job
         but does not guarantee ordering by submit time; use `submittedAfter` filtering for strict ordering requirements.
         """
 )
@@ -141,13 +142,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         // Load last-fired jobId to avoid re-firing on the same terminal job every poll
         String lastFiredJobId = null;
-        try {
-            var stateFile = runContext.storage().getTaskStateFile(STATE_FILE, this.getId(), false);
-            if (stateFile != null) {
-                try (var reader = new BufferedReader(new InputStreamReader(stateFile, StandardCharsets.UTF_8))) {
-                    lastFiredJobId = reader.readLine();
-                }
-            }
+        try (var stateStream = runContext.stateStore().getState(context.getNamespace(), context.getFlowId(), STATE_FILE)) {
+            lastFiredJobId = new String(stateStream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             logger.debug("No previous trigger state found, treating as first run");
         }
@@ -159,20 +155,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             String jobStatus = null;
 
             if (rJobType == JobType.IMPORT) {
-                var response = client.listFHIRImportJobs(ListFHIRImportJobsRequest.builder()
-                    .datastoreId(rDatastoreId)
-                    .maxResults(1)
-                    .build());
+                var response = client.listFHIRImportJobs(
+                    ListFhirImportJobsRequest.builder()
+                        .datastoreId(rDatastoreId)
+                        .maxResults(1)
+                        .build()
+                );
                 var jobs = response.importJobPropertiesList();
                 if (!jobs.isEmpty()) {
                     jobId = jobs.getFirst().jobId();
                     jobStatus = jobs.getFirst().jobStatus().toString();
                 }
             } else {
-                var response = client.listFHIRExportJobs(ListFHIRExportJobsRequest.builder()
-                    .datastoreId(rDatastoreId)
-                    .maxResults(1)
-                    .build());
+                var response = client.listFHIRExportJobs(
+                    ListFhirExportJobsRequest.builder()
+                        .datastoreId(rDatastoreId)
+                        .maxResults(1)
+                        .build()
+                );
                 var jobs = response.exportJobPropertiesList();
                 if (!jobs.isEmpty()) {
                     jobId = jobs.getFirst().jobId();
@@ -197,8 +197,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Persist the jobId so we don't fire on it again
-            var bytes = jobId.getBytes(StandardCharsets.UTF_8);
-            runContext.storage().putTaskStateFile(new ByteArrayInputStream(bytes), STATE_FILE, this.getId(), false);
+            runContext.stateStore().putState(context.getNamespace(), context.getFlowId(), STATE_FILE, jobId.getBytes(StandardCharsets.UTF_8));
 
             logger.debug("Job '{}' reached terminal status={}, firing trigger", jobId, jobStatus);
             var output = Output.builder().jobId(jobId).jobStatus(jobStatus).build();
@@ -207,7 +206,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     }
 
     public enum JobType {
-        IMPORT, EXPORT
+        IMPORT,
+        EXPORT
     }
 
     @SuperBuilder

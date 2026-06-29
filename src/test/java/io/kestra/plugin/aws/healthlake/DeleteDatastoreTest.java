@@ -1,11 +1,13 @@
 package io.kestra.plugin.aws.healthlake;
 
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
 
@@ -33,14 +35,14 @@ class DeleteDatastoreTest {
             .datastoreId(Property.ofValue("ds-abc123"))
             .build();
 
-        var mockResponse = DeleteFHIRDatastoreResponse.builder()
+        var mockResponse = DeleteFhirDatastoreResponse.builder()
             .datastoreId("ds-abc123")
             .datastoreArn("arn:aws:healthlake:us-east-1:123456789012:datastore/ds-abc123")
             .datastoreStatus(DatastoreStatus.DELETING)
             .build();
 
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.deleteFHIRDatastore(any(DeleteFHIRDatastoreRequest.class))).thenReturn(mockResponse);
+        when(mockClient.deleteFHIRDatastore(any(DeleteFhirDatastoreRequest.class))).thenReturn(mockResponse);
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));

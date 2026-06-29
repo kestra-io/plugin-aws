@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.healthlake;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,6 +11,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -72,7 +74,7 @@ public class DescribeImportJob extends AbstractConnection implements RunnableTas
         var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
         var rJobId = runContext.render(jobId).as(String.class).orElseThrow();
 
-        var request = DescribeFHIRImportJobRequest.builder()
+        var request = DescribeFhirImportJobRequest.builder()
             .datastoreId(rDatastoreId)
             .jobId(rJobId)
             .build();
@@ -110,7 +112,10 @@ public class DescribeImportJob extends AbstractConnection implements RunnableTas
         @Schema(title = "Job name")
         private final String jobName;
 
-        @Schema(title = "Job status", description = "One of: `SUBMITTED`, `IN_PROGRESS`, `COMPLETED_WITH_ERRORS`, `COMPLETED`, `FAILED`, `CANCEL_SUBMITTED`, `CANCEL_IN_PROGRESS`, `CANCEL_COMPLETED`, `CANCEL_FAILED`.")
+        @Schema(
+            title = "Job status",
+            description = "One of: `SUBMITTED`, `IN_PROGRESS`, `COMPLETED_WITH_ERRORS`, `COMPLETED`, `FAILED`, `CANCEL_SUBMITTED`, `CANCEL_IN_PROGRESS`, `CANCEL_COMPLETED`, `CANCEL_FAILED`."
+        )
         private final String jobStatus;
 
         @Schema(title = "Data store ID")

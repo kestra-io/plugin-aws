@@ -1,7 +1,12 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,15 +15,12 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -93,20 +95,22 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
 
         try (var client = client(runContext)) {
             do {
-                var reqBuilder = ListFHIRDatastoresRequest.builder().filter(filterBuilder.build());
+                var reqBuilder = ListFhirDatastoresRequest.builder().filter(filterBuilder.build());
                 if (nextToken != null) {
                     reqBuilder.nextToken(nextToken);
                 }
                 var response = client.listFHIRDatastores(reqBuilder.build());
                 for (var props : response.datastorePropertiesList()) {
-                    datastores.add(Map.of(
-                        "datastoreId", props.datastoreId() != null ? props.datastoreId() : "",
-                        "datastoreArn", props.datastoreArn() != null ? props.datastoreArn() : "",
-                        "datastoreName", props.datastoreName() != null ? props.datastoreName() : "",
-                        "datastoreStatus", props.datastoreStatus().toString(),
-                        "datastoreEndpoint", props.datastoreEndpoint() != null ? props.datastoreEndpoint() : "",
-                        "createdAt", props.createdAt() != null ? props.createdAt().toString() : ""
-                    ));
+                    datastores.add(
+                        Map.of(
+                            "datastoreId", props.datastoreId() != null ? props.datastoreId() : "",
+                            "datastoreArn", props.datastoreArn() != null ? props.datastoreArn() : "",
+                            "datastoreName", props.datastoreName() != null ? props.datastoreName() : "",
+                            "datastoreStatus", props.datastoreStatus().toString(),
+                            "datastoreEndpoint", props.datastoreEndpoint() != null ? props.datastoreEndpoint() : "",
+                            "createdAt", props.createdAt() != null ? props.createdAt().toString() : ""
+                        )
+                    );
                     if (datastores.size() >= MAX_RESULTS) {
                         logger.warn("Result cap of {} reached; further data stores are omitted.", MAX_RESULTS);
                         nextToken = null;
@@ -135,7 +139,10 @@ public class ListDatastores extends AbstractConnection implements RunnableTask<L
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Output implements io.kestra.core.models.tasks.Output {
 
-        @Schema(title = "Data stores", description = "List of data store entries (capped at 100), each containing `datastoreId`, `datastoreArn`, `datastoreName`, `datastoreStatus`, `datastoreEndpoint`, and `createdAt`.")
+        @Schema(
+            title = "Data stores",
+            description = "List of data store entries (capped at 100), each containing `datastoreId`, `datastoreArn`, `datastoreName`, `datastoreStatus`, `datastoreEndpoint`, and `createdAt`."
+        )
         private final List<Map<String, Object>> datastores;
 
         @Schema(title = "Total", description = "Number of data stores returned (max 100).")

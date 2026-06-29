@@ -1,19 +1,19 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.conditions.ConditionContext;
-import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -44,10 +44,12 @@ class TriggerTest {
             .build();
 
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.listFHIRImportJobs(any(ListFHIRImportJobsRequest.class)))
-            .thenReturn(ListFHIRImportJobsResponse.builder()
-                .importJobPropertiesList(List.of(importJob))
-                .build());
+        when(mockClient.listFHIRImportJobs(any(ListFhirImportJobsRequest.class)))
+            .thenReturn(
+                ListFhirImportJobsResponse.builder()
+                    .importJobPropertiesList(List.of(importJob))
+                    .build()
+            );
 
         var spy = spy(trigger);
         // Override client creation to return mock
@@ -60,8 +62,10 @@ class TriggerTest {
 
         // Since we can't easily mock the full evaluate chain without the state store,
         // verify the terminal status logic directly via the constants
-        assertThat(List.of("COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCEL_COMPLETED", "CANCEL_FAILED"),
-            hasItem("COMPLETED"));
+        assertThat(
+            List.of("COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCEL_COMPLETED", "CANCEL_FAILED"),
+            hasItem("COMPLETED")
+        );
     }
 
     @Test
@@ -78,13 +82,16 @@ class TriggerTest {
     @Test
     void givenNoJobs_whenList_thenReturnsEmpty() {
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.listFHIRImportJobs(any(ListFHIRImportJobsRequest.class)))
-            .thenReturn(ListFHIRImportJobsResponse.builder()
-                .importJobPropertiesList(List.of())
-                .build());
+        when(mockClient.listFHIRImportJobs(any(ListFhirImportJobsRequest.class)))
+            .thenReturn(
+                ListFhirImportJobsResponse.builder()
+                    .importJobPropertiesList(List.of())
+                    .build()
+            );
 
         var response = mockClient.listFHIRImportJobs(
-            ListFHIRImportJobsRequest.builder().datastoreId("ds-abc123").maxResults(1).build());
+            ListFhirImportJobsRequest.builder().datastoreId("ds-abc123").maxResults(1).build()
+        );
 
         assertThat(response.importJobPropertiesList(), is(empty()));
     }
