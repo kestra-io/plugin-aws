@@ -136,8 +136,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var runContext = conditionContext.getRunContext();
         var logger = runContext.logger();
 
-        var resolvedDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
-        var resolvedJobType = runContext.render(jobType).as(JobType.class).orElse(JobType.IMPORT);
+        var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rJobType = runContext.render(jobType).as(JobType.class).orElse(JobType.IMPORT);
 
         // Load last-fired jobId to avoid re-firing on the same terminal job every poll
         String lastFiredJobId = null;
@@ -158,9 +158,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             String jobId = null;
             String jobStatus = null;
 
-            if (resolvedJobType == JobType.IMPORT) {
+            if (rJobType == JobType.IMPORT) {
                 var response = client.listFHIRImportJobs(ListFHIRImportJobsRequest.builder()
-                    .datastoreId(resolvedDatastoreId)
+                    .datastoreId(rDatastoreId)
                     .maxResults(1)
                     .build());
                 var jobs = response.importJobPropertiesList();
@@ -170,7 +170,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 }
             } else {
                 var response = client.listFHIRExportJobs(ListFHIRExportJobsRequest.builder()
-                    .datastoreId(resolvedDatastoreId)
+                    .datastoreId(rDatastoreId)
                     .maxResults(1)
                     .build());
                 var jobs = response.exportJobPropertiesList();
@@ -181,7 +181,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             if (jobId == null) {
-                logger.debug("No {} jobs found for datastore '{}'", resolvedJobType, resolvedDatastoreId);
+                logger.debug("No {} jobs found for datastore '{}'", rJobType, rDatastoreId);
                 return Optional.empty();
             }
 

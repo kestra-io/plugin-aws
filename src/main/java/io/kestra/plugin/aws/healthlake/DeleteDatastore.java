@@ -63,17 +63,17 @@ public class DeleteDatastore extends AbstractConnection implements RunnableTask<
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rId = runContext.render(datastoreId).as(String.class).orElseThrow();
 
         var request = DeleteFHIRDatastoreRequest.builder()
-            .datastoreId(resolvedId)
+            .datastoreId(rId)
             .build();
 
-        logger.debug("Deleting HealthLake datastore '{}'", resolvedId);
+        logger.debug("Deleting HealthLake datastore '{}'", rId);
 
         try (var client = client(runContext)) {
             var response = client.deleteFHIRDatastore(request);
-            logger.debug("Datastore '{}' deletion initiated, status={}", resolvedId, response.datastoreStatus());
+            logger.debug("Datastore '{}' deletion initiated, status={}", rId, response.datastoreStatus());
             return Output.builder()
                 .datastoreId(response.datastoreId())
                 .datastoreArn(response.datastoreArn())

@@ -65,15 +65,15 @@ public class CreateDatastore extends AbstractConnection implements RunnableTask<
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedName = runContext.render(datastoreName).as(String.class).orElseThrow();
+        var rName = runContext.render(datastoreName).as(String.class).orElseThrow();
 
         var request = CreateFHIRDatastoreRequest.builder()
-            .datastoreName(resolvedName)
+            .datastoreName(rName)
             .datastoreTypeVersion(FHIRVersion.R4)
             .clientToken(UUID.randomUUID().toString())
             .build();
 
-        logger.debug("Creating HealthLake datastore '{}'", resolvedName);
+        logger.debug("Creating HealthLake datastore '{}'", rName);
 
         try (var client = client(runContext)) {
             var response = client.createFHIRDatastore(request);

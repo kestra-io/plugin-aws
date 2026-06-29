@@ -69,15 +69,15 @@ public class DescribeImportJob extends AbstractConnection implements RunnableTas
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
-        var resolvedJobId = runContext.render(jobId).as(String.class).orElseThrow();
+        var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rJobId = runContext.render(jobId).as(String.class).orElseThrow();
 
         var request = DescribeFHIRImportJobRequest.builder()
-            .datastoreId(resolvedDatastoreId)
-            .jobId(resolvedJobId)
+            .datastoreId(rDatastoreId)
+            .jobId(rJobId)
             .build();
 
-        logger.debug("Describing HealthLake import job '{}'", resolvedJobId);
+        logger.debug("Describing HealthLake import job '{}'", rJobId);
 
         try (var client = client(runContext)) {
             var props = client.describeFHIRImportJob(request).importJobProperties();

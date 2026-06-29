@@ -94,27 +94,27 @@ public class StartImportJob extends AbstractConnection implements RunnableTask<S
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        var resolvedDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
-        var resolvedInputUri = runContext.render(inputS3Uri).as(String.class).orElseThrow();
-        var resolvedOutputUri = runContext.render(outputS3Uri).as(String.class).orElseThrow();
-        var resolvedRoleArn = runContext.render(dataAccessRoleArn).as(String.class).orElseThrow();
+        var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rInputUri = runContext.render(inputS3Uri).as(String.class).orElseThrow();
+        var rOutputUri = runContext.render(outputS3Uri).as(String.class).orElseThrow();
+        var rRoleArn = runContext.render(dataAccessRoleArn).as(String.class).orElseThrow();
 
         var requestBuilder = StartFHIRImportJobRequest.builder()
-            .datastoreId(resolvedDatastoreId)
-            .inputDataConfig(InputDataConfig.fromS3Uri(resolvedInputUri))
+            .datastoreId(rDatastoreId)
+            .inputDataConfig(InputDataConfig.fromS3Uri(rInputUri))
             .jobOutputDataConfig(OutputDataConfig.builder()
                 .s3Configuration(S3Configuration.builder()
-                    .s3Uri(resolvedOutputUri)
+                    .s3Uri(rOutputUri)
                     .build())
                 .build())
-            .dataAccessRoleArn(resolvedRoleArn)
+            .dataAccessRoleArn(rRoleArn)
             .clientToken(UUID.randomUUID().toString());
 
         if (jobName != null) {
             requestBuilder.jobName(runContext.render(jobName).as(String.class).orElse(null));
         }
 
-        logger.debug("Starting HealthLake import job for datastore '{}'", resolvedDatastoreId);
+        logger.debug("Starting HealthLake import job for datastore '{}'", rDatastoreId);
 
         try (var client = client(runContext)) {
             var response = client.startFHIRImportJob(requestBuilder.build());

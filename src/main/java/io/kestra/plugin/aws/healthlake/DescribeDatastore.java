@@ -62,13 +62,13 @@ public class DescribeDatastore extends AbstractConnection implements RunnableTas
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rId = runContext.render(datastoreId).as(String.class).orElseThrow();
 
         var request = DescribeFHIRDatastoreRequest.builder()
-            .datastoreId(resolvedId)
+            .datastoreId(rId)
             .build();
 
-        logger.debug("Describing HealthLake datastore '{}'", resolvedId);
+        logger.debug("Describing HealthLake datastore '{}'", rId);
 
         try (var client = client(runContext)) {
             var props = client.describeFHIRDatastore(request).datastoreProperties();

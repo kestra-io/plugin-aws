@@ -90,28 +90,28 @@ public class StartExportJob extends AbstractConnection implements RunnableTask<S
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        var resolvedDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
-        var resolvedOutputUri = runContext.render(outputS3Uri).as(String.class).orElseThrow();
-        var resolvedRoleArn = runContext.render(dataAccessRoleArn).as(String.class).orElseThrow();
+        var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
+        var rOutputUri = runContext.render(outputS3Uri).as(String.class).orElseThrow();
+        var rRoleArn = runContext.render(dataAccessRoleArn).as(String.class).orElseThrow();
 
-        var s3ConfigBuilder = S3Configuration.builder().s3Uri(resolvedOutputUri);
+        var s3ConfigBuilder = S3Configuration.builder().s3Uri(rOutputUri);
         if (kmsKeyId != null) {
             s3ConfigBuilder.kmsKeyId(runContext.render(kmsKeyId).as(String.class).orElse(null));
         }
 
         var requestBuilder = StartFHIRExportJobRequest.builder()
-            .datastoreId(resolvedDatastoreId)
+            .datastoreId(rDatastoreId)
             .outputDataConfig(OutputDataConfig.builder()
                 .s3Configuration(s3ConfigBuilder.build())
                 .build())
-            .dataAccessRoleArn(resolvedRoleArn)
+            .dataAccessRoleArn(rRoleArn)
             .clientToken(UUID.randomUUID().toString());
 
         if (jobName != null) {
             requestBuilder.jobName(runContext.render(jobName).as(String.class).orElse(null));
         }
 
-        logger.debug("Starting HealthLake export job for datastore '{}'", resolvedDatastoreId);
+        logger.debug("Starting HealthLake export job for datastore '{}'", rDatastoreId);
 
         try (var client = client(runContext)) {
             var response = client.startFHIRExportJob(requestBuilder.build());
