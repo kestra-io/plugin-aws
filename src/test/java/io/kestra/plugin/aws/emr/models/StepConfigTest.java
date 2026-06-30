@@ -1,8 +1,8 @@
 package io.kestra.plugin.aws.emr.models;
 
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
+
+import org.junit.jupiter.api.Test;
 
 import static io.kestra.plugin.aws.emr.models.StepConfig.commandToAwsArguments;
 import static org.hamcrest.MatcherAssert.assertThat;

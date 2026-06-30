@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.glue
+name: "glue"
+title: "AWS Glue"
+description: "Tasks that control AWS Glue jobs: start runs with arguments, monitor their status, stop executions, and fetch job metadata to orchestrate serverless Spark ETL pipelines."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -40,31 +41,37 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
     }
 )
 @Schema(
-    title = "Delete a file in an S3 bucket."
+    title = "Delete a single S3 object",
+    description = "Deletes one object by key, optionally with MFA or bypassing governance retention. Returns version/delete marker metadata."
 )
 public class Delete extends AbstractS3Object implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "The key to delete."
+        title = "Object key",
+        description = "Key of the object to delete."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> key;
 
     @Schema(
-        title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation."
+        title = "Indicates whether S3 Object Lock should bypass Governance-mode restrictions to process this operation"
     )
+    @PluginProperty(group = "advanced")
     private Property<Boolean> bypassGovernanceRetention;
 
     @Schema(
         title = "The concatenation of the authentication device's serial number, a space, and the value that is displayed on " +
-            "your authentication device.",
+            "your authentication device",
         description = "Required to permanently delete a versioned object if versioning is configured " +
-            "with MFA delete enabled."
+            "with MFA delete enabled"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> mfa;
 
     @Schema(
         description = "Sets the value of the RequestPayer property for this object."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> requestPayer;
 
     @Override
@@ -104,17 +111,17 @@ public class Delete extends AbstractS3Object implements RunnableTask<Delete.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Returns the version ID of the delete marker created as a result of the DELETE operation."
+            title = "Returns the version ID of the delete marker created as a result of the DELETE operation"
         )
         private final String versionId;
 
         @Schema(
-            title = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker."
+            title = "Specifies whether the versioned object that was permanently deleted was (true) or was not (false) a delete marker"
         )
         private final Boolean deleteMarker;
 
         @Schema(
-            title = "Returns the value of the RequestCharged property for this object."
+            title = "Returns the value of the RequestCharged property for this object"
         )
         private final String requestCharged;
 

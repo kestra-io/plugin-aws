@@ -1,20 +1,5 @@
 package io.kestra.plugin.aws.glue;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.Await;
-import io.kestra.plugin.aws.glue.model.Output;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.glue.GlueClient;
-import software.amazon.awssdk.services.glue.model.*;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
@@ -22,6 +7,23 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.Await;
+import io.kestra.plugin.aws.glue.model.Output;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.*;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 
@@ -31,7 +33,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Start an AWS Glue job and optionally wait for completion."
+    title = "Start a Glue job run",
+    description = "Starts a Glue job and optionally waits for it to reach a terminal state. Wait defaults to true; polls every interval until completion. maxDuration is converted to minutes for the Glue timeout."
 )
 @Plugin(
     examples = {
@@ -57,40 +60,47 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output> {
 
-    @Schema(title = "The name of the Glue job to run")
+    @Schema(
+        title = "Job name",
+        description = "Name of the Glue job to invoke."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
-        title = "The job arguments used for this job run",
-        description = "These are key-value string pairs passed to the job."
+        title = "Job arguments",
+        description = "Key/value pairs passed as job arguments."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> arguments;
 
     @Schema(
-        title = "Wait for the job to complete before ending the task.",
-        description = "If true, the task will periodically check the job status until it completes."
+        title = "Wait for completion",
+        description = "If true (default), poll status until the run leaves STARTING/RUNNING/WAITING."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Boolean> wait = Property.ofValue(true);
 
     @Schema(
-        title = "Timeout for waiting for job completion",
-        description = "If the job does not complete within this duration (rounded up to minutes), the task will fail. " +
-                      "If this property is not set, the default timeout is 480 minutes (8 hours) for Glue 5.0 ETL jobs, 2,880 minutes (48 hours) for Glue 4.0 and below, " +
-                      "and there is no default job timeout for a Glue Streaming job."
+        title = "Job timeout",
+        description = "Optional run timeout; converted to whole minutes. Otherwise Glue applies its defaults (8h for Glue 5.0 ETL, 48h for Glue 4.0 and earlier, none for streaming)."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Schema(
-        title = "Interval between status checks"
+        title = "Poll interval",
+        description = "Delay between status checks; default 1s."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Duration> interval = Property.ofValue(Duration.ofMillis(1000));
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (GlueClient glueClient = this.client(runContext)) {
+        try (GlueClient glueClient = this.glueClient(runContext)) {
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String jobRunId = startJob(runContext, glueClient, jobNameValue);
 
@@ -115,8 +125,10 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
             );
 
             if (!acceptableJobStates.contains(currentJobRun.get().jobRunState())) {
-                throw new RuntimeException("Job state: " + currentJobRun.get().jobRunStateAsString() +
-                                           (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : ""));
+                throw new RuntimeException(
+                    "Job state: " + currentJobRun.get().jobRunStateAsString() +
+                        (currentJobRun.get().errorMessage() != null ? ", Error message: " + currentJobRun.get().errorMessage() : "")
+                );
             }
 
             return buildOutput(jobNameValue, jobRunId, currentJobRun.get());
@@ -140,8 +152,10 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         StartJobRunResponse response = glueClient.startJobRun(requestBuilder.build());
         String jobRunId = response.jobRunId();
 
-        runContext.logger().info("Started Glue job '{}' with run ID: {}",
-            jobNameValue, jobRunId);
+        runContext.logger().info(
+            "Started Glue job '{}' with run ID: {}",
+            jobNameValue, jobRunId
+        );
         return jobRunId;
     }
 
@@ -155,8 +169,8 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
     }
 
     private void waitForJobCompletion(RunContext runContext, GlueClient glueClient,
-                                      GetJobRunRequest getJobRunRequest,
-                                      AtomicReference<JobRun> currentJobRun) throws IllegalVariableEvaluationException {
+        GetJobRunRequest getJobRunRequest,
+        AtomicReference<JobRun> currentJobRun) throws IllegalVariableEvaluationException {
         runContext.logger().debug("Waiting for job completion...");
         Duration intervalDuration = runContext.render(this.interval).as(Duration.class).orElseThrow();
 
@@ -167,7 +181,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
     }
 
     private boolean pollAndUpdateJobState(GlueClient glueClient, GetJobRunRequest getJobRunRequest,
-                                          RunContext runContext, AtomicReference<JobRun> currentJobRun) {
+        RunContext runContext, AtomicReference<JobRun> currentJobRun) {
         GetJobRunResponse jobRunResponse = glueClient.getJobRun(getJobRunRequest);
 
         JobRun jobRun = jobRunResponse.jobRun();
@@ -178,7 +192,7 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
         var state = jobRun.jobRunState();
 
         return !state.equals(JobRunState.STARTING) && !state.equals(JobRunState.RUNNING) &&
-               !state.equals(JobRunState.WAITING);
+            !state.equals(JobRunState.WAITING);
     }
 
     private Output buildOutput(String jobNameValue, String jobRunId, JobRun jobRun) {
@@ -187,10 +201,8 @@ public class StartJobRun extends AbstractGlueTask implements RunnableTask<Output
             .jobRunId(jobRunId)
             .state(jobRun.jobRunStateAsString())
             .startedOn(ZonedDateTime.parse(jobRun.startedOn().toString()))
-            .completedOn(jobRun.completedOn() != null ?
-                ZonedDateTime.parse(jobRun.completedOn().toString()) : null)
-            .lastModifiedOn(jobRun.lastModifiedOn() != null ?
-                ZonedDateTime.parse(jobRun.lastModifiedOn().toString()) : null)
+            .completedOn(jobRun.completedOn() != null ? ZonedDateTime.parse(jobRun.completedOn().toString()) : null)
+            .lastModifiedOn(jobRun.lastModifiedOn() != null ? ZonedDateTime.parse(jobRun.lastModifiedOn().toString()) : null)
             .executionTime(jobRun.executionTime())
             .timeout(jobRun.timeout())
             .attempt(jobRun.attempt())

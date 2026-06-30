@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.cloudformation
+name: "cloudformation"
+title: "AWS CloudFormation"
+description: "Tasks that create, update, or delete AWS CloudFormation stacks and optionally wait for stack operations to finish, returning stack outputs for downstream use."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

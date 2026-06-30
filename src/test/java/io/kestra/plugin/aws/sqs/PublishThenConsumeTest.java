@@ -1,27 +1,31 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-
-import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+@Execution(ExecutionMode.SAME_THREAD)
 class PublishThenConsumeTest extends AbstractSqsTest {
     @Test
     void runText() throws Exception {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .from(
                 List.of(
                     Message.builder().data("Hello World").build(),
@@ -34,11 +38,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .maxRecords(Property.ofValue(2))
             .build();
 
@@ -51,11 +55,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .from(
                 List.of(
                     Message.builder().data("""
@@ -70,11 +74,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         assertThat(publishOutput.getMessagesCount(), is(2));
 
         var consume = Consume.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .serdeType(Property.ofValue(SerdeType.JSON))
             .maxRecords(Property.ofValue(2))
             .build();
@@ -84,26 +88,61 @@ class PublishThenConsumeTest extends AbstractSqsTest {
     }
 
     @Test
+    void publishMoreThan10MessagesUsesBatching() throws Exception {
+        var runContext = runContextFactory.of();
+
+        // 15 messages spans two batch requests (10 + 5), verifying the buffer(10) path.
+        var messages = new ArrayList<Message>(15);
+        for (int i = 0; i < 15; i++) {
+            messages.add(Message.builder().data("batch-msg-" + i).build());
+        }
+
+        var publish = Publish.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .from(messages)
+            .build();
+
+        var publishOutput = publish.run(runContext);
+        assertThat(publishOutput.getMessagesCount(), is(15));
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .maxRecords(Property.ofValue(15))
+            .build();
+
+        var consumeOutput = consume.run(runContextFactory.of());
+        assertThat(consumeOutput.getCount(), is(15));
+    }
+
+    @Test
     void runWithAutoDeleteFalse() throws Exception {
         var runContext = runContextFactory.of();
 
         var publish = Publish.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .from(List.of(Message.builder().data("test with autoDelete false").build()))
             .build();
 
         publish.run(runContext);
 
         var consume = Consume.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .maxRecords(Property.ofValue(1))
             .visibilityTimeout(Property.ofValue(1))
             .autoDelete(Property.ofValue(false))
@@ -120,11 +159,11 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         // for cleanup for other tests, we delete the message
         var consumeTrue = Consume.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.SQS).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .maxRecords(Property.ofValue(1))
             .autoDelete(Property.ofValue(true))
             .build();

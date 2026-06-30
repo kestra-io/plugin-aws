@@ -1,7 +1,22 @@
 package io.kestra.plugin.aws.athena;
 
+import java.io.*;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -13,29 +28,13 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.athena.AthenaClient;
 import software.amazon.awssdk.services.athena.model.*;
-
-import java.io.*;
-import java.math.BigDecimal;
-import java.net.URI;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static io.kestra.core.utils.Rethrow.throwConsumer;
 
 /**
  * This Query task is built with the Athena SDK, more info can be found here: https://docs.aws.amazon.com/athena/latest/ug/code-samples.html.
@@ -47,11 +46,9 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Query an Amazon Athena table.",
+    title = "Run an Athena query and fetch results",
     description = """
-        The query will wait for completion, except if fetchMode is set to `NONE`, and will output converted rows.
-        Row conversion is based on the types listed in [Athena Data Types](https://docs.aws.amazon.com/athena/latest/ug/data-types.html).
-        Complex data types like array, map, and struct will be converted to a string."""
+        Executes an Athena SQL query and waits for completion unless fetchType is NONE. Converts primitive columns to native types and stores results according to fetchType; default STORE writes an ION file to internal storage. skipHeader defaults to true to drop the header row; complex Athena types (array/map/struct) are returned as strings."""
 )
 @Plugin(
     examples = {
@@ -59,62 +56,126 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             full = true,
             code = {
                 """
-                id: aws_athena_query
-                namespace: company.team
+                    id: aws_athena_query
+                    namespace: company.team
 
-                tasks:
-                  - id: query
-                    type: io.kestra.plugin.aws.athena.Query
-                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    region: "eu-central-1"
-                    database: my_database
-                    outputLocation: s3://some-s3-bucket
-                    query: |
-                      select * from cloudfront_logs limit 10
-                """
+                    tasks:
+                      - id: query
+                        type: io.kestra.plugin.aws.athena.Query
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                        region: "eu-central-1"
+                        database: my_database
+                        outputLocation: s3://some-s3-bucket
+                        query: |
+                          select * from cloudfront_logs limit 10
+                    """
             }
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "data.scanned.bytes",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The amount of data scanned by the Athena query in bytes."
+        ),
+        @Metric(
+            name = "engine.execution.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken by the Athena engine to execute the query."
+        ),
+        @Metric(
+            name = "query.planning.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken to plan the Athena query."
+        ),
+        @Metric(
+            name = "query.queue.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time the Athena query spent in the queue."
+        ),
+        @Metric(
+            name = "service.processing.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The time taken for service processing of the Athena query."
+        ),
+        @Metric(
+            name = "total.execution.duration",
+            type = Counter.TYPE,
+            unit = "milliseconds",
+            description = "The total execution time of the Athena query."
+        ),
+        @Metric(
+            name = "total.rows",
+            type = Counter.TYPE,
+            unit = "rows",
+            description = "The total number of rows returned by the Athena query."
+        ),
+        @Metric(
+            name = "fetch.rows",
+            type = Counter.TYPE,
+            unit = "rows",
+            description = "The number of rows fetched or stored by the task, based on the fetchType."
         )
     }
 )
 public class Query extends AbstractConnection implements RunnableTask<Query.QueryOutput> {
-    @Schema(title = "Athena catalog.")
+    @Schema(
+        title = "Athena catalog",
+        description = "Optional catalog name; use default if omitted."
+    )
+    @PluginProperty(group = "advanced")
     private Property<String> catalog;
 
-    @Schema(title = "Athena database.")
+    @Schema(
+        title = "Athena database",
+        description = "Target database for the query."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> database;
 
     @Schema(
-        title = "Athena output location.",
-        description = "The query results will be stored in this output location. Must be an existing S3 bucket."
+        title = "Athena output location",
+        description = "Existing S3 URI where Athena writes result files (required by service)."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> outputLocation;
 
-    @Schema(title = "Athena SQL query.")
+    @Schema(
+        title = "Athena SQL query",
+        description = "SQL statement executed by Athena."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> query;
 
     @Schema(
-        title = "The way you want to store the data.",
-        description = "FETCH_ONE outputs the first row, "
-            + "FETCH outputs all the rows, "
-            + "STORE stores all rows in a file, "
-            + "NONE does nothing — in this case, the task submits the query without waiting for its completion."
+        title = "Fetch strategy",
+        description = "Default STORE writes all rows to internal storage (recommended for large result sets). FETCH loads ALL rows into memory and should only be used for small, bounded result sets. FETCH_ONE returns the first row. NONE submits the query without waiting for results."
     )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
-    @Schema(title = "Whether to skip the first row which is usually the header.")
+    @Schema(
+        title = "Skip header row",
+        description = "If true (default), drop the first returned row, which is usually the column header."
+    )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
-
-    private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+    private static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
@@ -135,7 +196,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             .resultConfiguration(resultConfiguration)
             .build();
 
-        try (var client = client(runContext)) {
+        try (var client = athenaClient(runContext)) {
             var startQueryExecution = client.startQueryExecution(startQueryExecutionRequest);
             var fetchType = runContext.render(this.fetchType).as(FetchType.class).orElseThrow();
             runContext.logger().info("Query created with Athena execution identifier {}", startQueryExecution.queryExecutionId());
@@ -170,33 +231,53 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
                 }
             }
 
-            var getQueryResult = GetQueryResultsRequest.builder()
+            var firstRequest = GetQueryResultsRequest.builder()
                 .queryExecutionId(startQueryExecution.queryExecutionId())
                 .build();
-            var getQueryResultsResults = client.getQueryResults(getQueryResult);
-            List<Row> results = getQueryResultsResults.resultSet().rows();
-            if (runContext.render(skipHeader).as(Boolean.class).orElseThrow() && results != null && !results.isEmpty()) {
-                // we skip the first row, this is usually needed as by default Athena returns the header as the first row
-                results = results.subList(1, results.size());
-            }
+            var firstPage = client.getQueryResults(firstRequest);
 
-            if (results != null) {
-                runContext.metric(Counter.of("total.rows", results.size()));
-            }
+            List<ColumnInfo> columnInfo = firstPage.resultSet().resultSetMetadata().columnInfo();
+            boolean rSkipHeader = runContext.render(skipHeader).as(Boolean.class).orElseThrow();
 
-            List<ColumnInfo> columnInfo = getQueryResultsResults.resultSet().resultSetMetadata().columnInfo();
             QueryOutput output = null;
-            if (fetchType == FetchType.FETCH_ONE) {
-                Map<String, Object> row = fetchOne(columnInfo, results);
+            if (fetchType == FetchType.STORE) {
+                // Stream pages to disk to avoid holding the full result set in memory.
+                Pair<URI, Long> pair = storeStreaming(
+                    client, startQueryExecution.queryExecutionId(), columnInfo, firstPage, rSkipHeader, runContext
+                );
+                runContext.metric(Counter.of("total.rows", pair.getRight()));
+                output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
+            } else if (fetchType == FetchType.FETCH_ONE) {
+                // Only the first page is needed. Skip pagination to avoid unnecessary API calls.
+                var firstRows = new ArrayList<>(firstPage.resultSet().rows());
+                if (rSkipHeader && !firstRows.isEmpty()) {
+                    // we skip the first row, this is usually needed as by default Athena returns the header as the first row
+                    firstRows = new ArrayList<>(firstRows.subList(1, firstRows.size()));
+                }
+                runContext.metric(Counter.of("total.rows", firstRows.size()));
+                Map<String, Object> row = fetchOne(columnInfo, firstRows);
                 output = QueryOutput.builder().row(row).size(row == null ? 0L : 1L).build();
-            }
-            else if (fetchType == FetchType.FETCH) {
+            } else {
+                List<Row> results = new ArrayList<>(firstPage.resultSet().rows());
+                String nextToken = firstPage.nextToken();
+                while (nextToken != null) {
+                    var nextRequest = GetQueryResultsRequest.builder()
+                        .queryExecutionId(startQueryExecution.queryExecutionId())
+                        .nextToken(nextToken)
+                        .build();
+                    var nextPage = client.getQueryResults(nextRequest);
+                    results.addAll(nextPage.resultSet().rows());
+                    nextToken = nextPage.nextToken();
+                }
+
+                if (rSkipHeader && !results.isEmpty()) {
+                    // we skip the first row, this is usually needed as by default Athena returns the header as the first row
+                    results = results.subList(1, results.size());
+                }
+
+                runContext.metric(Counter.of("total.rows", results.size()));
                 List<Object> rows = fetch(columnInfo, results);
                 output = QueryOutput.builder().rows(rows).size((long) rows.size()).build();
-            }
-            else if (fetchType == FetchType.STORE) {
-                Pair<URI, Long> pair = store(columnInfo, results, runContext);
-                output = QueryOutput.builder().uri(pair.getLeft()).size(pair.getRight()).build();
             }
 
             if (output != null) {
@@ -204,6 +285,10 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             }
             return output;
         }
+    }
+
+    protected AthenaClient athenaClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return client(runContext);
     }
 
     private AthenaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
@@ -221,15 +306,17 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             var getQueryExecution = client.getQueryExecution(getQueryExecutionRequest);
             queryExecution = getQueryExecution.queryExecution();
             switch (queryExecution.status().state()) {
-                case FAILED -> throw new RuntimeException("Amazon Athena query failed to run with error message: " +
-                    getQueryExecution.queryExecution().status().stateChangeReason());
+                case FAILED -> throw new RuntimeException(
+                    "Amazon Athena query failed to run with error message: " +
+                        getQueryExecution.queryExecution().status().stateChangeReason()
+                );
                 case CANCELLED -> throw new RuntimeException("Amazon Athena query was cancelled.");
                 case UNKNOWN_TO_SDK_VERSION -> throw new RuntimeException("Amazon Athena failed for an unknown reason.");
-                case SUCCEEDED -> {}
+                case SUCCEEDED -> {
+                }
                 default -> Thread.sleep(500);
             }
-        }
-        while (queryExecution.status().state() != QueryExecutionState.SUCCEEDED);
+        } while (queryExecution.status().state() != QueryExecutionState.SUCCEEDED);
 
         return queryExecution != null ? queryExecution.statistics() : null;
     }
@@ -239,7 +326,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
             return null;
         }
 
-        Row row = results.get(0);
+        Row row = results.getFirst();
         return map(columnInfo, row);
     }
 
@@ -251,20 +338,51 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         return results.stream().map(row -> (Object) map(columnInfo, row)).toList();
     }
 
-    private Pair<URI, Long> store(List<ColumnInfo> columnInfo, List<Row> results, RunContext runContext) throws IOException {
-        if (results == null || results.isEmpty()) {
+    private Pair<URI, Long> storeStreaming(
+        AthenaClient client,
+        String queryExecutionId,
+        List<ColumnInfo> columnInfo,
+        GetQueryResultsResponse firstPage,
+        boolean skipHeader,
+        RunContext runContext) throws IOException {
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        long count = 0;
+
+        try (var out = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
+            var firstRows = firstPage.resultSet().rows();
+            // Athena header row is only on the first page.
+            var dataRows = skipHeader && !firstRows.isEmpty() ? firstRows.subList(1, firstRows.size()) : firstRows;
+            count += writeRows(out, columnInfo, dataRows);
+
+            String nextToken = firstPage.nextToken();
+            while (nextToken != null) {
+                var nextPage = client.getQueryResults(
+                    GetQueryResultsRequest.builder()
+                        .queryExecutionId(queryExecutionId)
+                        .nextToken(nextToken)
+                        .build()
+                );
+                count += writeRows(out, columnInfo, nextPage.resultSet().rows());
+                nextToken = nextPage.nextToken();
+            }
+        }
+
+        if (count == 0) {
             return Pair.of(null, 0L);
         }
+        return Pair.of(runContext.storage().putFile(tempFile), count);
+    }
 
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-
-        try (var output = new BufferedWriter(new FileWriter(tempFile), FileSerde.BUFFER_SIZE)) {
-            Long count = FileSerde.writeAll(output, Flux.fromIterable(results)).block();
-            return Pair.of(
-                runContext.storage().putFile(tempFile),
-                count
-            );
+    private long writeRows(BufferedOutputStream out, List<ColumnInfo> columnInfo, List<Row> rows) throws IOException {
+        long written = 0;
+        for (var row : rows) {
+            var mapped = map(columnInfo, row);
+            if (mapped != null) {
+                FileSerde.write(out, mapped);
+                written++;
+            }
         }
+        return written;
     }
 
     private Map<String, Object> map(List<ColumnInfo> columnInfo, Row row) {
@@ -300,29 +418,33 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     @Getter
     public static class QueryOutput implements Output {
 
-        @Schema(title = "The query execution identifier.")
+        @Schema(
+            title = "Query execution ID",
+            description = "Identifier returned by StartQueryExecution."
+        )
         private String queryExecutionId;
 
         @Schema(
-            title = "List containing the fetched data.",
-            description = "Only populated if `fetchType=FETCH`."
+            title = "Rows",
+            description = "All rows when fetchType is FETCH."
         )
         private List<Object> rows;
 
         @Schema(
-            title = "Map containing the first row of fetched data.",
-            description = "Only populated if `fetchType=FETCH_ONE`."
+            title = "First row",
+            description = "Single row when fetchType is FETCH_ONE."
         )
         private Map<String, Object> row;
 
         @Schema(
-            title = "The URI of stored data.",
-            description = "Only populated if `fetchType=STORE`."
+            title = "Stored data URI",
+            description = "Internal storage URI when fetchType is STORE."
         )
         private URI uri;
 
         @Schema(
-            title = "The size of the fetched rows."
+            title = "Fetched row count",
+            description = "Number of rows returned or stored."
         )
         private Long size;
     }

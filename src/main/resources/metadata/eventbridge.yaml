@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.eventbridge
+name: "eventbridge"
+title: "AWS Eventbridge"
+description: "Tasks that put events on Amazon EventBridge buses with custom detail payloads so routing rules can fan them out to downstream AWS or SaaS targets."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

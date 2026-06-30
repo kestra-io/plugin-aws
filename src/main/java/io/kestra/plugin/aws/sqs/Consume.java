@@ -1,30 +1,35 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.net.URI;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
-import io.micronaut.data.annotation.By;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.net.URI;
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static io.kestra.core.utils.Rethrow.throwConsumer;
 
 @SuperBuilder
 @ToString
@@ -32,8 +37,8 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from an AWS SQS queue.",
-    description = "Requires `maxDuration` or `maxRecords`."
+    title = "Consume messages from SQS",
+    description = "Polls a queue until maxRecords or maxDuration is reached, stores messages to internal storage, and optionally auto-deletes them."
 )
 @Plugin(
     examples = {
@@ -52,34 +57,52 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                     queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "sqs.consume.messages",
+            type = Counter.TYPE,
+            unit = "messages",
+            description = "Number of messages consumed from the SQS queue."
+        )
     }
 )
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
 
-    @Schema(title = "Maximum number of records; when reached, the task will end.")
+    @Schema(
+        title = "Max records",
+        description = "Stop after consuming this many messages."
+    )
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxRecords;
 
-    @Schema(title = "Maximum duration in the Duration ISO format, after that the task will end.")
+    @Schema(
+        title = "Max duration",
+        description = "Stop after this duration elapses."
+    )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Builder.Default
     @NotNull
-    @Schema(title = "The serializer/deserializer to use.")
+    @Schema(title = "The serializer/deserializer to use")
+    @PluginProperty(group = "advanced")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     @Schema(
-        title = "Delete consumed messages automatically.",
-        description = "When set to true (default), the message is automatically deleted from SQS after being consumed. Set to false if you want to handle deletion manually."
+        title = "Auto-delete",
+        description = "If true (default), delete messages after processing."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Schema(
-        title = "Visibility timeout for consumed messages.",
-        description = "When set, a received message stays hidden from other consumers for this amount of time (in seconds). The default value is 30 seconds."
-
+        title = "Visibility timeout",
+        description = "Seconds a received message stays hidden; default 30s."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
     @SuppressWarnings("BusyWait")
@@ -90,36 +113,45 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
         }
 
+        var rSerdeType = runContext.render(serdeType).as(SerdeType.class).orElseThrow();
+        var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
+        var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
+
         try (var sqsClient = this.client(runContext)) {
             var total = new AtomicInteger();
             var started = ZonedDateTime.now();
             var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+            var pendingDeletes = new ArrayList<String>();
 
             try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
                 do {
                     var receiveRequest = ReceiveMessageRequest.builder()
                         .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
                         .queueUrl(queueUrl)
-                        .visibilityTimeout(runContext.render(visibilityTimeout).as(Integer.class).orElse(30))
+                        .visibilityTimeout(rVisibilityTimeout)
                         .build();
                     var msg = sqsClient.receiveMessage(receiveRequest);
-                    msg.messages().forEach(throwConsumer(m -> {
-                        FileSerde.write(outputFile, runContext.render(serdeType).as(SerdeType.class).orElseThrow().deserialize(m.body()));
-
-                        if (runContext.render(autoDelete).as(Boolean.class).orElse(true)) {
-                            sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                                .queueUrl(queueUrl)
-                                .receiptHandle(m.receiptHandle())
-                                .build()
-                            );
-                        }
+                    for (var m : msg.messages()) {
+                        FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
+                        // Increment immediately after write so count always reflects what is in the file,
+                        // even if a subsequent flushDeletes call throws.
                         total.getAndIncrement();
-                    }));
+                        if (rAutoDelete) {
+                            pendingDeletes.add(m.receiptHandle());
+                            if (pendingDeletes.size() == 10) {
+                                flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
+                            }
+                        }
+                    }
 
                     Thread.sleep(100);
                 } while (!this.ended(total, started, runContext));
 
-                runContext.metric(Counter.of("records", total.get(), "queue", queueUrl));
+                if (rAutoDelete && !pendingDeletes.isEmpty()) {
+                    flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
+                }
+
+                runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
                 outputFile.flush();
             }
 
@@ -128,6 +160,33 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 .count(total.get())
                 .build();
         }
+    }
+
+    private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles, RunContext runContext) {
+        var entries = IntStream.range(0, receiptHandles.size())
+            .mapToObj(
+                i -> DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(receiptHandles.get(i))
+                    .build()
+            )
+            .toList();
+        var response = sqsClient.deleteMessageBatch(
+            DeleteMessageBatchRequest.builder()
+                .queueUrl(queueUrl)
+                .entries(entries)
+                .build()
+        );
+        if (!response.failed().isEmpty()) {
+            var failedDetails = response.failed().stream()
+                .map(f -> "id=" + f.id() + " code=" + f.code() + " message=" + f.message())
+                .toList();
+            runContext.logger().error("SQS batch delete had {} failure(s): {}", response.failed().size(), failedDetails);
+            throw new IllegalStateException(
+                "SQS batch delete had " + response.failed().size() + " failure(s): " + failedDetails
+            );
+        }
+        receiptHandles.clear();
     }
 
     private boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
@@ -148,11 +207,13 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Number of consumed rows."
+            title = "Consumed count",
+            description = "Messages read within limits."
         )
         private final Integer count;
         @Schema(
-            title = "File URI containing consumed messages."
+            title = "Messages file URI",
+            description = "Internal storage URI with serialized messages."
         )
         private final URI uri;
     }

@@ -1,0 +1,168 @@
+package io.kestra.plugin.aws.cloudwatch;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+
+import io.kestra.core.models.annotations.*;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.*;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnectionInterface;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+@SuperBuilder
+@ToString
+@EqualsAndHashCode
+@Getter
+@NoArgsConstructor
+@Schema(
+    title = "Trigger on CloudWatch metric results",
+    description = "Polls a CloudWatch metric query at a fixed interval and fires when the query returns at least one datapoint. Reuses Query task parameters and AWS connection fields."
+)
+@Plugin(
+    examples = @Example(
+        title = "Trigger when a CloudWatch metric query returns non-empty results",
+        full = true,
+        code = """
+            id: aws_cloudwatch_trigger
+            namespace: company.team
+            tasks:
+              - id: each
+                type: io.kestra.plugin.core.flow.ForEach
+                values: "{{ trigger.series }}"
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "Datapoint: {{ fromJson(taskrun.value) }}"
+
+            triggers:
+              - id: watch
+                type: io.kestra.plugin.aws.cloudwatch.Trigger
+                interval: "PT1M"
+                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                region: "us-east-1"
+                namespace: "AWS/EC2"
+                metricName: "CPUUtilization"
+                statistic: "Average"
+                periodSeconds: 60
+                window: PT5M
+                dimensions:
+                  - name: "InstanceId"
+                    value: "i-0abcd1234ef567890"
+            """
+    )
+)
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Query.Output> {
+    @Schema(
+        title = "AWS access key ID",
+        description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
+    )
+    @PluginProperty(secret = true, group = "advanced")
+    protected Property<String> accessKeyId;
+
+    @Schema(
+        title = "AWS secret access key",
+        description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
+    )
+    @PluginProperty(secret = true, group = "advanced")
+    protected Property<String> secretKeyId;
+
+    @Schema(
+        title = "AWS session token for temporary credentials",
+        description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
+    )
+    @PluginProperty(secret = true, group = "connection")
+    protected Property<String> sessionToken;
+
+    @Schema(title = "Region")
+    protected Property<String> region;
+
+    @Schema(title = "Endpoint override")
+    protected Property<String> endpointOverride;
+
+    @Schema(title = "Sts role arn")
+    protected Property<String> stsRoleArn;
+
+    @Schema(title = "Sts role external id")
+    protected Property<String> stsRoleExternalId;
+
+    @Schema(title = "Sts role session name")
+    protected Property<String> stsRoleSessionName;
+
+    @Schema(title = "Sts endpoint override")
+    protected Property<String> stsEndpointOverride;
+
+    @Builder.Default
+    @Schema(title = "Sts role session duration")
+    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+
+    @Builder.Default
+    @Schema(title = "Interval")
+    private final Duration interval = Duration.ofSeconds(60);
+
+    @Schema(title = "Namespace")
+    private Property<String> namespace;
+
+    @Schema(title = "Metric name")
+    private Property<String> metricName;
+
+    @Schema(title = "Statistic")
+    private Property<String> statistic;
+
+    @Schema(title = "Period seconds")
+    private Property<Integer> periodSeconds;
+
+    @Schema(title = "Window")
+    private Property<Duration> window;
+
+    @Schema(title = "Dimensions")
+    private Property<List<Query.DimensionKV>> dimensions;
+
+    @Override
+    public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        RunContext runContext = conditionContext.getRunContext();
+        Logger logger = runContext.logger();
+
+        Query.Output output = Query.builder()
+            .id(this.id)
+            .type(Query.class.getName())
+            .accessKeyId(this.accessKeyId)
+            .secretKeyId(this.secretKeyId)
+            .sessionToken(this.sessionToken)
+            .region(this.region)
+            .endpointOverride(this.endpointOverride)
+            .stsRoleArn(this.stsRoleArn)
+            .stsRoleExternalId(this.stsRoleExternalId)
+            .stsRoleSessionName(this.stsRoleSessionName)
+            .stsEndpointOverride(this.stsEndpointOverride)
+            .stsRoleSessionDuration(this.stsRoleSessionDuration)
+            .namespace(this.namespace)
+            .metricName(this.metricName)
+            .statistic(this.statistic)
+            .periodSeconds(this.periodSeconds)
+            .window(this.window)
+            .dimensions(this.dimensions)
+            .build()
+            .run(runContext);
+
+        logger.debug("CloudWatch query returned {} datapoints", output.getCount());
+
+        if (output.getCount() == 0) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+            TriggerService.generateExecution(this, conditionContext, context, output)
+        );
+    }
+}

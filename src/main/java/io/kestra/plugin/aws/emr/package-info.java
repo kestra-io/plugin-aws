@@ -1,8 +1,7 @@
 @PluginSubGroup(
     title = "EMR",
-    description = "This sub-group of plugins contains tasks for using Amazon EMR.\n" +
-        "Amazon EMR (previously called Amazon Elastic MapReduce) is a managed cluster platform that simplifies running big data frameworks, such as Apache Hadoop and Apache Spark, on AWS to process and analyze vast amounts of data.",
-    categories = {PluginSubGroup.PluginCategory.TOOL, PluginSubGroup.PluginCategory.CLOUD}
+    description = "Tasks that orchestrate Amazon EMR and EMR Serverless workloads: create or delete clusters, submit steps, start job runs, and optionally wait for completion so Spark or Hadoop pipelines can be managed from Kestra.",
+    categories = { PluginSubGroup.PluginCategory.CLOUD, PluginSubGroup.PluginCategory.DATA, PluginSubGroup.PluginCategory.INFRASTRUCTURE }
 )
 package io.kestra.plugin.aws.emr;
 

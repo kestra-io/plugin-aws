@@ -1,13 +1,16 @@
 plugins {
-    id "com.vanniktech.maven.publish" version "0.34.0"
-    id "io.kestra.gradle.inject-bom-versions" version "1.0.0"
+    id 'io.kestra.gradle.repository-conventions' version '1.2.5'
+    id 'io.kestra.gradle.spotless-conventions' version '1.2.5'
+    id "com.vanniktech.maven.publish" version "0.37.0"
+    id "io.kestra.gradle.inject-bom-versions" version "1.2.5"
+    id "io.kestra.gradle.plugin-doc-lint" version "1.2.5"
     id 'java-library'
     id "idea"
     id 'jacoco'
     id "com.adarshr.test-logger" version "4.0.0"
-    id "com.gradleup.shadow" version "9.2.2"
+    id "com.gradleup.shadow" version "9.4.3"
     id 'signing'
-    id "com.github.ben-manes.versions" version "0.53.0"
+    id "com.github.ben-manes.versions" version "0.54.0"
     id 'net.researchgate.release' version '3.1.0'
 }
 
@@ -74,15 +77,24 @@ dependencies {
     api 'software.amazon.awssdk:ecr'
     api 'software.amazon.awssdk:netty-nio-client'
     api 'software.amazon.awssdk:emr'
+    api 'software.amazon.awssdk:emrserverless'
     api 'software.amazon.awssdk:glue'
+    api 'software.amazon.awssdk:cloudwatch'
+    api 'software.amazon.awssdk:cloudformation'
+    // AWS SDK — Amazon Bedrock (management: list models)
+    api 'software.amazon.awssdk:bedrock'
+    // AWS SDK — Amazon Bedrock Runtime (model invocation)
+    api 'software.amazon.awssdk:bedrockruntime'
+    // AWS SDK — Amazon HealthLake
+    api 'software.amazon.awssdk:healthlake'
 }
-
 
 /**********************************************************************************************************************\
  * Test
  **********************************************************************************************************************/
 test {
     useJUnitPlatform()
+    maxParallelForks = 1
 }
 
 testlogger {
@@ -126,10 +138,9 @@ dependencies {
     testImplementation group: "io.kestra", name: "worker"
 
     // testcontainers
-    testImplementation "org.testcontainers:testcontainers:1.21.3"
-    testImplementation "org.testcontainers:junit-jupiter:1.21.3"
-    testImplementation "org.testcontainers:localstack:1.21.3"
-    testImplementation 'com.amazonaws:aws-java-sdk-s3'
+    testImplementation "org.testcontainers:testcontainers:2.0.5"
+    testImplementation "org.testcontainers:junit-jupiter:1.21.4"
+    testImplementation "io.floci:testcontainers-floci:2.11.0"
 }
 
 /**********************************************************************************************************************\
@@ -148,7 +159,7 @@ configurations {
 }
 
 dependencies {
-    agent "org.aspectj:aspectjweaver:1.9.24"
+    agent "org.aspectj:aspectjweaver:1.9.25.1"
 }
 
 test {
@@ -236,7 +247,7 @@ release {
     tagTemplate = 'v${version}'
     buildTasks = ['classes']
     git {
-        requireBranch.set('master')
+        requireBranch.set('main')
     }
 
     // Dynamically set properties with default values

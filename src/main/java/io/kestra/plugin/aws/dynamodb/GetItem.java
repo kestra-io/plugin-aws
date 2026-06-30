@@ -1,18 +1,19 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -20,12 +21,13 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get an item from a DynamoDB table."
+    title = "Get a DynamoDB item by key",
+    description = "Retrieves a single item using the provided primary key. Returns an empty row when the item is missing."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Get an item by its key.",
+            title = "Get an item by its key",
             full = true,
             code = """
                 id: aws_dynamodb_get_item
@@ -46,9 +48,10 @@ import java.util.Map;
 )
 public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Output> {
     @Schema(
-        title = "The DynamoDB item key.",
-        description = "The DynamoDB item identifier."
+        title = "Item key",
+        description = "Full primary key map (partition key, plus sort key when applicable)."
     )
+    @PluginProperty(group = "connection")
     private Property<Map<String, Object>> key;
 
     @Override
@@ -72,7 +75,8 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "Map containing the fetched item."
+            title = "Item",
+            description = "Fetched item as a map; empty if not found."
         )
         private Map<String, Object> row;
     }

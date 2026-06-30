@@ -1,13 +1,23 @@
 package io.kestra.plugin.aws.auth;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.Base64;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -18,21 +28,14 @@ import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.util.Base64;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Fetch an OAuth access token for an AWS EKS cluster."
+    title = "Generate a presigned EKS authentication token",
+    description = "Builds a short-lived `k8s-aws-v1` token for a given EKS cluster by presigning STS GetCallerIdentity. Requires region and cluster name; expirationDuration defaults to 600s."
 )
 @Plugin(
     examples = {
@@ -55,19 +58,27 @@ import java.util.Base64;
 )
 public class EksToken extends AbstractConnection implements RunnableTask<EksToken.Output> {
 
-    @Schema(title = "EKS cluster name.")
+    @Schema(
+        title = "EKS cluster name",
+        description = "Cluster identifier passed in x-k8s-aws-id when presigning."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> clusterName;
 
-    @Schema(title = "Token expiration duration in seconds")
+    @Schema(
+        title = "Token TTL (seconds)",
+        description = "Lifetime of the presigned URL; default 600 seconds."
+    )
     @NotNull
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Long> expirationDuration = Property.ofValue(600L);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         try {
-            if(this.getRegion() == null) {
+            if (this.getRegion() == null) {
                 throw new RuntimeException("Region is required");
             }
             final Region awsRegion = Region.of(runContext.render(this.getRegion()).as(String.class).orElseThrow());
@@ -123,7 +134,10 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @NotNull
-        @Schema(title = "An OAuth access token for the current user.")
+        @Schema(
+            title = "EKS auth token",
+            description = "Bearer token formatted as k8s-aws-v1.<base64url>; encrypted in outputs when supported."
+        )
         private final Token token;
     }
 
@@ -136,6 +150,10 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
         )
         EncryptedString tokenValue;
 
+        @Schema(
+            title = "Token expiration time",
+            description = "Exact UTC expiration timestamp derived from the provided TTL."
+        )
         Instant expirationTime;
     }
 }

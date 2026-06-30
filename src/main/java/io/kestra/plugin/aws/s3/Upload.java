@@ -1,37 +1,40 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.executions.metrics.Counter;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.s3.models.FileInfo;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.model.*;
-import software.amazon.awssdk.transfer.s3.S3TransferManager;
-import software.amazon.awssdk.transfer.s3.model.FileUpload;
-import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
-
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import org.apache.commons.io.FilenameUtils;
+
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Data;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.property.URIFetcher;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.s3.models.FileInfo;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.transfer.s3.S3TransferManager;
+import software.amazon.awssdk.transfer.s3.model.FileUpload;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 
 @SuperBuilder
 @ToString
@@ -42,7 +45,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             full = true,
-            title = "Upload a FILE input to S3.",
+            title = "Upload a FILE input to S3",
             code = """
                 id: aws_s3_upload
                 namespace: company.team
@@ -68,38 +71,38 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = "Download a file and upload it to S3.",
+            title = "Download a file and upload it to S3",
             code = """
-                    id: upload_file_to_s3
-                    namespace: company.team
+                id: upload_file_to_s3
+                namespace: company.team
 
-                    inputs:
-                      - id: bucket
-                        type: STRING
-                        defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-                      - id: file_url
-                        type: STRING
-                        defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
+                  - id: file_url
+                    type: STRING
+                    defaults: https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip
 
-                    tasks:
-                      - id: download_file
-                        type: io.kestra.plugin.core.http.Download
-                        uri: "{{ inputs.file_url }}"
+                tasks:
+                  - id: download_file
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "{{ inputs.file_url }}"
 
-                      - id: upload_to_s3
-                        type: io.kestra.plugin.aws.s3.Upload
-                        from: "{{ outputs.download_file.uri }}"
-                        key: powerplant/global_power_plant_database.zip
-                        bucket: "{{ inputs.bucket }}"
-                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                        secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                    """
+                  - id: upload_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: "{{ outputs.download_file.uri }}"
+                    key: powerplant/global_power_plant_database.zip
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON array.",
+            title = "Upload multiple files to S3 using a JSON array",
             code = """
                 id: upload_multiple_files_from_json_array
                 namespace: company.team
@@ -134,7 +137,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Collection.",
+            title = "Upload multiple files to S3 using a Collection",
             code = """
                 id: upload_multiple_files_to_s3
                 namespace: company.team
@@ -164,183 +167,334 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a JSON map",
+            code = """
+                id: upload_multiple_files_from_json_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_files_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from: |
+                      [
+                        "first_key": "{{ outputs.download_file1.uri }}",
+                        "second_key": "{{ outputs.download_file2.uri }}"
+                      ]
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
+        ),
+        @Example(
+            full = true,
+            title = "Upload multiple files to S3 using a Map",
+            code = """
+                id: upload_multiple_files_to_s3_from_map
+                namespace: company.team
+
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
+
+                tasks:
+                  - id: download_file1
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/global_power_plant_database_v_1_3.zip"
+
+                  - id: download_file2
+                    type: io.kestra.plugin.core.http.Download
+                    uri: "https://wri-dataportal-prod.s3.amazonaws.com/manual/enhancing-adaptation-ambition-supplementary-materials.zip"
+
+                  - id: upload_multiple_to_s3
+                    type: io.kestra.plugin.aws.s3.Upload
+                    from:
+                      firstKey: "{{ outputs.download_file1.uri }}"
+                      secondKey: "{{ outputs.download_file2.uri }}"
+                    key: "path/to/files"
+                    bucket: "{{ inputs.bucket }}"
+                    region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "file.count",
+            type = Counter.TYPE,
+            unit = "files",
+            description = "Total number of files uploaded."
+        ),
+        @Metric(
+            name = "file.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "Total size in bytes of files uploaded."
         )
     }
 )
 
 @Schema(
-    title = "Upload a file(s) to a S3 bucket.",
-    description = "Uploads a single or multiple files to an Amazon S3 bucket."
+    title = "Upload files to S3",
+    description = "Uploads one or many files to an S3 bucket. Accepts inputs as URIs, lists, or maps. Supports metadata, ACLs, SSE, checksum, and Object Lock options. Compatibility mode enables S3-compatible endpoints but limits size to ~2GB."
 )
-public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output> {
+public class Upload extends AbstractS3Object implements RunnableTask<Upload.Output>, Data.From {
     @Schema(
-        title = "The file(s) to upload",
-        description = "Can be a single file, a list of files or json array",
-        anyOf = {List.class, String.class}
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
+        anyOf = { List.class, String.class, Map.class }
     )
-    @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
+    @PluginProperty(group = "main")
     private Object from;
 
     @Schema(
-        title = "The key where to upload the file",
-        description = "A full key (with filename) or the directory path if from is multiple files"
+        title = "Object key",
+        description = "Full key for single upload or base prefix for multi-file uploads."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> key;
 
     @Schema(
-        title = "A map of metadata to store with the object in S3."
+        title = "Metadata",
+        description = "Key/value metadata stored with the object."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> metadata;
 
     @Schema(
-        title = "Can be used to specify caching behavior along the request/response chain."
+        title = "Cache-Control"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> cacheControl;
 
     @Schema(
-        title = "A standard MIME type that describes the format of the contents."
+        title = "Content-Type"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentType;
 
     @Schema(
-        title = "Specifies what content encodings have been applied to the object",
-        description = "And thus, what decoding mechanisms must be applied to obtain the media-type referenced by the Content-Type header field."
+        title = "Content-Encoding",
+        description = "Applied encodings; informs how to decode to the Content-Type."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentEncoding;
 
     @Schema(
-        title = "Specifies presentational information for the object"
+        title = "Content-Disposition"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentDisposition;
 
     @Schema(
-        title = "The language the content is in"
+        title = "Content-Language"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> contentLanguage;
 
     @Schema(
-        title = "The size of the body in bytes",
-        description = "This parameter is useful when the size of the body cannot be determined automatically."
+        title = "Content-Length",
+        description = "Explicit length when it cannot be inferred."
     )
+    @PluginProperty(group = "advanced")
     private Property<Long> contentLength;
 
     @Schema(
-        title = "The date and time after which the object is no longer cacheable"
+        title = "Expires"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> expires;
 
     @Schema(
-        title = "The canned ACL to apply to the object"
+        title = "Canned ACL"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> acl;
 
     @Schema(
-        title = "If you don't specify, S3 Standard is the default storage class. Amazon S3 supports other storage classes."
+        title = "Storage class",
+        description = "Defaults to STANDARD if not set."
     )
+    @PluginProperty(group = "destination")
     private Property<StorageClass> storageClass;
 
     @Schema(
-        title = "The server-side encryption algorithm used when storing this object in Amazon S3",
-        description = "For example, AES256, aws:kms, aws:kms:dsse"
+        title = "Server-side encryption",
+        description = "For example AES256, aws:kms, aws:kms:dsse."
     )
+    @PluginProperty(group = "connection")
     private Property<ServerSideEncryption> serverSideEncryption;
 
     @Schema(
-        title = "Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).",
-        description = "Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS."
+        title = "Bucket key enabled",
+        description = "Use S3 Bucket Key when SSE-KMS is selected."
     )
+    @PluginProperty(group = "connection")
     private Property<Boolean> bucketKeyEnabled;
 
     @Schema(
-        title = "Indicates the algorithm used to create the checksum for the object when using the SDK"
+        title = "Checksum algorithm"
     )
+    @PluginProperty(group = "advanced")
     private Property<ChecksumAlgorithm> checksumAlgorithm;
 
     @Schema(
-        title = "The account ID of the expected bucket owner",
-        description = "If the bucket is owned by a different account, the request fails " +
-                      "with the HTTP status code `403 Forbidden` (access denied)."
+        title = "Expected bucket owner",
+        description = "Reject if the bucket is owned by another account."
     )
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
     @Schema(
-        title = "The Object Lock mode that you want to apply to this object"
+        title = "Object Lock mode"
     )
+    @PluginProperty(group = "advanced")
     private Property<ObjectLockMode> objectLockMode;
 
     @Schema(
-        title = "Specifies whether a legal hold will be applied to this object"
+        title = "Legal hold"
     )
+    @PluginProperty(group = "advanced")
     private Property<ObjectLockLegalHoldStatus> objectLockLegalHoldStatus;
 
     @Schema(
-        title = "The date and time when you want this object's Object Lock to expire"
+        title = "Retain until date"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> objectLockRetainUntilDate;
 
     @Schema(
-        title = "The checksum data integrity check to verify that the data received is the same data that was originally sent.",
-        description = "Must be used in pair with `checksumAlgorithm` to defined the expect algorithm of these values"
+        title = "Checksum value",
+        description = "Must match the selected checksumAlgorithm."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> checksum;
 
     @Schema(
-        title = "The tag-set for the object"
+        title = "Tags"
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> tagging;
 
     @Schema(
-        title = "This property will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which maximizes compatibility with S3-compatible services but restricts uploads and downloads to 2GB. For some S3 endpoints such as CloudFlare R2, you may need to set this value to `true`."
+        title = "Compatibility mode",
+        description = "Use default async client for S3-compatible endpoints (limits transfers to ~2GB)."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
+
+    @Schema(
+        title = "Max concurrent file uploads",
+        description = "Max upload futures submitted to the TransferManager before waiting for the window to complete. Effective I/O concurrency is also bounded by the HTTP connection pool. Defaults to 50."
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    private Property<Integer> concurrentUploads = Property.ofValue(50);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
         String key = runContext.render(this.key).as(String.class).orElseThrow();
 
-        try (S3AsyncClient client = this.asyncClient(runContext);
-             S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()) {
+        try (
+            S3AsyncClient client = this.asyncClient(runContext);
+            S3TransferManager transferManager = S3TransferManager.builder().s3Client(client).build()
+        ) {
 
-            String[] filesToUpload = parseFromProperty(runContext);
+            Map<String, String> filesToUpload = parseFromProperty(runContext);
 
-            if (filesToUpload.length == 0) {
+            if (filesToUpload.isEmpty()) {
                 throw new IllegalArgumentException("No files to upload: the 'from' property contains an empty collection or array");
             }
 
-            return filesToUpload.length == 1
-                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload[0])
+            return filesToUpload.size() == 1
+                ? uploadSingleFile(runContext, transferManager, bucket, key, filesToUpload.values().iterator().next())
                 : uploadMultipleFiles(runContext, transferManager, bucket, key, filesToUpload);
         }
     }
 
-    private String[] parseFromProperty(RunContext runContext) throws Exception {
-        if (this.from instanceof Collection<?> fromURIs) {
-            return fromURIs.stream()
-                .map(throwFunction(from -> runContext.render((String) from)))
-                .toArray(String[]::new);
-        } else if (this.from instanceof String && Pattern.compile("^\\[.*]$", Pattern.DOTALL).matcher(((String) this.from).trim()).matches()) {
-            return JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
-        } else {
-            return new String[]{runContext.render((String) this.from)};
+    // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
+    // as values where in this case, file names are just the file name part of the file URIs.
+    private Map<String, String> uriListToMap(List<String> rUriList) {
+        Map<String, String> rUriMap = new HashMap<>();
+        for (String rUri : rUriList) {
+            rUriMap.put(FilenameUtils.getName(rUri), rUri);
         }
+        return rUriMap;
+    }
+
+    private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
+
+        if (this.from instanceof String fromString && URIFetcher.supports(runContext.render(fromString))) {
+            return uriListToMap(List.of(fromString));
+        }
+
+        Data data = Data.from(this.from);
+        try {
+            Function<Map<String, Object>, Map<String, String>> mapper = map ->
+            {
+                Map<String, String> result = new HashMap<>();
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue().toString());
+                }
+                return result;
+            };
+
+            @SuppressWarnings("unchecked")
+            Flux<Map<String, String>> rFromMap = data.readAs(runContext, (Class<Map<String, String>>) Map.of().getClass(), mapper);
+            return Objects.requireNonNull(rFromMap.blockFirst());
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a Map, trying List...", e);
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Flux<List<String>> rFromList = data.readAs(runContext, (Class<List<String>>) List.of().getClass(), map -> map.keySet().stream().toList());
+            return uriListToMap(Objects.requireNonNull(rFromList.flatMapIterable(list -> list).collectList().block()));
+        } catch (Exception e) {
+            runContext.logger().debug("'from' property is not a List, trying String...", e);
+        }
+
+        Flux<String> rFromString = data.readAs(runContext, String.class, Object::toString);
+        return uriListToMap(Objects.requireNonNull(rFromString.collectList().block()));
     }
 
     private Output uploadSingleFile(RunContext runContext, S3TransferManager transferManager,
-                                    String bucket, String key, String renderedFrom) throws Exception {
+        String bucket, String key, String renderedFrom) throws Exception {
         File tempFile = copyFileToTemp(runContext, renderedFrom);
 
         PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, key);
 
         runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-        FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-            .putObjectRequest(putObjectRequest)
-            .source(tempFile)
-            .build());
+        FileUpload upload = transferManager.uploadFile(
+            UploadFileRequest.builder()
+                .putObjectRequest(putObjectRequest)
+                .source(tempFile)
+                .build()
+        );
 
         PutObjectResponse response = upload.completionFuture().get().response();
 
@@ -354,36 +508,68 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
             .build();
     }
 
+    // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
-                                       String bucket, String baseKey, String[] renderedFroms) throws Exception {
-        Map<String, FileInfo> fileInfoMap = new HashMap<>();
+        String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
+        record UploadEntry(String fileKey, File tempFile, FileUpload upload) {
+        }
 
-        for (String renderedFrom : renderedFroms) {
-            File tempFile = copyFileToTemp(runContext, renderedFrom);
-            String fileName = FilenameUtils.getName(renderedFrom);
-            String fileKey = Path.of(baseKey, fileName).toString();
+        int rConcurrentUploads = Math.max(1, runContext.render(concurrentUploads).as(Integer.class).orElse(50));
 
-            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, fileKey);
+        var allEntries = new ArrayList<Map.Entry<String, String>>(filesToUpload.entrySet());
+        Map<String, FileInfo> fileInfoMap = new HashMap<>(allEntries.size());
 
-            runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
+        for (int windowStart = 0; windowStart < allEntries.size(); windowStart += rConcurrentUploads) {
+            var window = allEntries.subList(windowStart, Math.min(windowStart + rConcurrentUploads, allEntries.size()));
+            var windowEntries = new ArrayList<UploadEntry>(window.size());
 
-            FileUpload upload = transferManager.uploadFile(UploadFileRequest.builder()
-                .putObjectRequest(putObjectRequest)
-                .source(tempFile)
-                .build());
+            for (var entry : window) {
+                var fileKey = entry.getKey();
+                var finalKey = Path.of(baseKey, fileKey).toString();
+                var tempFile = copyFileToTemp(runContext, entry.getValue());
+                var putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
 
-            PutObjectResponse response = upload.completionFuture().get().response();
+                runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
+                var upload = transferManager.uploadFile(
+                    UploadFileRequest.builder()
+                        .putObjectRequest(putObjectRequest)
+                        .source(tempFile)
+                        .build()
+                );
+                windowEntries.add(new UploadEntry(fileKey, tempFile, upload));
+            }
 
-            FileInfo fileInfo = FileInfo.builder()
-                .eTag(response.eTag())
-                .versionId(response.versionId())
-                .contentLength(tempFile.length())
-                .build();
+            var futures = windowEntries.stream()
+                .map(e -> e.upload().completionFuture())
+                .toArray(CompletableFuture[]::new);
+            try {
+                CompletableFuture.allOf(futures).join();
+            } catch (Exception ex) {
+                // CompletableFuture.cancel does not abort in-flight S3 SDK transfers.
+                // The try-with-resources on transferManager handles cleanup.
+                if (ex instanceof java.util.concurrent.CompletionException ce && ce.getCause() != null) {
+                    var cause = ce.getCause();
+                    if (cause instanceof RuntimeException re)
+                        throw re;
+                    if (cause instanceof Exception e2)
+                        throw e2;
+                    throw new RuntimeException(cause);
+                }
+                throw ex;
+            }
 
-            fileInfoMap.put(fileName, fileInfo);
-
-            recordMetrics(runContext, tempFile);
+            for (var e : windowEntries) {
+                var response = e.upload().completionFuture().join().response();
+                fileInfoMap.put(
+                    e.fileKey(), FileInfo.builder()
+                        .eTag(response.eTag())
+                        .versionId(response.versionId())
+                        .contentLength(e.tempFile().length())
+                        .build()
+                );
+                recordMetrics(runContext, e.tempFile());
+            }
         }
 
         return Output.builder()
@@ -497,18 +683,21 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         }
 
         if (this.tagging != null) {
-            builder.tagging(Tagging.builder()
-                .tagSet(runContext.render(this.tagging).asMap(String.class, String.class)
-                    .entrySet()
-                    .stream()
-                    .map(e -> Tag.builder()
-                        .key(e.getKey())
-                        .value(e.getValue())
-                        .build()
+            builder.tagging(
+                Tagging.builder()
+                    .tagSet(
+                        runContext.render(this.tagging).asMap(String.class, String.class)
+                            .entrySet()
+                            .stream()
+                            .map(
+                                e -> Tag.builder()
+                                    .key(e.getKey())
+                                    .value(e.getValue())
+                                    .build()
+                            )
+                            .toList()
                     )
-                    .toList()
-                )
-                .build()
+                    .build()
             );
         }
     }
@@ -517,23 +706,22 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The S3 bucket name",
-            description = "The name of the bucket where the file(s) were uploaded"
+            title = "Bucket",
+            description = "Destination bucket."
         )
         private final String bucket;
 
         @Schema(
-            title = "The S3 object key",
-            description = "The key (path) where the file(s) were uploaded in the bucket"
+            title = "Key",
+            description = "Object key (base for multi-upload)."
         )
         private final String key;
 
         @Schema(
-            title = "Information about uploaded files",
-            description = "A map of file names to their corresponding file information. Returned only for multiple file uploads."
+            title = "Files",
+            description = "Per-file upload info (multi-file uploads only)."
         )
         private final Map<String, FileInfo> files;
     }
-
 
 }

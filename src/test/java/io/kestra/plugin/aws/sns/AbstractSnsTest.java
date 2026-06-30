@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.sns;
 
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.plugin.aws.AbstractFlociTest;
+
+import jakarta.inject.Inject;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.CreateTopicRequest;
 
 @KestraTest
 @Testcontainers
-public class AbstractSnsTest extends AbstractLocalStackTest {
+public class AbstractSnsTest extends AbstractFlociTest {
     static final String TOPIC_ARN = "arn:aws:sns:us-east-1:000000000000:test-topic";
 
     @Inject

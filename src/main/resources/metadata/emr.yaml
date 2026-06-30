@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.emr
+name: "emr"
+title: "AWS EMR"
+description: "Tasks that orchestrate Amazon EMR and EMR Serverless workloads: create or delete clusters, submit steps, start job runs, and optionally wait for completion so Spark or Hadoop pipelines can be managed from Kestra."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

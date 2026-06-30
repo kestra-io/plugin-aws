@@ -1,4 +1,8 @@
-### Authentication
+# How to use the AWS plugin
+
+Authenticate with task-level credentials or let the default credentials provider chain discover them from the environment.
+
+## Authentication
 
 All tasks must be authenticated for the AWS Platform.
 
@@ -7,17 +11,28 @@ You can either set up the credentials in the task or let the [default credential
 To set up the credentials in the task, you can use:
 - The `accessKeyId` and `secretKeyId` properties for using the static credential provider
 - The `sessionToken` property in conjunction with `accessKeyId` and `secretKeyId` for temporal credentials
-- Or the `stsRoleArn`,  `stsRoleExternalII` and `stsRoleSessionName` properties for STS assume role credentials
+- Or the `stsRoleArn`, `stsRoleExternalId` and `stsRoleSessionName` properties for STS assume role credentials
 
 When defining credentials in the task, it is best practice to use [secrets](https://kestra.io/docs/concepts/secret).
-Check the blueprints such as [this one](https://kestra.io/blueprints/api-to-s3),
-showing how you can reference secrets in your AWS tasks.
 
-The [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is an AWS credentials provider chain
-that looks for credentials in this order:
-- **Java System Properties** - Java system properties with variables `aws.accessKeyId` and `aws.secretAccessKey`
+The [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) looks for credentials in this order:
+- **Java System Properties** - `aws.accessKeyId` and `aws.secretAccessKey`
 - **Environment Variables** - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 - Web Identity Token credentials from system properties or environment variables
-- Credential profiles file in the default location (`~/.aws/credentials`) shared by all AWS SDKs and the AWS CLI
-- Credentials provided by the Amazon EC2 container service if the `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` environment variable is set and the security manager has permission to access the variable
-- Instance profile credentials provided by the Amazon EC2 metadata service
+- Credential profiles file at the default location (`~/.aws/credentials`)
+- Amazon EC2 container service credentials via `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`
+- Instance profile credentials from the Amazon EC2 metadata service
+
+## Common properties
+
+Set `region` on each task or globally using [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults) to avoid repeating it. Most tasks also accept `endpointOverride` for connecting to custom or locally hosted endpoints such as LocalStack.
+
+## Tasks
+
+Tasks span the most commonly used AWS services. The `s3` package covers uploads, downloads, copies, deletions, and file-arrival triggers. For messaging and streaming, `sqs` and `sns` handle queue consumption and publishing while `kinesis` covers high-throughput record streaming; both SQS and Kinesis offer a polling `Trigger` (one execution per batch) and a `RealtimeTrigger` (one execution per record) — use `Trigger` for controlled throughput and `RealtimeTrigger` for low-latency processing.
+
+For data and compute, `athena` queries S3 data with SQL, `glue` manages ETL jobs, `emr` runs Spark and Hadoop workloads, and `lambda` invokes serverless functions. `dynamodb` covers key-value reads and writes, `cloudwatch` handles metrics and log querying, and `eventbridge` publishes events to an event bus. Use `cli.AwsCLI` for any operation not covered by a dedicated task.
+
+For AI workloads, `bedrock` provides direct access to Amazon Bedrock foundation models: `InvokeModel` sends raw payloads to any model, `Converse` and `ConverseStream` use the unified Converse API for model-agnostic multi-turn chat, and `ListFoundationModels` discovers available models in your region.
+
+For FHIR healthcare workloads, `healthlake` integrates with Amazon HealthLake: `CreateDatastore`, `DescribeDatastore`, `ListDatastores`, and `DeleteDatastore` manage FHIR R4 data stores, while `StartImportJob`, `DescribeImportJob`, `StartExportJob`, and `DescribeExportJob` orchestrate bulk FHIR data movement from and to S3. A `Trigger` fires flows when import or export jobs reach a terminal state.

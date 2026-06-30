@@ -1,8 +1,8 @@
 package io.kestra.plugin.aws.s3;
 
-import io.kestra.core.models.property.Property;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+
+import io.kestra.core.models.property.Property;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
@@ -22,10 +22,12 @@ class DeleteListTest extends AbstractTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .concurrent(5)
             .build();
         DeleteList.Output run = task.run(runContext(task));

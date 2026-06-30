@@ -1,5 +1,10 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,14 +15,11 @@ import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.time.Duration;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -25,75 +27,112 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on periodic message consumption from an AWS SQS queue, creating one execution per batch.",
-    description = "Requires `maxDuration` or `maxRecords`.\nNote that you don't need an extra task to consume the message from the event trigger. The trigger will automatically consume messages and you can retrieve their content in your flow using the `{{ trigger.uri }}` variable. If you would like to consume each message from an SQS queue in real-time and create one execution per message, you can use the [io.kestra.plugin.aws.sqs.RealtimeTrigger](https://kestra.io/plugins/plugin-aws/triggers/io.kestra.plugin.aws.sqs.realtimetrigger) instead."
+    title = "Trigger on SQS messages (batch polling)",
+    description = "Polls a queue on an interval and creates an execution when messages are fetched, stopping at maxRecords or maxDuration. Messages are stored at trigger.uri; autoDelete controls deletion. For per-message realtime, use RealtimeTrigger."
 )
 @Plugin(
     examples = {
         @Example(
             full = true,
             code = """
-            id: sqs
-            namespace: company.team
+                id: sqs
+                namespace: company.team
 
-            tasks:
-              - id: log
-                type: io.kestra.plugin.core.log.Log
-                message: "{{ trigger.data }}"
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
 
-            triggers:
-              - id: trigger
-                type: io.kestra.plugin.aws.sqs.Trigger
-                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                region: "eu-central-1"
-                queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
-                maxRecords: 10
-            """
+                triggers:
+                  - id: trigger
+                    type: io.kestra.plugin.aws.sqs.Trigger
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                    maxRecords: 10
+                """
         )
     }
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, SqsConnectionInterface {
 
+    @Schema(title = "Queue url")
     private Property<String> queueUrl;
 
+    @Schema(title = "Access key id")
+    @PluginProperty(secret = true)
     private Property<String> accessKeyId;
 
+    @Schema(title = "Secret key id")
+    @PluginProperty(secret = true)
     private Property<String> secretKeyId;
 
+    @Schema(title = "Session token")
+    @PluginProperty(secret = true)
     private Property<String> sessionToken;
 
+    @Schema(title = "Region")
     private Property<String> region;
 
+    @Schema(title = "Endpoint override")
     private Property<String> endpointOverride;
 
     @Builder.Default
+    @Schema(title = "Max concurrency")
+    private Property<Integer> maxConcurrency = Property.ofValue(50);
+
+    @Builder.Default
+    @Schema(title = "Connection acquisition timeout")
+    private Property<Duration> connectionAcquisitionTimeout = Property.ofValue(Duration.ofSeconds(5));
+
+    @Builder.Default
+    @Schema(title = "Interval")
     private final Duration interval = Duration.ofSeconds(60);
 
-    @Schema(title = "Max number of records, when reached the task will end.")
+    @Schema(
+        title = "Max records",
+        description = "Stop after consuming this many messages."
+    )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxRecords;
 
-    @Schema(title = "Max duration in the Duration ISO format, after that the task will end.")
+    @Schema(
+        title = "Max duration",
+        description = "Stop after this duration elapses."
+    )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Builder.Default
     @NotNull
-    @Schema(title = "The serializer/deserializer to use.")
+    @Schema(
+        title = "Serde type",
+        description = "Serializer/deserializer used for message bodies."
+    )
+    @PluginProperty(group = "main")
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole
+    @Schema(title = "Sts role arn")
     protected Property<String> stsRoleArn;
+    @Schema(title = "Sts role external id")
     protected Property<String> stsRoleExternalId;
+    @Schema(title = "Sts role session name")
     protected Property<String> stsRoleSessionName;
+    @Schema(title = "Sts endpoint override")
     protected Property<String> stsEndpointOverride;
     @Builder.Default
 
+    @Schema(title = "Sts role session duration")
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
+    @Schema(title = "Auto delete")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
+    @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
     @Override

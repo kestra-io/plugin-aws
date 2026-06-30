@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.sqs
+name: "sqs"
+title: "AWS SQS"
+description: "Tasks that publish to or consume from Amazon Simple Queue Service (SQS), including polling and real-time triggers."
+body: "Use them to push messages, drain queues into flow outputs, or start flows when new messages arrive."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

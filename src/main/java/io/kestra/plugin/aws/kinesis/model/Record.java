@@ -3,19 +3,20 @@ package io.kestra.plugin.aws.kinesis.model;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
-
-import jakarta.validation.constraints.NotNull;
 
 @Getter
 @Builder
@@ -24,19 +25,28 @@ import jakarta.validation.constraints.NotNull;
 public class Record {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
-    @Schema(title = "Determines which shard in the stream the data record is assigned to.")
-    @PluginProperty(dynamic = true)
+    @Schema(
+        title = "Partition key",
+        description = "Determines the target shard for the record."
+    )
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("PartitionKey")
     private String partitionKey;
 
-    @Schema(title = "The optional hash value used to determine explicitly the shard that the data record is assigned to by overriding the partition key hash.")
-    @PluginProperty(dynamic = true)
+    @Schema(
+        title = "Explicit hash key",
+        description = "Optional hash value that overrides the partition key hash for shard selection."
+    )
+    @PluginProperty(dynamic = true, group = "connection")
     @JsonAlias("ExplicitHashKey")
     private String explicitHashKey;
 
-    @Schema(title = "Free-form data blob to put into the record.")
-    @PluginProperty(dynamic = true)
+    @Schema(
+        title = "Data",
+        description = "Data payload as a string; UTF-8 encoded before sending."
+    )
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @JsonAlias("Data")
     private String data;

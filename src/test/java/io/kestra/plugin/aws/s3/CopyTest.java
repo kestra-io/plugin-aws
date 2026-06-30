@@ -1,9 +1,9 @@
 package io.kestra.plugin.aws.s3;
 
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.IdUtils;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -19,18 +19,22 @@ class CopyTest extends AbstractTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(List.class.getName())
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .from(Copy.CopyObjectFrom.builder()
-                .bucket(Property.ofValue(this.BUCKET))
-                .key(Property.ofValue(upload))
-                .build()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                Copy.CopyObjectFrom.builder()
+                    .bucket(Property.ofValue(this.BUCKET))
+                    .key(Property.ofValue(upload))
+                    .build()
             )
-            .to(Copy.CopyObject.builder()
-                .key(Property.ofValue(move))
-                .build()
+            .to(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue(move))
+                    .build()
             )
             .delete(Property.ofValue(delete))
             .build();
@@ -59,5 +63,76 @@ class CopyTest extends AbstractTest {
     @Test
     void delete() throws Exception {
         this.run(true);
+    }
+
+    @Test
+    void runWithServerSideEncryption() throws Exception {
+        this.createBucket();
+
+        String upload = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+        String move = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+
+        Copy task = Copy.builder()
+            .id(CopyTest.class.getSimpleName())
+            .type(Copy.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                Copy.CopyObjectFrom.builder()
+                    .bucket(Property.ofValue(this.BUCKET))
+                    .key(Property.ofValue(upload))
+                    .build()
+            )
+            .to(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue(move))
+                    .serverSideEncryption(Property.ofValue(io.kestra.plugin.aws.s3.models.S3ServerSideEncryption.AES256))
+                    .build()
+            )
+            .delete(Property.ofValue(false))
+            .build();
+
+        Copy.Output run = task.run(runContext(task));
+        assertThat(run.getKey(), is(move));
+    }
+
+    @Test
+    void runWithKmsKey() throws Exception {
+        this.createBucket();
+
+        String upload = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+        String move = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+
+        Copy task = Copy.builder()
+            .id(CopyTest.class.getSimpleName())
+            .type(Copy.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                Copy.CopyObjectFrom.builder()
+                    .bucket(Property.ofValue(this.BUCKET))
+                    .key(Property.ofValue(upload))
+                    .build()
+            )
+            .to(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue(move))
+                    .serverSideEncryption(Property.ofValue(io.kestra.plugin.aws.s3.models.S3ServerSideEncryption.AWS_KMS))
+                    .kmsKeyId(Property.ofValue("arn:aws:kms:us-east-1:000000000000:key/test-kms"))
+                    .build()
+            )
+            .delete(Property.ofValue(false))
+            .build();
+
+        Copy.Output run = task.run(runContext(task));
+        assertThat(run.getKey(), is(move));
     }
 }

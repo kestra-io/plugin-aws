@@ -1,32 +1,30 @@
 package io.kestra.plugin.aws.cli;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.runners.ScriptService;
-import io.kestra.core.models.tasks.*;
-import io.kestra.core.models.tasks.runners.TaskRunner;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
-import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
-import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
-import io.kestra.plugin.scripts.runner.docker.Docker;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.*;
+import io.kestra.core.models.tasks.runners.TaskRunner;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.scripts.exec.scripts.models.DockerOptions;
+import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
+import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
+import io.kestra.plugin.scripts.runner.docker.Docker;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @ToString
@@ -34,12 +32,13 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Run AWS CLI commands."
+    title = "Execute AWS CLI commands in a task",
+    description = "Runs one or more AWS CLI statements inside the configured task runner (default Docker with amazon/aws-cli). Exports rendered AWS credentials/region to the process env, honors stsRole* fields, and sets AWS_DEFAULT_OUTPUT to outputFormat (default json). Use outputFiles to persist generated files."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Run a simple AWS CLI command and capture the output.",
+            title = "Run a simple AWS CLI command and capture the output",
             full = true,
             code = """
                 id: aws_cli
@@ -51,10 +50,10 @@ import java.util.Map;
                     secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     region: "us-east-1"
                     commands:
-                      - aws sts get-caller-identity | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'"""
+                      - aws sts get-caller-identity | tr -d ' \\n' | xargs -0 -I {} echo '::{"outputs":{}}::'"""
         ),
         @Example(
-            title = "Create a simple S3 bucket.",
+            title = "Create a simple S3 bucket",
             full = true,
             code = """
                 id: aws_cli
@@ -71,7 +70,7 @@ import java.util.Map;
                 """
         ),
         @Example(
-            title = "List all S3 buckets as the task's output.",
+            title = "List all S3 buckets as the task's output",
             full = true,
             code = """
                 id: aws_cli
@@ -84,7 +83,7 @@ import java.util.Map;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     commands:
-                      - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'
+                      - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{"outputs":{}}::'
                 """
         ),
         @Example(
@@ -113,54 +112,71 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     private static final String DEFAULT_IMAGE = "amazon/aws-cli";
 
     @Schema(
-        title = "The AWS commands to run."
+        title = "AWS CLI commands",
+        description = "Shell fragments executed in order with /bin/sh -c; include aws ... and any needed piped tooling."
     )
+    @PluginProperty(group = "main")
     @NotNull
-    protected List<String> commands;
+    protected Property<List<String>> commands;
 
     @Schema(
-        title = "Additional environment variables for the current process."
+        title = "Extra environment variables",
+        description = "Merged into the process environment alongside AWS credentials and AWS_DEFAULT_OUTPUT."
     )
     @PluginProperty(
+        group = "execution",
         additionalProperties = String.class,
         dynamic = true
     )
     protected Map<String, String> env;
 
     @Schema(
-        title = "Deprecated, use 'taskRunner' instead"
+        title = "Deprecated Docker options",
+        description = "Use taskRunner instead; retained for backward compatibility."
     )
-    @PluginProperty
+    @PluginProperty(group = "deprecated")
     @Deprecated
     private DockerOptions docker;
 
     @Schema(
-        title = "The task runner to use.",
-        description = "Task runners are provided by plugins, each have their own properties."
+        title = "Task runner",
+        description = "Runner implementation for executing the CLI; defaults to Docker runner."
     )
-    @PluginProperty
+    @PluginProperty(group = "execution")
     @Builder.Default
     @Valid
     private TaskRunner<?> taskRunner = Docker.instance();
 
-    @Schema(title = "The task runner container image, only used if the task runner is container-based.")
-    @PluginProperty(dynamic = true)
+    @Schema(
+        title = "Container image",
+        description = "Image used when the runner is container-based; default amazon/aws-cli."
+    )
+    @PluginProperty(dynamic = true, group = "execution")
     @Builder.Default
     private String containerImage = DEFAULT_IMAGE;
 
     @Schema(
-        title = "Expected output format for AWS commands (can be overridden with --format parameter)."
+        title = "AWS CLI output format",
+        description = "Sets AWS_DEFAULT_OUTPUT; default json. CLI flags still take precedence."
     )
-    @PluginProperty
+    @PluginProperty(group = "processing")
     @Builder.Default
     protected OutputFormat outputFormat = OutputFormat.JSON;
 
+    @PluginProperty(group = "source")
+    @Schema(title = "Namespace files")
     private NamespaceFiles namespaceFiles;
 
+    @PluginProperty(group = "source")
+    @Schema(title = "Input files")
     private Object inputFiles;
 
+    @PluginProperty(group = "destination")
+    @Schema(title = "Output files")
     private Property<List<String>> outputFiles;
 
+    @PluginProperty(group = "connection")
+    @Schema(title = "Sts credential source")
     private CredentialSource stsCredentialSource;
 
     @Override
@@ -188,7 +204,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             allCommands.add("aws configure set credential_source " + this.stsCredentialSource.value);
         }
 
-        allCommands.addAll(this.commands);
+        allCommands.addAll(runContext.render(this.commands).asList(String.class));
 
         var renderedOutputFiles = runContext.render(outputFiles).asList(String.class);
 
@@ -198,7 +214,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
             .withTaskRunner(this.taskRunner)
             .withContainerImage(this.containerImage)
             .withInterpreter(Property.ofValue(List.of("/bin/sh", "-c")))
-            .withCommands(new Property<>(JacksonMapper.ofJson().writeValueAsString(allCommands)))
+            .withCommands(Property.ofValue(allCommands))
             .withEnv(this.getEnv(runContext))
             .withNamespaceFiles(namespaceFiles)
             .withInputFiles(inputFiles)
@@ -260,6 +276,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         EC2_INSTANCE_METADATA("Ec2InstanceMetadata"),
         ECS_CONTAINER("EcsContainer");
 
+        @Schema(title = "Value")
         private final String value;
 
         CredentialSource(String value) {
@@ -272,7 +289,6 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         TEXT,
         TABLE,
         YAML;
-
 
         @Override
         public String toString() {

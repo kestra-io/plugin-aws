@@ -1,8 +1,22 @@
 package io.kestra.plugin.aws.lambda;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.http.HttpHeaders;
+import org.apache.http.entity.ContentType;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -16,8 +30,10 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -26,22 +42,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpHeaders;
-import org.apache.http.entity.ContentType;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -49,12 +57,13 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Invoke an AWS Lambda function."
+    title = "Invoke an AWS Lambda function",
+    description = "Synchronously invokes a Lambda by ARN or name with an optional JSON payload. Stores the response body to internal storage and captures content type and size. Fails if the function returns functionError."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Invoke given Lambda function and wait for its completion.",
+            title = "Invoke given Lambda function and wait for its completion",
             full = true,
             code = """
                 id: aws_lambda_invoke
@@ -70,7 +79,7 @@ import java.util.Optional;
                 """
         ),
         @Example(
-            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items.",
+            title = "Invoke given Lambda function with given payload parameters and wait for its completion. Payload is a map of items",
             full = true,
             code = """
                 id: aws_lambda_invoke
@@ -95,40 +104,46 @@ import java.util.Optional;
         @Metric(name = "duration", type = Timer.TYPE)
     }
 )
+
 @Slf4j
 public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
 
-    @Schema(title = "The Lambda function name.")
+    @Schema(
+        title = "Function ARN or name",
+        description = "Lambda ARN or name to invoke."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> functionArn;
 
     @Schema(
-        title = "Function request payload.",
-        description = "Request payload. It's a map of string -> object."
+        title = "Function payload",
+        description = "Optional map rendered to JSON and sent as the request payload."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> functionPayload;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
+        final Instant invocationStart = Instant.now().minusSeconds(5);
         var functionArn = runContext.render(this.functionArn).as(String.class).orElseThrow();
-        var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ?
-            null :
-            runContext.render(this.functionPayload).asMap(String.class, Object.class);
+        var requestPayload = runContext.render(this.functionPayload).asMap(String.class, Object.class).isEmpty() ? null
+            : runContext.render(this.functionPayload).asMap(String.class, Object.class);
+        var logger = runContext.logger();
 
         try (var lambda = client(runContext)) {
             var builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
-                var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload)) ;
+                var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload));
                 builder.payload(payload);
             }
             InvokeRequest request = builder.build();
             // TODO take care about long-running functions: your client might disconnect during
             // synchronous invocation while it waits for a response. Configure your HTTP client,
             // SDK, firewall, proxy, or operating system to allow for long connections with timeout
-            // or keep-alive settings.
             InvokeResponse res = lambda.invoke(request);
             Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader(HttpHeaders.CONTENT_TYPE);
             ContentType contentType = parseContentType(contentTypeHeader);
@@ -137,15 +152,21 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                 // details and throw - this will throw an exception in any case
                 handleError(functionArn, contentType, res.payload());
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Lambda {} invoked successfully", functionArn);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Lambda {} invoked successfully", functionArn);
             }
             Output out = handleContent(runContext, functionArn, contentType, res.payload());
+            fetchAndLogLambdaLogs(runContext, functionArn, invocationStart);
             runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
             return out;
         } catch (LambdaException e) {
             throw new LambdaInvokeException("Lambda Invoke task execution failed for function: " + functionArn, e);
         }
+    }
+
+    @VisibleForTesting
+    CloudWatchLogsClient getCloudWatchLogsClient(RunContext runContext) throws IllegalVariableEvaluationException {
+        return new CloudWatchLogs().logsClient(runContext);
     }
 
     @VisibleForTesting
@@ -165,7 +186,7 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
                     // Apply charset only if it was provided originally
                     return ContentType.create(known.getMimeType(), parsed.getCharset());
                 }
-            } catch(Exception cte) {
+            } catch (Exception cte) {
                 log.warn("Unable to parse Lambda response content type {}: {}", contentType.get(), cte.getMessage());
             }
         }
@@ -196,33 +217,110 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     }
 
     @VisibleForTesting
+    void fetchAndLogLambdaLogs(RunContext runContext, String functionArn, Instant startTime) {
+        var logger = runContext.logger();
+        String functionName;
+
+        try {
+            functionName = extractFunctionName(functionArn);
+        } catch (Exception e) {
+            logger.warn("Unable to determine Lambda function name from ARN: {}", functionArn);
+            return;
+        }
+
+        String logGroupName = "/aws/lambda/" + functionName;
+
+        // Polling logic: 5 attempts, waiting 3 seconds between each
+        int maxAttempts = 5;
+        long sleepMillis = 3000;
+        boolean logsFound = false;
+
+        try (CloudWatchLogsClient logsClient = getCloudWatchLogsClient(runContext)) {
+            for (int i = 0; i < maxAttempts; i++) {
+                FilterLogEventsRequest request = FilterLogEventsRequest.builder()
+                    .logGroupName(logGroupName)
+                    .startTime(startTime.toEpochMilli())
+                    .build();
+
+                var response = logsClient.filterLogEvents(request);
+                var events = response.events();
+
+                if (events != null && !events.isEmpty()) {
+                    events.stream()
+                        .limit(1000)
+                        .map(FilteredLogEvent::message)
+                        .filter(message -> message != null && !message.isBlank())
+                        .forEach(message -> logger.info("[lambda] {}", message.trim()));
+
+                    logsFound = true;
+                    break; // Exit early if found logs
+                }
+
+                // Wait before next retry, but not after the last attempt
+                if (i < maxAttempts - 1) {
+                    Thread.sleep(sleepMillis);
+                }
+            }
+
+            if (!logsFound) {
+                logger.debug("No CloudWatch logs found for {} after {} attempts.", functionName, maxAttempts);
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Log fetching interrupted for Lambda {}", functionArn);
+        } catch (Exception e) {
+            logger.warn("Failed to fetch CloudWatch logs for Lambda {}: {}", functionArn, e.getMessage());
+        }
+    }
+
+    @VisibleForTesting
+    private String extractFunctionName(String functionArnOrName) {
+        if (functionArnOrName.contains(":function:")) {
+            // Handle Full ARN
+            return functionArnOrName.split(":function:")[1].split(":")[0];
+        }
+        // Handle just the name
+        return functionArnOrName;
+    }
+
+    @VisibleForTesting
     void handleError(String functionArn, ContentType contentType, SdkBytes payload) {
         String errorPayload;
         try {
             errorPayload = payload.asUtf8String();
         } catch (UncheckedIOException e) {
-            log.warn("Lambda function respone payload cannot be read as UTF8 string: {}",
-                    e.getMessage());
+            log.warn(
+                "Lambda function response payload cannot be read as UTF8 string: {}",
+                e.getMessage()
+            );
             errorPayload = null;
         }
         if (log.isDebugEnabled()) {
-            log.debug("Lambda function error for {}: response type: {}, response payload: {}",
-                    functionArn, contentType, errorPayload);
+            log.debug(
+                "Lambda function error for {}: response type: {}, response payload: {}",
+                functionArn, contentType, errorPayload
+            );
         }
-        if (errorPayload != null
-                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())) {
+        if (
+            errorPayload != null
+                && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getMimeType())
+        ) {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task responded with error for function: " + functionArn
-                            + ". Error: " + errorPayload);
+                "Lambda Invoke task responded with error for function: " + functionArn
+                    + ". Error: " + errorPayload
+            );
         } else {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task responded with error for function: " + functionArn);
+                "Lambda Invoke task responded with error for function: " + functionArn
+            );
         }
     }
 
     @VisibleForTesting
     Output handleContent(RunContext runContext, String functionArn, ContentType contentType,
-            SdkBytes payload) {
+        SdkBytes payload) {
+        var logger = runContext.logger();
         try (var dataStream = payload.asInputStream()) {
             File tempFile = runContext.workingDir().createTempFile().toFile();
             // noinspection ResultOfMethodCallIgnored
@@ -232,17 +330,20 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             // Doing the same as in S3Service.download()
             runContext.metric(Counter.of("file.size", size));
             var uri = runContext.storage().putFile(tempFile);
-            if (log.isDebugEnabled()) {
-                log.debug("Lambda invokation task completed {}: response type: {}, file: `{}",
-                        functionArn, contentType, uri);
+            if (logger.isDebugEnabled()) {
+                logger.debug(
+                    "Lambda invokation task completed {}: response type: {}, file: `{}",
+                    functionArn, contentType, uri
+                );
             }
             return Output.builder()
-                    .uri(uri)
-                    .contentLength(size)
-                    .contentType(contentType.toString()).build();
+                .uri(uri)
+                .contentLength(size)
+                .contentType(contentType.toString()).build();
         } catch (IOException e) {
             throw new LambdaInvokeException(
-                    "Lambda Invoke task failed to read data for function: " + functionArn, e);
+                "Lambda Invoke task failed to read data for function: " + functionArn, e
+            );
         }
     }
 
@@ -251,18 +352,20 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "Response file URI."
+            title = "Response file URI",
+            description = "Internal storage URI of the Lambda response body."
         )
         private final URI uri;
 
         @Schema(
-            title = "Size of the response content in bytes."
+            title = "Content length (bytes)"
         )
 
         private final Long contentLength;
 
         @Schema(
-            title = "A standard MIME type describing the format of the content."
+            title = "Content type",
+            description = "MIME type parsed from the Lambda response headers."
         )
         private final String contentType;
     }

@@ -1,10 +1,11 @@
 package io.kestra.plugin.aws.lambda;
 
 import java.io.IOException;
+
 import software.amazon.awssdk.services.lambda.model.LambdaException;
 
 /**
- * AWS Lambda invocation exception caused by the function failure or a problem of handling its response. 
+ * AWS Lambda invocation exception caused by the function failure or a problem of handling its response.
  */
 public class LambdaInvokeException extends RuntimeException {
 
@@ -36,5 +37,5 @@ public class LambdaInvokeException extends RuntimeException {
     LambdaInvokeException(String message) {
         super(message);
     }
-    
+
 }

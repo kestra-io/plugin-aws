@@ -1,0 +1,42 @@
+name: Release Plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: "Release version (e.g. 1.2.0)"
+        required: true
+      nextVersion:
+        description: "Next version (e.g. 1.3.0-SNAPSHOT)"
+        required: false
+      kestraVersion:
+        description: "Kestra core version (e.g. 1.1.0)"
+        required: false
+      dryRun:
+        description: "If true, simulate the release without pushing or tagging"
+        required: false
+        default: "false"
+      commitsList:
+        description: "(ONLY FOR HOTFIXES) Comma-separated list of SHA1 commits to cherry-pick before creating the release tag. Example: abc123,def456"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Release plugin using reusable action
+        uses: kestra-io/actions/composite/plugin-release@main
+        with:
+          gh-app-id: ${{ secrets.GH_BOT_APP_ID }}
+          gh-app-private-key: ${{ secrets.GH_BOT_PRIVATE_KEY }}
+          releaseVersion: ${{ github.event.inputs.releaseVersion }}
+          kestraVersion: ${{ github.event.inputs.kestraVersion }}
+          nextVersion: ${{ github.event.inputs.nextVersion }}
+          dryRun: ${{ github.event.inputs.dryRun }}
+          commitsList: ${{ github.event.inputs.commitsList }}

@@ -1,11 +1,12 @@
 package io.kestra.plugin.aws.dynamodb;
 
-import io.kestra.core.models.property.Property;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import software.amazon.awssdk.services.dynamodb.model.*;
-
 import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.models.property.Property;
+
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -17,11 +18,11 @@ class GetItemTest extends AbstractDynamoDbTest {
         var runContext = runContextFactory.of();
 
         var get = GetItem.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.DYNAMODB).toString()))
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .tableName(Property.ofValue("persons"))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
             .key(Property.ofValue(Map.of("id", "1")))
             .build();
 
@@ -30,13 +31,13 @@ class GetItemTest extends AbstractDynamoDbTest {
         // create something to get
         try (var dynamoDbClient = get.client(runContext)) {
             Map<String, AttributeValue> item = Map.of(
-                "id",  AttributeValue.builder().s("1").build(),
-                "firstname",  AttributeValue.builder().s("John").build(),
-                "lastname",  AttributeValue.builder().s("Doe").build()
+                "id", AttributeValue.builder().s("1").build(),
+                "firstname", AttributeValue.builder().s("John").build(),
+                "lastname", AttributeValue.builder().s("Doe").build()
             );
 
             var putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);

@@ -1,10 +1,20 @@
 package io.kestra.plugin.aws.eventbridge;
 
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -18,6 +28,7 @@ import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -27,14 +38,6 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResponse;
 import software.amazon.awssdk.services.eventbridge.model.PutEventsResultEntry;
-
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -46,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules.",
+            title = "Send multiple custom events as maps to Amazon EventBridge so that they can be matched to rules",
             full = true,
             code = """
                 id: aws_event_bridge_put_events
@@ -67,7 +70,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 """
         ),
         @Example(
-            title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules.",
+            title = "Send multiple custom events as a JSON string to Amazon EventBridge so that they can be matched to rules",
             full = true,
             code = """
                 id: aws_event_bridge_put_events
@@ -83,15 +86,42 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                       - eventBusName: "events"
                         source: "Kestra"
                         detailType: "my_object"
-                        detail: "{\"message\": \"hello from EventBridge and Kestra\"}"
+                        detail: '{"message": "hello from EventBridge and Kestra"}'
                         resources:
                           - "arn:aws:iam::123456789012:user/johndoe"
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "eventbridge.put.events.duration",
+            type = Timer.TYPE,
+            unit = "nanoseconds",
+            description = "Duration of the PutEvents operation."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.failed",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Number of events that failed to be published to the EventBridge event bus."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.successful",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Number of events successfully published to the EventBridge event bus."
+        ),
+        @Metric(
+            name = "eventbridge.put.events.total",
+            type = Counter.TYPE,
+            unit = "events",
+            description = "Total number of events sent to the EventBridge event bus."
+        )
     }
 )
 @Schema(
-    title = "Send custom events to Amazon EventBridge for rule matching."
+    title = "Send events to Amazon EventBridge",
+    description = "Publishes one or more events to EventBridge. Supports inline entries or a kestra:// URI containing serialized Entry objects. Records per-event success/failure metrics; optionally fails when any entry is rejected (failOnUnsuccessfulEvents default true)."
 )
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -99,18 +129,19 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
     @NotNull
     @Schema(
-        title = "Mark the task as failed when sending an event is unsuccessful.",
-        description = "If true, the task will fail when any event fails to be sent."
+        title = "Fail on unsuccessful events",
+        description = "If true (default), task fails when EventBridge rejects at least one entry."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> failOnUnsuccessfulEvents = Property.ofValue(true);
 
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @Schema(
-        title = "List of event entries to send to, or internal storage URI to retrieve it.",
-        description = "A list of at least one EventBridge entry.",
-        oneOf = {String.class, Entry[].class}
+        title = "Event entries",
+        description = "List of EventBridge entries or a kestra:// URI pointing to serialized entries (ION).",
+        oneOf = { String.class, Entry[].class }
     )
     private Object entries;
 
@@ -123,10 +154,10 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         PutEventsResponse putEventsResponse = putEvents(runContext, entryList);
 
         // Set metrics
-        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("failedEntryCount", putEventsResponse.failedEntryCount()));
-        runContext.metric(Counter.of("successfulEntryCount", entryList.size() - putEventsResponse.failedEntryCount()));
-        runContext.metric(Counter.of("entryCount", entryList.size()));
+        runContext.metric(Timer.of("eventbridge.put.events.duration", Duration.ofNanos(System.nanoTime() - start)));
+        runContext.metric(Counter.of("eventbridge.put.events.failed", putEventsResponse.failedEntryCount()));
+        runContext.metric(Counter.of("eventbridge.put.events.successful", entryList.size() - putEventsResponse.failedEntryCount()));
+        runContext.metric(Counter.of("eventbridge.put.events.total", entryList.size()));
 
         // Fail if failOnUnsuccessfulEvents
         if (runContext.render(failOnUnsuccessfulEvents).as(Boolean.class).orElseThrow() && putEventsResponse.failedEntryCount() > 0) {
@@ -187,7 +218,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid entries parameter, must be a Kestra internal storage URI, or a list of entries.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+            try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
                 return FileSerde.readAll(inputStream, Entry.class)
                     .collectList().block();
             }
@@ -204,7 +235,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The URI of the stored data.",
+            title = "The URI of the stored data",
             description = "The successfully and unsuccessfully ingested events. " +
                 "If the ingestion was successful, the entry has the event ID in it. " +
                 "Otherwise, you can use the error code and error message to identify the problem with the entry."
@@ -212,12 +243,12 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         private URI uri;
 
         @Schema(
-            title = "The number of failed entries."
+            title = "The number of failed entries"
         )
         private int failedEntryCount;
 
         @Schema(
-            title = "The total number of entries."
+            title = "The total number of entries"
         )
         private int entryCount;
 
@@ -231,22 +262,22 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
     @Getter
     public static class OutputEntry {
         @Schema(
-            title = "The ID of the event."
+            title = "The ID of the event"
         )
         private final String eventId;
 
         @Schema(
-            title = "The error code that indicates why the event submission failed."
+            title = "The error code that indicates why the event submission failed"
         )
         private final String errorCode;
 
         @Schema(
-            title = "The error message that explains why the event submission failed."
+            title = "The error message that explains why the event submission failed"
         )
         private final String errorMessage;
 
         @Schema(
-            title = "The original entry."
+            title = "The original entry"
         )
         private final Entry entry;
     }

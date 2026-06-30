@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -7,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -16,20 +19,19 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 
-import java.util.Map;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete an item from a DynamoDB table."
+    title = "Delete a DynamoDB item by key",
+    description = "Deletes a single item using the provided primary key. No condition expression is applied."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Delete an item by its key.",
+            title = "Delete an item by its key",
             full = true,
             code = """
                 id: aws_dynamodb_delete_item
@@ -50,9 +52,10 @@ import java.util.Map;
 )
 public class DeleteItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item key.",
-        description = "The DynamoDB item identifier."
+        title = "Item key",
+        description = "Full primary key map (partition key, plus sort key when applicable)."
     )
+    @PluginProperty(group = "connection")
     private Property<Map<String, Object>> key;
 
     @Override

@@ -1,76 +1,88 @@
 package io.kestra.plugin.aws;
 
+import java.time.Duration;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
-import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.Duration;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface AbstractConnectionInterface {
 
     Duration AWS_MIN_STS_ROLE_SESSION_DURATION = Duration.ofSeconds(900);
 
     @Schema(
-        title = "Access Key Id in order to connect to AWS.",
+        title = "Access Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced", secret = true)
     Property<String> getAccessKeyId();
 
     @Schema(
-        title = "Secret Key Id in order to connect to AWS.",
+        title = "Secret Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced", secret = true)
     Property<String> getSecretKeyId();
 
     @Schema(
-        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
+        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "connection", secret = true)
     Property<String> getSessionToken();
 
     @Schema(
-        title = "AWS STS Role.",
+        title = "AWS STS Role",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleArn();
 
     @Schema(
-        title = "AWS STS External Id.",
+        title = "AWS STS External Id",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleExternalId();
 
     @Schema(
-        title = "AWS STS Session name.",
+        title = "AWS STS Session name",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsRoleSessionName();
 
     @Schema(
-        title = "AWS STS Session duration.",
+        title = "AWS STS Session duration",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
+    @PluginProperty(group = "execution")
     Property<Duration> getStsRoleSessionDuration();
 
     @Schema(
-        title = "The AWS STS endpoint with which the SDKClient should communicate."
+        title = "The AWS STS endpoint with which the SDKClient should communicate"
     )
+    @PluginProperty(group = "advanced")
     Property<String> getStsEndpointOverride();
 
     @Schema(
-        title = "AWS region with which the SDK should communicate."
+        title = "AWS region with which the SDK should communicate"
     )
+    @PluginProperty(group = "connection")
     Property<String> getRegion();
 
     @Schema(
-        title = "The endpoint with which the SDK should communicate.",
+        title = "The endpoint with which the SDK should communicate",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getEndpointOverride();
 
     @Schema(
-        title = "Enable compatibility mode.",
+        title = "Enable compatibility mode",
         description = "Use it to connect to S3 bucket with S3 compatible services that don't support the new transport client."
     )
     default Property<Boolean> getCompatibilityMode() {
@@ -78,10 +90,10 @@ public interface AbstractConnectionInterface {
     }
 
     @Schema(
-        title = "Force path style access.",
+        title = "Force path style access",
         description = "Must only be used when `compatibilityMode` is enabled."
     )
-    default Property<Boolean> getForcePathStyle()  {
+    default Property<Boolean> getForcePathStyle() {
         return Property.ofValue(false);
     }
 

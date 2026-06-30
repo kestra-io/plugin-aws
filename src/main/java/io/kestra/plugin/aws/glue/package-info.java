@@ -1,7 +1,6 @@
 @PluginSubGroup(
-    description = "This sub-group of plugins contains tasks for using AWS Glue.\n" +
-                  "AWS Glue is a serverless data integration service that makes it easy to discover, prepare, and combine data for analytics, machine learning, and application development.",
-    categories = {PluginSubGroup.PluginCategory.CLOUD, PluginSubGroup.PluginCategory.TRANSFORMATION}
+    description = "Tasks that control AWS Glue jobs: start runs with arguments, monitor their status, stop executions, and fetch job metadata to orchestrate serverless Spark ETL pipelines.",
+    categories = { PluginSubGroup.PluginCategory.CLOUD, PluginSubGroup.PluginCategory.DATA }
 )
 package io.kestra.plugin.aws.glue;
 

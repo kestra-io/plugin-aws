@@ -1,12 +1,16 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -14,9 +18,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import software.amazon.awssdk.services.emr.EmrClient;
-
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -26,12 +27,13 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Terminate one or multiple AWS EMR cluster."
+    title = "Terminate EMR clusters by ID",
+    description = "Calls TerminateJobFlows on the provided cluster IDs without waiting for final state. Requires permissions on each cluster."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Shutdown a couple of EMR cluster providing their IDs.",
+            title = "Shutdown a couple of EMR cluster providing their IDs",
             full = true,
             code = """
                 id: aws_emr_delete_cluster
@@ -51,13 +53,17 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
     }
 )
 public class DeleteCluster extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster IDs.", description = "List of cluster IDs to be terminated.")
+    @Schema(
+        title = "Cluster IDs",
+        description = "Job flow IDs to terminate, e.g., j-XXXXXXXXXXXXX."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<String>> clusterIds;
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (EmrClient emrClient = this.client(runContext)) {
+        try (var emrClient = this.emrClient(runContext)) {
             emrClient.terminateJobFlows(throwConsumer(request -> request.jobFlowIds(runContext.render(this.clusterIds).asList(String.class))));
             return null;
         }

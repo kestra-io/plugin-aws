@@ -1,10 +1,11 @@
 package io.kestra.plugin.aws.s3;
 
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -61,5 +62,107 @@ class ListTest extends AbstractTest {
             .build();
         run = task.run(runContext(task));
         assertThat(run.getObjects().size(), is(1));
+    }
+
+    @Test
+    void maxFilesExceeded() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        // List with maxFiles=3 (less than 5 files) - should return first 3 files (truncated)
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxFiles(Property.ofValue(3))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(3));
+    }
+
+    @Test
+    void maxFilesNotExceeded() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        // Upload 5 files
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        // List with maxFiles=10 (more than 5 files) - should return all 5 files
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxFiles(Property.ofValue(10))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(5));
+    }
+
+    @Test
+    void maxFilesDefault() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        // Upload 30 files (more than default limit of 25)
+        for (int i = 0; i < 30; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        // List WITHOUT specifying maxFiles - should use default of 25 and return first 25 files
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(25));
+    }
+
+    @Test
+    void maxKeysTotalCap() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(3))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(3));
+    }
+
+    @Test
+    void paginatesWhenMaxKeysIsSmall() throws Exception {
+        this.createBucket();
+
+        String dir = IdUtils.create();
+
+        for (int i = 0; i < 5; i++) {
+            upload("/tasks/s3/" + dir);
+        }
+
+        List task = list()
+            .prefix(Property.ofValue("/tasks/s3/" + dir))
+            .maxKeys(Property.ofValue(100))
+            .maxFiles(Property.ofValue(100))
+            .build();
+        List.Output run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(5));
     }
 }

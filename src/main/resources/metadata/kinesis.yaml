@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.kinesis
+name: "kinesis"
+title: "AWS Kinesis"
+description: "Tasks that write batches of records to Amazon Kinesis Data Streams with partition keys for high-throughput, real-time ingestion pipelines."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

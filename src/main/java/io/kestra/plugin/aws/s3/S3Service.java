@@ -1,5 +1,16 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -7,26 +18,18 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
+
 import software.amazon.awssdk.crt.CRT;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwPredicate;
 
@@ -55,8 +58,35 @@ public class S3Service {
 
             runContext.metric(Counter.of("file.size", response.contentLength()));
 
+            if (request.checksumMode() == ChecksumMode.ENABLED && extractChecksum(response).getLeft() == null) {
+                runContext.logger().warn(
+                    "Checksum validation requested for key '{}' but the object has no stored checksum; transfer was not verified.",
+                    request.key()
+                );
+            }
+
             return Pair.of(response, runContext.storage().putFile(tempFile));
         }
+    }
+
+    /**
+     * Returns the first non-null checksum from a {@link GetObjectResponse} as an (algorithm, base64-value) pair.
+     * Both elements are null when the response carries no checksum.
+     */
+    public static Pair<String, String> extractChecksum(GetObjectResponse response) {
+        if (response.checksumSHA256() != null) {
+            return Pair.of("SHA256", response.checksumSHA256());
+        }
+        if (response.checksumSHA1() != null) {
+            return Pair.of("SHA1", response.checksumSHA1());
+        }
+        if (response.checksumCRC32() != null) {
+            return Pair.of("CRC32", response.checksumCRC32());
+        }
+        if (response.checksumCRC32C() != null) {
+            return Pair.of("CRC32C", response.checksumCRC32C());
+        }
+        return Pair.of(null, null);
     }
 
     static void performAction(
@@ -65,8 +95,7 @@ public class S3Service {
         Copy.CopyObject moveTo,
         RunContext runContext,
         AbstractS3ObjectInterface abstractS3Object,
-        AbstractConnectionInterface abstractS3
-    ) throws Exception {
+        AbstractConnectionInterface abstractS3) throws Exception {
         var renderedAction = runContext.render(action).as(ActionInterface.Action.class).orElseThrow();
         if (renderedAction == ActionInterface.Action.DELETE) {
             for (S3Object object : s3Objects) {
@@ -105,16 +134,21 @@ public class S3Service {
                     .stsRoleSessionName(abstractS3.getStsRoleSessionName())
                     .stsRoleSessionDuration(abstractS3.getStsRoleSessionDuration())
                     .stsEndpointOverride(abstractS3.getStsEndpointOverride())
-                    .from(Copy.CopyObjectFrom.builder()
-                        .bucket(abstractS3Object.getBucket())
-                        .key(Property.ofValue(object.getKey()))
-                        .build()
+                    .from(
+                        Copy.CopyObjectFrom.builder()
+                            .bucket(abstractS3Object.getBucket())
+                            .key(Property.ofValue(object.getKey()))
+                            .build()
                     )
-                    .to(moveTo.toBuilder()
-                        .key(Property.ofValue(StringUtils.stripEnd(moveTo.getKey() + "/", "/")
-                            + "/" + FilenameUtils.getName(object.getKey())
-                        ))
-                        .build()
+                    .to(
+                        moveTo.toBuilder()
+                            .key(
+                                Property.ofValue(
+                                    StringUtils.stripEnd(moveTo.getKey() + "/", "/")
+                                        + "/" + FilenameUtils.getName(object.getKey())
+                                )
+                            )
+                            .build()
                     )
                     .delete(Property.ofValue(true))
                     .build();
@@ -124,9 +158,12 @@ public class S3Service {
     }
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
-        ListObjectsRequest.Builder builder = ListObjectsRequest.builder()
+        int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
+
+        ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
             .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            .maxKeys(runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000));
+            // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages
+            .maxKeys(Math.min(rMaxKeys, 1000));
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -136,8 +173,9 @@ public class S3Service {
             builder.delimiter(runContext.render(list.getDelimiter()).as(String.class).orElseThrow());
         }
 
+        // V2 uses startAfter instead of marker (same "list after this key" semantics).
         if (list.getMarker() != null) {
-            builder.marker(runContext.render(list.getMarker()).as(String.class).orElseThrow());
+            builder.startAfter(runContext.render(list.getMarker()).as(String.class).orElseThrow());
         }
 
         if (list.getEncodingType() != null) {
@@ -153,23 +191,45 @@ public class S3Service {
         }
 
         String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
+        var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
 
-        ListObjectsResponse listObjectsResponse = client.listObjects(builder.build());
+        ListObjectsV2Request baseRequest = builder.build();
+        List<software.amazon.awssdk.services.s3.model.S3Object> allContents = new ArrayList<>();
 
-        return listObjectsResponse
-            .contents()
-            .stream()
-            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow())))
+        ListObjectsV2Request currentRequest = baseRequest;
+        ListObjectsV2Response response;
+        do {
+            response = client.listObjectsV2(currentRequest);
+            allContents.addAll(response.contents());
+
+            // maxKeys is a total cap across pages, the per-page size is capped at 1000 by S3.
+            if (allContents.size() >= rMaxKeys) {
+                break;
+            }
+
+            if (response.isTruncated()) {
+                String nextToken = response.nextContinuationToken();
+                if (nextToken == null) {
+                    // Guard: isTruncated=true but no token returned, stop to avoid an infinite loop.
+                    runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no continuation token available.");
+                    break;
+                }
+                currentRequest = baseRequest.toBuilder().continuationToken(nextToken).build();
+            }
+        } while (response.isTruncated());
+
+        var contents = allContents.size() > rMaxKeys ? allContents.subList(0, rMaxKeys) : allContents;
+
+        return contents.stream()
+            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
             .map(S3Object::of)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
-        return
-            (regExp == null || object.key().matches(regExp)) &&
+        return (regExp == null || object.key().matches(regExp)) &&
             (filter == ListInterface.Filter.BOTH ||
                 (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
-                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/"))
-            );
+                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/")));
     }
 }

@@ -1,1 +1,7 @@
-echo $AWS_APPLICATION | base64 -d > src/test/resources/application-test.yml
+cat > src/test/resources/application-test.yml << EOF
+kestra:
+  variables:
+    globals:
+      awsAccessKeyId: ${AWS_ACCESS_KEY}
+      awsSecretAccessKey: ${AWS_SECRET_ACCESS_KEY}
+EOF

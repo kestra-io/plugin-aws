@@ -1,12 +1,17 @@
 package io.kestra.plugin.aws.glue;
 
+import java.time.ZonedDateTime;
+import java.util.Comparator;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.glue.model.Output;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -17,9 +22,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
-import java.time.ZonedDateTime;
-import java.util.Comparator;
-
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 
 @SuperBuilder
@@ -28,7 +30,8 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get the status of an AWS Glue job run."
+    title = "Get Glue job run status",
+    description = "Retrieves details for a specific Glue job run; if runId is absent, fetches the latest run for the job."
 )
 @Plugin(
     examples = {
@@ -69,20 +72,23 @@ import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
 )
 public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> {
     @Schema(
-        title = "The name of the Glue job"
+        title = "Job name",
+        description = "Glue job whose run status is requested."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> jobName;
 
     @Schema(
-        title = "The ID of the job run to get status for",
-        description = "If the job ID is not provided, the task will automatically retrieve the latest job run."
+        title = "Run ID",
+        description = "Specific run ID; when omitted, the latest run is selected."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> runId;
 
     @Override
     public Output run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try (GlueClient glueClient = this.client(runContext)) {
+        try (GlueClient glueClient = this.glueClient(runContext)) {
             String jobNameValue = runContext.render(this.jobName).as(String.class).orElseThrow();
             String runIdValue = null;
 
@@ -128,10 +134,8 @@ public class GetJobRun extends AbstractGlueTask implements RunnableTask<Output> 
                 .jobRunId(response.jobRun().id())
                 .state(response.jobRun().jobRunStateAsString())
                 .startedOn(ZonedDateTime.parse(response.jobRun().startedOn().toString()))
-                .completedOn(response.jobRun().completedOn() != null ?
-                    ZonedDateTime.parse(response.jobRun().completedOn().toString()) : null)
-                .lastModifiedOn(response.jobRun().lastModifiedOn() != null ?
-                    ZonedDateTime.parse(response.jobRun().lastModifiedOn().toString()) : null)
+                .completedOn(response.jobRun().completedOn() != null ? ZonedDateTime.parse(response.jobRun().completedOn().toString()) : null)
+                .lastModifiedOn(response.jobRun().lastModifiedOn() != null ? ZonedDateTime.parse(response.jobRun().lastModifiedOn().toString()) : null)
                 .executionTime(response.jobRun().executionTime())
                 .timeout(response.jobRun().timeout())
                 .attempt(response.jobRun().attempt())

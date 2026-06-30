@@ -1,6 +1,16 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+
+import org.testcontainers.junit.jupiter.Testcontainers;
+
 import com.google.common.collect.ImmutableMap;
+
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
@@ -9,22 +19,13 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import io.kestra.plugin.aws.AbstractFlociTest;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Objects;
+import jakarta.inject.Inject;
 
 @KestraTest
 @Testcontainers
-public abstract class AbstractTest extends AbstractLocalStackTest {
+public abstract class AbstractTest extends AbstractFlociTest {
     @Inject
     protected final String BUCKET = IdUtils.create().toLowerCase();
     @Inject
@@ -33,9 +34,13 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
     protected StorageInterface storageInterface;
 
     protected static File file() throws URISyntaxException {
-        return new File(Objects.requireNonNull(AbstractTest.class.getClassLoader()
-                .getResource("application.yml"))
-            .toURI());
+        return new File(
+            Objects.requireNonNull(
+                AbstractTest.class.getClassLoader()
+                    .getResource("application.yml")
+            )
+                .toURI()
+        );
     }
 
     protected String createBucket() throws Exception {
@@ -47,10 +52,12 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(CreateBucket.class.getName())
             .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .build();
 
         CreateBucket.Output createOutput = createBucket.run(runContext(createBucket));
@@ -79,10 +86,12 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
             .id(AllTest.class.getSimpleName())
             .type(Upload.class.getName())
             .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
             .key(Property.ofValue(dir + "/" + out + ".yml"))
             .build();
@@ -91,15 +100,47 @@ public abstract class AbstractTest extends AbstractLocalStackTest {
         return upload.getKey().toString();
     }
 
+    protected String update(String key, String bucket) throws Exception {
+        String content = "updated file: " + IdUtils.create();
+        InputStream input = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+
+        URI source = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI("/" + IdUtils.create()),
+            input
+        );
+
+        Upload upload = Upload.builder()
+            .id(AllTest.class.getSimpleName())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .build();
+
+        upload.run(runContext(upload));
+
+        return key;
+    }
+
     protected List.ListBuilder<?, ?> list() {
         return List.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .bucket(Property.ofValue(this.BUCKET))
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
-            .region(Property.ofValue(localstack.getRegion()));
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true));
     }
 
     protected RunContext runContext(Task task) {

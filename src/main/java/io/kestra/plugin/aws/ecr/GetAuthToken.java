@@ -1,5 +1,8 @@
 package io.kestra.plugin.aws.ecr;
 
+import java.util.Base64;
+import java.util.List;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,14 +12,12 @@ import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.ecr.EcrClient;
 import software.amazon.awssdk.services.ecr.model.AuthorizationData;
-
-import java.util.Base64;
-import java.util.List;
 
 @SuperBuilder
 @ToString
@@ -24,12 +25,13 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Retrieve an AWS ECR token to push or pull Docker images."
+    title = "Get an ECR authorization token",
+    description = "Fetches a short-lived Basic auth password for Docker push/pull to Amazon ECR by calling GetAuthorizationToken. Returns only the password portion (username is always AWS)."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Retrieve the AWS ECR authorization token.",
+            title = "Retrieve the AWS ECR authorization token",
             full = true,
             code = """
                 id: aws_ecr_get_auth_token
@@ -66,7 +68,7 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
         }
     }
 
-    private EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+    protected EcrClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, EcrClient.builder()).build();
     }
@@ -76,8 +78,8 @@ public class GetAuthToken extends AbstractConnection implements RunnableTask<Get
     public static class TokenOutput implements Output {
 
         @Schema(
-            title = "AWS ECR authorization token.",
-            description = "Will be automatically encrypted and decrypted in the outputs if encryption is configured"
+            title = "ECR password token",
+            description = "Password extracted from the Base64 Basic auth token; encrypted in outputs when supported."
         )
         private EncryptedString token;
 

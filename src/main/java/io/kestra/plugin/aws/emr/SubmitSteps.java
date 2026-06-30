@@ -1,13 +1,17 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.emr.models.StepConfig;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -15,8 +19,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import java.util.List;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -27,7 +29,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Add steps to an existing AWS EMR cluster."
+    title = "Submit EMR steps to a running cluster",
+    description = "Appends one or more job steps to an existing EMR cluster using the AddJobFlowSteps API. Steps run in listed order and honor each step's actionOnFailure; use executionRoleArn when a step needs a specific runtime role."
 )
 @Plugin(
     examples = {
@@ -56,38 +59,47 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 public class SubmitSteps extends AbstractEmrTask implements RunnableTask<VoidOutput> {
-    @Schema(title = "Cluster ID.")
+    @Schema(
+        title = "Cluster ID",
+        description = "Identifier of the existing EMR cluster (jobFlowId)."
+    )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> clusterId;
 
     @Schema(
         title = "Steps",
-        description = "List of steps to add to the existing cluster."
+        description = "Steps to append to the cluster; they execute in the order provided."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private List<StepConfig> steps;
 
     @Schema(
-        title = "Execution role ARN.",
+        title = "Execution role ARN",
         description = """
-        The Amazon Resource Name (ARN) of the runtime role for a step on the cluster. The runtime role can be a cross-account IAM role.
-        The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.
-        """
+            The Amazon Resource Name (ARN) of the runtime role for a step on the cluster. The runtime role can be a cross-account IAM role.
+            The runtime role ARN is a combination of account ID, role name, and role type using the following format: arn:partition:service:region:account:resource.
+            """
     )
+    @PluginProperty(group = "advanced")
     private Property<String> executionRoleArn;
 
     @Override
     public VoidOutput run(RunContext runContext) throws IllegalVariableEvaluationException {
-        try(var emrClient = this.client(runContext)) {
+        try (var emrClient = this.emrClient(runContext)) {
             List<software.amazon.awssdk.services.emr.model.StepConfig> jobSteps = steps.stream()
                 .map(throwFunction(stepConfig -> stepConfig.toStep(runContext)))
                 .toList();
 
-            emrClient.addJobFlowSteps(throwConsumer(request -> request
-                .steps(jobSteps)
-                .jobFlowId(runContext.render(this.clusterId).as(String.class).orElseThrow())
-                .executionRoleArn(runContext.render(this.executionRoleArn).as(String.class).orElse(null))
-            ));
+            emrClient.addJobFlowSteps(
+                throwConsumer(
+                    request -> request
+                        .steps(jobSteps)
+                        .jobFlowId(runContext.render(this.clusterId).as(String.class).orElseThrow())
+                        .executionRoleArn(runContext.render(this.executionRoleArn).as(String.class).orElse(null))
+                )
+            );
             return null;
         }
     }

@@ -7,6 +7,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -26,72 +27,82 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
             title = "Create a new bucket with some options",
             full = true,
             code = """
-            id: aws_s3_create_bucket
-            namespace: company.team
+                id: aws_s3_create_bucket
+                namespace: company.team
 
-            inputs:
-              - id: bucket
-                type: STRING
-                defaults: my-bucket
+                inputs:
+                  - id: bucket
+                    type: STRING
+                    defaults: my-bucket
 
-              - id: region
-                type: STRING
-                defaults: eu-central-1
-            
-            tasks:
-              - id: create_bucket
-                type: io.kestra.plugin.aws.s3.CreateBucket
-                accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
-                region: "{{ inputs.region }}"
-                bucket: "{{ inputs.bucket }}"
-            """
+                  - id: region
+                    type: STRING
+                    defaults: eu-central-1
+
+                tasks:
+                  - id: create_bucket
+                    type: io.kestra.plugin.aws.s3.CreateBucket
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "{{ inputs.region }}"
+                    bucket: "{{ inputs.bucket }}"
+                """
         )
     }
 )
 @Schema(
-    title = "Create an S3 bucket."
+    title = "Create an S3 bucket",
+    description = "Creates a new bucket with optional ACL grants and Object Lock enablement. Uses provided region/endpoint from connection settings."
 )
 public class CreateBucket extends AbstractConnection implements AbstractS3, RunnableTask<CreateBucket.Output> {
     @Schema(
-        description = "The S3 bucket name to create."
+        title = "Bucket name",
+        description = "Name of the bucket to create."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> bucket;
 
     @Schema(
         description = "Allows grantee the read, write, read ACP, and write ACP permissions on the bucket."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> grantFullControl;
 
     @Schema(
-        title = "Allows grantee to list the objects in the bucket."
+        title = "Allows grantee to list the objects in the bucket"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> grantRead;
 
     @Schema(
-        title = "Allows grantee to list the ACL for the applicable bucket."
+        title = "Allows grantee to list the ACL for the applicable bucket"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> grantReadACP;
 
     @Schema(
-        title = "Allows grantee to create, overwrite, and delete any object in the bucket."
+        title = "Allows grantee to create, overwrite, and delete any object in the bucket"
     )
+    @PluginProperty(group = "destination")
     private Property<String> grantWrite;
 
     @Schema(
-        title = "Allows grantee to write the ACL for the applicable bucket."
+        title = "Allows grantee to write the ACL for the applicable bucket"
     )
+    @PluginProperty(group = "destination")
     private Property<String> grantWriteACP;
 
     @Schema(
-        title = "The canned ACL to apply to the bucket."
+        title = "The canned ACL to apply to the bucket"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> acl;
 
     @Schema(
-        title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
+        title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket"
     )
+    @PluginProperty(group = "connection")
     private Property<Boolean> objectLockEnabledForBucket;
 
     @Override
@@ -118,7 +129,6 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
                 builder.grantWrite(runContext.render(this.grantWrite).as(String.class).orElseThrow());
             }
 
-
             if (grantWriteACP != null) {
                 builder.grantWriteACP(runContext.render(this.grantWriteACP).as(String.class).orElseThrow());
             }
@@ -144,7 +154,9 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Bucket")
         private final String bucket;
+        @Schema(title = "Region")
         private final String region;
     }
 }

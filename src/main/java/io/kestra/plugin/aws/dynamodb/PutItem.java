@@ -1,6 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.Collections;
+import java.util.Map;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,6 +13,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -16,9 +21,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-
-import java.util.Collections;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -28,7 +30,7 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            title = "Put an item in map form into a table.",
+            title = "Put an item in map form into a table",
             full = true,
             code = """
                 id: aws_dynamodb_put_item
@@ -48,7 +50,7 @@ import java.util.Map;
                 """
         ),
         @Example(
-            title = "Put an item in JSON string form into a table.",
+            title = "Put an item in JSON string form into a table",
             full = true,
             code = """
                 id: aws_dynamodb_put_item
@@ -61,54 +63,54 @@ import java.util.Map;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     tableName: "persons"
-                    item: "{{ outputs.task_id.data | json }}"
+                    item: "{{ outputs.task_id.data | toJson }}"
                 """
         ),
         @Example(
             full = true,
             title = "Add multiple items to a DynamoDB table",
             code = """
-                id: add_items_to_dynamodb
-                namespace: company.team
-                
-                tasks:
-                  - id: first_item_as_map
-                    type: io.kestra.plugin.aws.dynamodb.PutItem
-                    item:
-                      id: 1
-                      flow: "{{ flow.id }}"
-                      task: "{{ task.id }}"
-                
-                  - id: second_item_as_json
-                    type: io.kestra.plugin.aws.dynamodb.PutItem
-                    item: |
-                      {
-                          "id": 2,
-                          "flow": "{{ flow.id }}",
-                          "task": "{{ task.id }}"
-                      }
-                
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws.dynamodb.PutItem
-                    values:
-                      tableName: demo
-                      region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
-            """
+                    id: add_items_to_dynamodb
+                    namespace: company.team
+
+                    tasks:
+                      - id: first_item_as_map
+                        type: io.kestra.plugin.aws.dynamodb.PutItem
+                        item:
+                          id: 1
+                          flow: "{{ flow.id }}"
+                          task: "{{ task.id }}"
+
+                      - id: second_item_as_json
+                        type: io.kestra.plugin.aws.dynamodb.PutItem
+                        item: |
+                          {
+                              "id": 2,
+                              "flow": "{{ flow.id }}",
+                              "task": "{{ task.id }}"
+                          }
+
+                    pluginDefaults:
+                      - type: io.kestra.plugin.aws.dynamodb.PutItem
+                        values:
+                          tableName: demo
+                          region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                          accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                          secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+                """
         )
     }
 )
 @Schema(
-    title = "Put an item into a DynamoDB table.", 
-    description = "If an item with the same key already exists, the element will be updated."
+    title = "Put an item into a DynamoDB table",
+    description = "Creates or replaces an item. Upserts when the key already exists."
 )
 public class PutItem extends AbstractDynamoDb implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The DynamoDB item.",
-        description = "The item can be in the form of a JSON string, or a map."
+        title = "Item",
+        description = "Item content as a JSON string or map; rendered before write."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private Object item;
 
     @Override

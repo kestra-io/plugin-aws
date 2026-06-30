@@ -20,11 +20,11 @@
 
 <p align="center">
   <a href="https://twitter.com/kestra_io" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/twitter.svg" alt="twitter" width="35" height="25" /></a>
+        <img src="https://kestra.io/twitter.svg" alt="twitter" width="35" height="25" /></a>
   <a href="https://www.linkedin.com/company/kestra/" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/linkedin.svg" alt="linkedin" width="35" height="25" /></a> 
+        <img src="https://kestra.io/linkedin.svg" alt="linkedin" width="35" height="25" /></a>
   <a href="https://www.youtube.com/@kestra-io" style="margin: 0 10px;">
-        <img height="25" src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
+        <img src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
 </p>
 <br />
 <p align="center">
@@ -34,13 +34,18 @@
 </p>
 <p align="center" style="color:grey;"><i>Get started with Kestra in 4 minutes.</i></p>
 
-
 # Kestra AWS Plugin
 
-> Plugin to interract with Amazon Web Services (AWS)
+## Why
 
-![Kestra orchestrator](https://kestra.io/video.gif)
+- What user problem does this solve? Teams need to aWS plugin for Kestra from orchestrated workflows instead of relying on manual console work, ad hoc scripts, or disconnected schedulers.
+- Why would a team adopt this plugin in a workflow? It keeps AWS steps in the same Kestra flow as upstream preparation, approvals, retries, notifications, and downstream systems.
+- What operational/business outcome does it enable? It reduces manual handoffs and fragmented tooling while improving reliability, traceability, and delivery speed for processes that depend on AWS.
 
+## What
+
+- Provides plugin components under `io.kestra.plugin.aws`.
+- Includes classes such as `ConnectionUtils`, `Consume`, `PutRecords`, `Trigger`.
 
 ## Documentation
 * Full documentation can be found under [kestra.io/docs](https://kestra.io/docs)

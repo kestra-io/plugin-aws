@@ -1,11 +1,21 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -16,9 +26,8 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.ConnectionUtils;
 import io.kestra.plugin.aws.kinesis.model.Record;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -28,14 +37,6 @@ import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
-
-import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -48,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload.",
+            title = "Send multiple records as maps to Amazon Kinesis Data Streams. Check the following AWS API reference for the structure of the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) request payload",
             full = true,
             code = """
                 id: aws_kinesis_put_records
@@ -70,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 """
         ),
         @Example(
-            title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams.",
+            title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams",
             full = true,
             code = """
                 id: aws_kinesis_put_records
@@ -86,40 +87,70 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     records: kestra:///myfile.ion
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "record.count",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Total number of records attempted to be sent to Kinesis."
+        ),
+        @Metric(
+            name = "record.successful",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Number of records successfully sent to Kinesis."
+        ),
+        @Metric(
+            name = "record.failed",
+            type = Counter.TYPE,
+            unit = "records",
+            description = "Number of records that failed to be sent to Kinesis."
+        ),
+        @Metric(
+            name = "duration",
+            type = Timer.TYPE,
+            unit = "nanoseconds",
+            description = "Execution time for the PutRecords task."
+        )
     }
 )
 @Schema(
-    title = "Send records to Amazon Kinesis Data Streams."
+    title = "Put records to Kinesis Data Streams",
+    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
 )
-public class PutRecords extends AbstractConnection implements RunnableTask<PutRecords.Output> {
+public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
     @NotNull
     @Schema(
-        title = "Mark the task as failed when sending a record is unsuccessful.",
-        description = "If true, the task will fail when any record fails to be sent."
+        title = "Fail on unsuccessful records",
+        description = "If true (default), task fails when at least one record is rejected."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> failOnUnsuccessfulRecords = Property.ofValue(true);
 
     @Schema(
-        title = "The name of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        title = "Stream name",
+        description = "Kinesis stream name; set this or streamArn."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> streamName;
 
     @Schema(
-        title = "The ARN of the stream to push the records.",
-        description = "Make sure to set either `streamName` or `streamArn`. One of those must be provided."
+        title = "Stream ARN",
+        description = "Kinesis stream ARN; set this or streamName."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> streamArn;
 
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @Schema(
-        title = "List of records (i.e., list of maps) or internal storage URI of the file that defines the records to be sent to AWS Kinesis Data Streams.",
-        description = "A list of at least one record with a map including `data` and `partitionKey` properties (those two are required arguments). Check the [PutRecordsRequestEntry](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_PutRecordsRequestEntry.html) API reference for a detailed description of required fields.",
-        anyOf = {String.class, Record[].class}
+        title = "Records",
+        description = "List of records or kestra:// URI to an ION file of records. Each requires data and partitionKey; optional explicitHashKey.",
+        anyOf = { String.class, Record[].class }
     )
     @NotNull
     private Object records;
@@ -141,9 +172,9 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
 
         // Set metrics
         runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("failedRecordCount", putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("successfulRecordCount", records.size() - putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("recordCount", records.size()));
+        runContext.metric(Counter.of("record.failed", putRecordsResponse.failedRecordCount()));
+        runContext.metric(Counter.of("record.successful", records.size() - putRecordsResponse.failedRecordCount()));
+        runContext.metric(Counter.of("record.count", records.size()));
 
         File tempFile = writeOutputFile(runContext, putRecordsResponse, records);
         return Output.builder()
@@ -167,11 +198,9 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
                 throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
             }
 
-
             List<PutRecordsRequestEntry> putRecordsRequestEntryList = records.stream()
                 .map(throwFunction(record -> record.toPutRecordsRequestEntry(runContext)))
                 .collect(Collectors.toList());
-
 
             builder.records(putRecordsRequestEntryList);
             return client.putRecords(builder.build());
@@ -185,7 +214,7 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
             if (!from.getScheme().equals("kestra")) {
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
-            try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
+            try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
                 return FileSerde.readAll(inputStream, Record.class)
                     .collectList().block();
             }
@@ -202,23 +231,20 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             Flux.fromIterable(records)
-                .zipWithIterable(putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
-                    .record(record)
-                    .sequenceNumber(response.sequenceNumber())
-                    .shardId(response.shardId())
-                    .errorCode(response.errorCode())
-                    .errorMessage(response.errorMessage())
-                    .build())
+                .zipWithIterable(
+                    putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
+                        .record(record)
+                        .sequenceNumber(response.sequenceNumber())
+                        .shardId(response.shardId())
+                        .errorCode(response.errorCode())
+                        .errorMessage(response.errorMessage())
+                        .build()
+                )
                 .doOnEach(throwConsumer(outputEntry -> FileSerde.write(stream, outputEntry.get())))
                 .collectList()
                 .block();
         }
         return tempFile;
-    }
-
-    protected KinesisClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
-        final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, KinesisClient.builder()).build();
     }
 
     @Builder
@@ -234,12 +260,12 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
         private URI uri;
 
         @Schema(
-            title = "The number of failed records."
+            title = "The number of failed records"
         )
         private int failedRecordsCount;
 
         @Schema(
-            title = "The total number of records sent to AWS Kinesis Data Streams."
+            title = "The total number of records sent to AWS Kinesis Data Streams"
         )
         private int recordCount;
 
@@ -253,27 +279,27 @@ public class PutRecords extends AbstractConnection implements RunnableTask<PutRe
     @Getter
     public static class OutputEntry {
         @Schema(
-            title = "The sequence number for an individual record result."
+            title = "The sequence number for an individual record result"
         )
         private final String sequenceNumber;
 
         @Schema(
-            title = "The shard ID for an individual record result."
+            title = "The shard ID for an individual record result"
         )
         private final String shardId;
 
         @Schema(
-            title = "The error code that indicates the failure."
+            title = "The error code that indicates the failure"
         )
         private final String errorCode;
 
         @Schema(
-            title = "The error message that explains the failure."
+            title = "The error message that explains the failure"
         )
         private final String errorMessage;
 
         @Schema(
-            title = "The original record."
+            title = "The original record"
         )
         private final Record record;
     }

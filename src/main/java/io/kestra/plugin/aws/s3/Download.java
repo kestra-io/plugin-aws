@@ -1,23 +1,29 @@
 package io.kestra.plugin.aws.s3;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.FileInfo;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.lang3.tuple.Pair;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -41,74 +47,122 @@ import java.util.Map;
                     bucket: "my-bucket"
                     key: "path/to/file"
                 """
+        ),
+        @Example(
+            full = true,
+            title = "Download a file and verify the stored S3 checksum during transfer",
+            code = """
+                id: aws_s3_download_validate_checksum
+                namespace: company.team
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.aws.s3.Download
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    bucket: "my-bucket"
+                    key: "path/to/file"
+                    validateChecksum: true
+                """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "file.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The size of the downloaded file."
         )
     }
 )
 @Schema(
-    title = "Download a file(s) from an S3 bucket.",
-    description = """
-        This task can operate in two modes:
-        1. Single file mode: when providing only the 'key' parameter, it downloads a specific file from S3.
-        2. Multiple files mode: when using filtering parameters (prefix, delimiter, regexp), it downloads multiple files matching the criteria.
-
-        In single file mode, the output contains the properties of a single file (uri, contentLength, etc.).
-        In multiple files mode, the output contains maps that associate each file key with its properties (uris, contentLengths, etc.)."""
+    title = "Download objects from S3",
+    description = "Single-file mode when only key is set; multi-file mode when prefix/delimiter/regexp are provided. Saves downloads to internal storage and returns metadata per object."
 )
 public class Download extends AbstractS3Object implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The key of a file to download",
-        description = "When specified without filtering options (prefix, delimiter, regexp), the task will download a single file."
+        title = "Object key",
+        description = "Key to download in single-file mode."
     )
+    @PluginProperty(group = "connection")
     private Property<String> key;
 
     @Schema(
-        title = "The specific version of the object",
-        description = "This property is only applicable when downloading a single file with the key parameter."
+        title = "Version ID",
+        description = "Specific version to fetch in single-file mode."
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> versionId;
 
     @Schema(
-        title = "If set to true, the task will use the AWS S3 DefaultAsyncClient instead of the S3CrtAsyncClient, which better integrates with S3-compatible services but restricts uploads and downloads to 2GB."
+        title = "Compatibility mode",
+        description = "Use default async client (limits transfers to ~2GB) for S3-compatible endpoints."
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
     @Schema(
-        title = "The prefix of files to download",
-        description = "When specified, the task switches to multiple files mode and downloads all files with keys starting with this prefix."
+        title = "Prefix filter",
+        description = "Enables multi-file mode; downloads keys starting with this prefix."
     )
+    @PluginProperty(group = "source")
     private Property<String> prefix;
 
     @Schema(
-        title = "A character used to group keys",
-        description = "When specified, the task switches to multiple files mode. The API returns all keys that share a common prefix up to the delimiter."
+        title = "Delimiter",
+        description = "Groups keys up to the delimiter; enables multi-file mode."
     )
+    @PluginProperty(group = "processing")
     private Property<String> delimiter;
 
     @Schema(
-        title = "Used for pagination in multiple files mode",
-        description = "This is the key at which a previous listing ended."
+        title = "Marker",
+        description = "Pagination start key for multi-file mode."
     )
+    @PluginProperty(group = "source")
     private Property<String> marker;
 
     @Schema(
-        title = "The maximum number of keys to include in the response in multiple files mode"
+        title = "Max keys",
+        description = "Maximum keys per list request in multi-file mode; default 1000."
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @Schema(
-        title = "A regular expression to filter the keys of the objects to download",
-        description = "When specified, the task switches to multiple files mode and only downloads files matching the pattern."
+        title = "Regexp filter",
+        description = "Regex on keys; enables multi-file mode."
     )
+    @PluginProperty(group = "processing")
     protected Property<String> regexp;
+
+    @Builder.Default
+    @Schema(
+        title = "Max files",
+        description = "Limit returned files in multi-file mode; default 25."
+    )
+    @PluginProperty(group = "processing")
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Schema(
         title = "The account ID of the expected bucket owner",
         description = "Requests will fail with a Forbidden error (access denied) if the bucket is owned by a different account."
     )
+    @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @Schema(
+        title = "Validate checksum after download",
+        description = "When true, requests S3 to return the stored checksum and the AWS SDK verifies the downloaded bytes during transfer. " +
+            "The object must have been uploaded with a checksum algorithm (SHA1, SHA256, CRC32, or CRC32C) for verification to occur; " +
+            "if the object has no stored checksum, a warning is logged and the download is not verified."
+    )
+    @Builder.Default
+    @PluginProperty(group = "reliability")
+    private Property<Boolean> validateChecksum = Property.ofValue(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -119,7 +173,9 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
         } else if (isValidMultipleFilesMode()) {
             return downloadMultipleFiles(runContext, bucket);
         } else {
-            throw new IllegalArgumentException("Invalid configuration: either specify 'key' for single file download or at least one filtering parameter (prefix, delimiter, regexp) for multiple files download");
+            throw new IllegalArgumentException(
+                "Invalid configuration: either specify 'key' for single file download or at least one filtering parameter (prefix, delimiter, regexp) for multiple files download"
+            );
         }
     }
 
@@ -139,6 +195,8 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             GetObjectRequest request = buildGetObjectRequest(runContext, bucket, key);
             Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
+            Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
+
             return Output.builder()
                 .uri(download.getRight())
                 .eTag(download.getLeft().eTag())
@@ -146,6 +204,8 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 .contentType(download.getLeft().contentType())
                 .metadata(download.getLeft().metadata())
                 .versionId(download.getLeft().versionId())
+                .checksumAlgorithm(checksum.getLeft())
+                .checksumValue(checksum.getRight())
                 .build();
         }
     }
@@ -167,6 +227,10 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
         }
 
+        if (runContext.render(this.validateChecksum).as(Boolean.class).orElse(false)) {
+            builder.checksumMode(ChecksumMode.ENABLED);
+        }
+
         return builder.build();
     }
 
@@ -185,14 +249,19 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
                 Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
                 String key = object.getKey();
-                files.put(key, FileInfo.builder()
-                    .uri(download.getRight())
-                    .contentLength(download.getLeft().contentLength())
-                    .contentType(download.getLeft().contentType())
-                    .metadata(download.getLeft().metadata())
-                    .eTag(download.getLeft().eTag())
-                    .versionId(download.getLeft().versionId())
-                    .build());
+                Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
+                files.put(
+                    key, FileInfo.builder()
+                        .uri(download.getRight())
+                        .contentLength(download.getLeft().contentLength())
+                        .contentType(download.getLeft().contentType())
+                        .metadata(download.getLeft().metadata())
+                        .eTag(download.getLeft().eTag())
+                        .versionId(download.getLeft().versionId())
+                        .checksumAlgorithm(checksum.getLeft())
+                        .checksumValue(checksum.getRight())
+                        .build()
+                );
             }
 
             return Output.builder()
@@ -219,6 +288,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
             .expectedBucketOwner(this.expectedBucketOwner)
             .regexp(this.regexp)
             .filter(Property.ofValue(ListInterface.Filter.FILES))
+            .maxFiles(this.maxFiles)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
             .stsRoleExternalId(this.stsRoleExternalId)
@@ -232,27 +302,40 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     @SuperBuilder
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Uri")
         private final URI uri;
 
         @Schema(
-            title = "The size of the body in bytes"
+            title = "Content length (bytes)"
         )
         private final Long contentLength;
 
         @Schema(
-            title = "A standard MIME type describing the format of the object data"
+            title = "Content type"
         )
         private final String contentType;
 
         @Schema(
-            title = "A map of metadata to store with the object in S3"
+            title = "Metadata"
         )
         private final Map<String, String> metadata;
 
         @Schema(
-            title = "Map of object keys to their complete file information (multiple files mode only)"
+            title = "Files",
+            description = "Per-key file info when multi-file mode is used."
         )
         private final Map<String, FileInfo> files;
 
+        @Schema(
+            title = "Checksum algorithm reported by S3",
+            description = "One of SHA1, SHA256, CRC32, CRC32C. Null when validateChecksum was not enabled or the object has no stored checksum."
+        )
+        private final String checksumAlgorithm;
+
+        @Schema(
+            title = "Checksum value reported by S3 (base64-encoded)",
+            description = "Populated when validateChecksum is true and the object has a stored checksum."
+        )
+        private final String checksumValue;
     }
 }

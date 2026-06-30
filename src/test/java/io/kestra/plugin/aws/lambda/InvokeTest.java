@@ -1,14 +1,14 @@
 package io.kestra.plugin.aws.lambda;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.executions.AbstractMetricEntry;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -28,13 +28,13 @@ public class InvokeTest extends AbstractInvokeTest {
     public void givenExistingLambda_whenInvoked_thenOutputOkMetricsOk() throws Exception {
         // Given
         var invoke = Invoke.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .functionArn(Property.ofValue(FUNCTION_NAME))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .build();
 
         var client = invoke.client(context);
@@ -45,38 +45,44 @@ public class InvokeTest extends AbstractInvokeTest {
 
         // Then
         assertNotNull(output.getUri(), "File URI should be present");
-        assertEquals("text/plain; charset=UTF-8", output.getContentType(),
-            "Output content type should be present");
+        assertEquals(
+            "application/json", output.getContentType(),
+            "Output content type should be present"
+        );
         assertTrue(output.getContentLength() > 10, "Output content length should have a value");
         assertTrue(
             context.metrics().stream().filter(m -> m.getName().equals("file.size"))
                 .map(AbstractMetricEntry::getValue).findFirst().isPresent(),
-            "Metric file.size should be present");
+            "Metric file.size should be present"
+        );
         assertTrue(
             context.metrics().stream().filter(m -> m.getName().equals("duration"))
                 .map(AbstractMetricEntry::getValue).findFirst().isPresent(),
-            "Metric duration should be present");
+            "Metric duration should be present"
+        );
     }
 
     @Test
     public void givenNotFoundLambda_whenInvoked_thenErrorNoMetrics() throws Exception {
         // Given
         var invoke = Invoke.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .functionArn(Property.ofValue("Fake_ARN"))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .build();
 
         var client = invoke.client(context);
         createFunction(client);
 
         // When
-        assertThrows(LambdaInvokeException.class, () -> invoke.run(context),
-            "Invocation should thrown an exception");
+        assertThrows(
+            LambdaInvokeException.class, () -> invoke.run(context),
+            "Invocation should thrown an exception"
+        );
 
         // Then
         assertTrue(context.metrics().isEmpty(), "Metrics should not be present");
@@ -89,22 +95,24 @@ public class InvokeTest extends AbstractInvokeTest {
         // ask for an error in the Lambda by function param (see test resource lambda/test.py)
         params.put("action", "error");
         var invoke = Invoke.builder()
-            .endpointOverride(Property.ofValue(localstack.getEndpointOverride(LocalStackContainer.Service.LAMBDA).toString()))
+            .endpointOverride(Property.ofValue(endpointUrl()))
             .functionArn(Property.ofValue(FUNCTION_NAME))
             .functionPayload(Property.ofValue(params))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
-            .region(Property.ofValue(localstack.getRegion()))
-            .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-            .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .build();
 
         var client = invoke.client(context);
         createFunction(client);
 
         // When
-        assertThrows(LambdaInvokeException.class, () -> invoke.run(context),
-            "Invocation should fail");
+        assertThrows(
+            LambdaInvokeException.class, () -> invoke.run(context),
+            "Invocation should fail"
+        );
 
         // Then
         assertTrue(context.metrics().isEmpty(), "Metrics should not be present");

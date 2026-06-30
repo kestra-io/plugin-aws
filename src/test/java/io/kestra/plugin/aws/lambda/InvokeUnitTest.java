@@ -1,28 +1,16 @@
 package io.kestra.plugin.aws.lambda;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextProperty;
-import io.kestra.core.storages.Storage;
 import org.apache.http.entity.ContentType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +21,38 @@ import org.mockito.Mock.Strictness;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextProperty;
 import io.kestra.core.runners.WorkingDir;
+import io.kestra.core.storages.Storage;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
+
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.http.SdkHttpResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsResponse;
+import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 public class InvokeUnitTest {
@@ -51,6 +62,9 @@ public class InvokeUnitTest {
     @Mock(strictness = Strictness.LENIENT)
     private RunContext context;
 
+    @Mock
+    private CloudWatchLogsClient logsClient;
+
     @Mock(strictness = Strictness.LENIENT)
     private RunContextProperty runContextProperty;
 
@@ -59,6 +73,9 @@ public class InvokeUnitTest {
 
     @Mock(strictness = Strictness.LENIENT)
     private WorkingDir workingDir;
+
+    @Mock(strictness = Strictness.LENIENT)
+    private Logger logger;
 
     private File tempFile;
 
@@ -70,6 +87,7 @@ public class InvokeUnitTest {
         given(context.workingDir()).willReturn(workingDir);
         given(context.workingDir().createTempFile()).willReturn(Files.createTempFile("test", "lambdainvoke"));
         given(context.metric(any())).willReturn(context);
+        given(context.logger()).willReturn(logger);
         given(context.render(any(Property.class))).willAnswer(new Answer<RunContextProperty<String>>() {
             @Override
             public RunContextProperty<String> answer(InvocationOnMock invocation) throws Throwable {
@@ -125,16 +143,19 @@ public class InvokeUnitTest {
 
     @Test
     void testParseContentType_JSON() {
-        assertEquals(ContentType.APPLICATION_JSON.getMimeType().toString(),
-                invoke.parseContentType(Optional.of("application/json")).getMimeType().toString(),
-                "Should be JSON");
+        assertEquals(
+            ContentType.APPLICATION_JSON.getMimeType().toString(),
+            invoke.parseContentType(Optional.of("application/json")).getMimeType().toString(),
+            "Should be JSON"
+        );
     }
 
     @Test
     void testReadError_NotJsonType(@Mock SdkBytes bytes) {
-        assertThrows(LambdaInvokeException.class, () -> {
+        assertThrows(LambdaInvokeException.class, () ->
+        {
             invoke.handleError(invoke.getFunctionArn().toString(), ContentType.APPLICATION_OCTET_STREAM, bytes);
-            }, "Should throw an error"
+        }, "Should throw an error"
         );
     }
 
@@ -142,12 +163,16 @@ public class InvokeUnitTest {
     void testReadError_FromJsonMessage(@Mock SdkBytes bytes) {
         String errorText = "'path'";
         given(bytes.asUtf8String()).willReturn(
-                "{\"errorMessage\": \"" + errorText + "\", \"errorType\": \"KeyError\"}");
-        Throwable throwable = assertThrows(LambdaInvokeException.class, () -> {
+            "{\"errorMessage\": \"" + errorText + "\", \"errorType\": \"KeyError\"}"
+        );
+        Throwable throwable = assertThrows(LambdaInvokeException.class, () ->
+        {
             invoke.handleError(invoke.getFunctionArn().toString(), ContentType.APPLICATION_JSON, bytes);
         }, "Should throw an error");
-        assertTrue(throwable.getMessage().indexOf(errorText) > 0,
-                "Exception message should contain an original message");
+        assertTrue(
+            throwable.getMessage().indexOf(errorText) > 0,
+            "Exception message should contain an original message"
+        );
     }
 
     @Test
@@ -169,18 +194,20 @@ public class InvokeUnitTest {
         assertNotNull(result, "Output should be returned");
         assertEquals(tempFile.toURI(), result.getUri(), "Content URI must mach");
         assertEquals(originalData.length(), result.getContentLength(), "Content length must mach");
-        assertEquals(ContentType.APPLICATION_OCTET_STREAM.toString(), result.getContentType(),
-                "Content type must mach");
+        assertEquals(
+            ContentType.APPLICATION_OCTET_STREAM.toString(), result.getContentType(),
+            "Content type must mach"
+        );
     }
 
     // ******** BDD usecases ********
     @Test
     void givenFunctionArnNoParams_whenInvokeLambda_thenOutputWithFile(
-                @Mock LambdaClient awsLambda,
-                @Mock InvokeResponse awsResponse,
-                @Mock SdkHttpResponse awsHttpResponse,
-                @Mock SdkBytes payload)
-                throws IllegalVariableEvaluationException, IOException {
+        @Mock LambdaClient awsLambda,
+        @Mock InvokeResponse awsResponse,
+        @Mock SdkHttpResponse awsHttpResponse,
+        @Mock SdkBytes payload)
+        throws IllegalVariableEvaluationException, IOException {
         //Given: functionArn and no input params, AWS Lambda clinet mocked for the expected behaviour
         var data = "some raw data";
         given(payload.asInputStream()).willReturn(new ByteArrayInputStream(data.getBytes()));
@@ -195,11 +222,49 @@ public class InvokeUnitTest {
         doReturn(awsLambda).when(spyInvoke).client(any());
 
         // When
-        Output res = assertDoesNotThrow(() -> {
+        Output res = assertDoesNotThrow(() ->
+        {
             return spyInvoke.run(context);
         }, "No exception should be thrown");
 
         // Then
         checkOutput(data, res);
+    }
+
+    @Test
+    void givenLambdaInvocation_whenLogsAreFetched_thenLogsAreLoggedCorrectly() throws Exception {
+        // Arrange
+        Instant startTime = Instant.parse("2026-01-15T10:00:00Z");
+
+        FilteredLogEvent logEvent = FilteredLogEvent.builder()
+            .message("Hello from CloudWatch Logs")
+            .timestamp(startTime.plusSeconds(1).toEpochMilli())
+            .build();
+
+        FilterLogEventsResponse response = FilterLogEventsResponse.builder()
+            .events(List.of(logEvent))
+            .build();
+
+        given(logsClient.filterLogEvents(any(FilterLogEventsRequest.class)))
+            .willReturn(response);
+
+        given(context.logger()).willReturn(logger);
+
+        Invoke spyInvoke = spy(invoke);
+        doReturn(logsClient).when(spyInvoke).getCloudWatchLogsClient(any());
+
+        // Act
+        spyInvoke.fetchAndLogLambdaLogs(
+            context,
+            "arn:aws:lambda:ap-south-1:123456789012:function:test-function",
+            startTime
+        );
+
+        // Assert
+        verify(logsClient, times(1))
+            .filterLogEvents(any(FilterLogEventsRequest.class));
+
+        verify(logger)
+            .info("[lambda] {}", "Hello from CloudWatch Logs");
     }
 }
