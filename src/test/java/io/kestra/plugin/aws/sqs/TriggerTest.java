@@ -45,8 +45,9 @@ class TriggerTest extends AbstractSqsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
         Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
         {
-            queueCount.countDown();
-            assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
+            if (execution.isLeft() && "sqs-listen".equals(execution.getLeft().getFlowId())) {
+                queueCount.countDown();
+            }
         });
 
         String yaml = """
@@ -92,7 +93,7 @@ class TriggerTest extends AbstractSqsTest {
         boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
-        Execution last = receive.blockLast();
+        Execution last = receive.filter(e -> "sqs-listen".equals(e.getFlowId())).blockLast();
         var count = (Integer) last.getTrigger().getVariables().get("count");
         var uri = (String) last.getTrigger().getVariables().get("uri");
         assertThat(count, is(2));

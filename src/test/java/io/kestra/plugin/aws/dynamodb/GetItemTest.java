@@ -23,7 +23,7 @@ class GetItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue("persons"))
-            .key(Property.ofValue(Map.of("id", "1")))
+            .key(Property.ofValue(Map.of("id", "get-item-1")))
             .build();
 
         createTable(runContext, get);
@@ -31,7 +31,7 @@ class GetItemTest extends AbstractDynamoDbTest {
         // create something to get
         try (var dynamoDbClient = get.client(runContext)) {
             Map<String, AttributeValue> item = Map.of(
-                "id", AttributeValue.builder().s("1").build(),
+                "id", AttributeValue.builder().s("get-item-1").build(),
                 "firstname", AttributeValue.builder().s("John").build(),
                 "lastname", AttributeValue.builder().s("Doe").build()
             );
