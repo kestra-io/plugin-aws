@@ -1,17 +1,19 @@
 package io.kestra.plugin.aws.bedrock;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.junit.annotations.KestraTest;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
-import software.amazon.awssdk.services.bedrockruntime.model.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+
+import jakarta.inject.Inject;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
+import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -42,14 +44,18 @@ class ConverseStreamTest {
             .build();
 
         BedrockRuntimeAsyncClient mockClient = mock(BedrockRuntimeAsyncClient.class);
-        when(mockClient.converseStream(
-            any(ConverseStreamRequest.class),
-            any(ConverseStreamResponseHandler.class))
-        ).thenAnswer(invocation -> {
+        when(
+            mockClient.converseStream(
+                any(ConverseStreamRequest.class),
+                any(ConverseStreamResponseHandler.class)
+            )
+        ).thenAnswer(invocation ->
+        {
             ConverseStreamResponseHandler handler = invocation.getArgument(1);
 
             // Deliver synthetic events through the handler's event stream
-            handler.onEventStream(subscriber -> {
+            handler.onEventStream(subscriber ->
+            {
                 ContentBlockDeltaEvent delta1 = ContentBlockDeltaEvent.builder()
                     .delta(ContentBlockDelta.fromText("Hello"))
                     .build();
@@ -64,14 +70,26 @@ class ConverseStreamTest {
                     .build();
 
                 subscriber.onSubscribe(new org.reactivestreams.Subscription() {
-                    @Override public void request(long n) {
+                    // SequentialSubscriber requests 1 element after each onNext, re-entering
+                    // request(). Deliver the events only once or that re-entry loops forever.
+                    private boolean delivered = false;
+
+                    @Override
+                    public void request(long n) {
+                        if (delivered) {
+                            return;
+                        }
+                        delivered = true;
                         subscriber.onNext(delta1);
                         subscriber.onNext(delta2);
                         subscriber.onNext(stopEvent);
                         subscriber.onNext(metaEvent);
                         subscriber.onComplete();
                     }
-                    @Override public void cancel() {}
+
+                    @Override
+                    public void cancel() {
+                    }
                 });
             });
 
