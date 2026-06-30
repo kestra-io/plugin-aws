@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.plugin.aws.sqs.model.Message;
@@ -12,6 +14,7 @@ import io.kestra.plugin.aws.sqs.model.SerdeType;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+@Execution(ExecutionMode.SAME_THREAD)
 class PublishThenConsumeTest extends AbstractSqsTest {
     @Test
     void runText() throws Exception {

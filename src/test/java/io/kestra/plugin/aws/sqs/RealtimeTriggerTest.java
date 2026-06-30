@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
@@ -27,6 +28,7 @@ import static org.hamcrest.Matchers.is;
 
 @KestraTest(startRunner = true, startScheduler = true)
 @org.junit.jupiter.api.parallel.Execution(ExecutionMode.SAME_THREAD)
+@ResourceLock("kestra-sqs-trigger")
 class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)

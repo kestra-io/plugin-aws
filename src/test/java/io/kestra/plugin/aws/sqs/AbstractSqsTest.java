@@ -13,6 +13,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
+import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 
 @KestraTest
 @Testcontainers
@@ -41,6 +42,8 @@ public class AbstractSqsTest extends AbstractFlociTest {
         ) {
             if (!sqsClient.listQueues().queueUrls().contains(queueUrl())) {
                 sqsClient.createQueue(CreateQueueRequest.builder().queueName(queueName()).build());
+            } else {
+                sqsClient.purgeQueue(PurgeQueueRequest.builder().queueUrl(queueUrl()).build());
             }
         }
     }
