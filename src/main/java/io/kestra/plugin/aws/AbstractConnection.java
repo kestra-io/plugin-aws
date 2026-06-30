@@ -22,8 +22,11 @@ public abstract class AbstractConnection extends Task implements AbstractConnect
     protected Property<Boolean> forcePathStyle;
 
     // Configuration for StaticCredentialsProvider
+    @ToString.Exclude
     protected Property<String> accessKeyId;
+    @ToString.Exclude
     protected Property<String> secretKeyId;
+    @ToString.Exclude
     protected Property<String> sessionToken;
 
     // Configuration for AWS STS AssumeRole
