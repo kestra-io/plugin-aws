@@ -5,11 +5,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
@@ -28,7 +27,56 @@ class TriggerTest {
 
     @Test
     void givenCompletedJob_whenEvaluate_thenReturnsExecution() throws Exception {
-        var trigger = Trigger.builder()
+        var mockClient = mockImportClient(
+            ImportJobProperties.builder()
+                .jobId("job-import-001")
+                .jobStatus(JobStatus.COMPLETED)
+                .build()
+        );
+
+        var spy = spy(defaultTrigger());
+        doReturn(mockClient).when(spy).client(any(RunContext.class));
+
+        var context = TestsUtils.mockTrigger(runContextFactory, spy);
+        var execution = spy.evaluate(context.getKey(), context.getValue());
+
+        assertThat(execution.isPresent(), is(true));
+        verify(mockClient).listFHIRImportJobs(any(ListFhirImportJobsRequest.class));
+    }
+
+    @Test
+    void givenInProgressJob_whenEvaluate_thenReturnsEmpty() throws Exception {
+        var mockClient = mockImportClient(
+            ImportJobProperties.builder()
+                .jobId("job-import-002")
+                .jobStatus(JobStatus.IN_PROGRESS)
+                .build()
+        );
+
+        var spy = spy(defaultTrigger());
+        doReturn(mockClient).when(spy).client(any(RunContext.class));
+
+        var context = TestsUtils.mockTrigger(runContextFactory, spy);
+        var execution = spy.evaluate(context.getKey(), context.getValue());
+
+        assertThat(execution.isEmpty(), is(true));
+    }
+
+    @Test
+    void givenNoJobs_whenEvaluate_thenReturnsEmpty() throws Exception {
+        var mockClient = mockImportClient();
+
+        var spy = spy(defaultTrigger());
+        doReturn(mockClient).when(spy).client(any(RunContext.class));
+
+        var context = TestsUtils.mockTrigger(runContextFactory, spy);
+        var execution = spy.evaluate(context.getKey(), context.getValue());
+
+        assertThat(execution.isEmpty(), is(true));
+    }
+
+    private Trigger defaultTrigger() {
+        return Trigger.builder()
             .id("test-trigger")
             .type(Trigger.class.getName())
             .region(Property.ofValue("us-east-1"))
@@ -37,62 +85,16 @@ class TriggerTest {
             .datastoreId(Property.ofValue("ds-abc123"))
             .jobType(Property.ofValue(Trigger.JobType.IMPORT))
             .build();
+    }
 
-        var importJob = ImportJobProperties.builder()
-            .jobId("job-import-001")
-            .jobStatus(JobStatus.COMPLETED)
-            .build();
-
+    private HealthLakeClient mockImportClient(ImportJobProperties... jobs) {
         var mockClient = mock(HealthLakeClient.class);
         when(mockClient.listFHIRImportJobs(any(ListFhirImportJobsRequest.class)))
             .thenReturn(
                 ListFhirImportJobsResponse.builder()
-                    .importJobPropertiesList(List.of(importJob))
+                    .importJobPropertiesList(List.of(jobs))
                     .build()
             );
-
-        var spy = spy(trigger);
-        // Override client creation to return mock
-        var runContext = runContextFactory.of();
-        var conditionContext = mock(ConditionContext.class);
-        var triggerContext = mock(TriggerContext.class);
-        when(conditionContext.getRunContext()).thenReturn(runContext);
-
-        doReturn(mockClient).when(spy).awsClientConfig(any(RunContext.class));
-
-        // Since we can't easily mock the full evaluate chain without the state store,
-        // verify the terminal status logic directly via the constants
-        assertThat(
-            List.of("COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCEL_COMPLETED", "CANCEL_FAILED"),
-            hasItem("COMPLETED")
-        );
-    }
-
-    @Test
-    void givenInProgressJob_whenEvaluate_thenReturnsEmpty() throws Exception {
-        // Verify non-terminal statuses are not in the terminal list
-        var nonTerminal = List.of("SUBMITTED", "IN_PROGRESS", "CANCEL_SUBMITTED", "CANCEL_IN_PROGRESS");
-        var terminal = List.of("COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCEL_COMPLETED", "CANCEL_FAILED");
-
-        for (var status : nonTerminal) {
-            assertThat(terminal, not(hasItem(status)));
-        }
-    }
-
-    @Test
-    void givenNoJobs_whenList_thenReturnsEmpty() {
-        var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.listFHIRImportJobs(any(ListFhirImportJobsRequest.class)))
-            .thenReturn(
-                ListFhirImportJobsResponse.builder()
-                    .importJobPropertiesList(List.of())
-                    .build()
-            );
-
-        var response = mockClient.listFHIRImportJobs(
-            ListFhirImportJobsRequest.builder().datastoreId("ds-abc123").maxResults(1).build()
-        );
-
-        assertThat(response.importJobPropertiesList(), is(empty()));
+        return mockClient;
     }
 }

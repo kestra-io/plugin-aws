@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -15,6 +16,7 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
+import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 
@@ -148,9 +150,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             logger.debug("No previous trigger state found, treating as first run");
         }
 
-        var clientConfig = awsClientConfig(runContext);
-
-        try (var client = ConnectionUtils.configureSyncClient(clientConfig, HealthLakeClient.builder()).build()) {
+        try (var client = client(runContext)) {
             String jobId = null;
             String jobStatus = null;
 
@@ -203,6 +203,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             var output = Output.builder().jobId(jobId).jobStatus(jobStatus).build();
             return Optional.of(TriggerService.generateExecution(this, conditionContext, context, output));
         }
+    }
+
+    @VisibleForTesting
+    HealthLakeClient client(RunContext runContext) throws Exception {
+        var clientConfig = awsClientConfig(runContext);
+        return ConnectionUtils.configureSyncClient(clientConfig, HealthLakeClient.builder()).build();
     }
 
     public enum JobType {
