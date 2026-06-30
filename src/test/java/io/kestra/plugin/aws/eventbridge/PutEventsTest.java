@@ -24,7 +24,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -278,7 +277,6 @@ class PutEventsTest extends AbstractFlociTest {
     @Getter
     @Builder
     @EqualsAndHashCode
-    @Jacksonized
     private static class UpperCaseEntry {
         private String EventBusName;
         private String Source;

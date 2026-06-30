@@ -24,7 +24,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.services.kinesis.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -208,7 +207,6 @@ class PutRecordsTest extends AbstractKinesisTest {
     @Getter
     @Builder
     @EqualsAndHashCode
-    @Jacksonized
     private static class UpperCaseRecord {
         private String PartitionKey;
         private String ExplicitHashKey;

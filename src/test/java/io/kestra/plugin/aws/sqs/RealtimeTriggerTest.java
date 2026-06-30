@@ -7,7 +7,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import io.kestra.core.junit.annotations.KestraTest;
@@ -27,7 +26,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 @KestraTest(startRunner = true, startScheduler = true)
-@Execution(ExecutionMode.SAME_THREAD)
+@org.junit.jupiter.api.parallel.Execution(ExecutionMode.SAME_THREAD)
 class RealtimeTriggerTest extends AbstractSqsTest {
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
