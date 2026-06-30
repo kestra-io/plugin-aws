@@ -4,7 +4,6 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
-import io.kestra.core.runners.RunContext;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;

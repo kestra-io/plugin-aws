@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.emr;
 
+import java.time.Duration;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.emr.EmrClient;
 import software.amazon.awssdk.services.emr.model.*;
-
-import java.time.Duration;
-import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,11 +33,15 @@ class CreateClusterAndSubmitStepsTest {
             .thenReturn(RunJobFlowResponse.builder().jobFlowId("j-WAIT").build());
 
         when(emrClient.describeCluster(any(Consumer.class)))
-            .thenReturn(DescribeClusterResponse.builder()
-                .cluster(Cluster.builder()
-                    .status(ClusterStatus.builder().state(ClusterState.TERMINATED).build())
-                    .build())
-                .build());
+            .thenReturn(
+                DescribeClusterResponse.builder()
+                    .cluster(
+                        Cluster.builder()
+                            .status(ClusterStatus.builder().state(ClusterState.TERMINATED).build())
+                            .build()
+                    )
+                    .build()
+            );
 
         CreateClusterAndSubmitSteps task = spy(
             CreateClusterAndSubmitSteps.builder()
@@ -68,11 +74,15 @@ class CreateClusterAndSubmitStepsTest {
             .thenReturn(RunJobFlowResponse.builder().jobFlowId("j-ERR").build());
 
         when(emrClient.describeCluster(any(Consumer.class)))
-            .thenReturn(DescribeClusterResponse.builder()
-                .cluster(Cluster.builder()
-                    .status(ClusterStatus.builder().state(ClusterState.TERMINATED_WITH_ERRORS).build())
-                    .build())
-                .build());
+            .thenReturn(
+                DescribeClusterResponse.builder()
+                    .cluster(
+                        Cluster.builder()
+                            .status(ClusterStatus.builder().state(ClusterState.TERMINATED_WITH_ERRORS).build())
+                            .build()
+                    )
+                    .build()
+            );
 
         CreateClusterAndSubmitSteps task = spy(
             CreateClusterAndSubmitSteps.builder()

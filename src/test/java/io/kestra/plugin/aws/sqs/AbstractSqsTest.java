@@ -21,6 +21,10 @@ public class AbstractSqsTest extends AbstractFlociTest {
     @Inject
     protected RunContextFactory runContextFactory;
 
+    protected String queueName() {
+        return "test-queue-" + getClass().getSimpleName().toLowerCase();
+    }
+
     @BeforeEach
     void beforeEach() {
         try (
@@ -36,13 +40,13 @@ public class AbstractSqsTest extends AbstractFlociTest {
                 .build()
         ) {
             if (!sqsClient.listQueues().queueUrls().contains(queueUrl())) {
-                sqsClient.createQueue(CreateQueueRequest.builder().queueName("test-queue").build());
+                sqsClient.createQueue(CreateQueueRequest.builder().queueName(queueName()).build());
             }
         }
     }
 
     String queueUrl() {
-        return endpointUrl() + "/000000000000/test-queue";
+        return endpointUrl() + "/000000000000/" + queueName();
     }
 
 }

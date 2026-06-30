@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -21,7 +22,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.emr.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

@@ -16,6 +16,7 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.kinesis.model.Record;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;

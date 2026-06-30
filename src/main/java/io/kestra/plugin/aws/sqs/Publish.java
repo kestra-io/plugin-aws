@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -23,7 +24,6 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -109,7 +109,8 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
             Data.from(from)
                 .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
                 .buffer(10)
-                .doOnNext(throwConsumer(batch -> {
+                .doOnNext(throwConsumer(batch ->
+                {
                     var batchNum = batchCounter.incrementAndGet();
                     var entries = new ArrayList<SendMessageBatchRequestEntry>(batch.size());
                     for (int i = 0; i < batch.size(); i++) {

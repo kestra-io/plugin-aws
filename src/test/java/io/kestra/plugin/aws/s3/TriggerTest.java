@@ -22,6 +22,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
@@ -45,7 +46,8 @@ class TriggerTest extends AbstractTest {
         List listTask = list().bucket(Property.ofValue(bucket)).build();
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
+        {
             Execution execution = executionWithError.getLeft();
 
             if (execution.getFlowId().equals("s3-listen")) {
@@ -82,7 +84,8 @@ class TriggerTest extends AbstractTest {
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
+        {
             Execution execution = executionWithError.getLeft();
 
             if (execution.getFlowId().equals("s3-listen-none-action")) {
@@ -119,7 +122,8 @@ class TriggerTest extends AbstractTest {
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError -> {
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
+        {
             Execution execution = executionWithError.getLeft();
 
             if (execution.getFlowId().equals("s3-listen-localhost-force-path-style")) {
@@ -151,7 +155,7 @@ class TriggerTest extends AbstractTest {
     private File flowWithFlociEndpoint(String resource) throws Exception {
         String yaml = new String(TriggerTest.class.getClassLoader().getResourceAsStream(resource).readAllBytes());
         yaml = yaml.replace("http://localhost:4566", endpointUrl())
-                   .replace("http://127.0.0.1:4566", endpointUrl());
+            .replace("http://127.0.0.1:4566", endpointUrl());
         File tempFlow = File.createTempFile("s3-trigger", ".yaml");
         Files.writeString(tempFlow.toPath(), yaml);
         return tempFlow;

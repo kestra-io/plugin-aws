@@ -5,6 +5,7 @@ import java.util.Map;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -21,7 +22,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

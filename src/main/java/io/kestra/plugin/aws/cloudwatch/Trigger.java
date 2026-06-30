@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.*;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -17,7 +18,6 @@ import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

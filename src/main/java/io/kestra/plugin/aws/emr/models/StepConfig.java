@@ -7,6 +7,7 @@ import java.util.List;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 
@@ -18,7 +19,6 @@ import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @Getter
 @Builder

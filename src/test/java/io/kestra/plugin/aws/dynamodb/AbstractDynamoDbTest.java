@@ -27,7 +27,11 @@ public abstract class AbstractDynamoDbTest extends AbstractFlociTest {
                     .keySchema(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
                     .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(1L).writeCapacityUnits(1L).build())
                     .build();
-                dynamoDbClient.createTable(request);
+                try {
+                    dynamoDbClient.createTable(request);
+                } catch (ResourceInUseException ignored) {
+                    // created by a concurrent test class
+                }
             }
         }
     }

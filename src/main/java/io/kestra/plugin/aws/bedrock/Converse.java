@@ -1,7 +1,11 @@
 package io.kestra.plugin.aws.bedrock;
 
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,6 +14,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -17,9 +22,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
-
-import java.util.List;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -149,8 +151,10 @@ public class Converse extends AbstractConnection implements RunnableTask<Convers
             var inputTokens = usage != null ? usage.inputTokens() : null;
             var outputTokens = usage != null ? usage.outputTokens() : null;
 
-            logger.debug("Converse completed. stopReason={}, inputTokens={}, outputTokens={}",
-                stopReason, inputTokens, outputTokens);
+            logger.debug(
+                "Converse completed. stopReason={}, inputTokens={}, outputTokens={}",
+                stopReason, inputTokens, outputTokens
+            );
 
             return Output.builder()
                 .modelId(resolvedModelId)

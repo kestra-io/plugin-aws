@@ -16,6 +16,7 @@ import org.apache.commons.io.FilenameUtils;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
@@ -34,7 +35,6 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -511,7 +511,8 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
         String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
-        record UploadEntry(String fileKey, File tempFile, FileUpload upload) {}
+        record UploadEntry(String fileKey, File tempFile, FileUpload upload) {
+        }
 
         int rConcurrentUploads = Math.max(1, runContext.render(concurrentUploads).as(Integer.class).orElse(50));
 
@@ -549,8 +550,10 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
                 // The try-with-resources on transferManager handles cleanup.
                 if (ex instanceof java.util.concurrent.CompletionException ce && ce.getCause() != null) {
                     var cause = ce.getCause();
-                    if (cause instanceof RuntimeException re) throw re;
-                    if (cause instanceof Exception e2) throw e2;
+                    if (cause instanceof RuntimeException re)
+                        throw re;
+                    if (cause instanceof Exception e2)
+                        throw e2;
                     throw new RuntimeException(cause);
                 }
                 throw ex;
@@ -558,11 +561,13 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
             for (var e : windowEntries) {
                 var response = e.upload().completionFuture().join().response();
-                fileInfoMap.put(e.fileKey(), FileInfo.builder()
-                    .eTag(response.eTag())
-                    .versionId(response.versionId())
-                    .contentLength(e.tempFile().length())
-                    .build());
+                fileInfoMap.put(
+                    e.fileKey(), FileInfo.builder()
+                        .eTag(response.eTag())
+                        .versionId(response.versionId())
+                        .contentLength(e.tempFile().length())
+                        .build()
+                );
                 recordMetrics(runContext, e.tempFile());
             }
         }

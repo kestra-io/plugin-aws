@@ -1,9 +1,9 @@
 package io.kestra.plugin.aws.bedrock;
 
-import software.amazon.awssdk.services.bedrockruntime.model.*;
-
 import java.util.List;
 import java.util.Map;
+
+import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 /**
  * Shared utilities for building Bedrock Converse API request components,
@@ -11,22 +11,25 @@ import java.util.Map;
  */
 final class BedrockUtils {
 
-    private BedrockUtils() {}
+    private BedrockUtils() {
+    }
 
     /**
      * Converts a rendered list of {@code {role, content}} maps into SDK {@link Message} objects.
      *
      * @throws IllegalArgumentException if any entry has an unrecognised role, a missing role,
-     *                                  or a missing content value.
+     *         or a missing content value.
      */
     static List<Message> buildMessages(List<Map<String, String>> rawMessages) {
-        return rawMessages.stream().map((msg) -> {
+        return rawMessages.stream().map((msg) ->
+        {
             var index = rawMessages.indexOf(msg);
 
             var role = msg.get("role");
             if (role == null || role.isBlank()) {
                 throw new IllegalArgumentException(
-                    "Message at index " + index + " is missing required field 'role'.");
+                    "Message at index " + index + " is missing required field 'role'."
+                );
             }
 
             ConversationRole sdkRole;
@@ -37,13 +40,15 @@ final class BedrockUtils {
             } else {
                 throw new IllegalArgumentException(
                     "Message at index " + index + " has unsupported role '" + role +
-                    "'. Allowed values: 'user', 'assistant'.");
+                        "'. Allowed values: 'user', 'assistant'."
+                );
             }
 
             var content = msg.get("content");
             if (content == null) {
                 throw new IllegalArgumentException(
-                    "Message at index " + index + " is missing required field 'content'.");
+                    "Message at index " + index + " is missing required field 'content'."
+                );
             }
 
             return Message.builder()
@@ -65,7 +70,8 @@ final class BedrockUtils {
                 icBuilder.maxTokens(((Number) ic.get("maxTokens")).intValue());
             } catch (ClassCastException e) {
                 throw new IllegalArgumentException(
-                    "inferenceConfig.maxTokens must be an integer, got: " + ic.get("maxTokens"), e);
+                    "inferenceConfig.maxTokens must be an integer, got: " + ic.get("maxTokens"), e
+                );
             }
         }
         if (ic.containsKey("temperature")) {
@@ -73,7 +79,8 @@ final class BedrockUtils {
                 icBuilder.temperature(((Number) ic.get("temperature")).floatValue());
             } catch (ClassCastException e) {
                 throw new IllegalArgumentException(
-                    "inferenceConfig.temperature must be a number between 0 and 1, got: " + ic.get("temperature"), e);
+                    "inferenceConfig.temperature must be a number between 0 and 1, got: " + ic.get("temperature"), e
+                );
             }
         }
         if (ic.containsKey("topP")) {
@@ -81,7 +88,8 @@ final class BedrockUtils {
                 icBuilder.topP(((Number) ic.get("topP")).floatValue());
             } catch (ClassCastException e) {
                 throw new IllegalArgumentException(
-                    "inferenceConfig.topP must be a number between 0 and 1, got: " + ic.get("topP"), e);
+                    "inferenceConfig.topP must be a number between 0 and 1, got: " + ic.get("topP"), e
+                );
             }
         }
         if (ic.containsKey("stopSequences")) {
@@ -91,7 +99,8 @@ final class BedrockUtils {
                 icBuilder.stopSequences(stops);
             } catch (ClassCastException e) {
                 throw new IllegalArgumentException(
-                    "inferenceConfig.stopSequences must be a list of strings, got: " + ic.get("stopSequences"), e);
+                    "inferenceConfig.stopSequences must be a list of strings, got: " + ic.get("stopSequences"), e
+                );
             }
         }
         return icBuilder.build();

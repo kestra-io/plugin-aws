@@ -344,8 +344,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
         List<ColumnInfo> columnInfo,
         GetQueryResultsResponse firstPage,
         boolean skipHeader,
-        RunContext runContext
-    ) throws IOException {
+        RunContext runContext) throws IOException {
         File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         long count = 0;
 

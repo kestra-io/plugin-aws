@@ -1,10 +1,11 @@
 package io.kestra.plugin.aws.s3;
 
+import io.kestra.core.models.annotations.PluginProperty;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @Getter

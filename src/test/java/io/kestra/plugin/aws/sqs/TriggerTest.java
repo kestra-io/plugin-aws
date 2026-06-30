@@ -17,6 +17,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.sqs.model.Message;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
@@ -40,7 +41,8 @@ class TriggerTest extends AbstractSqsTest {
     @Test
     void flow() throws Exception {
         CountDownLatch queueCount = new CountDownLatch(1);
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
+        {
             queueCount.countDown();
             assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
         });
