@@ -123,7 +123,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Extra environment variables",
         description = "Merged into the process environment alongside AWS credentials and AWS_DEFAULT_OUTPUT."
     )
-    @PluginProperty(group = "execution", 
+    @PluginProperty(
+        group = "execution",
         additionalProperties = String.class,
         dynamic = true
     )

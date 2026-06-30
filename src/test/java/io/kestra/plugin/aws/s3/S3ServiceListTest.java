@@ -50,7 +50,8 @@ class S3ServiceListTest {
 
         S3Client mockClient = mock(S3Client.class);
         when(mockClient.listObjectsV2(any(ListObjectsV2Request.class)))
-            .thenAnswer(inv -> {
+            .thenAnswer(inv ->
+            {
                 ListObjectsV2Request req = inv.getArgument(0);
                 return "token-page2".equals(req.continuationToken()) ? page2 : page1;
             });

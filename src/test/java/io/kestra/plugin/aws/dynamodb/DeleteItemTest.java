@@ -23,7 +23,7 @@ class DeleteItemTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .key(Property.ofValue(Map.of("id", "1")))
             .build();
 
@@ -38,7 +38,7 @@ class DeleteItemTest extends AbstractDynamoDbTest {
             );
 
             var putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);

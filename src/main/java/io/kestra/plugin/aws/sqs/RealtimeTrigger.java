@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -33,7 +34,6 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SqsException;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -216,7 +216,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         final RunContext runContext) throws Exception {
         var renderedQueueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
 
-        return Flux.create(fluxSink -> {
+        return Flux.create(fluxSink ->
+        {
             var logger = runContext.logger();
             var signalledError = false;
             try (var sqsClient = task.asyncClient(runContext, runContext.render(clientRetryMaxAttempts).as(Integer.class).orElseThrow())) {
@@ -287,8 +288,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         List<software.amazon.awssdk.services.sqs.model.Message> messages,
         boolean autoDelete,
         SerdeType serdeType,
-        Logger logger
-    ) {
+        Logger logger) {
         var handles = new ArrayList<String>(messages.size());
 
         for (var message : messages) {
@@ -315,10 +315,12 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         // one batch covers a poll: SQS caps maxNumberOfMessages and deleteMessageBatch at 10
         var entries = new ArrayList<DeleteMessageBatchRequestEntry>(handles.size());
         for (int i = 0; i < handles.size(); i++) {
-            entries.add(DeleteMessageBatchRequestEntry.builder()
-                .id(String.valueOf(i))
-                .receiptHandle(handles.get(i))
-                .build());
+            entries.add(
+                DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(handles.get(i))
+                    .build()
+            );
         }
 
         try {

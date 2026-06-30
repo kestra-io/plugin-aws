@@ -20,7 +20,7 @@ class PutItemTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .item(
                 Map.of(
                     "id", "1",
@@ -46,7 +46,7 @@ class PutItemTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .item("{\"id\": \"1\", \"firstname\": \"Jane\", \"lastname\": \"Doe\"}")
             .build();
 

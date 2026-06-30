@@ -1,6 +1,5 @@
 package io.kestra.plugin.aws.sqs;
 
-import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +12,6 @@ import jakarta.inject.Inject;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,14 +40,16 @@ class ConsumeUnitTest {
 
         var deleteResponse = DeleteMessageBatchResponse.builder()
             .successful(List.of())
-            .failed(List.of(
-                BatchResultErrorEntry.builder()
-                    .id("0")
-                    .code("InternalError")
-                    .message("simulated failure")
-                    .senderFault(false)
-                    .build()
-            ))
+            .failed(
+                List.of(
+                    BatchResultErrorEntry.builder()
+                        .id("0")
+                        .code("InternalError")
+                        .message("simulated failure")
+                        .senderFault(false)
+                        .build()
+                )
+            )
             .build();
 
         SqsClient mockClient = mock(SqsClient.class);

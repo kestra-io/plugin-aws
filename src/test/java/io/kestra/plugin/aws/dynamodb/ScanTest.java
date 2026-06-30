@@ -26,7 +26,7 @@ class ScanTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .filterExpression(Property.ofValue("lastname = :lastname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":lastname", "Doe")))
             .fetchType(Property.ofValue(FetchType.FETCH))
@@ -53,7 +53,7 @@ class ScanTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .fetchType(Property.ofValue(FetchType.FETCH))
             .build();
 
@@ -78,7 +78,7 @@ class ScanTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .filterExpression(Property.ofValue("lastname = :lastname and firstname = :firstname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":lastname", "Doe", ":firstname", "Jane")))
             .fetchType(Property.ofValue(FetchType.FETCH))
@@ -105,7 +105,7 @@ class ScanTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .filterExpression(Property.ofValue("lastname = :lastname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":lastname", "Doe")))
             .fetchType(Property.ofValue(FetchType.FETCH_ONE))
@@ -132,7 +132,7 @@ class ScanTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .filterExpression(Property.ofValue("lastname = :lastname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":lastname", "Doe")))
             .fetchType(Property.ofValue(FetchType.STORE))
@@ -158,7 +158,7 @@ class ScanTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Doe").build()
             );
             var putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);
@@ -169,7 +169,7 @@ class ScanTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Doe").build()
             );
             putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);
@@ -180,7 +180,7 @@ class ScanTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Baudelaire").build()
             );
             putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);

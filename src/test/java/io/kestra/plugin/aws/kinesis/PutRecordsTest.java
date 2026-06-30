@@ -4,7 +4,6 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
-import io.kestra.core.runners.RunContext;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
@@ -24,7 +24,6 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
 import software.amazon.awssdk.services.kinesis.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -208,7 +207,6 @@ class PutRecordsTest extends AbstractKinesisTest {
     @Getter
     @Builder
     @EqualsAndHashCode
-    @Jacksonized
     private static class UpperCaseRecord {
         private String PartitionKey;
         private String ExplicitHashKey;

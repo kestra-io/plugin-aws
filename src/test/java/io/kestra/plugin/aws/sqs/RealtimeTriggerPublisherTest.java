@@ -3,14 +3,16 @@ package io.kestra.plugin.aws.sqs;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -22,8 +24,8 @@ import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
@@ -38,16 +40,22 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @KestraTest
+@Execution(ExecutionMode.SAME_THREAD)
 class RealtimeTriggerPublisherTest extends AbstractSqsTest {
 
     @BeforeEach
     void purgeQueue() {
-        try (var sqsClient = SqsClient.builder()
-            .endpointOverride(java.net.URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build()) {
+        try (
+            var sqsClient = SqsClient.builder()
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .build()
+        ) {
             sqsClient.purgeQueue(PurgeQueueRequest.builder().queueUrl(queueUrl()).build());
         }
     }
@@ -90,7 +98,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var messages = new CopyOnWriteArrayList<Message>();
 
         trigger.publisher(task, runContext)
-            .subscribe(msg -> {
+            .subscribe(msg ->
+            {
                 messages.add(msg);
                 received.countDown();
                 trigger.stop();
@@ -139,7 +148,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             var callCount = new AtomicInteger(0);
             var mockClient = mock(SqsAsyncClient.class);
 
-            when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
+            when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv ->
+            {
                 int call = callCount.incrementAndGet();
                 if (call == 1) {
                     var failed = new CompletableFuture<ReceiveMessageResponse>();
@@ -148,8 +158,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
                 }
                 return realClient.receiveMessage((ReceiveMessageRequest) inv.getArgument(0));
             });
-            when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class))).thenAnswer(inv ->
-                realClient.deleteMessageBatch((DeleteMessageBatchRequest) inv.getArgument(0))
+            when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class))).thenAnswer(
+                inv -> realClient.deleteMessageBatch((DeleteMessageBatchRequest) inv.getArgument(0))
             );
 
             RealtimeTrigger trigger = RealtimeTrigger.builder()
@@ -167,7 +177,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
 
             trigger.publisher(consumeWithClient(mockClient), runContext)
                 .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(msg -> {
+                .subscribe(msg ->
+                {
                     messages.add(msg);
                     received.countDown();
                     trigger.stop();
@@ -190,7 +201,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         var mockClient = mock(SqsAsyncClient.class);
-        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv ->
+        {
             var failed = new CompletableFuture<ReceiveMessageResponse>();
             failed.completeExceptionally(new RuntimeException("always failing"));
             return failed;
@@ -208,7 +220,11 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
 
         trigger.publisher(consumeWithClient(mockClient), runContext)
             .subscribeOn(Schedulers.boundedElastic())
-            .subscribe(msg -> {}, err -> {});
+            .subscribe(msg ->
+            {
+            }, err ->
+            {
+            });
 
         Thread.sleep(300);
 
@@ -233,7 +249,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
             .build();
 
         var mockClient = mock(SqsAsyncClient.class);
-        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv -> {
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class))).thenAnswer(inv ->
+        {
             var failed = new CompletableFuture<ReceiveMessageResponse>();
             failed.completeExceptionally(fatalException);
             return failed;
@@ -255,8 +272,14 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         trigger.publisher(consumeWithClient(mockClient), runContext)
             .subscribeOn(Schedulers.boundedElastic())
             .subscribe(
-                msg -> {},
-                err -> { errors.add(err); terminated.countDown(); },
+                msg ->
+                {
+                },
+                err ->
+                {
+                    errors.add(err);
+                    terminated.countDown();
+                },
                 terminated::countDown
             );
 
@@ -275,12 +298,17 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         // Publish a non-JSON body directly via the AWS SDK to bypass SerdeType serialization.
-        try (var sqsClient = SqsClient.builder()
-            .endpointOverride(java.net.URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build()) {
+        try (
+            var sqsClient = SqsClient.builder()
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .build()
+        ) {
             sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("not-json"));
         }
 
@@ -310,7 +338,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var messages = new CopyOnWriteArrayList<Message>();
 
         trigger.publisher(task, runContext)
-            .subscribe(msg -> {
+            .subscribe(msg ->
+            {
                 messages.add(msg);
                 received.countDown();
                 trigger.stop();
@@ -323,16 +352,23 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         assertThat("raw body value must match the original payload", messages.getFirst().getData(), is("not-json"));
 
         // Confirm the message was deleted: queue must be empty after a short drain wait.
-        try (var sqsClient = SqsClient.builder()
-            .endpointOverride(java.net.URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build()) {
-            var remaining = sqsClient.receiveMessage(b -> b
-                .queueUrl(queueUrl())
-                .maxNumberOfMessages(10)
-                .waitTimeSeconds(2));
+        try (
+            var sqsClient = SqsClient.builder()
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .build()
+        ) {
+            var remaining = sqsClient.receiveMessage(
+                b -> b
+                    .queueUrl(queueUrl())
+                    .maxNumberOfMessages(10)
+                    .waitTimeSeconds(2)
+            );
             assertThat("queue must be empty after poison message was deleted", remaining.messages().isEmpty(), is(true));
         }
     }
@@ -347,12 +383,17 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var runContext = runContextFactory.of();
 
         // Publish 3 messages so a single poll can return them together.
-        try (var sqsClient = SqsClient.builder()
-            .endpointOverride(java.net.URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build()) {
+        try (
+            var sqsClient = SqsClient.builder()
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .build()
+        ) {
             sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-1"));
             sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-2"));
             sqsClient.sendMessage(b -> b.queueUrl(queueUrl()).messageBody("msg-3"));
@@ -382,7 +423,8 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         var messages = new CopyOnWriteArrayList<Message>();
 
         trigger.publisher(task, runContext)
-            .subscribe(msg -> {
+            .subscribe(msg ->
+            {
                 messages.add(msg);
                 received.countDown();
                 if (received.getCount() == 0) {
@@ -395,16 +437,23 @@ class RealtimeTriggerPublisherTest extends AbstractSqsTest {
         assertThat(messages.size(), is(3));
 
         // All 3 must have been deleted via the batch path: queue drains to 0.
-        try (var sqsClient = SqsClient.builder()
-            .endpointOverride(java.net.URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build()) {
-            var remaining = sqsClient.receiveMessage(b -> b
-                .queueUrl(queueUrl())
-                .maxNumberOfMessages(10)
-                .waitTimeSeconds(2));
+        try (
+            var sqsClient = SqsClient.builder()
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .region(Region.of(REGION))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .build()
+        ) {
+            var remaining = sqsClient.receiveMessage(
+                b -> b
+                    .queueUrl(queueUrl())
+                    .maxNumberOfMessages(10)
+                    .waitTimeSeconds(2)
+            );
             assertThat("queue must be empty after batch delete", remaining.messages().isEmpty(), is(true));
         }
     }

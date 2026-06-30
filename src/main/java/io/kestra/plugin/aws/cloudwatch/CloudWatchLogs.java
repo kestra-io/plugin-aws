@@ -1,8 +1,8 @@
 package io.kestra.plugin.aws.cloudwatch;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 

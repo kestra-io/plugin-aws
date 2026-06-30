@@ -1,12 +1,14 @@
 package io.kestra.plugin.aws.cloudwatch;
 
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.AbstractFlociTest;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import software.amazon.awssdk.services.cloudwatchlogs.model.InputLogEvent;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -34,17 +36,23 @@ class CloudWatchLogsTest extends AbstractFlociTest {
 
         try (var client = task.logsClient(runContext)) {
             client.createLogGroup(r -> r.logGroupName(logGroupName));
-            client.createLogStream(r -> r
-                .logGroupName(logGroupName)
-                .logStreamName(logStreamName));
+            client.createLogStream(
+                r -> r
+                    .logGroupName(logGroupName)
+                    .logStreamName(logStreamName)
+            );
 
-            client.putLogEvents(r -> r
-                .logGroupName(logGroupName)
-                .logStreamName(logStreamName)
-                .logEvents(InputLogEvent.builder()
-                    .timestamp(System.currentTimeMillis())
-                    .message("test log event from Floci integration test")
-                    .build()));
+            client.putLogEvents(
+                r -> r
+                    .logGroupName(logGroupName)
+                    .logStreamName(logStreamName)
+                    .logEvents(
+                        InputLogEvent.builder()
+                            .timestamp(System.currentTimeMillis())
+                            .message("test log event from Floci integration test")
+                            .build()
+                    )
+            );
 
             var groups = client.describeLogGroups(r -> r.logGroupNamePrefix("/kestra/test"));
             assertThat(groups.logGroups(), hasSize(greaterThanOrEqualTo(1)));

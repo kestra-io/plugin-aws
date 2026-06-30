@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.cloudformation;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
@@ -15,7 +16,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

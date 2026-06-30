@@ -2,10 +2,11 @@ package io.kestra.plugin.aws.glue.model;
 
 import java.time.ZonedDateTime;
 
+import io.kestra.core.models.annotations.PluginProperty;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @Builder
 @Getter

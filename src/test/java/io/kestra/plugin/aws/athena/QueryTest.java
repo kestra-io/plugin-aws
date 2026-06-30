@@ -1,8 +1,6 @@
 package io.kestra.plugin.aws.athena;
 
 import java.io.InputStream;
-import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -148,7 +146,8 @@ class QueryTest {
 
         // null token returns first page, "page2token" returns second page
         when(client.getQueryResults(any(GetQueryResultsRequest.class)))
-            .thenAnswer(inv -> {
+            .thenAnswer(inv ->
+            {
                 GetQueryResultsRequest req = inv.getArgument(0);
                 return "page2token".equals(req.nextToken()) ? page2 : page1;
             });
@@ -223,7 +222,8 @@ class QueryTest {
             .build();
 
         when(client.getQueryResults(any(GetQueryResultsRequest.class)))
-            .thenAnswer(inv -> {
+            .thenAnswer(inv ->
+            {
                 GetQueryResultsRequest req = inv.getArgument(0);
                 return "store-page2token".equals(req.nextToken()) ? page2 : page1;
             });

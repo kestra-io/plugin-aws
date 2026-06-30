@@ -1,7 +1,10 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.util.UUID;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,14 +13,13 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.util.UUID;
 
 @SuperBuilder
 @ToString
@@ -99,14 +101,18 @@ public class StartImportJob extends AbstractConnection implements RunnableTask<S
         var rOutputUri = runContext.render(outputS3Uri).as(String.class).orElseThrow();
         var rRoleArn = runContext.render(dataAccessRoleArn).as(String.class).orElseThrow();
 
-        var requestBuilder = StartFHIRImportJobRequest.builder()
+        var requestBuilder = StartFhirImportJobRequest.builder()
             .datastoreId(rDatastoreId)
             .inputDataConfig(InputDataConfig.fromS3Uri(rInputUri))
-            .jobOutputDataConfig(OutputDataConfig.builder()
-                .s3Configuration(S3Configuration.builder()
-                    .s3Uri(rOutputUri)
-                    .build())
-                .build())
+            .jobOutputDataConfig(
+                OutputDataConfig.builder()
+                    .s3Configuration(
+                        S3Configuration.builder()
+                            .s3Uri(rOutputUri)
+                            .build()
+                    )
+                    .build()
+            )
             .dataAccessRoleArn(rRoleArn)
             .clientToken(UUID.randomUUID().toString());
 

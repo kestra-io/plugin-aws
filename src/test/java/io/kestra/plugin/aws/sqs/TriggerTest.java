@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
@@ -17,6 +18,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.sqs.model.Message;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
@@ -26,6 +28,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
 @KestraTest(startRunner = true, startScheduler = true)
+@ResourceLock("kestra-sqs-trigger")
 class TriggerTest extends AbstractSqsTest {
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
@@ -40,9 +43,11 @@ class TriggerTest extends AbstractSqsTest {
     @Test
     void flow() throws Exception {
         CountDownLatch queueCount = new CountDownLatch(1);
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-            queueCount.countDown();
-            assertThat(execution.getLeft().getFlowId(), is("sqs-listen"));
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
+        {
+            if (execution.isLeft() && "sqs-listen".equals(execution.getLeft().getFlowId())) {
+                queueCount.countDown();
+            }
         });
 
         String yaml = """
@@ -88,7 +93,7 @@ class TriggerTest extends AbstractSqsTest {
         boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
-        Execution last = receive.blockLast();
+        Execution last = receive.filter(e -> "sqs-listen".equals(e.getFlowId())).blockLast();
         var count = (Integer) last.getTrigger().getVariables().get("count");
         var uri = (String) last.getTrigger().getVariables().get("uri");
         assertThat(count, is(2));

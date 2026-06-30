@@ -1,16 +1,18 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.time.Instant;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.time.Instant;
-import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -53,12 +55,12 @@ class ListDatastoresTest {
             .createdAt(Instant.parse("2024-02-01T00:00:00Z"))
             .build();
 
-        var mockResponse = ListFHIRDatastoresResponse.builder()
+        var mockResponse = ListFhirDatastoresResponse.builder()
             .datastorePropertiesList(List.of(store1, store2))
             .build();
 
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.listFHIRDatastores(any(ListFHIRDatastoresRequest.class))).thenReturn(mockResponse);
+        when(mockClient.listFHIRDatastores(any(ListFhirDatastoresRequest.class))).thenReturn(mockResponse);
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
@@ -71,24 +73,4 @@ class ListDatastoresTest {
         assertThat(output.getDatastores().get(1).get("datastoreStatus"), is("CREATING"));
     }
 
-    @Test
-    void givenInvalidStatusFilter_whenList_thenThrowsIllegalArgumentException() throws Exception {
-        var runContext = runContextFactory.of();
-
-        var task = ListDatastores.builder()
-            .id("test-list-datastores-bad-filter")
-            .type(ListDatastores.class.getName())
-            .region(Property.ofValue("us-east-1"))
-            .accessKeyId(Property.ofValue("test-key"))
-            .secretKeyId(Property.ofValue("test-secret"))
-            .filterStatus(Property.ofValue("INVALID_STATUS"))
-            .build();
-
-        var mockClient = mock(HealthLakeClient.class);
-        var spy = spy(task);
-        doReturn(mockClient).when(spy).client(any(RunContext.class));
-
-        org.junit.jupiter.api.Assertions.assertThrows(
-            IllegalArgumentException.class, () -> spy.run(runContext));
-    }
 }

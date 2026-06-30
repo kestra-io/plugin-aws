@@ -1,15 +1,17 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.time.Instant;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.time.Instant;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -43,19 +45,23 @@ class DescribeExportJobTest {
             .datastoreId("ds-abc123")
             .submitTime(Instant.parse("2024-01-01T10:00:00Z"))
             .endTime(Instant.parse("2024-01-01T10:45:00Z"))
-            .outputDataConfig(OutputDataConfig.builder()
-                .s3Configuration(S3Configuration.builder()
-                    .s3Uri("s3://my-bucket/fhir/export/")
-                    .build())
-                .build())
+            .outputDataConfig(
+                OutputDataConfig.builder()
+                    .s3Configuration(
+                        S3Configuration.builder()
+                            .s3Uri("s3://my-bucket/fhir/export/")
+                            .build()
+                    )
+                    .build()
+            )
             .build();
 
-        var mockResponse = DescribeFHIRExportJobResponse.builder()
+        var mockResponse = DescribeFhirExportJobResponse.builder()
             .exportJobProperties(props)
             .build();
 
         var mockClient = mock(HealthLakeClient.class);
-        when(mockClient.describeFHIRExportJob(any(DescribeFHIRExportJobRequest.class))).thenReturn(mockResponse);
+        when(mockClient.describeFHIRExportJob(any(DescribeFhirExportJobRequest.class))).thenReturn(mockResponse);
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));

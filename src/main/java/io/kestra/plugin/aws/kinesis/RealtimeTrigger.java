@@ -9,6 +9,7 @@ import org.reactivestreams.Publisher;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -25,7 +26,6 @@ import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

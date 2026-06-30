@@ -1,7 +1,10 @@
 package io.kestra.plugin.aws.healthlake;
 
+import java.util.UUID;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,14 +13,13 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.healthlake.HealthLakeClient;
 import software.amazon.awssdk.services.healthlake.model.*;
-
-import java.util.UUID;
 
 @SuperBuilder
 @ToString
@@ -99,11 +101,13 @@ public class StartExportJob extends AbstractConnection implements RunnableTask<S
             s3ConfigBuilder.kmsKeyId(runContext.render(kmsKeyId).as(String.class).orElse(null));
         }
 
-        var requestBuilder = StartFHIRExportJobRequest.builder()
+        var requestBuilder = StartFhirExportJobRequest.builder()
             .datastoreId(rDatastoreId)
-            .outputDataConfig(OutputDataConfig.builder()
-                .s3Configuration(s3ConfigBuilder.build())
-                .build())
+            .outputDataConfig(
+                OutputDataConfig.builder()
+                    .s3Configuration(s3ConfigBuilder.build())
+                    .build()
+            )
             .dataAccessRoleArn(rRoleArn)
             .clientToken(UUID.randomUUID().toString());
 

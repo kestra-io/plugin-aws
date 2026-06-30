@@ -28,7 +28,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
             .fetchType(Property.ofValue(FetchType.FETCH))
@@ -55,7 +55,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .filterExpression(Property.ofValue("lastname = :lastname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1", ":lastname", "Doe")))
@@ -83,7 +83,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .filterExpression(Property.ofValue("lastname = :lastname"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1", ":lastname", "Baudelaire")))
@@ -109,7 +109,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
             .fetchType(Property.ofValue(FetchType.FETCH))
@@ -136,7 +136,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
             .fetchType(Property.ofValue(FetchType.FETCH_ONE))
@@ -163,7 +163,7 @@ class QueryTest extends AbstractDynamoDbTest {
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
-            .tableName(Property.ofValue("persons"))
+            .tableName(Property.ofValue(tableName()))
             .keyConditionExpression(Property.ofValue("id = :id"))
             .expressionAttributeValues(Property.ofValue(Map.of(":id", "1")))
             .fetchType(Property.ofValue(FetchType.STORE))
@@ -189,7 +189,7 @@ class QueryTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Doe").build()
             );
             var putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);
@@ -200,7 +200,7 @@ class QueryTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Doe").build()
             );
             putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);
@@ -211,7 +211,7 @@ class QueryTest extends AbstractDynamoDbTest {
                 "lastname", AttributeValue.builder().s("Baudelaire").build()
             );
             putRequest = PutItemRequest.builder()
-                .tableName("persons")
+                .tableName(tableName())
                 .item(item)
                 .build();
             dynamoDbClient.putItem(putRequest);

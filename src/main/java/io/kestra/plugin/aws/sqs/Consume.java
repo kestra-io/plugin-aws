@@ -14,6 +14,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -29,8 +30,6 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -165,10 +164,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
     private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles, RunContext runContext) {
         var entries = IntStream.range(0, receiptHandles.size())
-            .mapToObj(i -> DeleteMessageBatchRequestEntry.builder()
-                .id(String.valueOf(i))
-                .receiptHandle(receiptHandles.get(i))
-                .build())
+            .mapToObj(
+                i -> DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(receiptHandles.get(i))
+                    .build()
+            )
             .toList();
         var response = sqsClient.deleteMessageBatch(
             DeleteMessageBatchRequest.builder()

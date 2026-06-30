@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -14,7 +15,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
