@@ -36,3 +36,5 @@ For data and compute, `athena` queries S3 data with SQL, `glue` manages ETL jobs
 For AI workloads, `bedrock` provides direct access to Amazon Bedrock foundation models: `InvokeModel` sends raw payloads to any model, `Converse` and `ConverseStream` use the unified Converse API for model-agnostic multi-turn chat, and `ListFoundationModels` discovers available models in your region.
 
 For FHIR healthcare workloads, `healthlake` integrates with Amazon HealthLake: `CreateDatastore`, `DescribeDatastore`, `ListDatastores`, and `DeleteDatastore` manage FHIR R4 data stores, while `StartImportJob`, `DescribeImportJob`, `StartExportJob`, and `DescribeExportJob` orchestrate bulk FHIR data movement from and to S3. A `Trigger` fires flows when import or export jobs reach a terminal state.
+
+For managed Kafka workloads, `msk` integrates with Amazon MSK: `CreateCluster`, `DescribeCluster`, `ListClusters`, and `DeleteCluster` manage cluster lifecycle, `GetBootstrapBrokers` retrieves broker connection strings to pass directly to `plugin-kafka` tasks, and a `Trigger` fires flows when a cluster reaches a target state such as `ACTIVE`.

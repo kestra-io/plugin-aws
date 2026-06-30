@@ -62,6 +62,12 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.healthlake.StartExportJob`
 - `io.kestra.plugin.aws.healthlake.StartImportJob`
 - `io.kestra.plugin.aws.healthlake.Trigger`
+- `io.kestra.plugin.aws.msk.CreateCluster`
+- `io.kestra.plugin.aws.msk.DeleteCluster`
+- `io.kestra.plugin.aws.msk.DescribeCluster`
+- `io.kestra.plugin.aws.msk.GetBootstrapBrokers`
+- `io.kestra.plugin.aws.msk.ListClusters`
+- `io.kestra.plugin.aws.msk.Trigger`
 - `io.kestra.plugin.aws.lambda.Invoke`
 - `io.kestra.plugin.aws.s3.Copy`
 - `io.kestra.plugin.aws.s3.CreateBucket`
