@@ -61,12 +61,18 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> queueUrl;
 
     @Schema(title = "Access key id")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> accessKeyId;
 
     @Schema(title = "Secret key id")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> secretKeyId;
 
     @Schema(title = "Session token")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> sessionToken;
 
     @Schema(title = "Region")
