@@ -11,10 +11,14 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
-import software.amazon.awssdk.services.kafka.model.*;
+import software.amazon.awssdk.services.kafka.model.ListClustersRequest;
+import software.amazon.awssdk.services.kafka.model.ListClustersResponse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,6 +75,11 @@ public class ListClusters extends AbstractConnection implements RunnableTask<Lis
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
+        // Render once before the loop — avoids redundant Pebble evaluation on every page
+        var resolvedNameFilter = clusterNameFilter != null
+            ? runContext.render(clusterNameFilter).as(String.class).orElse(null)
+            : null;
+
         var clusters = new ArrayList<Map<String, Object>>();
         String nextToken = null;
 
@@ -78,14 +87,16 @@ public class ListClusters extends AbstractConnection implements RunnableTask<Lis
 
         try (var client = client(runContext)) {
             do {
-                var reqBuilder = ListClustersRequest.builder().maxResults(10);
-                if (clusterNameFilter != null) {
-                    reqBuilder.clusterNameFilter(runContext.render(clusterNameFilter).as(String.class).orElse(null));
+                var remaining = MAX_RESULTS - clusters.size();
+                var reqBuilder = ListClustersRequest.builder()
+                    .maxResults(Math.min(10, remaining));
+                if (resolvedNameFilter != null) {
+                    reqBuilder.clusterNameFilter(resolvedNameFilter);
                 }
                 if (nextToken != null) {
                     reqBuilder.nextToken(nextToken);
                 }
-                var response = client.listClusters(reqBuilder.build());
+                ListClustersResponse response = client.listClusters(reqBuilder.build());
                 for (var info : response.clusterInfoList()) {
                     clusters.add(Map.of(
                         "clusterArn", info.clusterArn() != null ? info.clusterArn() : "",

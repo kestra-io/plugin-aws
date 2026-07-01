@@ -12,7 +12,10 @@ import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.DeleteClusterRequest;
@@ -66,23 +69,19 @@ public class DeleteCluster extends AbstractConnection implements RunnableTask<De
         var logger = runContext.logger();
         var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
 
-        // Fetch current version required by the delete API
-        String currentVersion;
+        logger.debug("Deleting MSK cluster '{}'", resolvedArn);
+
+        // Single client instance for both describe (to fetch currentVersion) and delete
         try (var client = client(runContext)) {
             var describeResponse = client.describeCluster(
                 DescribeClusterRequest.builder().clusterArn(resolvedArn).build());
-            currentVersion = describeResponse.clusterInfo().currentVersion();
-        }
+            var currentVersion = describeResponse.clusterInfo().currentVersion();
 
-        var request = DeleteClusterRequest.builder()
-            .clusterArn(resolvedArn)
-            .currentVersion(currentVersion)
-            .build();
+            var response = client.deleteCluster(DeleteClusterRequest.builder()
+                .clusterArn(resolvedArn)
+                .currentVersion(currentVersion)
+                .build());
 
-        logger.debug("Deleting MSK cluster '{}'", resolvedArn);
-
-        try (var client = client(runContext)) {
-            var response = client.deleteCluster(request);
             logger.debug("MSK cluster '{}' deletion initiated, state={}", resolvedArn, response.state());
             return Output.builder()
                 .clusterArn(response.clusterArn())

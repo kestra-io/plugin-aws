@@ -1,14 +1,21 @@
 package io.kestra.plugin.aws.msk;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.TriggerContext;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kafka.KafkaClient;
-import software.amazon.awssdk.services.kafka.model.*;
+import software.amazon.awssdk.services.kafka.model.ClusterInfo;
+import software.amazon.awssdk.services.kafka.model.ClusterState;
+import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
+import software.amazon.awssdk.services.kafka.model.DescribeClusterResponse;
 
-import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -22,23 +29,19 @@ class TriggerTest {
     RunContextFactory runContextFactory;
 
     @Test
-    void givenActiveCluster_whenTargetIsActive_thenShouldFire() {
-        // Verify matching state logic — when current == target, trigger fires
-        var currentState = ClusterState.ACTIVE;
-        var targetState = ClusterState.ACTIVE;
-        assertThat(currentState, is(targetState));
-    }
+    void givenClusterAtTargetState_whenEvaluate_thenReturnsExecution() throws Exception {
+        var runContext = runContextFactory.of();
 
-    @Test
-    void givenCreatingCluster_whenTargetIsActive_thenShouldNotFire() {
-        // Verify non-matching state — trigger should not fire
-        var currentState = ClusterState.CREATING;
-        var targetState = ClusterState.ACTIVE;
-        assertThat(currentState, not(targetState));
-    }
+        var trigger = Trigger.builder()
+            .id("test-trigger")
+            .type(Trigger.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("test-key"))
+            .secretKeyId(Property.ofValue("test-secret"))
+            .clusterArn(Property.ofValue("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc"))
+            .targetState(Property.ofValue(ClusterState.ACTIVE))
+            .build();
 
-    @Test
-    void givenClusterArn_whenDescribe_thenStateIsReturned() {
         var mockClient = mock(KafkaClient.class);
         when(mockClient.describeCluster(any(DescribeClusterRequest.class)))
             .thenReturn(DescribeClusterResponse.builder()
@@ -48,19 +51,57 @@ class TriggerTest {
                     .build())
                 .build());
 
-        var response = mockClient.describeCluster(
-            DescribeClusterRequest.builder()
-                .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc")
+        var spy = spy(trigger);
+        doReturn(mockClient).when(spy).client(any(RunContext.class));
+
+        var conditionContext = mock(ConditionContext.class);
+        var triggerContext = mock(TriggerContext.class);
+        when(conditionContext.getRunContext()).thenReturn(runContext);
+
+        Optional<Execution> result = spy.evaluate(conditionContext, triggerContext);
+
+        assertThat(result.isPresent(), is(true));
+    }
+
+    @Test
+    void givenClusterNotAtTargetState_whenEvaluate_thenReturnsEmpty() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var trigger = Trigger.builder()
+            .id("test-trigger-not-ready")
+            .type(Trigger.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("test-key"))
+            .secretKeyId(Property.ofValue("test-secret"))
+            .clusterArn(Property.ofValue("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc"))
+            .targetState(Property.ofValue(ClusterState.ACTIVE))
+            .build();
+
+        var mockClient = mock(KafkaClient.class);
+        when(mockClient.describeCluster(any(DescribeClusterRequest.class)))
+            .thenReturn(DescribeClusterResponse.builder()
+                .clusterInfo(ClusterInfo.builder()
+                    .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc")
+                    .state(ClusterState.CREATING)
+                    .build())
                 .build());
 
-        assertThat(response.clusterInfo().state(), is(ClusterState.ACTIVE));
+        var spy = spy(trigger);
+        doReturn(mockClient).when(spy).client(any(RunContext.class));
+
+        var conditionContext = mock(ConditionContext.class);
+        var triggerContext = mock(TriggerContext.class);
+        when(conditionContext.getRunContext()).thenReturn(runContext);
+
+        Optional<Execution> result = spy.evaluate(conditionContext, triggerContext);
+
+        assertThat(result.isPresent(), is(false));
     }
 
     @Test
     void clusterStateEnum_containsExpectedValues() {
-        // Verify all documented ClusterState values exist in the SDK enum
-        var states = List.of("ACTIVE", "CREATING", "DELETING", "FAILED", "HEALING", "MAINTENANCE", "REBOOTING_BROKER", "UPDATING");
-        for (var state : states) {
+        var expected = new String[]{"ACTIVE", "CREATING", "DELETING", "FAILED", "HEALING", "MAINTENANCE", "REBOOTING_BROKER", "UPDATING"};
+        for (var state : expected) {
             assertThat(ClusterState.fromValue(state), not(ClusterState.UNKNOWN_TO_SDK_VERSION));
         }
     }

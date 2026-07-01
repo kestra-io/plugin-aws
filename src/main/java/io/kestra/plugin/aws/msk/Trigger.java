@@ -1,25 +1,35 @@
 package io.kestra.plugin.aws.msk;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.*;
+import io.kestra.core.models.triggers.AbstractTrigger;
+import io.kestra.core.models.triggers.PollingTriggerInterface;
+import io.kestra.core.models.triggers.TriggerContext;
+import io.kestra.core.models.triggers.TriggerOutput;
+import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
-import software.amazon.awssdk.services.kafka.model.*;
-
-import java.time.Duration;
-import java.util.Optional;
+import software.amazon.awssdk.services.kafka.model.ClusterState;
+import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 
 @SuperBuilder
 @ToString
@@ -32,6 +42,7 @@ import java.util.Optional;
         Polls the state of an MSK cluster at a fixed interval and fires when the cluster
         reaches the configured `targetState`. Exposes `{{ trigger.clusterArn }}` and
         `{{ trigger.clusterState }}` to downstream tasks.
+        Note: the minimum recommended poll interval is PT30S.
         """
 )
 @Plugin(
@@ -63,12 +74,13 @@ import java.util.Optional;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, AbstractConnectionInterface {
 
+    // Connection fields — groups aligned with kinesis.Trigger and AbstractConnectionInterface
     @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
-    @PluginProperty(secret = true, group = "connection")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> accessKeyId;
 
     @Schema(title = "AWS secret access key", description = "Pairs with `accessKeyId` for static credentials.")
-    @PluginProperty(secret = true, group = "connection")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> secretKeyId;
 
     @Schema(title = "AWS session token", description = "Session token for temporary credentials.")
@@ -80,29 +92,29 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<String> region;
 
     @Schema(title = "Endpoint override", description = "Override the default AWS endpoint URL.")
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "advanced")
     protected Property<String> endpointOverride;
 
     @Schema(title = "STS role ARN", description = "IAM role ARN to assume via STS before making API calls.")
-    @PluginProperty(secret = true, group = "connection")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> stsRoleArn;
 
     @Schema(title = "STS role external ID", description = "External ID to pass when assuming the STS role.")
-    @PluginProperty(secret = true, group = "connection")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> stsRoleExternalId;
 
     @Schema(title = "STS role session name", description = "Session name to use when assuming the STS role.")
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "advanced")
     protected Property<String> stsRoleSessionName;
 
     @Schema(title = "STS endpoint override", description = "Override the default STS endpoint URL.")
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "advanced")
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
-    @Schema(title = "Poll interval", description = "How often to poll the cluster state. ISO-8601 duration, e.g. `PT1M` for every minute.")
+    @Schema(title = "Poll interval", description = "How often to poll the cluster state. ISO-8601 duration, e.g. `PT1M`. Minimum recommended value: `PT30S`.")
     @PluginProperty(group = "main")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
@@ -128,9 +140,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
         var resolvedTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
 
-        var clientConfig = awsClientConfig(runContext);
-
-        try (var client = ConnectionUtils.configureSyncClient(clientConfig, KafkaClient.builder()).build()) {
+        try (var client = client(runContext)) {
             var info = client.describeCluster(
                 DescribeClusterRequest.builder().clusterArn(resolvedArn).build()
             ).clusterInfo();
@@ -149,6 +159,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 .build();
             return Optional.of(TriggerService.generateExecution(this, conditionContext, context, output));
         }
+    }
+
+    @VisibleForTesting
+    KafkaClient client(RunContext runContext) throws Exception {
+        var clientConfig = awsClientConfig(runContext);
+        return ConnectionUtils.configureSyncClient(clientConfig, KafkaClient.builder()).build();
     }
 
     @SuperBuilder

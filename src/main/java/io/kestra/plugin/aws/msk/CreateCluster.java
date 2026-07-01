@@ -1,7 +1,10 @@
 package io.kestra.plugin.aws.msk;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -12,13 +15,16 @@ import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
-import software.amazon.awssdk.services.kafka.model.*;
-
-import java.util.List;
-import java.util.Map;
+import software.amazon.awssdk.services.kafka.model.BrokerNodeGroupInfo;
+import software.amazon.awssdk.services.kafka.model.CreateClusterRequest;
+import software.amazon.awssdk.services.kafka.model.EBSStorageInfo;
+import software.amazon.awssdk.services.kafka.model.StorageInfo;
 
 @SuperBuilder
 @ToString
@@ -31,6 +37,9 @@ import java.util.Map;
         Provisions a new MSK cluster and returns its ARN and initial state.
         Cluster creation is asynchronous — use `DescribeCluster` or the `Trigger` task to
         poll for `ACTIVE` state before connecting Kafka producers or consumers.
+        Note: this task creates a cluster with default encryption settings. For production
+        workloads requiring encryption-in-transit or at-rest, configure those settings via
+        the AWS Console or CLI after cluster creation.
         """
 )
 @Plugin(
@@ -110,31 +119,26 @@ public class CreateCluster extends AbstractConnection implements RunnableTask<Cr
         var resolvedKafkaVersion = runContext.render(kafkaVersion).as(String.class).orElseThrow();
         var resolvedBrokerCount = runContext.render(numberOfBrokerNodes).as(Integer.class).orElseThrow();
         var resolvedInstanceType = runContext.render(instanceType).as(String.class).orElseThrow();
-
-        @SuppressWarnings("unchecked")
-        var resolvedSubnets = (List<String>) (List<?>) runContext.render(clientSubnets).asList(String.class);
-        @SuppressWarnings("unchecked")
-        var resolvedSecurityGroups = (List<String>) (List<?>) runContext.render(securityGroups).asList(String.class);
-
-        var storageBuilder = EBSStorageInfo.builder()
-            .volumeSize(ebsVolumeSize != null
-                ? runContext.render(ebsVolumeSize).as(Integer.class).orElse(100)
-                : 100);
-
-        var brokerNodeGroup = BrokerNodeGroupInfo.builder()
-            .instanceType(resolvedInstanceType)
-            .clientSubnets(resolvedSubnets)
-            .securityGroups(resolvedSecurityGroups)
-            .storageInfo(StorageInfo.builder()
-                .ebsStorageInfo(storageBuilder.build())
-                .build())
-            .build();
+        var resolvedSubnets = runContext.render(clientSubnets).asList(String.class);
+        var resolvedSecurityGroups = runContext.render(securityGroups).asList(String.class);
+        var resolvedVolumeSize = ebsVolumeSize != null
+            ? runContext.render(ebsVolumeSize).as(Integer.class).orElse(100)
+            : 100;
 
         var request = CreateClusterRequest.builder()
             .clusterName(resolvedName)
             .kafkaVersion(resolvedKafkaVersion)
             .numberOfBrokerNodes(resolvedBrokerCount)
-            .brokerNodeGroupInfo(brokerNodeGroup)
+            .brokerNodeGroupInfo(BrokerNodeGroupInfo.builder()
+                .instanceType(resolvedInstanceType)
+                .clientSubnets(resolvedSubnets)
+                .securityGroups(resolvedSecurityGroups)
+                .storageInfo(StorageInfo.builder()
+                    .ebsStorageInfo(EBSStorageInfo.builder()
+                        .volumeSize(resolvedVolumeSize)
+                        .build())
+                    .build())
+                .build())
             .build();
 
         logger.debug("Creating MSK cluster '{}' with Kafka {} and {} brokers", resolvedName, resolvedKafkaVersion, resolvedBrokerCount);
