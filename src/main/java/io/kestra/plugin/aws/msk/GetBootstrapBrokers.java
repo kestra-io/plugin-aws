@@ -68,13 +68,13 @@ public class GetBootstrapBrokers extends AbstractConnection implements RunnableT
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
 
         var request = GetBootstrapBrokersRequest.builder()
-            .clusterArn(resolvedArn)
+            .clusterArn(rArn)
             .build();
 
-        logger.debug("Getting bootstrap brokers for MSK cluster '{}'", resolvedArn);
+        logger.debug("Getting bootstrap brokers for MSK cluster '{}'", rArn);
 
         try (var client = client(runContext)) {
             var response = client.getBootstrapBrokers(request);

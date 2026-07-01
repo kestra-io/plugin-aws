@@ -76,7 +76,7 @@ public class ListClusters extends AbstractConnection implements RunnableTask<Lis
         var logger = runContext.logger();
 
         // Render once before the loop — avoids redundant Pebble evaluation on every page
-        var resolvedNameFilter = clusterNameFilter != null
+        var rNameFilter = clusterNameFilter != null
             ? runContext.render(clusterNameFilter).as(String.class).orElse(null)
             : null;
 
@@ -90,8 +90,8 @@ public class ListClusters extends AbstractConnection implements RunnableTask<Lis
                 var remaining = MAX_RESULTS - clusters.size();
                 var reqBuilder = ListClustersRequest.builder()
                     .maxResults(Math.min(10, remaining));
-                if (resolvedNameFilter != null) {
-                    reqBuilder.clusterNameFilter(resolvedNameFilter);
+                if (rNameFilter != null) {
+                    reqBuilder.clusterNameFilter(rNameFilter);
                 }
                 if (nextToken != null) {
                     reqBuilder.nextToken(nextToken);

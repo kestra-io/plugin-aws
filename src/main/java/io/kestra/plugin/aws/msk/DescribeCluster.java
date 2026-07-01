@@ -67,13 +67,13 @@ public class DescribeCluster extends AbstractConnection implements RunnableTask<
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
 
         var request = DescribeClusterRequest.builder()
-            .clusterArn(resolvedArn)
+            .clusterArn(rArn)
             .build();
 
-        logger.debug("Describing MSK cluster '{}'", resolvedArn);
+        logger.debug("Describing MSK cluster '{}'", rArn);
 
         try (var client = client(runContext)) {
             var info = client.describeCluster(request).clusterInfo();

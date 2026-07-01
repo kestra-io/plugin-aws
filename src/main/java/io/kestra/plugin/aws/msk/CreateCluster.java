@@ -115,33 +115,33 @@ public class CreateCluster extends AbstractConnection implements RunnableTask<Cr
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
 
-        var resolvedName = runContext.render(clusterName).as(String.class).orElseThrow();
-        var resolvedKafkaVersion = runContext.render(kafkaVersion).as(String.class).orElseThrow();
-        var resolvedBrokerCount = runContext.render(numberOfBrokerNodes).as(Integer.class).orElseThrow();
-        var resolvedInstanceType = runContext.render(instanceType).as(String.class).orElseThrow();
-        var resolvedSubnets = runContext.render(clientSubnets).asList(String.class);
-        var resolvedSecurityGroups = runContext.render(securityGroups).asList(String.class);
-        var resolvedVolumeSize = ebsVolumeSize != null
+        var rName = runContext.render(clusterName).as(String.class).orElseThrow();
+        var rKafkaVersion = runContext.render(kafkaVersion).as(String.class).orElseThrow();
+        var rBrokerCount = runContext.render(numberOfBrokerNodes).as(Integer.class).orElseThrow();
+        var rInstanceType = runContext.render(instanceType).as(String.class).orElseThrow();
+        var rSubnets = runContext.render(clientSubnets).asList(String.class);
+        var rSecurityGroups = runContext.render(securityGroups).asList(String.class);
+        var rVolumeSize = ebsVolumeSize != null
             ? runContext.render(ebsVolumeSize).as(Integer.class).orElse(100)
             : 100;
 
         var request = CreateClusterRequest.builder()
-            .clusterName(resolvedName)
-            .kafkaVersion(resolvedKafkaVersion)
-            .numberOfBrokerNodes(resolvedBrokerCount)
+            .clusterName(rName)
+            .kafkaVersion(rKafkaVersion)
+            .numberOfBrokerNodes(rBrokerCount)
             .brokerNodeGroupInfo(BrokerNodeGroupInfo.builder()
-                .instanceType(resolvedInstanceType)
-                .clientSubnets(resolvedSubnets)
-                .securityGroups(resolvedSecurityGroups)
+                .instanceType(rInstanceType)
+                .clientSubnets(rSubnets)
+                .securityGroups(rSecurityGroups)
                 .storageInfo(StorageInfo.builder()
                     .ebsStorageInfo(EBSStorageInfo.builder()
-                        .volumeSize(resolvedVolumeSize)
+                        .volumeSize(rVolumeSize)
                         .build())
                     .build())
                 .build())
             .build();
 
-        logger.debug("Creating MSK cluster '{}' with Kafka {} and {} brokers", resolvedName, resolvedKafkaVersion, resolvedBrokerCount);
+        logger.debug("Creating MSK cluster '{}' with Kafka {} and {} brokers", rName, rKafkaVersion, rBrokerCount);
 
         try (var client = client(runContext)) {
             var response = client.createCluster(request);

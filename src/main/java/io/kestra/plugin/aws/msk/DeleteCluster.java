@@ -67,22 +67,22 @@ public class DeleteCluster extends AbstractConnection implements RunnableTask<De
     @Override
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
-        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
 
-        logger.debug("Deleting MSK cluster '{}'", resolvedArn);
+        logger.debug("Deleting MSK cluster '{}'", rArn);
 
         // Single client instance for both describe (to fetch currentVersion) and delete
         try (var client = client(runContext)) {
             var describeResponse = client.describeCluster(
-                DescribeClusterRequest.builder().clusterArn(resolvedArn).build());
+                DescribeClusterRequest.builder().clusterArn(rArn).build());
             var currentVersion = describeResponse.clusterInfo().currentVersion();
 
             var response = client.deleteCluster(DeleteClusterRequest.builder()
-                .clusterArn(resolvedArn)
+                .clusterArn(rArn)
                 .currentVersion(currentVersion)
                 .build());
 
-            logger.debug("MSK cluster '{}' deletion initiated, state={}", resolvedArn, response.state());
+            logger.debug("MSK cluster '{}' deletion initiated, state={}", rArn, response.state());
             return Output.builder()
                 .clusterArn(response.clusterArn())
                 .state(response.state() != null ? response.state().toString() : null)

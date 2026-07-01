@@ -137,24 +137,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var runContext = conditionContext.getRunContext();
         var logger = runContext.logger();
 
-        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
-        var resolvedTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
+        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var rTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
 
         try (var client = client(runContext)) {
             var info = client.describeCluster(
-                DescribeClusterRequest.builder().clusterArn(resolvedArn).build()
+                DescribeClusterRequest.builder().clusterArn(rArn).build()
             ).clusterInfo();
 
             var currentState = info.state();
-            logger.debug("MSK cluster '{}' current state={}, waiting for {}", resolvedArn, currentState, resolvedTargetState);
+            logger.debug("MSK cluster '{}' current state={}, waiting for {}", rArn, currentState, rTargetState);
 
-            if (currentState != resolvedTargetState) {
+            if (currentState != rTargetState) {
                 return Optional.empty();
             }
 
-            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", resolvedArn, resolvedTargetState);
+            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
             var output = Output.builder()
-                .clusterArn(resolvedArn)
+                .clusterArn(rArn)
                 .clusterState(currentState.toString())
                 .build();
             return Optional.of(TriggerService.generateExecution(this, conditionContext, context, output));
