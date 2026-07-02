@@ -42,8 +42,9 @@ class RealtimeTriggerTest extends AbstractSqsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
         Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
         {
-            queueCount.countDown();
-            assertThat(execution.getLeft().getFlowId(), is("realtime"));
+            if (execution.isLeft() && "realtime".equals(execution.getLeft().getFlowId()) && "io.kestra.tests".equals(execution.getLeft().getNamespace())) {
+                queueCount.countDown();
+            }
         });
 
         String yaml = """

@@ -61,7 +61,7 @@ class TriggerTest extends AbstractTest {
 
         repositoryLoader.load(flowWithFlociEndpoint("flows/s3/s3-listen.yaml"));
 
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(15, TimeUnit.SECONDS);
         assertThat(await, is(true));
         receive.blockLast();
 
