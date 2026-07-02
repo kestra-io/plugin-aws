@@ -1,6 +1,6 @@
 group: io.kestra.plugin.aws.bedrock
 name: "bedrock"
-title: "Amazon Bedrock"
+title: "AWS Bedrock"
 description: "Tasks that invoke foundation models on Amazon Bedrock, run structured multi-turn conversations via the unified Converse API, stream responses, and list available models — all using the same AWS credentials as the rest of your plugin-aws stack."
 body: ""
 videos: []

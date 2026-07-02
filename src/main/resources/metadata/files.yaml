@@ -1,6 +1,6 @@
 group: io.kestra.plugin.aws.s3.files
 name: "files"
-title: "Amazon EFS"
+title: "AWS EFS"
 description: "Tasks for managing Amazon EFS file systems and mount targets."
 body: ""
 videos: []
