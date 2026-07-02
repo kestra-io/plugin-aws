@@ -148,8 +148,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var runContext = conditionContext.getRunContext();
         var logger = runContext.logger();
 
-        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
-        var resolvedTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
+        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var rTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
 
         // Load last-fired state to avoid re-firing while cluster stays in target state
         String lastFiredState = null;
@@ -166,13 +166,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         try (var client = client(runContext)) {
             var info = client.describeCluster(
-                DescribeClusterRequest.builder().clusterArn(resolvedArn).build()
+                DescribeClusterRequest.builder().clusterArn(rArn).build()
             ).clusterInfo();
 
             var currentState = info.state();
-            logger.debug("MSK cluster '{}' current state={}, waiting for {}", resolvedArn, currentState, resolvedTargetState);
+            logger.debug("MSK cluster '{}' current state={}, waiting for {}", rArn, currentState, rTargetState);
 
-            if (currentState != resolvedTargetState) {
+            if (currentState != rTargetState) {
                 // Clear persisted state so we re-fire if cluster transitions back into target later
                 if (lastFiredState != null) {
                     runContext.storage().putTaskStateFile(
@@ -183,19 +183,19 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Dedup: skip if we already fired for this state
-            if (resolvedTargetState.toString().equals(lastFiredState)) {
-                logger.debug("MSK cluster '{}' already fired for state={}, skipping", resolvedArn, resolvedTargetState);
+            if (rTargetState.toString().equals(lastFiredState)) {
+                logger.debug("MSK cluster '{}' already fired for state={}, skipping", rArn, rTargetState);
                 return Optional.empty();
             }
 
             // Persist state so we don't re-fire on subsequent polls
             runContext.storage().putTaskStateFile(
-                new ByteArrayInputStream(resolvedTargetState.toString().getBytes(StandardCharsets.UTF_8)),
+                new ByteArrayInputStream(rTargetState.toString().getBytes(StandardCharsets.UTF_8)),
                 STATE_FILE, this.getId(), false);
 
-            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", resolvedArn, resolvedTargetState);
+            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
             var output = Output.builder()
-                .clusterArn(resolvedArn)
+                .clusterArn(rArn)
                 .clusterState(currentState.toString())
                 .build();
             return Optional.of(TriggerService.generateExecution(this, conditionContext, context, output));
