@@ -29,7 +29,6 @@ import software.amazon.awssdk.services.kafka.model.ClusterState;
 import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -79,7 +78,8 @@ import java.util.Optional;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, AbstractConnectionInterface {
 
-    private static final String STATE_FILE = "msk-trigger-last-fired-state.txt";
+    private static final String STATE_NAME = "msk-trigger";
+    private static final String STATE_SUB_NAME = "last-fired-state";
 
     @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
     @PluginProperty(secret = true, group = "advanced")
@@ -151,12 +151,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
         var rTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
 
-        // Load last-fired state to avoid re-firing while cluster stays in target state
+        // Load last-fired state to avoid re-firing while cluster remains in target state
         String lastFiredState = null;
         try {
-            var stateFile = runContext.storage().getTaskStateFile(STATE_FILE, this.getId(), false);
-            if (stateFile != null) {
-                try (var reader = new BufferedReader(new InputStreamReader(stateFile, StandardCharsets.UTF_8))) {
+            var stateStream = runContext.stateStore().getState(STATE_NAME, STATE_SUB_NAME, this.getId());
+            if (stateStream != null) {
+                try (var reader = new BufferedReader(new InputStreamReader(stateStream, StandardCharsets.UTF_8))) {
                     lastFiredState = reader.readLine();
                 }
             }
@@ -175,23 +175,20 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             if (currentState != rTargetState) {
                 // Clear persisted state so we re-fire if cluster transitions back into target later
                 if (lastFiredState != null) {
-                    runContext.storage().putTaskStateFile(
-                        new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8)),
-                        STATE_FILE, this.getId(), false);
+                    runContext.stateStore().putState(STATE_NAME, STATE_SUB_NAME, this.getId(), new byte[0]);
                 }
                 return Optional.empty();
             }
 
-            // Dedup: skip if we already fired for this state
+            // Dedup: skip if we already fired for this state in a previous poll
             if (rTargetState.toString().equals(lastFiredState)) {
                 logger.debug("MSK cluster '{}' already fired for state={}, skipping", rArn, rTargetState);
                 return Optional.empty();
             }
 
-            // Persist state so we don't re-fire on subsequent polls
-            runContext.storage().putTaskStateFile(
-                new ByteArrayInputStream(rTargetState.toString().getBytes(StandardCharsets.UTF_8)),
-                STATE_FILE, this.getId(), false);
+            // Persist fired state so subsequent polls don't re-fire
+            runContext.stateStore().putState(STATE_NAME, STATE_SUB_NAME, this.getId(),
+                rTargetState.toString().getBytes(StandardCharsets.UTF_8));
 
             logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
             var output = Output.builder()
