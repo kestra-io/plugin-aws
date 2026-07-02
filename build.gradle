@@ -87,6 +87,8 @@ dependencies {
     api 'software.amazon.awssdk:bedrockruntime'
     // AWS SDK — Amazon HealthLake
     api 'software.amazon.awssdk:healthlake'
+    // AWS SDK — Amazon MSK
+    api 'software.amazon.awssdk:kafka'
 }
 
 /**********************************************************************************************************************\
