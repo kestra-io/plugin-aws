@@ -1,11 +1,7 @@
 package io.kestra.plugin.aws.msk;
 
-import java.time.Duration;
-import java.util.Optional;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -22,6 +18,7 @@ import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,6 +28,13 @@ import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.ClusterState;
 import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Optional;
+
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -39,9 +43,10 @@ import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 @Schema(
     title = "Trigger a flow when an MSK cluster reaches a target state",
     description = """
-        Polls the state of an MSK cluster at a fixed interval and fires when the cluster
-        reaches the configured `targetState`. Exposes `{{ trigger.clusterArn }}` and
-        `{{ trigger.clusterState }}` to downstream tasks.
+        Polls the state of an MSK cluster at a fixed interval and fires once when the cluster
+        reaches the configured `targetState`. Subsequent polls are deduplicated via persisted state
+        so the trigger does not re-fire while the cluster remains in that state.
+        Exposes `{{ trigger.clusterArn }}` and `{{ trigger.clusterState }}` to downstream tasks.
         Note: the minimum recommended poll interval is PT30S.
         """
 )
@@ -74,17 +79,21 @@ import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, AbstractConnectionInterface {
 
-    // Connection fields — groups aligned with kinesis.Trigger and AbstractConnectionInterface
+    private static final String STATE_FILE = "msk-trigger-last-fired-state.txt";
+
     @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
     @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> accessKeyId;
 
     @Schema(title = "AWS secret access key", description = "Pairs with `accessKeyId` for static credentials.")
     @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> secretKeyId;
 
     @Schema(title = "AWS session token", description = "Session token for temporary credentials.")
     @PluginProperty(secret = true, group = "connection")
+    @ToString.Exclude
     protected Property<String> sessionToken;
 
     @Schema(title = "AWS region", description = "The AWS region for the MSK service.")
@@ -97,10 +106,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(title = "STS role ARN", description = "IAM role ARN to assume via STS before making API calls.")
     @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> stsRoleArn;
 
     @Schema(title = "STS role external ID", description = "External ID to pass when assuming the STS role.")
     @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> stsRoleExternalId;
 
     @Schema(title = "STS role session name", description = "Session name to use when assuming the STS role.")
@@ -137,24 +148,54 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var runContext = conditionContext.getRunContext();
         var logger = runContext.logger();
 
-        var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
-        var rTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
+        var resolvedArn = runContext.render(clusterArn).as(String.class).orElseThrow();
+        var resolvedTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
+
+        // Load last-fired state to avoid re-firing while cluster stays in target state
+        String lastFiredState = null;
+        try {
+            var stateFile = runContext.storage().getTaskStateFile(STATE_FILE, this.getId(), false);
+            if (stateFile != null) {
+                try (var reader = new BufferedReader(new InputStreamReader(stateFile, StandardCharsets.UTF_8))) {
+                    lastFiredState = reader.readLine();
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("No previous trigger state found, treating as first run");
+        }
 
         try (var client = client(runContext)) {
             var info = client.describeCluster(
-                DescribeClusterRequest.builder().clusterArn(rArn).build()
+                DescribeClusterRequest.builder().clusterArn(resolvedArn).build()
             ).clusterInfo();
 
             var currentState = info.state();
-            logger.debug("MSK cluster '{}' current state={}, waiting for {}", rArn, currentState, rTargetState);
+            logger.debug("MSK cluster '{}' current state={}, waiting for {}", resolvedArn, currentState, resolvedTargetState);
 
-            if (currentState != rTargetState) {
+            if (currentState != resolvedTargetState) {
+                // Clear persisted state so we re-fire if cluster transitions back into target later
+                if (lastFiredState != null) {
+                    runContext.storage().putTaskStateFile(
+                        new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8)),
+                        STATE_FILE, this.getId(), false);
+                }
                 return Optional.empty();
             }
 
-            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
+            // Dedup: skip if we already fired for this state
+            if (resolvedTargetState.toString().equals(lastFiredState)) {
+                logger.debug("MSK cluster '{}' already fired for state={}, skipping", resolvedArn, resolvedTargetState);
+                return Optional.empty();
+            }
+
+            // Persist state so we don't re-fire on subsequent polls
+            runContext.storage().putTaskStateFile(
+                new ByteArrayInputStream(resolvedTargetState.toString().getBytes(StandardCharsets.UTF_8)),
+                STATE_FILE, this.getId(), false);
+
+            logger.debug("MSK cluster '{}' reached target state={}, firing trigger", resolvedArn, resolvedTargetState);
             var output = Output.builder()
-                .clusterArn(rArn)
+                .clusterArn(resolvedArn)
                 .clusterState(currentState.toString())
                 .build();
             return Optional.of(TriggerService.generateExecution(this, conditionContext, context, output));
