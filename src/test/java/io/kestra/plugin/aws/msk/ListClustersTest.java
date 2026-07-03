@@ -1,22 +1,23 @@
 package io.kestra.plugin.aws.msk;
 
+import java.time.Instant;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.BrokerSoftwareInfo;
 import software.amazon.awssdk.services.kafka.model.ClusterInfo;
 import software.amazon.awssdk.services.kafka.model.ClusterState;
 import software.amazon.awssdk.services.kafka.model.ListClustersRequest;
 import software.amazon.awssdk.services.kafka.model.ListClustersResponse;
-import software.amazon.awssdk.core.exception.SdkException;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -63,9 +64,11 @@ class ListClustersTest {
 
         var mockClient = mock(KafkaClient.class);
         when(mockClient.listClusters(any(ListClustersRequest.class)))
-            .thenReturn(ListClustersResponse.builder()
-                .clusterInfoList(List.of(cluster1, cluster2))
-                .build());
+            .thenReturn(
+                ListClustersResponse.builder()
+                    .clusterInfoList(List.of(cluster1, cluster2))
+                    .build()
+            );
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
@@ -94,14 +97,20 @@ class ListClustersTest {
 
         var mockClient = mock(KafkaClient.class);
         when(mockClient.listClusters(any(ListClustersRequest.class)))
-            .thenReturn(ListClustersResponse.builder()
-                .clusterInfoList(List.of(ClusterInfo.builder()
-                    .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/prod-cluster/abc")
-                    .clusterName("prod-cluster")
-                    .state(ClusterState.ACTIVE)
-                    .numberOfBrokerNodes(3)
-                    .build()))
-                .build());
+            .thenReturn(
+                ListClustersResponse.builder()
+                    .clusterInfoList(
+                        List.of(
+                            ClusterInfo.builder()
+                                .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/prod-cluster/abc")
+                                .clusterName("prod-cluster")
+                                .state(ClusterState.ACTIVE)
+                                .numberOfBrokerNodes(3)
+                                .build()
+                        )
+                    )
+                    .build()
+            );
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
@@ -110,8 +119,7 @@ class ListClustersTest {
 
         assertThat(output.getTotal(), is(1));
         // Verify the filter was passed to the SDK request
-        verify(mockClient).listClusters(argThat((ListClustersRequest req) ->
-            "prod-cluster".equals(req.clusterNameFilter())));
+        verify(mockClient).listClusters(argThat((ListClustersRequest req) -> "prod-cluster".equals(req.clusterNameFilter())));
     }
 
     @Test
@@ -141,15 +149,19 @@ class ListClustersTest {
             .build();
 
         var mockClient = mock(KafkaClient.class);
-        when(mockClient.listClusters(argThat((ListClustersRequest req) -> req.nextToken() == null)))
-            .thenReturn(ListClustersResponse.builder()
-                .clusterInfoList(List.of(page1Cluster))
-                .nextToken("page2-token")
-                .build());
-        when(mockClient.listClusters(argThat((ListClustersRequest req) -> "page2-token".equals(req.nextToken()))))
-            .thenReturn(ListClustersResponse.builder()
-                .clusterInfoList(List.of(page2Cluster))
-                .build());
+        when(mockClient.listClusters(argThat((ListClustersRequest req) -> req != null && req.nextToken() == null)))
+            .thenReturn(
+                ListClustersResponse.builder()
+                    .clusterInfoList(List.of(page1Cluster))
+                    .nextToken("page2-token")
+                    .build()
+            );
+        when(mockClient.listClusters(argThat((ListClustersRequest req) -> req != null && "page2-token".equals(req.nextToken()))))
+            .thenReturn(
+                ListClustersResponse.builder()
+                    .clusterInfoList(List.of(page2Cluster))
+                    .build()
+            );
 
         var spy = spy(task);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
