@@ -1,6 +1,6 @@
 group: io.kestra.plugin.aws.dynamodb
 name: "dynamodb"
-title: "AWS Dynamodb"
+title: "AWS DynamoDB"
 description: "Tasks that read and write Amazon DynamoDB tables: put, get, or delete individual items and run query or scan operations with expression attributes."
 body: "Supports limiting and filtering results, then fetching rows directly or storing them to files for downstream steps."
 videos: []
