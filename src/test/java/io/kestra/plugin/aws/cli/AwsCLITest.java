@@ -13,7 +13,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.aws.AbstractLocalStackTest;
+import io.kestra.plugin.aws.AbstractFlociTest;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.runner.docker.Docker;
 
@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 
-public class AwsCLITest extends AbstractFlociTest {
+class AwsCLITest extends AbstractFlociTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -50,20 +50,24 @@ public class AwsCLITest extends AbstractFlociTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .region(Property.ofValue(REGION))
             .env(Map.of("{{ inputs.envKey }}", "{{ inputs.envValue }}"))
-            .commands(Property.ofExpression(JacksonMapper.ofJson().writeValueAsString(
-                List.of(
-                    "echo \"::{\\\"outputs\\\":{" +
-                        "\\\"endpoint\\\":\\\"$AWS_ENDPOINT_URL\\\"," +
-                        "\\\"accessKeyId\\\":\\\"$AWS_ACCESS_KEY_ID\\\"," +
-                        "\\\"secretKeyId\\\":\\\"$AWS_SECRET_ACCESS_KEY\\\"," +
-                        "\\\"region\\\":\\\"$AWS_DEFAULT_REGION\\\"," +
-                        "\\\"format\\\":\\\"$AWS_DEFAULT_OUTPUT\\\"," +
-                        "\\\"customEnv\\\":\\\"$" + envKey + "\\\"" +
-                        "}}::\"",
-                    "aws s3 mb s3://{{ inputs.bucketName }}",
-                    "echo \"::{\\\"outputs\\\":$(aws s3api list-buckets | tr -d '\\n')}::\""
+            .commands(
+                Property.ofExpression(
+                    JacksonMapper.ofJson().writeValueAsString(
+                        List.of(
+                            "echo \"::{\\\"outputs\\\":{" +
+                                "\\\"endpoint\\\":\\\"$AWS_ENDPOINT_URL\\\"," +
+                                "\\\"accessKeyId\\\":\\\"$AWS_ACCESS_KEY_ID\\\"," +
+                                "\\\"secretKeyId\\\":\\\"$AWS_SECRET_ACCESS_KEY\\\"," +
+                                "\\\"region\\\":\\\"$AWS_DEFAULT_REGION\\\"," +
+                                "\\\"format\\\":\\\"$AWS_DEFAULT_OUTPUT\\\"," +
+                                "\\\"customEnv\\\":\\\"$" + envKey + "\\\"" +
+                                "}}::\"",
+                            "aws s3 mb s3://{{ inputs.bucketName }}",
+                            "echo \"::{\\\"outputs\\\":$(aws s3api list-buckets | tr -d '\\n')}::\""
+                        )
+                    )
                 )
-            )))
+            )
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, execute, Map.of("envKey", envKey, "envValue", envValue, "bucketName", "test-bucket"));
@@ -78,10 +82,8 @@ public class AwsCLITest extends AbstractFlociTest {
         assertThat(runOutput.getVars().get("format"), is("json"));
         assertThat(runOutput.getVars().get("customEnv"), is(envValue));
         assertThat(
-            ((Iterable<Map<String, String>>) runOutput.getVars().get("Buckets")), Matchers.allOf(
-                Matchers.iterableWithSize(1),
-                Matchers.hasItem(hasEntry("Name", "test-bucket"))
-            )
+            ((Iterable<Map<String, String>>) runOutput.getVars().get("Buckets")),
+            Matchers.hasItem(hasEntry("Name", "test-bucket"))
         );
         assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "owner"));
     }

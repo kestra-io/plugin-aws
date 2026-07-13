@@ -13,6 +13,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
+import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 
 @KestraTest
 @Testcontainers
@@ -20,6 +21,10 @@ public class AbstractSqsTest extends AbstractFlociTest {
 
     @Inject
     protected RunContextFactory runContextFactory;
+
+    protected String queueName() {
+        return "test-queue-" + getClass().getSimpleName().toLowerCase();
+    }
 
     @BeforeEach
     void beforeEach() {
@@ -36,13 +41,15 @@ public class AbstractSqsTest extends AbstractFlociTest {
                 .build()
         ) {
             if (!sqsClient.listQueues().queueUrls().contains(queueUrl())) {
-                sqsClient.createQueue(CreateQueueRequest.builder().queueName("test-queue").build());
+                sqsClient.createQueue(CreateQueueRequest.builder().queueName(queueName()).build());
+            } else {
+                sqsClient.purgeQueue(PurgeQueueRequest.builder().queueUrl(queueUrl()).build());
             }
         }
     }
 
     String queueUrl() {
-        return endpointUrl() + "/000000000000/test-queue";
+        return endpointUrl() + "/000000000000/" + queueName();
     }
 
 }

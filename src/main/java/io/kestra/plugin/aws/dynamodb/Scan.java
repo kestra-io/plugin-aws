@@ -5,6 +5,7 @@ import java.util.Map;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -16,7 +17,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -30,7 +30,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Scan all items from a table.",
+            title = "Scan all items from a table",
             full = true,
             code = """
                 id: aws_dynamo_db_scan
@@ -46,7 +46,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Scan items from a table with a filter expression.",
+            title = "Scan items from a table with a filter expression",
             full = true,
             code = """
                 id: aws_dynamo_db_scan

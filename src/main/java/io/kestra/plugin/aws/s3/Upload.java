@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import org.apache.commons.io.FilenameUtils;
@@ -15,6 +16,7 @@ import org.apache.commons.io.FilenameUtils;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
@@ -33,7 +35,6 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.FileUpload;
 import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -44,7 +45,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             full = true,
-            title = "Upload a FILE input to S3.",
+            title = "Upload a FILE input to S3",
             code = """
                 id: aws_s3_upload
                 namespace: company.team
@@ -70,7 +71,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Download a file and upload it to S3.",
+            title = "Download a file and upload it to S3",
             code = """
                 id: upload_file_to_s3
                 namespace: company.team
@@ -101,7 +102,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON array.",
+            title = "Upload multiple files to S3 using a JSON array",
             code = """
                 id: upload_multiple_files_from_json_array
                 namespace: company.team
@@ -136,7 +137,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Collection.",
+            title = "Upload multiple files to S3 using a Collection",
             code = """
                 id: upload_multiple_files_to_s3
                 namespace: company.team
@@ -169,7 +170,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a JSON map.",
+            title = "Upload multiple files to S3 using a JSON map",
             code = """
                 id: upload_multiple_files_from_json_map
                 namespace: company.team
@@ -204,7 +205,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Upload multiple files to S3 using a Map.",
+            title = "Upload multiple files to S3 using a Map",
             code = """
                 id: upload_multiple_files_to_s3_from_map
                 namespace: company.team
@@ -404,6 +405,14 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     @PluginProperty(group = "reliability")
     private Property<Boolean> compatibilityMode = Property.ofValue(false);
 
+    @Schema(
+        title = "Max concurrent file uploads",
+        description = "Max upload futures submitted to the TransferManager before waiting for the window to complete. Effective I/O concurrency is also bounded by the HTTP connection pool. Defaults to 50."
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    private Property<Integer> concurrentUploads = Property.ofValue(50);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
@@ -502,37 +511,65 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
     // For the filesToUpload map we always assume relative file keys in the map's keys and Kestra URIs in the values.
     private Output uploadMultipleFiles(RunContext runContext, S3TransferManager transferManager,
         String bucket, String baseKey, Map<String, String> filesToUpload) throws Exception {
-        Map<String, FileInfo> fileInfoMap = new HashMap<>();
+        record UploadEntry(String fileKey, File tempFile, FileUpload upload) {
+        }
 
-        for (Map.Entry<String, String> entry : filesToUpload.entrySet()) {
-            String fileKey = entry.getKey();
-            String finalKey = Path.of(baseKey, fileKey).toString();
-            String renderedFrom = entry.getValue();
+        int rConcurrentUploads = Math.max(1, runContext.render(concurrentUploads).as(Integer.class).orElse(50));
 
-            File tempFile = copyFileToTemp(runContext, renderedFrom);
+        var allEntries = new ArrayList<Map.Entry<String, String>>(filesToUpload.entrySet());
+        Map<String, FileInfo> fileInfoMap = new HashMap<>(allEntries.size());
 
-            PutObjectRequest putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
+        for (int windowStart = 0; windowStart < allEntries.size(); windowStart += rConcurrentUploads) {
+            var window = allEntries.subList(windowStart, Math.min(windowStart + rConcurrentUploads, allEntries.size()));
+            var windowEntries = new ArrayList<UploadEntry>(window.size());
 
-            runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
+            for (var entry : window) {
+                var fileKey = entry.getKey();
+                var finalKey = Path.of(baseKey, fileKey).toString();
+                var tempFile = copyFileToTemp(runContext, entry.getValue());
+                var putObjectRequest = createPutObjectRequest(runContext, bucket, finalKey);
 
-            FileUpload upload = transferManager.uploadFile(
-                UploadFileRequest.builder()
-                    .putObjectRequest(putObjectRequest)
-                    .source(tempFile)
-                    .build()
-            );
+                runContext.logger().debug("Uploading to '{}'", putObjectRequest.key());
 
-            PutObjectResponse response = upload.completionFuture().get().response();
+                var upload = transferManager.uploadFile(
+                    UploadFileRequest.builder()
+                        .putObjectRequest(putObjectRequest)
+                        .source(tempFile)
+                        .build()
+                );
+                windowEntries.add(new UploadEntry(fileKey, tempFile, upload));
+            }
 
-            FileInfo fileInfo = FileInfo.builder()
-                .eTag(response.eTag())
-                .versionId(response.versionId())
-                .contentLength(tempFile.length())
-                .build();
+            var futures = windowEntries.stream()
+                .map(e -> e.upload().completionFuture())
+                .toArray(CompletableFuture[]::new);
+            try {
+                CompletableFuture.allOf(futures).join();
+            } catch (Exception ex) {
+                // CompletableFuture.cancel does not abort in-flight S3 SDK transfers.
+                // The try-with-resources on transferManager handles cleanup.
+                if (ex instanceof java.util.concurrent.CompletionException ce && ce.getCause() != null) {
+                    var cause = ce.getCause();
+                    if (cause instanceof RuntimeException re)
+                        throw re;
+                    if (cause instanceof Exception e2)
+                        throw e2;
+                    throw new RuntimeException(cause);
+                }
+                throw ex;
+            }
 
-            fileInfoMap.put(fileKey, fileInfo);
-
-            recordMetrics(runContext, tempFile);
+            for (var e : windowEntries) {
+                var response = e.upload().completionFuture().join().response();
+                fileInfoMap.put(
+                    e.fileKey(), FileInfo.builder()
+                        .eTag(response.eTag())
+                        .versionId(response.versionId())
+                        .contentLength(e.tempFile().length())
+                        .build()
+                );
+                recordMetrics(runContext, e.tempFile());
+            }
         }
 
         return Output.builder()

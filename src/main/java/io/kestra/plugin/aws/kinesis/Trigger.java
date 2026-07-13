@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -18,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -33,6 +33,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Poll a Kinesis stream every 30 seconds",
+            full = true,
             code = """
                 id: kinesis_poll
                 namespace: company.team
@@ -55,75 +56,76 @@ import io.kestra.core.models.annotations.PluginProperty;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output> {
     @Schema(
-        title = "Access Key Id in order to connect to AWS.",
+        title = "Access Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(secret = true, group = "advanced")
     private Property<String> accessKeyId;
 
     @Schema(
-        title = "Secret Key Id in order to connect to AWS.",
+        title = "Secret Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(secret = true, group = "advanced")
     private Property<String> secretKeyId;
 
     @Schema(
-        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource.",
+        title = "AWS session token, retrieved from an AWS token service, used for authenticating that this user has received temporary permissions to access a given resource",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(secret = true, group = "connection")
     private Property<String> sessionToken;
 
     @Schema(
-        title = "AWS region with which the SDK should communicate."
+        title = "AWS region with which the SDK should communicate"
     )
     @PluginProperty(group = "connection")
     private Property<String> region;
 
     @Schema(
-        title = "The endpoint with which the SDK should communicate.",
+        title = "The endpoint with which the SDK should communicate",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
     @PluginProperty(group = "advanced")
     private Property<String> endpointOverride;
 
     @Schema(
-        title = "AWS STS Role.",
+        title = "AWS STS Role",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleArn;
 
     @Schema(
-        title = "AWS STS External Id.",
+        title = "AWS STS External Id",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleExternalId;
 
     @Schema(
-        title = "AWS STS Session name.",
+        title = "AWS STS Session name",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleSessionName;
 
     @Schema(
-        title = "The AWS STS endpoint with which the SDKClient should communicate."
+        title = "The AWS STS endpoint with which the SDKClient should communicate"
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
     @Schema(
-        title = "AWS STS Session duration.",
+        title = "AWS STS Session duration",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "execution")
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
+    @Schema(title = "Interval")
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(
@@ -149,12 +151,15 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> startingSequenceNumber;
 
     @Builder.Default
+    @Schema(title = "Max records")
     private Property<Integer> maxRecords = Property.ofValue(1000);
 
     @Builder.Default
+    @Schema(title = "Max duration")
     private Property<Duration> maxDuration = Property.ofValue(Duration.ofSeconds(30));
 
     @Builder.Default
+    @Schema(title = "Poll duration")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
     @Override

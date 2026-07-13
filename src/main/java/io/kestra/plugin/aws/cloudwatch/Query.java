@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.*;
 
 import io.kestra.core.models.annotations.*;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -17,7 +18,6 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -31,6 +31,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = @Example(
         title = "Query CPU utilization over the last 5 minutes",
+        full = true,
         code = """
             id: aws_cloudwatch_query
             namespace: company.team

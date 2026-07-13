@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -14,7 +15,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -70,37 +70,37 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
     private Property<String> grantFullControl;
 
     @Schema(
-        title = "Allows grantee to list the objects in the bucket."
+        title = "Allows grantee to list the objects in the bucket"
     )
     @PluginProperty(group = "advanced")
     private Property<String> grantRead;
 
     @Schema(
-        title = "Allows grantee to list the ACL for the applicable bucket."
+        title = "Allows grantee to list the ACL for the applicable bucket"
     )
     @PluginProperty(group = "advanced")
     private Property<String> grantReadACP;
 
     @Schema(
-        title = "Allows grantee to create, overwrite, and delete any object in the bucket."
+        title = "Allows grantee to create, overwrite, and delete any object in the bucket"
     )
     @PluginProperty(group = "destination")
     private Property<String> grantWrite;
 
     @Schema(
-        title = "Allows grantee to write the ACL for the applicable bucket."
+        title = "Allows grantee to write the ACL for the applicable bucket"
     )
     @PluginProperty(group = "destination")
     private Property<String> grantWriteACP;
 
     @Schema(
-        title = "The canned ACL to apply to the bucket."
+        title = "The canned ACL to apply to the bucket"
     )
     @PluginProperty(group = "advanced")
     private Property<String> acl;
 
     @Schema(
-        title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket."
+        title = "Specifies whether you want S3 Object Lock to be enabled for the new bucket"
     )
     @PluginProperty(group = "connection")
     private Property<Boolean> objectLockEnabledForBucket;
@@ -154,7 +154,9 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Bucket")
         private final String bucket;
+        @Schema(title = "Region")
         private final String region;
     }
 }

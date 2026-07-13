@@ -9,6 +9,7 @@ import org.reactivestreams.Publisher;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -25,7 +26,6 @@ import reactor.core.publisher.FluxSink;
 import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -40,6 +40,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Realtime Kinesis trigger",
+            full = true,
             code = """
                 id: realtime_kinesis
                 namespace: company.team
@@ -63,69 +64,69 @@ import io.kestra.core.models.annotations.PluginProperty;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.ConsumedRecord> {
     @Schema(
-        title = "AWS access key ID.",
+        title = "AWS access key ID",
         description = "Optional static credential. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "advanced")
     private Property<String> accessKeyId;
 
     @Schema(
-        title = "AWS secret access key.",
+        title = "AWS secret access key",
         description = "Pairs with `accessKeyId` for static credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "advanced")
     private Property<String> secretKeyId;
 
     @Schema(
-        title = "AWS session token for temporary credentials.",
+        title = "AWS session token for temporary credentials",
         description = "Used with STS- or SSO-issued temporary credentials. If omitted, the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) is used."
     )
     @PluginProperty(secret = true, group = "connection")
     private Property<String> sessionToken;
 
     @Schema(
-        title = "AWS region with which the SDK should communicate."
+        title = "AWS region with which the SDK should communicate"
     )
     @PluginProperty(group = "connection")
     private Property<String> region;
 
     @Schema(
-        title = "The endpoint with which the SDK should communicate.",
+        title = "The endpoint with which the SDK should communicate",
         description = "This property allows you to use a different S3 compatible storage backend."
     )
     @PluginProperty(group = "advanced")
     private Property<String> endpointOverride;
 
     @Schema(
-        title = "AWS STS Role.",
+        title = "AWS STS Role",
         description = "The Amazon Resource Name (ARN) of the role to assume. If set the task will use the `StsAssumeRoleCredentialsProvider`. If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleArn;
 
     @Schema(
-        title = "AWS STS External Id.",
+        title = "AWS STS External Id",
         description = " A unique identifier that might be required when you assume a role in another account. This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleExternalId;
 
     @Schema(
-        title = "AWS STS Session name.",
+        title = "AWS STS Session name",
         description = "This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsRoleSessionName;
 
     @Schema(
-        title = "The AWS STS endpoint with which the SDKClient should communicate."
+        title = "The AWS STS endpoint with which the SDKClient should communicate"
     )
     @PluginProperty(group = "advanced")
     protected Property<String> stsEndpointOverride;
 
     @Builder.Default
     @Schema(
-        title = "AWS STS Session duration.",
+        title = "AWS STS Session duration",
         description = "The duration of the role session (default: 15 minutes, i.e., PT15M). This property is only used when an `stsRoleArn` is defined."
     )
     @PluginProperty(group = "execution")
@@ -163,13 +164,16 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
+    @Schema(title = "Is active")
     private final AtomicBoolean isActive = new AtomicBoolean(true);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
+    @Schema(title = "Wait for termination")
     private final CountDownLatch waitForTermination = new CountDownLatch(1);
 
     @Builder.Default
+    @Schema(title = "Shard discovery interval")
     private Property<Duration> shardDiscoveryInterval = Property.ofValue(Duration.ofSeconds(30));
 
     @Override
@@ -224,16 +228,24 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     }
 
     private class ShardManager {
+        @Schema(title = "Client")
         private final KinesisAsyncClient client;
+        @Schema(title = "Sink")
         private final FluxSink<Consume.ConsumedRecord> sink;
+        @Schema(title = "Run context")
         private final RunContext runContext;
 
+        @Schema(title = "Stream")
         private final String stream;
+        @Schema(title = "Consumer arn")
         private final String consumerArn;
+        @Schema(title = "Rediscovery interval")
         private final Duration rediscoveryInterval;
 
+        @Schema(title = "Scheduler")
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
+        @Schema(title = "Subscribers")
         private final ConcurrentHashMap<String, ShardSubscriber> subscribers = new ConcurrentHashMap<>();
 
         ShardManager(KinesisAsyncClient client, FluxSink<Consume.ConsumedRecord> sink, RunContext runContext, String stream, String consumerArn, Duration rediscoveryInterval) {
@@ -309,17 +321,26 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     }
 
     private class ShardSubscriber {
+        @Schema(title = "Client")
         private final KinesisAsyncClient client;
+        @Schema(title = "Sink")
         private final FluxSink<Consume.ConsumedRecord> sink;
+        @Schema(title = "Run context")
         private final RunContext runContext;
 
+        @Schema(title = "Stream")
         private final String stream;
+        @Schema(title = "Consumer arn")
         private final String consumerArn;
 
+        @Schema(title = "Shard id")
         private final String shardId;
+        @Schema(title = "Last seq")
         private volatile String lastSeq;
+        @Schema(title = "Starting position")
         private StartingPosition startingPosition;
 
+        @Schema(title = "Running")
         private final AtomicBoolean running = new AtomicBoolean(false);
 
         ShardSubscriber(KinesisAsyncClient client, FluxSink<Consume.ConsumedRecord> sink, RunContext runContext, String stream, String consumerArn, String shardId,

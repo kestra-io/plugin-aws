@@ -11,11 +11,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
-import software.amazon.awssdk.services.eventbridge.model.ResourceAlreadyExistsException;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -29,7 +24,11 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
+import software.amazon.awssdk.services.eventbridge.model.ResourceAlreadyExistsException;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -44,12 +43,17 @@ class PutEventsTest extends AbstractFlociTest {
 
     @BeforeAll
     static void createTestBus() throws URISyntaxException {
-        try (var client = EventBridgeClient.builder()
-            .endpointOverride(new URI(endpointUrl()))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .region(Region.of(REGION))
-            .build()) {
+        try (
+            var client = EventBridgeClient.builder()
+                .endpointOverride(new URI(endpointUrl()))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .region(Region.of(REGION))
+                .build()
+        ) {
             try {
                 client.createEventBus(r -> r.name("test-bus"));
             } catch (ResourceAlreadyExistsException ignored) {
@@ -273,7 +277,6 @@ class PutEventsTest extends AbstractFlociTest {
     @Getter
     @Builder
     @EqualsAndHashCode
-    @Jacksonized
     private static class UpperCaseEntry {
         private String EventBusName;
         private String Source;

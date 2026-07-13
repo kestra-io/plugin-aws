@@ -3,10 +3,11 @@ package io.kestra.plugin.aws.s3.models;
 import java.net.URI;
 import java.util.Map;
 
+import io.kestra.core.models.annotations.PluginProperty;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @Builder
 @Getter
@@ -42,7 +43,7 @@ public class FileInfo {
     private String versionId;
 
     @Schema(
-        title = "An ETag is an opaque identifier assigned by a web server to a specific version of a resource found at a URL."
+        title = "An ETag is an opaque identifier assigned by a web server to a specific version of a resource found at a URL"
     )
     @PluginProperty(group = "advanced")
     private String eTag;

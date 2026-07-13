@@ -1,0 +1,8 @@
+group: io.kestra.plugin.aws.msk
+name: "msk"
+title: "AWS MSK"
+description: "Tasks to manage Amazon MSK (Managed Streaming for Apache Kafka) cluster lifecycle and retrieve bootstrap broker connection strings for use with plugin-kafka."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
+body: ""

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
+
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -289,7 +290,8 @@ class DownloadTest extends AbstractTest {
         Download.Output output = download.run(runContext(download));
 
         assertThat(output.getFiles().size(), is(2));
-        output.getFiles().values().forEach(fileInfo -> {
+        output.getFiles().values().forEach(fileInfo ->
+        {
             assertThat(fileInfo.getChecksumAlgorithm(), is("SHA256"));
             assertThat(fileInfo.getChecksumValue(), notNullValue());
         });

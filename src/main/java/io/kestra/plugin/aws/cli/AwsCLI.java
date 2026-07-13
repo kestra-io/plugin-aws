@@ -38,7 +38,7 @@ import lombok.experimental.SuperBuilder;
 @Plugin(
     examples = {
         @Example(
-            title = "Run a simple AWS CLI command and capture the output.",
+            title = "Run a simple AWS CLI command and capture the output",
             full = true,
             code = """
                 id: aws_cli
@@ -50,10 +50,10 @@ import lombok.experimental.SuperBuilder;
                     secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     region: "us-east-1"
                     commands:
-                      - aws sts get-caller-identity | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'"""
+                      - aws sts get-caller-identity | tr -d ' \\n' | xargs -0 -I {} echo '::{"outputs":{}}::'"""
         ),
         @Example(
-            title = "Create a simple S3 bucket.",
+            title = "Create a simple S3 bucket",
             full = true,
             code = """
                 id: aws_cli
@@ -70,7 +70,7 @@ import lombok.experimental.SuperBuilder;
                 """
         ),
         @Example(
-            title = "List all S3 buckets as the task's output.",
+            title = "List all S3 buckets as the task's output",
             full = true,
             code = """
                 id: aws_cli
@@ -83,7 +83,7 @@ import lombok.experimental.SuperBuilder;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     commands:
-                      - aws s3api list-buckets | tr -d ' \n' | xargs -0 -I {} echo '::{"outputs":{}}::'
+                      - aws s3api list-buckets | tr -d ' \\n' | xargs -0 -I {} echo '::{"outputs":{}}::'
                 """
         ),
         @Example(
@@ -123,7 +123,8 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         title = "Extra environment variables",
         description = "Merged into the process environment alongside AWS credentials and AWS_DEFAULT_OUTPUT."
     )
-    @PluginProperty(group = "execution", 
+    @PluginProperty(
+        group = "execution",
         additionalProperties = String.class,
         dynamic = true
     )
@@ -163,15 +164,19 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
     protected OutputFormat outputFormat = OutputFormat.JSON;
 
     @PluginProperty(group = "source")
+    @Schema(title = "Namespace files")
     private NamespaceFiles namespaceFiles;
 
     @PluginProperty(group = "source")
+    @Schema(title = "Input files")
     private Object inputFiles;
 
     @PluginProperty(group = "destination")
+    @Schema(title = "Output files")
     private Property<List<String>> outputFiles;
 
     @PluginProperty(group = "connection")
+    @Schema(title = "Sts credential source")
     private CredentialSource stsCredentialSource;
 
     @Override
@@ -271,6 +276,7 @@ public class AwsCLI extends AbstractConnection implements RunnableTask<ScriptOut
         EC2_INSTANCE_METADATA("Ec2InstanceMetadata"),
         ECS_CONTAINER("EcsContainer");
 
+        @Schema(title = "Value")
         private final String value;
 
         CredentialSource(String value) {

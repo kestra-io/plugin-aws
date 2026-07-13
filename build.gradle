@@ -1,12 +1,14 @@
 plugins {
-    id 'io.kestra.gradle.spotless-conventions' version '1.1.0'
-    id "com.vanniktech.maven.publish" version "0.36.0"
-    id "io.kestra.gradle.inject-bom-versions" version "1.1.0"
+    id 'io.kestra.gradle.repository-conventions' version '1.2.5'
+    id 'io.kestra.gradle.spotless-conventions' version '1.2.5'
+    id "com.vanniktech.maven.publish" version "0.37.0"
+    id "io.kestra.gradle.inject-bom-versions" version "1.2.5"
+    id "io.kestra.gradle.plugin-doc-lint" version "1.2.5"
     id 'java-library'
     id "idea"
     id 'jacoco'
     id "com.adarshr.test-logger" version "4.0.0"
-    id "com.gradleup.shadow" version "9.4.1"
+    id "com.gradleup.shadow" version "9.4.3"
     id 'signing'
     id "com.github.ben-manes.versions" version "0.54.0"
     id 'net.researchgate.release' version '3.1.0'
@@ -79,6 +81,14 @@ dependencies {
     api 'software.amazon.awssdk:glue'
     api 'software.amazon.awssdk:cloudwatch'
     api 'software.amazon.awssdk:cloudformation'
+    // AWS SDK — Amazon Bedrock (management: list models)
+    api 'software.amazon.awssdk:bedrock'
+    // AWS SDK — Amazon Bedrock Runtime (model invocation)
+    api 'software.amazon.awssdk:bedrockruntime'
+    // AWS SDK — Amazon HealthLake
+    api 'software.amazon.awssdk:healthlake'
+    // AWS SDK — Amazon MSK
+    api 'software.amazon.awssdk:kafka'
 }
 
 /**********************************************************************************************************************\
@@ -86,6 +96,7 @@ dependencies {
  **********************************************************************************************************************/
 test {
     useJUnitPlatform()
+    maxParallelForks = 1
 }
 
 testlogger {
@@ -131,7 +142,7 @@ dependencies {
     // testcontainers
     testImplementation "org.testcontainers:testcontainers:2.0.5"
     testImplementation "org.testcontainers:junit-jupiter:1.21.4"
-    testImplementation "io.floci:testcontainers-floci:2.8.0"
+    testImplementation "io.floci:testcontainers-floci:2.11.0"
 }
 
 /**********************************************************************************************************************\

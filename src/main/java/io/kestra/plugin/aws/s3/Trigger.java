@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -24,7 +25,6 @@ import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -38,7 +38,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Plugin(
     examples = {
         @Example(
-            title = "Wait for a list of files on a s3 bucket and iterate through the files.",
+            title = "Wait for a list of files on a s3 bucket and iterate through the files",
             full = true,
             code = """
                 id: s3_listen
@@ -69,7 +69,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
-            title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering.",
+            title = "Wait for a list of files on a s3 bucket and iterate through the files. Delete files manually after processing to prevent infinite triggering",
             full = true,
             code = """
                 id: s3_listen
@@ -111,10 +111,16 @@ public class Trigger extends AbstractTrigger
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> accessKeyId;
 
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> secretKeyId;
 
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     protected Property<String> sessionToken;
 
     protected Property<String> region;
@@ -307,7 +313,7 @@ public class Trigger extends AbstractTrigger
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of S3 objects that triggered the flow, each with its change type.")
+        @Schema(title = "List of S3 objects that triggered the flow, each with its change type")
         private final java.util.List<TriggeredObject> objects;
     }
 }

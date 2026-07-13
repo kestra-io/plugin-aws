@@ -1,19 +1,21 @@
 package io.kestra.plugin.aws.emr;
 
+import java.util.List;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.aws.emr.models.StepConfig;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.emr.EmrClient;
 import software.amazon.awssdk.services.emr.model.AddJobFlowStepsRequest;
 import software.amazon.awssdk.services.emr.model.AddJobFlowStepsResponse;
-
-import java.util.List;
-import java.util.function.Consumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -38,12 +40,16 @@ class SubmitStepsTest {
                 .region(Property.ofValue("eu-west-3"))
                 .clusterId(Property.ofValue("j-CLUSTER"))
                 .executionRoleArn(Property.ofValue("arn:aws:iam::123456789012:role/StepRole"))
-                .steps(List.of(StepConfig.builder()
-                    .jar(Property.ofValue("command-runner.jar"))
-                    .name(Property.ofValue("step"))
-                    .commands(Property.ofValue(List.of("echo hello")))
-                    .actionOnFailure(Property.ofValue(StepConfig.Action.CONTINUE))
-                    .build()))
+                .steps(
+                    List.of(
+                        StepConfig.builder()
+                            .jar(Property.ofValue("command-runner.jar"))
+                            .name(Property.ofValue("step"))
+                            .commands(Property.ofValue(List.of("echo hello")))
+                            .actionOnFailure(Property.ofValue(StepConfig.Action.CONTINUE))
+                            .build()
+                    )
+                )
                 .build()
         );
         doReturn(emrClient).when(task).emrClient(any(RunContext.class));
@@ -74,20 +80,22 @@ class SubmitStepsTest {
             SubmitSteps.builder()
                 .region(Property.ofValue("eu-west-3"))
                 .clusterId(Property.ofValue("j-CLUSTER"))
-                .steps(List.of(
-                    StepConfig.builder()
-                        .jar(Property.ofValue("command-runner.jar"))
-                        .name(Property.ofValue("step-1"))
-                        .commands(Property.ofValue(List.of("echo step1")))
-                        .actionOnFailure(Property.ofValue(StepConfig.Action.CONTINUE))
-                        .build(),
-                    StepConfig.builder()
-                        .jar(Property.ofValue("command-runner.jar"))
-                        .name(Property.ofValue("step-2"))
-                        .commands(Property.ofValue(List.of("echo step2")))
-                        .actionOnFailure(Property.ofValue(StepConfig.Action.TERMINATE_CLUSTER))
-                        .build()
-                ))
+                .steps(
+                    List.of(
+                        StepConfig.builder()
+                            .jar(Property.ofValue("command-runner.jar"))
+                            .name(Property.ofValue("step-1"))
+                            .commands(Property.ofValue(List.of("echo step1")))
+                            .actionOnFailure(Property.ofValue(StepConfig.Action.CONTINUE))
+                            .build(),
+                        StepConfig.builder()
+                            .jar(Property.ofValue("command-runner.jar"))
+                            .name(Property.ofValue("step-2"))
+                            .commands(Property.ofValue(List.of("echo step2")))
+                            .actionOnFailure(Property.ofValue(StepConfig.Action.TERMINATE_CLUSTER))
+                            .build()
+                    )
+                )
                 .build()
         );
         doReturn(emrClient).when(task).emrClient(any(RunContext.class));

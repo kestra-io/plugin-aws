@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.time.Duration;
 
 import org.apache.commons.lang3.StringUtils;
@@ -86,7 +88,9 @@ public class ConnectionUtils {
 
         final String stsEndpointOverride = awsClientConfig.stsEndpointOverride();
         if (StringUtils.isNotBlank(stsEndpointOverride)) {
-            builder.applyMutation(stsClientBuilder -> stsClientBuilder.endpointOverride(URI.create(stsEndpointOverride.trim())));
+            URI stsEndpointUri = URI.create(stsEndpointOverride.trim());
+            rejectLinkLocalMetadataHost(stsEndpointUri);
+            builder.applyMutation(stsClientBuilder -> stsClientBuilder.endpointOverride(stsEndpointUri));
         }
 
         final String regionString = awsClientConfig.region();
@@ -104,7 +108,13 @@ public class ConnectionUtils {
 
         builder
             // Use the httpClientBuilder to delegate the lifecycle management of the HTTP client to the AWS SDK
-            .httpClientBuilder(serviceDefaults -> ApacheHttpClient.builder().build())
+            .httpClientBuilder(
+                serviceDefaults -> ApacheHttpClient.builder()
+                    // 100 balances burst headroom against file-descriptor exhaustion under concurrent executions.
+                    .maxConnections(100)
+                    .connectionTimeout(Duration.ofSeconds(10))
+                    .build()
+            )
             .credentialsProvider(ConnectionUtils.credentialsProvider(clientConfig));
 
         return configureClient(clientConfig, builder);
@@ -157,8 +167,35 @@ public class ConnectionUtils {
         }
 
         if (StringUtils.isNotBlank(clientConfig.endpointOverride())) {
-            builder.endpointOverride(URI.create(clientConfig.endpointOverride().trim()));
+            URI endpointOverride = URI.create(clientConfig.endpointOverride().trim());
+            rejectLinkLocalMetadataHost(endpointOverride);
+            builder.endpointOverride(endpointOverride);
         }
         return builder;
+    }
+
+    /**
+     * Rejects endpoint overrides that resolve to the 169.254.0.0/16 link-local range, which hosts
+     * cloud provider instance-metadata services (e.g. AWS IMDS at 169.254.169.254). Blocking only this
+     * range prevents SSRF-based credential exfiltration while still allowing legitimate self-hosted
+     * S3-compatible endpoints on RFC-1918 private addresses (e.g. on-prem MinIO).
+     */
+    public static void rejectLinkLocalMetadataHost(final URI endpointOverride) {
+        String host = endpointOverride.getHost();
+        if (host == null) {
+            return;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(host);
+            byte[] octets = address.getAddress();
+            if (octets.length == 4 && (octets[0] & 0xFF) == 169 && (octets[1] & 0xFF) == 254) {
+                throw new IllegalArgumentException(
+                    "Endpoint override '" + endpointOverride + "' resolves to a link-local address (169.254.0.0/16), " +
+                        "which is used by cloud instance-metadata services and is not allowed for security reasons."
+                );
+            }
+        } catch (UnknownHostException e) {
+            // Host doesn't resolve; let the AWS SDK surface the connection error downstream.
+        }
     }
 }

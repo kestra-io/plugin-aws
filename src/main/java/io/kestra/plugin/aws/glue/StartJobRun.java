@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -25,7 +26,6 @@ import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.*;
 
 import static io.kestra.plugin.aws.glue.GlueService.createGetJobRunRequest;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString

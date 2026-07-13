@@ -8,6 +8,7 @@ import java.time.Duration;
 
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.ConnectionUtils;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -67,7 +68,9 @@ public abstract class AbstractS3Files extends AbstractConnection {
             .region(Region.of(cfg.region()));
 
         if (cfg.stsEndpointOverride() != null) {
-            stsBuilder.endpointOverride(URI.create(cfg.stsEndpointOverride()));
+            URI stsEndpointUri = URI.create(cfg.stsEndpointOverride());
+            ConnectionUtils.rejectLinkLocalMetadataHost(stsEndpointUri);
+            stsBuilder.endpointOverride(stsEndpointUri);
         }
 
         if (cfg.accessKeyId() != null && cfg.secretKeyId() != null) {

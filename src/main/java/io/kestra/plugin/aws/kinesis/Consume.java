@@ -11,6 +11,7 @@ import java.util.*;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
@@ -25,7 +26,6 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 import software.amazon.awssdk.services.kinesis.model.Record;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -202,7 +202,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Getter
     @Builder
     public static class ConsumedRecord implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The data payload returned by Kinesis.")
+        @Schema(title = "The data payload returned by Kinesis")
         private final String data;
 
         @Schema(

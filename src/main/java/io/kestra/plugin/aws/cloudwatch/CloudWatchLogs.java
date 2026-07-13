@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.cloudwatch;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.AbstractConnection;
 import io.kestra.plugin.aws.ConnectionUtils;
@@ -22,6 +23,7 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
     title = "Create a CloudWatch Logs client",
     description = "Helper task for obtaining a configured CloudWatchLogsClient using standard AWS connection properties."
 )
+@Plugin(internal = true)
 public class CloudWatchLogs extends AbstractConnection {
 
     /**

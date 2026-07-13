@@ -39,7 +39,9 @@ public interface AbstractS3 extends AbstractConnectionInterface {
                 s3ClientBuilder.region(Region.of(clientConfig.region()));
             }
             if (clientConfig.endpointOverride() != null) {
-                s3ClientBuilder.endpointOverride(URI.create(clientConfig.endpointOverride()));
+                URI endpointOverride = URI.create(clientConfig.endpointOverride());
+                ConnectionUtils.rejectLinkLocalMetadataHost(endpointOverride);
+                s3ClientBuilder.endpointOverride(endpointOverride);
             }
             return s3ClientBuilder.build();
         }

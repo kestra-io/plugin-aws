@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -15,7 +16,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -68,7 +68,7 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     private Property<String> encodingType;
 
     @Builder.Default
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @PluginProperty(group = "connection")

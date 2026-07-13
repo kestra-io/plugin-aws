@@ -9,6 +9,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -23,7 +24,6 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -50,7 +50,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ),
         @Example(
             full = true,
-            title = "Download a file and verify the stored S3 checksum during transfer.",
+            title = "Download a file and verify the stored S3 checksum during transfer",
             code = """
                 id: aws_s3_download_validate_checksum
                 namespace: company.team
@@ -302,6 +302,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     @SuperBuilder
     @Getter
     public static class Output extends ObjectOutput implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Uri")
         private final URI uri;
 
         @Schema(

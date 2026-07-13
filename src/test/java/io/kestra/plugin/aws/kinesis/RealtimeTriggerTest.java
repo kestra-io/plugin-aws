@@ -15,6 +15,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.plugin.aws.kinesis.model.Record;
+
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.kinesis.model.*;
 
@@ -73,10 +74,10 @@ class RealtimeTriggerTest extends AbstractKinesisTest {
                 .build();
 
             var put = PutRecords.builder()
-                .endpointOverride(Property.ofValue(localstack.getEndpoint().toString()))
-                .region(Property.ofValue(localstack.getRegion()))
-                .accessKeyId(Property.ofValue(localstack.getAccessKey()))
-                .secretKeyId(Property.ofValue(localstack.getSecretKey()))
+                .endpointOverride(Property.ofValue(endpointUrl()))
+                .region(Property.ofValue(REGION))
+                .accessKeyId(Property.ofValue(ACCESS_KEY))
+                .secretKeyId(Property.ofValue(SECRET_KEY))
                 .streamName(Property.ofValue(streamName))
                 .records(List.of(record))
                 .build();

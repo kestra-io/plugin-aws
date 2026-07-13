@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -19,7 +20,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -57,25 +57,40 @@ import io.kestra.core.models.annotations.PluginProperty;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, SqsConnectionInterface {
 
+    @Schema(title = "Queue url")
     private Property<String> queueUrl;
 
+    @Schema(title = "Access key id")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> accessKeyId;
 
+    @Schema(title = "Secret key id")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> secretKeyId;
 
+    @Schema(title = "Session token")
+    @PluginProperty(secret = true, group = "advanced")
+    @ToString.Exclude
     private Property<String> sessionToken;
 
+    @Schema(title = "Region")
     private Property<String> region;
 
+    @Schema(title = "Endpoint override")
     private Property<String> endpointOverride;
 
     @Builder.Default
+    @Schema(title = "Max concurrency")
     private Property<Integer> maxConcurrency = Property.ofValue(50);
 
     @Builder.Default
+    @Schema(title = "Connection acquisition timeout")
     private Property<Duration> connectionAcquisitionTimeout = Property.ofValue(Duration.ofSeconds(5));
 
     @Builder.Default
+    @Schema(title = "Interval")
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(
@@ -102,18 +117,25 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<SerdeType> serdeType = Property.ofValue(SerdeType.STRING);
 
     // Configuration for AWS STS AssumeRole
+    @Schema(title = "Sts role arn")
     protected Property<String> stsRoleArn;
+    @Schema(title = "Sts role external id")
     protected Property<String> stsRoleExternalId;
+    @Schema(title = "Sts role session name")
     protected Property<String> stsRoleSessionName;
+    @Schema(title = "Sts endpoint override")
     protected Property<String> stsEndpointOverride;
     @Builder.Default
 
+    @Schema(title = "Sts role session duration")
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
+    @Schema(title = "Auto delete")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
+    @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
     @Override
