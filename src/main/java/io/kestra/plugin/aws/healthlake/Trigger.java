@@ -17,6 +17,8 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.storages.kv.KVMetadata;
+import io.kestra.core.storages.kv.KVValueAndMetadata;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 
@@ -132,7 +134,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         "COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED", "CANCEL_COMPLETED", "CANCEL_FAILED"
     );
 
-    private static final String STATE_FILE = "healthlake-trigger-last-job-id.txt";
+    private static final String STATE_KV_PREFIX = "healthlake-trigger-last-job-id";
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -142,10 +144,17 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
         var rJobType = runContext.render(jobType).as(JobType.class).orElse(JobType.IMPORT);
 
+        // trigger state moved from the removed RunContext#stateStore() to the namespace KV store in Kestra 2.0
+        var kvStore = runContext.namespaceKv(context.getNamespace());
+        var stateKey = STATE_KV_PREFIX + "-" + context.getFlowId() + "-" + this.getId();
+
         // Load last-fired jobId to avoid re-firing on the same terminal job every poll
         String lastFiredJobId = null;
-        try (var stateStream = runContext.stateStore().getState(context.getNamespace(), context.getFlowId(), STATE_FILE)) {
-            lastFiredJobId = new String(stateStream.readAllBytes(), StandardCharsets.UTF_8);
+        try {
+            var kvValue = kvStore.getValue(stateKey);
+            if (kvValue.isPresent() && kvValue.get().value() instanceof byte[] bytes && bytes.length > 0) {
+                lastFiredJobId = new String(bytes, StandardCharsets.UTF_8);
+            }
         } catch (Exception e) {
             logger.debug("No previous trigger state found, treating as first run");
         }
@@ -197,7 +206,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Persist the jobId so we don't fire on it again
-            runContext.stateStore().putState(context.getNamespace(), context.getFlowId(), STATE_FILE, jobId.getBytes(StandardCharsets.UTF_8));
+            kvStore.put(stateKey, new KVValueAndMetadata(
+                new KVMetadata("HealthLake trigger last-fired job id", (Duration) null),
+                jobId.getBytes(StandardCharsets.UTF_8)
+            ));
 
             logger.debug("Job '{}' reached terminal status={}, firing trigger", jobId, jobStatus);
             var output = Output.builder().jobId(jobId).jobStatus(jobStatus).build();

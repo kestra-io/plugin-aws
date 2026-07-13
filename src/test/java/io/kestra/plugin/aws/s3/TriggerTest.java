@@ -9,23 +9,21 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
+import io.kestra.core.queues.DispatchQueueInterface;
+import io.kestra.core.runners.Scheduler;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
-
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import reactor.core.publisher.Flux;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -33,23 +31,24 @@ import static org.hamcrest.Matchers.is;
 @KestraTest(startRunner = true, startScheduler = true)
 class TriggerTest extends AbstractTest {
     @Inject
-    @Named(QueueFactoryInterface.EXECUTION_NAMED)
-    private QueueInterface<Execution> executionQueue;
+    private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
-    protected LocalFlowRepositoryLoader repositoryLoader;
+    protected Scheduler scheduler;
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen.yaml"})
     void deleteAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
-        {
-            Execution execution = executionWithError.getLeft();
 
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -59,11 +58,8 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(flowWithFlociEndpoint("flows/s3/s3-listen.yaml"));
-
-        boolean await = queueCount.await(15, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -77,17 +73,17 @@ class TriggerTest extends AbstractTest {
     }
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen-none-action.yaml"})
     void noneAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-none-action-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
-        {
-            Execution execution = executionWithError.getLeft();
-
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen-none-action")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -97,11 +93,8 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(flowWithFlociEndpoint("flows/s3/s3-listen-none-action.yaml"));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -115,17 +108,18 @@ class TriggerTest extends AbstractTest {
     }
 
     @Test
+    @LoadFlows({"flows/s3/s3-listen-localhost-force-path-style.yaml"})
     void forcePathStyleWithSimpleLocalhost() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String bucket = "trigger-force-path-style-test";
         this.createBucket(bucket);
         List listTask = list().bucket(Property.ofValue(bucket)).build();
 
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-        Flux<Execution> receive = TestsUtils.receive(executionQueue, executionWithError ->
-        {
-            Execution execution = executionWithError.getLeft();
 
+        executionQueue.addListener(execution -> {
             if (execution.getFlowId().equals("s3-listen-localhost-force-path-style")) {
                 last.set(execution);
                 queueCount.countDown();
@@ -135,11 +129,8 @@ class TriggerTest extends AbstractTest {
         upload("trigger/s3", bucket);
         upload("trigger/s3", bucket);
 
-        repositoryLoader.load(flowWithFlociEndpoint("flows/s3/s3-listen-localhost-force-path-style.yaml"));
-
-        boolean await = queueCount.await(15, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat("trigger should work with localhost endpoint + forcePathStyle", await, is(true));
-        receive.blockLast();
 
         @SuppressWarnings("unchecked")
         java.util.List<S3Object> trigger = (java.util.List<S3Object>) last.get().getTrigger().getVariables().get("objects");
@@ -155,7 +146,7 @@ class TriggerTest extends AbstractTest {
     private File flowWithFlociEndpoint(String resource) throws Exception {
         String yaml = new String(TriggerTest.class.getClassLoader().getResourceAsStream(resource).readAllBytes());
         yaml = yaml.replace("http://localhost:4566", endpointUrl())
-            .replace("http://127.0.0.1:4566", endpointUrl());
+                   .replace("http://127.0.0.1:4566", endpointUrl());
         File tempFlow = File.createTempFile("s3-trigger", ".yaml");
         Files.writeString(tempFlow.toPath(), yaml);
         return tempFlow;
@@ -184,9 +175,9 @@ class TriggerTest extends AbstractTest {
 
         upload("trigger/on-create", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -213,14 +204,14 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        trigger.evaluate(context.getKey(), context.getValue());
+        trigger.evaluate(context.getKey(), context.getValue().context());
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -246,15 +237,15 @@ class TriggerTest extends AbstractTest {
 
         var key = upload("trigger/on-create-or-update", bucket);
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat("Trigger should fire on CREATE", createExecution.isPresent(), is(true));
 
         update(key, bucket);
         Thread.sleep(2000);
 
-        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(updateExecution.isPresent(), is(true));
     }
 
@@ -285,9 +276,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         // When maxFiles exceeded, List returns first 3 files, so Trigger should fire
         assertThat(execution.isPresent(), is(true));
     }
@@ -319,9 +310,9 @@ class TriggerTest extends AbstractTest {
             .interval(Duration.ofSeconds(10))
             .build();
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 }

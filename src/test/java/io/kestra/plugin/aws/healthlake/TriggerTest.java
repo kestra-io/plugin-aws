@@ -38,7 +38,7 @@ class TriggerTest {
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
         var context = TestsUtils.mockTrigger(runContextFactory, spy);
-        var execution = spy.evaluate(context.getKey(), context.getValue());
+        var execution = spy.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
         verify(mockClient).listFHIRImportJobs(any(ListFhirImportJobsRequest.class));
@@ -57,7 +57,7 @@ class TriggerTest {
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
         var context = TestsUtils.mockTrigger(runContextFactory, spy);
-        var execution = spy.evaluate(context.getKey(), context.getValue());
+        var execution = spy.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isEmpty(), is(true));
     }
@@ -70,7 +70,7 @@ class TriggerTest {
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
         var context = TestsUtils.mockTrigger(runContextFactory, spy);
-        var execution = spy.evaluate(context.getKey(), context.getValue());
+        var execution = spy.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isEmpty(), is(true));
     }

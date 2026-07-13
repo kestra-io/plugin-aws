@@ -59,7 +59,7 @@ class TriggerTest {
         var spy = spy(trigger);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
-        Optional<Execution> result = spy.evaluate(conditionContext.getKey(), conditionContext.getValue());
+        Optional<Execution> result = spy.evaluate(conditionContext.getKey(), conditionContext.getValue().context());
 
         assertThat(result.isPresent(), is(true));
     }
@@ -94,7 +94,7 @@ class TriggerTest {
         var spy = spy(trigger);
         doReturn(mockClient).when(spy).client(any(RunContext.class));
 
-        Optional<Execution> result = spy.evaluate(conditionContext.getKey(), conditionContext.getValue());
+        Optional<Execution> result = spy.evaluate(conditionContext.getKey(), conditionContext.getValue().context());
 
         assertThat(result.isPresent(), is(false));
     }

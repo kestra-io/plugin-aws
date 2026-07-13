@@ -46,12 +46,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.objects | jq('.[].uri') }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                        format: "{{ item.value }}"
 
                 triggers:
                   - id: watch
@@ -77,12 +77,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.objects | jq('.[].key') }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                        format: "{{ item.value }}"
 
                       - id: delete
                         type: io.kestra.plugin.aws.s3.Delete
@@ -90,7 +90,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                         region: "eu-central-1"
                         bucket: "my-bucket"
-                        key: "{{ taskrun.value }}"
+                        key: "{{ item.value }}"
 
                 triggers:
                   - id: watch
