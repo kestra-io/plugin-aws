@@ -32,9 +32,21 @@ abstract class AbstractSqs extends AbstractConnection implements SqsConnectionIn
 
     private Property<String> queueUrl;
 
+    @Schema(
+        title = "Maximum concurrent HTTP connections to SQS",
+        description = "Connection pool size for the SQS async client. It caps how many requests to SQS " +
+            "can be in flight at once. It does not limit how many messages are consumed or how fast the " +
+            "queue is drained. Defaults to 50, matching the AWS SDK default. Works together with " +
+            "connectionAcquisitionTimeout, which is how long a caller waits for a free connection."
+    )
     @Builder.Default
     private Property<Integer> maxConcurrency = Property.ofValue(50);
 
+    @Schema(
+        title = "Timeout for acquiring an HTTP connection from the pool",
+        description = "How long the SQS async client waits for a free connection before failing. This " +
+            "applies when all maxConcurrency connections are already in use. Defaults to 5 seconds."
+    )
     @Builder.Default
     private Property<Duration> connectionAcquisitionTimeout = Property.ofValue(Duration.ofSeconds(5));
 
