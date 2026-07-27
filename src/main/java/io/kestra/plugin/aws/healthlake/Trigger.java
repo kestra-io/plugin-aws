@@ -36,7 +36,7 @@ import software.amazon.awssdk.services.healthlake.model.*;
     title = "Trigger a flow when a HealthLake import or export job reaches a terminal state",
     description = """
         Polls HealthLake import or export jobs at a fixed interval and fires when the most recently submitted
-        job for the given data store reaches a terminal state (`COMPLETED`, `COMPLETED_WITH_ERRORS`, or `FAILED`).
+        job for the given data store reaches a terminal state (`COMPLETED`, `COMPLETED_WITH_ERRORS`, `FAILED`, `CANCEL_COMPLETED`, or `CANCEL_FAILED`).
         Exposes `{{ trigger.jobId }}` and `{{ trigger.jobStatus }}` to downstream tasks.
         Note: `listFhirImportJobs`/`listFhirExportJobs` with `maxResults(1)` returns the most recently submitted job
         but does not guarantee ordering by submit time; use `submittedAfter` filtering for strict ordering requirements.

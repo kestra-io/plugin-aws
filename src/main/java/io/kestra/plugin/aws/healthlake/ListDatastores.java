@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.healthlake.model.*;
     title = "List Amazon HealthLake FHIR data stores",
     description = """
         Returns FHIR data stores in the configured AWS region with optional filtering by name or status.
-        Paginates automatically. Results are capped at 100 entries per call; for larger accounts use the
+        Paginates automatically. Results are capped at 100 entries total; for larger accounts use the
         AWS Console or CLI for full enumeration.
         """
 )

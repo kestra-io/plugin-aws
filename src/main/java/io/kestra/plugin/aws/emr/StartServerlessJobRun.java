@@ -44,11 +44,6 @@ import software.amazon.awssdk.services.emrserverless.model.StartJobRunResponse;
                     executionRoleArn: "arn:aws:iam::123456789012:role/EMRServerlessRole"
                     jobName: "sample-spark-job"
                     entryPoint: "s3://my-bucket/scripts/spark-app.py"
-                    jobDriver:
-                      sparkSubmit:
-                        entryPointArguments:
-                          - "--arg1"
-                          - "value1"
                 """
         )
     }

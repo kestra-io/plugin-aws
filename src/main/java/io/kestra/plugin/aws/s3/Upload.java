@@ -192,10 +192,10 @@ import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
                   - id: upload_files_to_s3
                     type: io.kestra.plugin.aws.s3.Upload
                     from: |
-                      [
+                      {
                         "first_key": "{{ outputs.download_file1.uri }}",
                         "second_key": "{{ outputs.download_file2.uri }}"
-                      ]
+                      }
                     key: "path/to/files"
                     bucket: "{{ inputs.bucket }}"
                     region: "{{ secret('AWS_DEFAULT_REGION') }}"

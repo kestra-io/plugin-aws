@@ -71,7 +71,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 """
         ),
         @Example(
-            title = "Send multiple records from an internal storage ion file to Amazon Kinesis Data Streams",
+            title = "Send multiple records from an internal storage ION file to Amazon Kinesis Data Streams",
             full = true,
             code = """
                 id: aws_kinesis_put_records

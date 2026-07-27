@@ -42,7 +42,7 @@ import software.amazon.awssdk.regions.Region;
         @Example(
             full = true,
             code = """
-                id: aws_eks_oauth_token
+                id: aws_eks_token
                 namespace: company.team
 
                 tasks:
@@ -145,8 +145,8 @@ public class EksToken extends AbstractConnection implements RunnableTask<EksToke
     @Getter
     public static class Token {
         @Schema(
-            title = "OAuth access token value",
-            description = "Will be automatically encrypted and decrypted in the outputs if encryption is configured"
+            title = "EKS token value",
+            description = "The presigned `k8s-aws-v1` EKS authentication token. Automatically encrypted and decrypted in the outputs if encryption is configured."
         )
         EncryptedString tokenValue;
 

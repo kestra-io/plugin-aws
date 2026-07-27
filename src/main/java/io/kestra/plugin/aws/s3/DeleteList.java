@@ -189,13 +189,13 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Builder.Default
         @Schema(
-            title = "The count of blobs deleted"
+            title = "The count of objects deleted"
         )
         private final long count = 0;
 
         @Builder.Default
         @Schema(
-            title = "The size of all blobs deleted"
+            title = "The size of all objects deleted"
         )
         private final long size = 0;
     }

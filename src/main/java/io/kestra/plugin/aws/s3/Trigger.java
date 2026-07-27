@@ -168,6 +168,10 @@ public class Trigger extends AbstractTrigger
     private Property<Boolean> forcePathStyle = Property.ofValue(false);
 
     @Builder.Default
+    @Schema(
+        title = "Trigger condition",
+        description = "Which object events fire the trigger; defaults to CREATE_OR_UPDATE."
+    )
     private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
     @Builder.Default
@@ -177,8 +181,16 @@ public class Trigger extends AbstractTrigger
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    @Schema(
+        title = "State key",
+        description = "Key under which the trigger persists its dedup state; defaults to a stable per-trigger value."
+    )
     private Property<String> stateKey;
 
+    @Schema(
+        title = "State TTL",
+        description = "How long persisted dedup state is retained before matched objects can trigger again; unset means no expiry."
+    )
     private Property<Duration> stateTtl;
 
     @Override

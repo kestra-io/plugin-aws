@@ -10,6 +10,7 @@ import java.util.*;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -57,6 +58,10 @@ import software.amazon.awssdk.services.kinesis.model.Record;
                     maxRecords: 100
                 """
         )
+    },
+    metrics = {
+        @Metric(name = "records", type = Counter.TYPE, description = "The number of records consumed from the Kinesis stream."),
+        @Metric(name = "duration", type = Timer.TYPE, description = "The time spent consuming records from the Kinesis stream.")
     }
 )
 public class Consume extends AbstractKinesis implements RunnableTask<Consume.Output> {
