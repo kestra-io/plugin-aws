@@ -69,11 +69,13 @@ public abstract class AbstractTest extends AbstractFlociTest {
         return upload(dir, this.BUCKET);
     }
 
+    // Tests run concurrently (see junit-platform.properties), and the local storage overwrites files in place, so each
+    // call gets its own parent directory to avoid two tests racing on the same internal storage URI.
     protected URI storagePut(String path) throws URISyntaxException, IOException {
         return storageInterface.put(
             TenantService.MAIN_TENANT,
             null,
-            new URI("/" + (path != null ? path : IdUtils.create())),
+            new URI("/" + IdUtils.create() + "/" + (path != null ? path : IdUtils.create())),
             new FileInputStream(file())
         );
     }
