@@ -35,7 +35,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.*;
     title = "Stream a conversation with an Amazon Bedrock foundation model",
     description = """
         Streaming variant of the Converse task. Accumulates all streamed tokens and returns the complete
-        assistant message once generation finishes. Use this when you want lower time-to-first-token latency for long responses.
+        assistant message once generation finishes. Uses the streaming Converse API under the hood, which can improve throughput for long responses.
         """
 )
 @Plugin(

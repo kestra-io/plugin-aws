@@ -156,7 +156,7 @@ public class CreateBucket extends AbstractConnection implements AbstractS3, Runn
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(title = "Bucket")
         private final String bucket;
-        @Schema(title = "Region")
+        @Schema(title = "Bucket location", description = "The bucket location (path) returned by S3, e.g. `/my-bucket`.")
         private final String region;
     }
 }

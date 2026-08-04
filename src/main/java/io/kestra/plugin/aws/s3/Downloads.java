@@ -83,6 +83,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             type = Counter.TYPE,
             unit = "bytes",
             description = "The total size in bytes of all downloaded files."
+        ),
+        @Metric(
+            name = "file.size",
+            type = Counter.TYPE,
+            unit = "bytes",
+            description = "The size in bytes of each individual downloaded file."
         )
     }
 )

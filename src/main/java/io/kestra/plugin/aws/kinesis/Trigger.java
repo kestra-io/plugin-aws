@@ -84,7 +84,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(
         title = "The endpoint with which the SDK should communicate",
-        description = "This property allows you to use a different S3 compatible storage backend."
+        description = "This property allows you to target a custom or AWS-compatible Kinesis endpoint (for example, a local test endpoint)."
     )
     @PluginProperty(group = "advanced")
     private Property<String> endpointOverride;

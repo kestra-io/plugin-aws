@@ -55,6 +55,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     queueUrl: "https://sqs.eu-central-1.amazonaws.com/000000000000/test-queue"
+                    maxRecords: 10
                 """
         )
     },

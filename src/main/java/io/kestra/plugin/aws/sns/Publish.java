@@ -34,9 +34,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             full = true,
-            title = """
-                Send an SMS message using AWS SNS
-                """,
+            title = "Publish messages to an SNS topic",
             code = """
                 id: aws_sns_publish
                 namespace: company.team
@@ -56,9 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
         @Example(
             full = true,
-            title = """
-                Send an SMS message using AWS SNS based on a runtime-specific input
-                """,
+            title = "Publish a message to an SNS topic from a runtime input",
             code = """
                 id: send_sms
                 namespace: company.team

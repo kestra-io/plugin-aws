@@ -27,7 +27,7 @@ import software.amazon.awssdk.services.healthlake.model.*;
 @Schema(
     title = "Delete an Amazon HealthLake FHIR data store",
     description = """
-        Initiates deletion of a HealthLake FHIR data store and returns its final status.
+        Initiates deletion of a HealthLake FHIR data store and returns the resulting status (typically DELETING).
         The data store must be in ACTIVE or CREATE_FAILED state to be deleted.
         """
 )
