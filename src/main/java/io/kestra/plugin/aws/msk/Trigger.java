@@ -14,6 +14,8 @@ import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.storages.kv.KVMetadata;
+import io.kestra.core.storages.kv.KVValueAndMetadata;
 import io.kestra.plugin.aws.AbstractConnectionInterface;
 import io.kestra.plugin.aws.ConnectionUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,8 +30,6 @@ import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.ClusterState;
 import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
@@ -78,8 +78,7 @@ import java.util.Optional;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, AbstractConnectionInterface {
 
-    private static final String STATE_NAME = "msk-trigger";
-    private static final String STATE_SUB_NAME = "last-fired-state";
+    private static final String STATE_KV_PREFIX = "msk-trigger-last-fired-state";
 
     @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
     @PluginProperty(secret = true, group = "advanced")
@@ -151,14 +150,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rArn = runContext.render(clusterArn).as(String.class).orElseThrow();
         var rTargetState = runContext.render(targetState).as(ClusterState.class).orElseThrow();
 
+        // trigger state moved from the removed RunContext#stateStore() to the namespace KV store in Kestra 2.0
+        var kvStore = runContext.namespaceKv(context.getNamespace());
+        var stateKey = STATE_KV_PREFIX + "-" + context.getFlowId() + "-" + this.getId();
+
         // Load last-fired state to avoid re-firing while cluster remains in target state
         String lastFiredState = null;
         try {
-            var stateStream = runContext.stateStore().getState(STATE_NAME, STATE_SUB_NAME, this.getId());
-            if (stateStream != null) {
-                try (var reader = new BufferedReader(new InputStreamReader(stateStream, StandardCharsets.UTF_8))) {
-                    lastFiredState = reader.readLine();
-                }
+            var kvValue = kvStore.getValue(stateKey);
+            if (kvValue.isPresent() && kvValue.get().value() instanceof byte[] bytes && bytes.length > 0) {
+                lastFiredState = new String(bytes, StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
             logger.debug("No previous trigger state found, treating as first run");
@@ -175,7 +176,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             if (currentState != rTargetState) {
                 // Clear persisted state so we re-fire if cluster transitions back into target later
                 if (lastFiredState != null) {
-                    runContext.stateStore().putState(STATE_NAME, STATE_SUB_NAME, this.getId(), new byte[0]);
+                    kvStore.delete(stateKey);
                 }
                 return Optional.empty();
             }
@@ -187,8 +188,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Persist fired state so subsequent polls don't re-fire
-            runContext.stateStore().putState(STATE_NAME, STATE_SUB_NAME, this.getId(),
-                rTargetState.toString().getBytes(StandardCharsets.UTF_8));
+            kvStore.put(stateKey, new KVValueAndMetadata(
+                new KVMetadata("MSK trigger last-fired state", (Duration) null),
+                rTargetState.toString().getBytes(StandardCharsets.UTF_8)
+            ));
 
             logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
             var output = Output.builder()
