@@ -120,7 +120,7 @@ public class S3Service {
             }
         } else if (renderedAction == ActionInterface.Action.MOVE) {
             // Render before the concatenation below: Property.ofValue on template text skips evaluation.
-            var renderedMoveToKey = runContext.render(moveTo.getKey()).as(String.class).orElseThrow();
+            var rMoveToKey = runContext.render(moveTo.getKey()).as(String.class).orElseThrow();
 
             for (S3Object object : s3Objects) {
                 Copy copy = Copy.builder()
@@ -147,7 +147,7 @@ public class S3Service {
                         moveTo.toBuilder()
                             .key(
                                 Property.ofValue(
-                                    StringUtils.stripEnd(renderedMoveToKey + "/", "/")
+                                    StringUtils.stripEnd(rMoveToKey + "/", "/")
                                         + "/" + FilenameUtils.getName(object.getKey())
                                 )
                             )
