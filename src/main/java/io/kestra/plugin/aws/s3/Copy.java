@@ -150,6 +150,8 @@ public class Copy extends AbstractConnection implements AbstractS3, RunnableTask
                     .type(Delete.class.getName())
                     .region(this.region)
                     .endpointOverride(this.endpointOverride)
+                    .compatibilityMode(this.compatibilityMode)
+                    .forcePathStyle(this.forcePathStyle)
                     .accessKeyId(this.accessKeyId)
                     .secretKeyId(this.secretKeyId)
                     .sessionToken(this.sessionToken)
