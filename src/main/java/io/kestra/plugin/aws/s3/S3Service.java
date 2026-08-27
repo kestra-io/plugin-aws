@@ -119,6 +119,10 @@ public class S3Service {
                 delete.run(runContext);
             }
         } else if (renderedAction == ActionInterface.Action.MOVE) {
+            // The destination key is rebuilt below, so it must be rendered here: appending to the raw Property would
+            // stringify the expression and Property.ofValue would then skip evaluation, leaking `{{ ... }}` into the key.
+            var renderedMoveToKey = runContext.render(moveTo.getKey()).as(String.class).orElseThrow();
+
             for (S3Object object : s3Objects) {
                 Copy copy = Copy.builder()
                     .id("archive")
@@ -144,7 +148,7 @@ public class S3Service {
                         moveTo.toBuilder()
                             .key(
                                 Property.ofValue(
-                                    StringUtils.stripEnd(moveTo.getKey() + "/", "/")
+                                    StringUtils.stripEnd(renderedMoveToKey + "/", "/")
                                         + "/" + FilenameUtils.getName(object.getKey())
                                 )
                             )

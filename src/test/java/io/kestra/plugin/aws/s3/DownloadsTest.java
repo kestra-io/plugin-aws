@@ -92,6 +92,43 @@ class DownloadsTest extends AbstractTest {
     }
 
     @Test
+    void moveWithDynamicMoveToKey() throws Exception {
+        this.createBucket();
+
+        upload("/tasks/s3-dynamic-from");
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(Downloads.class.getName())
+            .bucket(Property.ofExpression("{{ bucket }}"))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .prefix(Property.ofValue("/tasks/s3-dynamic-from"))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(
+                Copy.CopyObject.builder()
+                    .bucket(Property.ofExpression("{{ bucket }}"))
+                    .key(Property.ofExpression("/tasks/s3-dynamic-to/{{ dest }}"))
+                    .build()
+            )
+            .build();
+
+        task.run(runContextFactory.of(Map.of("bucket", this.BUCKET, "dest", "2026/08/27")));
+
+        // the source is gone: the copy ran and deleted it
+        List list = list().prefix(Property.ofValue("/tasks/s3-dynamic-from")).build();
+        assertThat(list.run(runContext(list)).getObjects().size(), is(0));
+
+        // the destination key resolved the expression instead of keeping the literal template
+        list = list().prefix(Property.ofValue("/tasks/s3-dynamic-to/2026/08/27")).build();
+        assertThat(list.run(runContext(list)).getObjects().size(), is(1));
+    }
+
+    @Test
     void maxFilesExceeded() throws Exception {
         this.createBucket();
 
