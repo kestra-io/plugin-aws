@@ -144,7 +144,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rDatastoreId = runContext.render(datastoreId).as(String.class).orElseThrow();
         var rJobType = runContext.render(jobType).as(JobType.class).orElse(JobType.IMPORT);
 
-        // trigger state moved from the removed RunContext#stateStore() to the namespace KV store in Kestra 2.0
         var kvStore = runContext.namespaceKv(context.getNamespace());
         var stateKey = STATE_KV_PREFIX + "-" + context.getFlowId() + "-" + this.getId();
 
