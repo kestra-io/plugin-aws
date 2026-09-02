@@ -80,23 +80,23 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                           id: 1
                           flow: "{{ flow.id }}"
                           task: "{{ task.id }}"
+                        tableName: demo
+                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
 
                       - id: second_item_as_json
                         type: io.kestra.plugin.aws.dynamodb.PutItem
+                        tableName: demo
+                        region: "{{ secret('AWS_DEFAULT_REGION') }}"
+                        accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                        secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                         item: |
                           {
                               "id": 2,
                               "flow": "{{ flow.id }}",
                               "task": "{{ task.id }}"
                           }
-
-                    pluginDefaults:
-                      - type: io.kestra.plugin.aws.dynamodb.PutItem
-                        values:
-                          tableName: demo
-                          region: "{{ secret('AWS_DEFAULT_REGION') }}"
-                          accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                          secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     }
