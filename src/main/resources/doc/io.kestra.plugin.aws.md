@@ -25,7 +25,7 @@ The [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-jav
 
 ## Common properties
 
-Set `region` on each task or globally using [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults) to avoid repeating it. Most tasks also accept `endpointOverride` for connecting to custom or locally hosted endpoints such as LocalStack.
+Set `region` on each task. Most tasks also accept `endpointOverride` for connecting to custom or locally hosted endpoints such as LocalStack.
 
 ## Tasks
 
