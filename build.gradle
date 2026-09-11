@@ -61,7 +61,7 @@ dependencies {
 
     // Shared kernel (AWS connection/auth + S3 client factory), also brings s3, s3-transfer-manager,
     // sts, apache-client, netty-nio-client and aws-crt transitively as `api`
-    implementation 'io.kestra.plugin:plugin-aws-lib:1.0.0-SNAPSHOT'
+    implementation 'io.kestra.plugin:plugin-aws-lib:1.0.0'
 
     // AWS libraries are managed by the the Kestra Platform so they are aligned on all plugins
     api 'software.amazon.awssdk:cloudwatchlogs'
