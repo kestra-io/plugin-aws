@@ -1,4 +1,4 @@
-package io.kestra.plugin.aws;
+package io.kestra.plugin.aws.shared;
 
 import org.junit.jupiter.api.Test;
 

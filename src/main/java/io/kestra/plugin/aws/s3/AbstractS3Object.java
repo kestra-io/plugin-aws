@@ -1,7 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import io.kestra.core.models.property.Property;
-import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.shared.AbstractConnection;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;

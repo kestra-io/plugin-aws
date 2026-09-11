@@ -13,7 +13,7 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;

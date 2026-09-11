@@ -25,8 +25,8 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.ConnectionUtils;
+import io.kestra.plugin.aws.shared.AbstractConnection;
+import io.kestra.plugin.aws.shared.ConnectionUtils;
 import io.kestra.plugin.aws.eventbridge.model.Entry;
 
 import io.swagger.v3.oas.annotations.media.Schema;

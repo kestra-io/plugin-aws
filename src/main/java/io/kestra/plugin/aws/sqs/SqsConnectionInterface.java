@@ -4,7 +4,7 @@ import java.time.Duration;
 
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

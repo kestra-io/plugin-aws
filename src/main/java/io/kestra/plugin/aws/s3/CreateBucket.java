@@ -6,7 +6,8 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.shared.AbstractConnection;
+import io.kestra.plugin.aws.shared.s3.AbstractS3;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

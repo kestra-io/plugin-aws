@@ -3,7 +3,11 @@
 ## What
 
 - Provides plugin components under `io.kestra.plugin.aws`.
-- Includes classes such as `ConnectionUtils`, `Consume`, `PutRecords`, `Trigger`.
+- Includes classes such as `Consume`, `PutRecords`, `Trigger`.
+- AWS connection/authentication (`AbstractConnection`, `AbstractConnectionInterface`, `ConnectionUtils`)
+  and the S3 client factory (`s3.AbstractS3`) live in the shared kernel published by
+  [`plugin-aws-lib`](https://github.com/kestra-io/plugin-aws-lib) (`io.kestra.plugin.aws.shared[.s3]`),
+  consumed here via `implementation 'io.kestra.plugin:plugin-aws-lib:...'`, not duplicated in this repo.
 
 ## Why
 

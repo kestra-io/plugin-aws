@@ -16,7 +16,7 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.FileUtils;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
 import software.amazon.awssdk.crt.CRT;

@@ -7,8 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.AbstractConnection;
-import io.kestra.plugin.aws.ConnectionUtils;
+import io.kestra.plugin.aws.shared.AbstractConnection;
+import io.kestra.plugin.aws.shared.ConnectionUtils;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
