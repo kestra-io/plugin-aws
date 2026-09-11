@@ -16,7 +16,7 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.FileUtils;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
+import io.kestra.plugin.aws.shared.s3.AbstractS3;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
 import software.amazon.awssdk.crt.CRT;
@@ -95,7 +95,7 @@ public class S3Service {
         Copy.CopyObject moveTo,
         RunContext runContext,
         AbstractS3ObjectInterface abstractS3Object,
-        AbstractConnectionInterface abstractS3) throws Exception {
+        AbstractS3 abstractS3) throws Exception {
         var renderedAction = runContext.render(action).as(ActionInterface.Action.class).orElseThrow();
         if (renderedAction == ActionInterface.Action.DELETE) {
             for (S3Object object : s3Objects) {

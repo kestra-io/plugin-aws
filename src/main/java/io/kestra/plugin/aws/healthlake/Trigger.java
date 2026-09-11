@@ -19,8 +19,8 @@ import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.storages.kv.KVMetadata;
 import io.kestra.core.storages.kv.KVValueAndMetadata;
-import io.kestra.plugin.aws.AbstractConnectionInterface;
-import io.kestra.plugin.aws.ConnectionUtils;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
+import io.kestra.plugin.aws.shared.ConnectionUtils;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

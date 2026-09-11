@@ -6,7 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.AbstractConnection;
+import io.kestra.plugin.aws.shared.s3.AbstractS3Connection;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -54,7 +54,7 @@ import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
     title = "Create an S3 bucket",
     description = "Creates a new bucket with optional ACL grants and Object Lock enablement. Uses provided region/endpoint from connection settings."
 )
-public class CreateBucket extends AbstractConnection implements AbstractS3, RunnableTask<CreateBucket.Output> {
+public class CreateBucket extends AbstractS3Connection implements RunnableTask<CreateBucket.Output> {
     @Schema(
         title = "Bucket name",
         description = "Name of the bucket to create."
