@@ -6,8 +6,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.shared.AbstractConnection;
-import io.kestra.plugin.aws.shared.s3.AbstractS3;
+import io.kestra.plugin.aws.shared.s3.AbstractS3Connection;
 import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -57,7 +56,7 @@ import software.amazon.awssdk.transfer.s3.model.CopyRequest;
     title = "Copy an object between S3 locations",
     description = "Copies an object within or across buckets. Optionally deletes the source after copy. Supports versionId on source and SSE on destination."
 )
-public class Copy extends AbstractConnection implements AbstractS3, RunnableTask<Copy.Output> {
+public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Output> {
 
     @Schema(
         title = "Source object",
