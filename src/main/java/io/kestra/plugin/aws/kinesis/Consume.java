@@ -112,6 +112,15 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    private final java.util.concurrent.atomic.AtomicBoolean isStopped = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    @Override
+    public void kill() {
+        isStopped.set(true);
+    }
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         long startedAt = System.nanoTime();
@@ -132,6 +141,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             String iterator = buildShardIterator(runContext, client, rStream, shard);
 
             while (iterator != null) {
+                if (isStopped.get()) {
+                    break;
+                }
+
                 GetRecordsResponse response = client.getRecords(
                     GetRecordsRequest.builder()
                         .shardIterator(iterator)

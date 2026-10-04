@@ -190,7 +190,20 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         receiptHandles.clear();
     }
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    private final java.util.concurrent.atomic.AtomicBoolean isStopped = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    @Override
+    public void kill() {
+        isStopped.set(true);
+    }
+
     private boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
+        if (isStopped.get()) {
+            return true;
+        }
+
         var max = runContext.render(this.maxRecords).as(Integer.class);
         if (max.isPresent() && count.get() >= max.get()) {
             return true;
