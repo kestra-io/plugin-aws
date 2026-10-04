@@ -4,6 +4,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -16,8 +22,8 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -193,6 +199,13 @@ public class Trigger extends AbstractTrigger
     )
     private Property<Duration> stateTtl;
 
+    // in-flight S3 read, so kill() can release the worker thread if the S3 call hangs
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final AtomicReference<Future<?>> running = new AtomicReference<>();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -229,7 +242,7 @@ public class Trigger extends AbstractTrigger
             .forcePathStyle(this.forcePathStyle)
             .build();
 
-        List.Output run = task.run(runContext);
+        List.Output run = runKillable(() -> task.run(runContext));
 
         if (run.getObjects().isEmpty()) {
             return Optional.empty();
@@ -274,7 +287,7 @@ public class Trigger extends AbstractTrigger
                         .forcePathStyle(this.forcePathStyle)
                         .build();
 
-                    var dlOut = download.run(runContext);
+                    var dlOut = runKillable(() -> download.run(runContext));
                     var downloaded = object.withUri(dlOut.getUri());
 
                     actionBlobs.add(object);
@@ -302,6 +315,41 @@ public class Trigger extends AbstractTrigger
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
 
         return Optional.of(execution);
+    }
+
+    private <T> T runKillable(Callable<T> call) throws Exception {
+        // not try-with-resources: ExecutorService.close() waits for the task, which would block on a hung SDK call
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<T> future = executor.submit(call);
+            running.set(future);
+            try {
+                return future.get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception cause) {
+                    throw cause;
+                }
+                throw e;
+            } catch (InterruptedException e) {
+                future.cancel(true);
+                Thread.currentThread().interrupt();
+                throw e;
+            }
+        } finally {
+            running.set(null);
+            executor.shutdownNow(); // never wait for a hung SDK call
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        Future<?> future = running.get();
+        if (future != null) {
+            future.cancel(true);
+        }
     }
 
     public enum ChangeType {

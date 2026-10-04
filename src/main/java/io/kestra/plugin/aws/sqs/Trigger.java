@@ -2,6 +2,12 @@ package io.kestra.plugin.aws.sqs;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 
@@ -138,6 +144,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
+    // in-flight evaluation, so kill() can release the worker thread if the SQS call hangs
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final AtomicReference<Future<?>> running = new AtomicReference<>();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -162,7 +175,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .visibilityTimeout(this.visibilityTimeout)
             .build();
 
-        Consume.Output run = task.run(runContext);
+        Consume.Output run = runKillable(() -> task.run(runContext));
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", run.getCount());
@@ -175,5 +188,42 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, run);
 
         return Optional.of(execution);
+    }
+
+    // Runs the poll on a dedicated thread: the AWS SDK ignores thread interrupts, but the
+    // waiting worker thread can always be released by cancelling the future.
+    private <T> T runKillable(Callable<T> poll) throws Exception {
+        // not try-with-resources: ExecutorService.close() waits for the task, which would block on a hung SDK call
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<T> future = executor.submit(poll);
+            running.set(future);
+            try {
+                return future.get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof Exception cause) {
+                    throw cause;
+                }
+                throw e;
+            } catch (InterruptedException e) {
+                future.cancel(true);
+                Thread.currentThread().interrupt();
+                throw e;
+            }
+        } finally {
+            running.set(null);
+            executor.shutdownNow(); // never wait for a hung SDK call
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        Future<?> future = running.get();
+        if (future != null) {
+            future.cancel(true);
+        }
     }
 }
