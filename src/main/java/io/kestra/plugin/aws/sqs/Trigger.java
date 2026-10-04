@@ -144,7 +144,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
-    // in-flight evaluation, so kill() can release the worker thread if the SQS call hangs
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
@@ -190,10 +189,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(execution);
     }
 
-    // Runs the poll on a dedicated thread: the AWS SDK ignores thread interrupts, but the
-    // waiting worker thread can always be released by cancelling the future.
     private <T> T runKillable(Callable<T> poll) throws Exception {
-        // not try-with-resources: ExecutorService.close() waits for the task, which would block on a hung SDK call
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             Future<T> future = executor.submit(poll);
@@ -212,7 +208,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
         } finally {
             running.set(null);
-            executor.shutdownNow(); // never wait for a hung SDK call
+            executor.shutdownNow();
         }
     }
 

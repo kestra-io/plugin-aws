@@ -199,7 +199,6 @@ public class Trigger extends AbstractTrigger
     )
     private Property<Duration> stateTtl;
 
-    // in-flight S3 read, so kill() can release the worker thread if the S3 call hangs
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
@@ -318,7 +317,6 @@ public class Trigger extends AbstractTrigger
     }
 
     private <T> T runKillable(Callable<T> call) throws Exception {
-        // not try-with-resources: ExecutorService.close() waits for the task, which would block on a hung SDK call
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             Future<T> future = executor.submit(call);
@@ -337,7 +335,7 @@ public class Trigger extends AbstractTrigger
             }
         } finally {
             running.set(null);
-            executor.shutdownNow(); // never wait for a hung SDK call
+            executor.shutdownNow();
         }
     }
 
