@@ -7,6 +7,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -65,6 +66,13 @@ import software.amazon.awssdk.services.kinesis.model.Record;
     }
 )
 public class Consume extends AbstractKinesis implements RunnableTask<Consume.Output> {
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final AtomicBoolean isStopped = new AtomicBoolean(false);
+
+
     @NotNull
     @Schema(
         title = "Stream name",
@@ -112,9 +120,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
 
-    @Builder.Default
-    @Getter(AccessLevel.NONE)
-    private final java.util.concurrent.atomic.AtomicBoolean isStopped = new java.util.concurrent.atomic.AtomicBoolean(false);
+
 
     @Override
     public void kill() {
@@ -138,6 +144,9 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
 
         for (Shard shard : shards) {
+            if (isStopped.get()) {
+                break;
+            }
             String iterator = buildShardIterator(runContext, client, rStream, shard);
 
             while (iterator != null) {
