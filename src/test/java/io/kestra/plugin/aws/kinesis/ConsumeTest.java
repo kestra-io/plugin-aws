@@ -68,4 +68,39 @@ class ConsumeTest extends AbstractKinesisTest {
         assertThat(records.getFirst().getShardId(), notNullValue());
         assertThat(records.getFirst().getApproximateArrivalTimestamp(), instanceOf(Instant.class));
     }
+
+    @Test
+    void testKill() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(streamName))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.LATEST))
+            .maxRecords(Property.ofValue(100))
+            .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(30)))
+            .pollDuration(Property.ofValue(java.time.Duration.ofMillis(100)))
+            .build();
+
+        java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
+        
+        Thread thread = new Thread(() -> {
+            try {
+                output.set(consume.run(runContext));
+            } catch (Exception e) {
+                // ignore
+            }
+        });
+
+        thread.start();
+        Thread.sleep(500); // let it start polling
+        consume.kill();
+        thread.join(5000); // Wait max 5s for the loop to break
+
+        assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
+        assertThat(output.get(), notNullValue());
+    }
 }
