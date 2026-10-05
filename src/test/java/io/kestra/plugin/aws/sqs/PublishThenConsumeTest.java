@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -80,6 +81,39 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .serdeType(Property.ofValue(SerdeType.JSON))
+            .maxRecords(Property.ofValue(2))
+            .build();
+
+        var consumeOutput = consume.run(runContextFactory.of());
+        assertThat(consumeOutput.getCount(), is(2));
+    }
+
+    @Test
+    void runFromListOfMaps() throws Exception {
+        var runContext = runContextFactory.of();
+        var publish = Publish.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .from(
+                List.of(
+                    Map.of("data", "Hello World"),
+                    Map.of("data", "Hello Kestra", "delaySeconds", 5)
+                )
+            )
+            .build();
+
+        var publishOutput = publish.run(runContext);
+        assertThat(publishOutput.getMessagesCount(), is(2));
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
             .maxRecords(Property.ofValue(2))
             .build();
 
