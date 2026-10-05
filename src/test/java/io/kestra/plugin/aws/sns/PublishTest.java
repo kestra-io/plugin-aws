@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.sns;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,30 @@ class PublishTest extends AbstractSnsTest {
                 List.of(
                     Message.builder().data("Hello World").build(),
                     Message.builder().data("Hello Kestra").subject("Kestra").build()
+                )
+            )
+            .build();
+
+        var client = publish.client(runContext);
+        createTopic(client);
+
+        var publishOutput = publish.run(runContext);
+        assertThat(publishOutput.getMessagesCount(), is(2));
+    }
+
+    @Test
+    void runFromListOfMaps() throws Exception {
+        var runContext = runContextFactory.of();
+        var publish = Publish.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .topicArn(Property.ofValue(TOPIC_ARN))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .from(
+                List.of(
+                    Map.of("data", "Hello World"),
+                    Map.of("data", "Hello Kestra", "subject", "Kestra")
                 )
             )
             .build();

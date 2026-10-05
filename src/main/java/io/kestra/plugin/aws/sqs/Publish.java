@@ -107,7 +107,7 @@ public class Publish extends AbstractSqs implements RunnableTask<Publish.Output>
             var batchCounter = new AtomicInteger();
 
             Data.from(from)
-                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(this.from, Message.class))
+                .readAs(runContext, Message.class, msg -> JacksonMapper.toMap(msg, Message.class))
                 .buffer(10)
                 .doOnNext(throwConsumer(batch ->
                 {
