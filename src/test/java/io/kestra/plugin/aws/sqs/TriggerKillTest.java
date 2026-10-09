@@ -3,13 +3,13 @@ package io.kestra.plugin.aws.sqs;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -25,8 +25,7 @@ import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @KestraTest
@@ -65,19 +64,7 @@ class TriggerKillTest {
 
     @Test
     void killReleasesHungEvaluation() throws Exception {
-        var endpoint = "http://localhost:" + hangingServer.getLocalPort();
-        var trigger = Trigger.builder()
-            .id("sqs-kill")
-            .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(endpoint))
-            .queueUrl(Property.ofValue(endpoint + "/000000000000/hanging-queue"))
-            .region(Property.ofValue("us-east-1"))
-            .accessKeyId(Property.ofValue("test"))
-            .secretKeyId(Property.ofValue("test"))
-            .maxRecords(Property.ofValue(1))
-            .interval(Duration.ofSeconds(60))
-            .build();
-
+        var trigger = hangingTrigger();
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
         var evaluator = Executors.newSingleThreadExecutor();
         var evaluation = CompletableFuture.supplyAsync(() ->
@@ -93,10 +80,34 @@ class TriggerKillTest {
         assertTrue(connected.await(30, TimeUnit.SECONDS), "the SQS call never reached the server");
         trigger.kill();
 
-        // without kill() this would block for at least the SDK socket timeout (30s) plus retries
-        var thrown = assertThrows(ExecutionException.class, () -> evaluation.get(5, TimeUnit.SECONDS));
-        assertThat(thrown.getCause().getCause(), instanceOf(CancellationException.class));
+        // without kill() this would block for at least the SDK socket timeout (30s) plus retries;
+        // a killed evaluation is a clean stop, not a trigger error
+        assertThat(evaluation.get(5, TimeUnit.SECONDS).isEmpty(), is(true));
         evaluator.shutdownNow();
+
+        // the SDK request itself must be aborted, not only the wait on it
+        var socket = accepted.get(0);
+        socket.setSoTimeout(5_000);
+        var in = socket.getInputStream();
+        var buf = new byte[8192];
+        try {
+            while (in.read(buf) != -1) {
+            }
+        } catch (SocketTimeoutException e) {
+            throw new AssertionError("the SDK request is still open after kill()", e);
+        } catch (SocketException e) {
+        }
+    }
+
+    @Test
+    void killBeforeEvaluationSkipsIt() throws Exception {
+        var trigger = hangingTrigger();
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        trigger.kill();
+
+        assertThat(trigger.evaluate(context.getKey(), context.getValue()).isEmpty(), is(true));
+        assertThat(accepted.isEmpty(), is(true));
     }
 
     @Test
@@ -107,5 +118,20 @@ class TriggerKillTest {
             .build();
 
         trigger.kill();
+    }
+
+    private Trigger hangingTrigger() {
+        var endpoint = "http://localhost:" + hangingServer.getLocalPort();
+        return Trigger.builder()
+            .id("sqs-kill")
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(endpoint))
+            .queueUrl(Property.ofValue(endpoint + "/000000000000/hanging-queue"))
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("test"))
+            .secretKeyId(Property.ofValue("test"))
+            .maxRecords(Property.ofValue(1))
+            .interval(Duration.ofSeconds(60))
+            .build();
     }
 }

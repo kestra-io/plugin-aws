@@ -92,32 +92,36 @@ public class List extends AbstractS3Object implements RunnableTask<List.Output>,
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (S3Client client = this.client(runContext)) {
-            java.util.List<S3Object> list = S3Service.list(runContext, client, this, this);
-
-            runContext.metric(Counter.of("s3.objects.count", list.size()));
-
-            runContext.logger().debug(
-                "Found '{}' keys on {} with regexp='{}', prefix={}",
-                list.size(),
-                runContext.render(bucket).as(String.class).orElseThrow(),
-                runContext.render(regexp).as(String.class).orElse(null),
-                runContext.render(prefix).as(String.class).orElse(null)
-            );
-
-            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-            if (list.size() > rMaxFiles) {
-                runContext.logger().warn(
-                    "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
-                        "Increase the maxFiles property if you need more files.",
-                    list.size(), rMaxFiles, rMaxFiles
-                );
-                list = list.subList(0, rMaxFiles);
-            }
-
-            return Output.builder()
-                .objects(list)
-                .build();
+            return run(runContext, client);
         }
+    }
+
+    Output run(RunContext runContext, S3Client client) throws Exception {
+        java.util.List<S3Object> list = S3Service.list(runContext, client, this, this);
+
+        runContext.metric(Counter.of("s3.objects.count", list.size()));
+
+        runContext.logger().debug(
+            "Found '{}' keys on {} with regexp='{}', prefix={}",
+            list.size(),
+            runContext.render(bucket).as(String.class).orElseThrow(),
+            runContext.render(regexp).as(String.class).orElse(null),
+            runContext.render(prefix).as(String.class).orElse(null)
+        );
+
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (list.size() > rMaxFiles) {
+            runContext.logger().warn(
+                "Listing returned {} files but maxFiles limit is {}. Only the first {} files will be returned. " +
+                    "Increase the maxFiles property if you need more files.",
+                list.size(), rMaxFiles, rMaxFiles
+            );
+            list = list.subList(0, rMaxFiles);
+        }
+
+        return Output.builder()
+            .objects(list)
+            .build();
     }
 
     @Builder

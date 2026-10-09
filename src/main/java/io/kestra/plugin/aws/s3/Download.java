@@ -189,25 +189,37 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
     }
 
     private Output downloadSingleFile(RunContext runContext, String bucket) throws Exception {
+        try (S3AsyncClient client = this.asyncClient(runContext)) {
+            return downloadSingleFile(runContext, bucket, client);
+        }
+    }
+
+    /**
+     * Downloads the single {@code key} with a client owned by the caller, so the caller can close it to abort an in-flight request.
+     */
+    Output run(RunContext runContext, S3AsyncClient client) throws Exception {
+        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        return downloadSingleFile(runContext, bucket, client);
+    }
+
+    private Output downloadSingleFile(RunContext runContext, String bucket, S3AsyncClient client) throws Exception {
         String key = runContext.render(this.key).as(String.class).orElseThrow();
 
-        try (S3AsyncClient client = this.asyncClient(runContext)) {
-            GetObjectRequest request = buildGetObjectRequest(runContext, bucket, key);
-            Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
+        GetObjectRequest request = buildGetObjectRequest(runContext, bucket, key);
+        Pair<GetObjectResponse, URI> download = S3Service.download(runContext, client, request);
 
-            Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
+        Pair<String, String> checksum = S3Service.extractChecksum(download.getLeft());
 
-            return Output.builder()
-                .uri(download.getRight())
-                .eTag(download.getLeft().eTag())
-                .contentLength(download.getLeft().contentLength())
-                .contentType(download.getLeft().contentType())
-                .metadata(download.getLeft().metadata())
-                .versionId(download.getLeft().versionId())
-                .checksumAlgorithm(checksum.getLeft())
-                .checksumValue(checksum.getRight())
-                .build();
-        }
+        return Output.builder()
+            .uri(download.getRight())
+            .eTag(download.getLeft().eTag())
+            .contentLength(download.getLeft().contentLength())
+            .contentType(download.getLeft().contentType())
+            .metadata(download.getLeft().metadata())
+            .versionId(download.getLeft().versionId())
+            .checksumAlgorithm(checksum.getLeft())
+            .checksumValue(checksum.getRight())
+            .build();
     }
 
     private GetObjectRequest buildGetObjectRequest(RunContext runContext, String bucket, String key) throws Exception {

@@ -106,9 +106,15 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @PluginProperty(group = "execution")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
-    @SuppressWarnings("BusyWait")
     @Override
     public Output run(RunContext runContext) throws Exception {
+        try (var sqsClient = this.client(runContext)) {
+            return run(runContext, sqsClient);
+        }
+    }
+
+    @SuppressWarnings("BusyWait")
+    Output run(RunContext runContext, SqsClient sqsClient) throws Exception {
         var queueUrl = runContext.render(getQueueUrl()).as(String.class).orElseThrow();
         if (this.maxDuration == null && this.maxRecords == null) {
             throw new IllegalArgumentException("'maxDuration' or 'maxRecords' must be set to avoid an infinite loop");
@@ -118,49 +124,45 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
         var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
 
-        try (var sqsClient = this.client(runContext)) {
-            var total = new AtomicInteger();
-            var started = ZonedDateTime.now();
-            var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-            var pendingDeletes = new ArrayList<String>();
+        var total = new AtomicInteger();
+        var started = ZonedDateTime.now();
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var pendingDeletes = new ArrayList<String>();
 
-            try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
-                do {
-                    var receiveRequest = ReceiveMessageRequest.builder()
-                        .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
-                        .queueUrl(queueUrl)
-                        .visibilityTimeout(rVisibilityTimeout)
-                        .build();
-                    var msg = sqsClient.receiveMessage(receiveRequest);
-                    for (var m : msg.messages()) {
-                        FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
-                        // Increment immediately after write so count always reflects what is in the file,
-                        // even if a subsequent flushDeletes call throws.
-                        total.getAndIncrement();
-                        if (rAutoDelete) {
-                            pendingDeletes.add(m.receiptHandle());
-                            if (pendingDeletes.size() == 10) {
-                                flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
-                            }
+        try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+            do {
+                var receiveRequest = ReceiveMessageRequest.builder()
+                    .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
+                    .queueUrl(queueUrl)
+                    .visibilityTimeout(rVisibilityTimeout)
+                    .build();
+                var msg = sqsClient.receiveMessage(receiveRequest);
+                for (var m : msg.messages()) {
+                    FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
+                    total.getAndIncrement();
+                    if (rAutoDelete) {
+                        pendingDeletes.add(m.receiptHandle());
+                        if (pendingDeletes.size() == 10) {
+                            flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
                         }
                     }
-
-                    Thread.sleep(100);
-                } while (!this.ended(total, started, runContext));
-
-                if (rAutoDelete && !pendingDeletes.isEmpty()) {
-                    flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
                 }
 
-                runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
-                outputFile.flush();
+                Thread.sleep(100);
+            } while (!this.ended(total, started, runContext));
+
+            if (rAutoDelete && !pendingDeletes.isEmpty()) {
+                flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
             }
 
-            return Output.builder()
-                .uri(runContext.storage().putFile(tempFile))
-                .count(total.get())
-                .build();
+            runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
+            outputFile.flush();
         }
+
+        return Output.builder()
+            .uri(runContext.storage().putFile(tempFile))
+            .count(total.get())
+            .build();
     }
 
     private void flushDeletes(SqsClient sqsClient, String queueUrl, List<String> receiptHandles, RunContext runContext) {

@@ -2,11 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -19,13 +15,16 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.Rethrow;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 @SuperBuilder
 @ToString
@@ -148,10 +147,25 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private final AtomicReference<Future<?>> running = new AtomicReference<>();
+    private final AtomicBoolean killed = new AtomicBoolean();
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        try {
+            return doEvaluate(conditionContext, context);
+        } catch (TriggerKilledException e) {
+            conditionContext.getRunContext().logger().debug("Trigger killed, evaluation stopped");
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Execution> doEvaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
@@ -174,7 +188,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .visibilityTimeout(this.visibilityTimeout)
             .build();
 
-        Consume.Output run = runKillable(() -> task.run(runContext));
+        Consume.Output run = runKillable(task.client(runContext), client -> task.run(runContext, client));
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", run.getCount());
@@ -189,26 +203,27 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(execution);
     }
 
-    private <T> T runKillable(Callable<T> poll) throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+    private <C extends SdkAutoCloseable, T> T runKillable(C client, Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+        activeClient.set(client);
         try {
-            Future<T> future = executor.submit(poll);
-            running.set(future);
-            try {
-                return future.get();
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof Exception cause) {
-                    throw cause;
-                }
-                throw e;
-            } catch (InterruptedException e) {
-                future.cancel(true);
-                Thread.currentThread().interrupt();
-                throw e;
+            if (killed.get()) {
+                throw new TriggerKilledException();
             }
+            return call.apply(client);
+        } catch (TriggerKilledException e) {
+            throw e;
+        } catch (Exception e) {
+            if (killed.get()) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new TriggerKilledException();
+            }
+            throw e;
         } finally {
-            running.set(null);
-            executor.shutdownNow();
+            if (activeClient.compareAndSet(client, null)) {
+                client.close();
+            }
         }
     }
 
@@ -217,9 +232,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
      **/
     @Override
     public void kill() {
-        Future<?> future = running.get();
-        if (future != null) {
-            future.cancel(true);
+        killed.set(true);
+        SdkAutoCloseable client = activeClient.getAndSet(null);
+        if (client != null) {
+            client.close();
         }
     }
 }
