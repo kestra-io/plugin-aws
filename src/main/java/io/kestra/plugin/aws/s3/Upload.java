@@ -447,8 +447,20 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     private Map<String, String> parseFromProperty(RunContext runContext) throws Exception {
 
-        if (this.from instanceof String fromString && URIFetcher.supports(runContext.render(fromString))) {
-            return uriListToMap(List.of(fromString));
+        if (this.from instanceof String fromString) {
+            String rFrom = runContext.render(fromString);
+            if (URIFetcher.supports(rFrom)) {
+                return uriListToMap(List.of(rFrom));
+            }
+        }
+
+        // Data.readAs returns a List as-is without rendering it, so each item is rendered here.
+        if (this.from instanceof List<?> fromList && fromList.stream().allMatch(String.class::isInstance)) {
+            List<String> rUris = new ArrayList<>();
+            for (Object uri : fromList) {
+                rUris.add(runContext.render((String) uri));
+            }
+            return uriListToMap(rUris);
         }
 
         Data data = Data.from(this.from);
@@ -581,7 +593,7 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
 
     private File copyFileToTemp(RunContext runContext, String renderedFrom) throws Exception {
         File tempFile = runContext.workingDir().createTempFile(FilenameUtils.getExtension(renderedFrom)).toFile();
-        URI from = new URI(runContext.render(renderedFrom));
+        URI from = new URI(renderedFrom);
         Files.copy(runContext.storage().getFile(from), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         return tempFile;
     }
