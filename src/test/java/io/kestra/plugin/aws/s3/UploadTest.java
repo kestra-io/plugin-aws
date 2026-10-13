@@ -1,11 +1,13 @@
 package io.kestra.plugin.aws.s3;
 
 import java.net.URI;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.IdUtils;
+import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -421,5 +423,37 @@ class UploadTest extends AbstractTest {
 
         assertThat(listOutput.getObjects().size(), is(1));
         assertThat(listOutput.getObjects().getFirst().getKey(), containsString("manifest.json"));
+    }
+
+    @Test
+    void run_listOfExpressions() throws Exception {
+        this.createBucket();
+
+        URI source1 = storagePut("first.yml");
+        URI source2 = storagePut("second.yml");
+
+        Upload upload = Upload.builder()
+            .id("ListOfExpressionsTest")
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(java.util.List.of("{{ inputs.file1 }}", "{{ inputs.file2 }}"))
+            .key(Property.ofValue(IdUtils.create() + "/"))
+            .build();
+
+        var runContext = TestsUtils.mockRunContext(
+            this.runContextFactory,
+            upload,
+            Map.of("file1", source1.toString(), "file2", source2.toString())
+        );
+
+        Upload.Output uploadOutput = upload.run(runContext);
+
+        assertThat(uploadOutput.getFiles().keySet(), containsInAnyOrder("first.yml", "second.yml"));
     }
 }
