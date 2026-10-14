@@ -98,7 +98,8 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
         }
 
         List<Map<String, Object>> forecast = response.forecastResultsByTime().stream()
-            .map(result -> {
+            .map(result ->
+            {
                 var entry = new LinkedHashMap<String, Object>();
                 entry.put("start", result.timePeriod().start());
                 entry.put("end", result.timePeriod().end());

@@ -91,11 +91,13 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
 
         try (var client = client(runContext)) {
             do {
-                var response = client.describeBudgets(DescribeBudgetsRequest.builder()
-                    .accountId(rAccountId)
-                    .maxResults(PAGE_SIZE)
-                    .nextToken(nextToken)
-                    .build());
+                var response = client.describeBudgets(
+                    DescribeBudgetsRequest.builder()
+                        .accountId(rAccountId)
+                        .maxResults(PAGE_SIZE)
+                        .nextToken(nextToken)
+                        .build()
+                );
                 pages++;
                 response.budgets().forEach(budget -> rows.add(toMap(budget)));
                 nextToken = response.nextToken();

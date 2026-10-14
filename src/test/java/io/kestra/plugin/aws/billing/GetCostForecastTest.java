@@ -38,15 +38,19 @@ class GetCostForecastTest {
             .build();
 
         var client = mock(CostExplorerClient.class);
-        when(client.getCostForecast(any(GetCostForecastRequest.class))).thenReturn(GetCostForecastResponse.builder()
-            .total(MetricValue.builder().amount("123.45").unit("USD").build())
-            .forecastResultsByTime(ForecastResult.builder()
-                .timePeriod(DateInterval.builder().start("2026-10-14").end("2026-11-01").build())
-                .meanValue("123.45")
-                .predictionIntervalLowerBound("100")
-                .predictionIntervalUpperBound("150")
-                .build())
-            .build());
+        when(client.getCostForecast(any(GetCostForecastRequest.class))).thenReturn(
+            GetCostForecastResponse.builder()
+                .total(MetricValue.builder().amount("123.45").unit("USD").build())
+                .forecastResultsByTime(
+                    ForecastResult.builder()
+                        .timePeriod(DateInterval.builder().start("2026-10-14").end("2026-11-01").build())
+                        .meanValue("123.45")
+                        .predictionIntervalLowerBound("100")
+                        .predictionIntervalUpperBound("150")
+                        .build()
+                )
+                .build()
+        );
         var spy = spy(task);
         doReturn(client).when(spy).client(any(RunContext.class));
 

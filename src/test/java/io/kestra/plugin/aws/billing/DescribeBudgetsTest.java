@@ -31,10 +31,12 @@ class DescribeBudgetsTest {
             .budgetType(BudgetType.COST)
             .timeUnit(TimeUnit.MONTHLY)
             .budgetLimit(Spend.builder().amount(new BigDecimal(limit)).unit("USD").build())
-            .calculatedSpend(CalculatedSpend.builder()
-                .actualSpend(Spend.builder().amount(new BigDecimal(actual)).unit("USD").build())
-                .forecastedSpend(Spend.builder().amount(new BigDecimal("900")).unit("USD").build())
-                .build())
+            .calculatedSpend(
+                CalculatedSpend.builder()
+                    .actualSpend(Spend.builder().amount(new BigDecimal(actual)).unit("USD").build())
+                    .forecastedSpend(Spend.builder().amount(new BigDecimal("900")).unit("USD").build())
+                    .build()
+            )
             .build();
     }
 

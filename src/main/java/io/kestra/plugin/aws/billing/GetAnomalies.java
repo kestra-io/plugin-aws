@@ -110,9 +110,11 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         var requestBuilder = GetAnomaliesRequest.builder()
             .dateInterval(AnomalyDateInterval.builder().startDate(interval.start()).endDate(interval.end()).build());
         runContext.render(monitorArn).as(String.class).ifPresent(requestBuilder::monitorArn);
-        runContext.render(minImpactUsd).as(Double.class).ifPresent(min -> requestBuilder.totalImpact(
-            TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(min).build()
-        ));
+        runContext.render(minImpactUsd).as(Double.class).ifPresent(
+            min -> requestBuilder.totalImpact(
+                TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(min).build()
+            )
+        );
         int rMaxPages = maxPages(runContext, maxPages);
 
         var rows = new ArrayList<Map<String, Object>>();
@@ -169,7 +171,8 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
             map.put("currentScore", anomaly.anomalyScore().currentScore());
         }
         map.put("feedback", anomaly.feedbackAsString());
-        map.put("rootCauses", anomaly.rootCauses().stream().map(cause -> {
+        map.put("rootCauses", anomaly.rootCauses().stream().map(cause ->
+        {
             var rootCause = new LinkedHashMap<String, Object>();
             rootCause.put("service", cause.service());
             rootCause.put("region", cause.region());

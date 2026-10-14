@@ -225,7 +225,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
     }
 
     private static String addRow(List<Map<String, Object>> rows, Map<String, BigDecimal> totals, ResultByTime result,
-                                 List<String> keys, Map<String, MetricValue> metricValues, String unit) {
+        List<String> keys, Map<String, MetricValue> metricValues, String unit) {
         var row = new LinkedHashMap<String, Object>();
         row.put("start", result.timePeriod().start());
         row.put("end", result.timePeriod().end());

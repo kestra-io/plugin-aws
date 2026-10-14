@@ -45,11 +45,13 @@ class GetCostAndUsageTest {
 
     private static GetCostAndUsageResponse page(String nextPageToken, Group... groups) {
         return GetCostAndUsageResponse.builder()
-            .resultsByTime(ResultByTime.builder()
-                .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
-                .estimated(false)
-                .groups(groups)
-                .build())
+            .resultsByTime(
+                ResultByTime.builder()
+                    .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
+                    .estimated(false)
+                    .groups(groups)
+                    .build()
+            )
             .nextPageToken(nextPageToken)
             .build();
     }
@@ -67,11 +69,14 @@ class GetCostAndUsageTest {
             .thenReturn(page("token-2", group("Amazon EC2", "12.50")))
             .thenReturn(page(null, group("Amazon S3", "0.75")));
 
-        var task = withClient(task()
-            .groupBy(Property.ofValue(List.of("SERVICE", "TAG:team")))
-            .dimensionFilter(Property.ofValue(Map.of("REGION", List.of("eu-west-1"))))
-            .fetchType(Property.ofValue(FetchType.FETCH))
-            .build(), client);
+        var task = withClient(
+            task()
+                .groupBy(Property.ofValue(List.of("SERVICE", "TAG:team")))
+                .dimensionFilter(Property.ofValue(Map.of("REGION", List.of("eu-west-1"))))
+                .fetchType(Property.ofValue(FetchType.FETCH))
+                .build(),
+            client
+        );
 
         var output = task.run(runContextFactory.of());
 
@@ -96,12 +101,16 @@ class GetCostAndUsageTest {
     @Test
     void givenNoGroupBy_whenFetchOne_thenUsesTotal() throws Exception {
         var client = mock(CostExplorerClient.class);
-        when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(GetCostAndUsageResponse.builder()
-            .resultsByTime(ResultByTime.builder()
-                .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
-                .total(Map.of("UnblendedCost", MetricValue.builder().amount("42.1").unit("USD").build()))
-                .build())
-            .build());
+        when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(
+            GetCostAndUsageResponse.builder()
+                .resultsByTime(
+                    ResultByTime.builder()
+                        .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
+                        .total(Map.of("UnblendedCost", MetricValue.builder().amount("42.1").unit("USD").build()))
+                        .build()
+                )
+                .build()
+        );
 
         var output = withClient(task().fetchType(Property.ofValue(FetchType.FETCH_ONE)).build(), client).run(runContextFactory.of());
 
