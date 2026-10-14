@@ -33,7 +33,17 @@ public class AbstractInvokeTest extends AbstractFlociTest {
     @Inject
     protected RunContextFactory runContextFactory;
 
+    // Tests run concurrently (junit-platform.properties). Without the lock, two of them can both see
+    // no function and both create it, and Floci fails the second with "Directory not empty".
+    private static final Object FUNCTION_LOCK = new Object();
+
     void createFunction(LambdaClient client) {
+        synchronized (FUNCTION_LOCK) {
+            createFunctionIfAbsent(client);
+        }
+    }
+
+    private void createFunctionIfAbsent(LambdaClient client) {
         if (client.listFunctions().functions().stream().noneMatch(config -> config.functionName().equals(FUNCTION_NAME))) {
             LambdaWaiter waiter = client.waiter();
 
