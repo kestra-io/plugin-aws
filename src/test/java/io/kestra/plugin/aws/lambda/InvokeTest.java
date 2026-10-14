@@ -174,6 +174,21 @@ public class InvokeTest extends AbstractInvokeTest {
     }
 
     @Test
+    public void givenLambdaPastSdkDefault_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
+        // Given: longer than the SDK's 30 s default read timeout
+        var invoke = sleepingInvoke(35, Duration.ofSeconds(60)).build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var output = invoke.run(context);
+
+        // Then
+        assertNotNull(output.getUri(), "File URI should be present");
+    }
+
+    @Test
     public void givenSlowLambda_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
         // Given
         var invoke = sleepingInvoke(5, Duration.ofSeconds(60)).build();
