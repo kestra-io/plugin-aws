@@ -60,6 +60,8 @@ public class AbstractInvokeTest extends AbstractFlociTest {
                 .handler("test.handler")
                 .role(FUNCTION_ROLE_ARN)
                 .runtime(Runtime.PYTHON3_9)
+                // above Lambda's 3 s default, so the "sleep" action can outlast the client's socket timeout
+                .timeout(60)
                 .build();
 
             // Create a Lambda function using a waiter.
