@@ -48,6 +48,7 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
 import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.LambdaClientBuilder;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
@@ -134,6 +135,14 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @PluginProperty(group = "advanced")
     private Property<Duration> socketTimeout;
 
+    @Schema(
+        title = "AWS SDK attempts",
+        description = "Total attempts the AWS SDK makes for one invocation, the first included. Defaults to the SDK's " +
+            "retry strategy. Each SDK retry invokes the function again; set 1 to leave retries to the task's `retry`."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Integer> sdkMaxAttempts;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
@@ -182,7 +191,18 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         final Optional<Duration> socketTimeout = runContext.render(this.socketTimeout).as(Duration.class);
-        return ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder())
+        final Optional<Integer> sdkMaxAttempts = runContext.render(this.sdkMaxAttempts).as(Integer.class);
+        if (sdkMaxAttempts.isPresent() && sdkMaxAttempts.get() < 1) {
+            throw new IllegalArgumentException("sdkMaxAttempts must be at least 1, got " + sdkMaxAttempts.get());
+        }
+        final LambdaClientBuilder builder = ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder());
+        // Each SDK retry is a new invocation of the function, invisible to the task's own `retry`.
+        sdkMaxAttempts.ifPresent(
+            attempts -> builder.overrideConfiguration(
+                config -> config.retryStrategy(strategy -> strategy.maxAttempts(attempts))
+            )
+        );
+        return builder
             // Replaces the shared HTTP client, keeping its settings. A synchronous invocation holds the
             // connection silent for as long as the function runs, up to 15 minutes: the read timeout must
             // be settable, and TCP keepalive lets the OS keep the connection open across a NAT.

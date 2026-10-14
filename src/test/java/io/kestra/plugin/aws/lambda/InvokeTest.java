@@ -124,7 +124,7 @@ public class InvokeTest extends AbstractInvokeTest {
     @Test
     public void givenSlowLambda_whenSocketTimeoutShorter_thenReadTimedOut() throws Exception {
         // Given
-        var invoke = sleepingInvoke(5, Duration.ofSeconds(2));
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2)).build();
 
         var client = invoke.client(context);
         createFunction(client);
@@ -140,9 +140,43 @@ public class InvokeTest extends AbstractInvokeTest {
     }
 
     @Test
+    public void givenSlowLambda_whenOneSdkAttempt_thenInvokedOnce() throws Exception {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2))
+            .sdkMaxAttempts(Property.ofValue(1))
+            .build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var e = assertThrows(
+            SdkClientException.class, () -> invoke.run(context),
+            "Invocation should time out on the client"
+        );
+
+        // Then
+        assertTrue(e.getMessage().contains("(SDK Attempt Count: 1)"), "Unexpected error: " + e.getMessage());
+    }
+
+    @Test
+    public void givenZeroSdkAttempts_whenClientBuilt_thenRejected() {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2))
+            .sdkMaxAttempts(Property.ofValue(0))
+            .build();
+
+        // When / Then
+        assertThrows(
+            IllegalArgumentException.class, () -> invoke.client(context),
+            "sdkMaxAttempts below 1 should be rejected"
+        );
+    }
+
+    @Test
     public void givenSlowLambda_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
         // Given
-        var invoke = sleepingInvoke(5, Duration.ofSeconds(60));
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(60)).build();
 
         var client = invoke.client(context);
         createFunction(client);
@@ -154,7 +188,7 @@ public class InvokeTest extends AbstractInvokeTest {
         assertNotNull(output.getUri(), "File URI should be present");
     }
 
-    private Invoke sleepingInvoke(int seconds, Duration socketTimeout) {
+    private Invoke.InvokeBuilder<?, ?> sleepingInvoke(int seconds, Duration socketTimeout) {
         // ask the Lambda to sleep by function param (see test resource lambda/test.py)
         Map<String, Object> params = new HashMap<>();
         params.put("action", "sleep");
@@ -168,8 +202,7 @@ public class InvokeTest extends AbstractInvokeTest {
             .type(InvokeTest.class.getName())
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
-            .secretKeyId(Property.ofValue(SECRET_KEY))
-            .build();
+            .secretKeyId(Property.ofValue(SECRET_KEY));
     }
 
 }
