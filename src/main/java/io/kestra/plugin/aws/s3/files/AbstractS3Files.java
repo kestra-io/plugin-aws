@@ -25,6 +25,7 @@ import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
 import software.amazon.awssdk.http.ExecutableHttpRequest;
 import software.amazon.awssdk.http.HttpExecuteRequest;
 import software.amazon.awssdk.http.HttpExecuteResponse;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
@@ -42,7 +43,6 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 public abstract class AbstractS3Files extends AbstractConnection {
 
     private static final String S3_FILES_SERVICE = "s3files";
-    private static final ApacheHttpClient HTTP_CLIENT = (ApacheHttpClient) ApacheHttpClient.create();
 
     protected AwsCredentialsProvider credentialsProvider(AbstractConnection.AwsClientConfig cfg) {
         if (cfg.stsRoleArn() != null) {
@@ -171,33 +171,35 @@ public abstract class AbstractS3Files extends AbstractConnection {
         // TODO: replace Aws4Signer (deprecated) with the generated s3files SDK client once published to Maven Central
         SdkHttpFullRequest signedRequest = Aws4Signer.create().sign(unsignedRequest, signerParams);
 
-        ExecutableHttpRequest executableRequest = HTTP_CLIENT.prepareRequest(
-            HttpExecuteRequest.builder()
-                .request(signedRequest)
-                .contentStreamProvider(
-                    bodyBytes.length > 0
-                        ? () -> new ByteArrayInputStream(bodyBytes)
-                        : null
-                )
-                .build()
-        );
-
-        HttpExecuteResponse response = executableRequest.call();
-        int statusCode = response.httpResponse().statusCode();
-
-        String responseBody = "";
-        if (response.responseBody().isPresent()) {
-            try (InputStream is = response.responseBody().get()) {
-                responseBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            }
-        }
-
-        if (statusCode < 200 || statusCode >= 300) {
-            throw new RuntimeException(
-                "S3 Files API error [HTTP " + statusCode + "]: " + responseBody
+        try (SdkHttpClient httpClient = ApacheHttpClient.create()) {
+            ExecutableHttpRequest executableRequest = httpClient.prepareRequest(
+                HttpExecuteRequest.builder()
+                    .request(signedRequest)
+                    .contentStreamProvider(
+                        bodyBytes.length > 0
+                            ? () -> new ByteArrayInputStream(bodyBytes)
+                            : null
+                    )
+                    .build()
             );
-        }
 
-        return new S3FilesService.Response(statusCode, responseBody);
+            HttpExecuteResponse response = executableRequest.call();
+            int statusCode = response.httpResponse().statusCode();
+
+            String responseBody = "";
+            if (response.responseBody().isPresent()) {
+                try (InputStream is = response.responseBody().get()) {
+                    responseBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            }
+
+            if (statusCode < 200 || statusCode >= 300) {
+                throw new RuntimeException(
+                    "S3 Files API error [HTTP " + statusCode + "]: " + responseBody
+                );
+            }
+
+            return new S3FilesService.Response(statusCode, responseBody);
+        }
     }
 }
