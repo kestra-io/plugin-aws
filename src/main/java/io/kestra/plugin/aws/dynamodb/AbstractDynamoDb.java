@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -23,6 +25,8 @@ import io.kestra.plugin.aws.shared.ConnectionUtils;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,6 +51,52 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     @NotNull
     @PluginProperty(group = "main")
     protected Property<String> tableName;
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final AtomicBoolean isKilled = new AtomicBoolean(false);
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final AtomicReference<Runnable> killable = new AtomicReference<>();
+
+    public void kill() {
+        if (isKilled != null && isKilled.compareAndSet(false, true)) {
+            try {
+                var cancel = killable == null ? null : killable.get();
+                if (cancel != null) {
+                    cancel.run();
+                }
+            } catch (Exception e) {
+                // kill() runs off the worker thread and must not fail that thread.
+            }
+        }
+    }
+
+    protected void onKill(RunContext runContext, Runnable cancel) {
+        killable.set(() ->
+        {
+            try {
+                cancel.run();
+            } catch (Exception e) {
+                runContext.logger().warn("Failed to close the DynamoDB client after the task was killed.", e);
+            }
+        });
+    }
+
+    protected void stopIfKilled() {
+        if (isKilled.get()) {
+            throw new IllegalStateException("Stopped reading DynamoDB because the execution was killed.");
+        }
+    }
+
+    protected IllegalArgumentException missingProperty(String name) {
+        return new IllegalArgumentException("Set '" + name + "'. The rendered value is empty.");
+    }
 
     protected DynamoDbClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
@@ -113,6 +163,38 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return AttributeValue.fromS(value.toString());
     }
 
+    protected List<Map<String, AttributeValue>> readPages(Integer maxResults, PageSource source) {
+        var items = new ArrayList<Map<String, AttributeValue>>();
+        Map<String, AttributeValue> exclusiveStartKey = null;
+        do {
+            stopIfKilled();
+            var pageLimit = maxResults == null ? null : maxResults - items.size();
+            if (pageLimit != null && pageLimit <= 0) {
+                break;
+            }
+            var page = source.read(exclusiveStartKey, pageLimit);
+            if (page.items() != null && !page.items().isEmpty()) {
+                items.addAll(page.items());
+            }
+            if (maxResults != null && items.size() >= maxResults) {
+                if (items.size() > maxResults) {
+                    return new ArrayList<>(items.subList(0, maxResults));
+                }
+                return items;
+            }
+            exclusiveStartKey = page.lastEvaluatedKey();
+        } while (exclusiveStartKey != null && !exclusiveStartKey.isEmpty());
+        return items;
+    }
+
+    protected Integer maxResults(RunContext runContext, Property<Integer> limit, FetchType fetchType) throws IllegalVariableEvaluationException {
+        var rLimit = limit == null ? null : runContext.render(limit).as(Integer.class).orElseThrow(() -> missingProperty("limit"));
+        if (fetchType == FetchType.FETCH_ONE) {
+            return rLimit == null ? 1 : Math.min(rLimit, 1);
+        }
+        return rLimit;
+    }
+
     protected FetchOutput fetchOutputs(List<Map<String, AttributeValue>> items, FetchType fetchType, RunContext runContext) throws IOException, IllegalVariableEvaluationException {
         var outputBuilder = FetchOutput.builder();
         switch (fetchType) {
@@ -144,7 +226,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         runContext.metric(
             Counter.of(
                 "records", output.getSize(),
-                "tableName", runContext.render(getTableName()).as(String.class).orElseThrow()
+                "tableName", runContext.render(getTableName()).as(String.class).orElseThrow(() -> missingProperty("tableName"))
             )
         );
 
@@ -182,5 +264,13 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
             .findFirst()
             .map(this::objectMapFrom)
             .orElse(null);
+    }
+
+    @FunctionalInterface
+    protected interface PageSource {
+        DynamoPage read(Map<String, AttributeValue> exclusiveStartKey, Integer pageLimit);
+    }
+
+    protected record DynamoPage(List<Map<String, AttributeValue>> items, Map<String, AttributeValue> lastEvaluatedKey) {
     }
 }

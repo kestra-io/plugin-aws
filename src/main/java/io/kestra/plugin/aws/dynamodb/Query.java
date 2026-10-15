@@ -14,6 +14,7 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -30,7 +31,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 @NoArgsConstructor
 @Schema(
     title = "Query DynamoDB items by key condition",
-    description = "Executes a Query request with the provided keyConditionExpression. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit and filterExpression refine results."
+    description = "Executes a Query and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit stops once that many matching items are collected."
 )
 @Plugin(
     examples = {
@@ -93,9 +94,10 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
+    @Min(1)
     @Schema(
         title = "Max results",
-        description = "Maximum items to return."
+        description = "Maximum number of matching items to return across pages. Minimum 1 when set. Leave empty to return every match. This is not a DynamoDB page size."
     )
     @PluginProperty(group = "processing")
     private Property<Integer> limit;
@@ -125,23 +127,39 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
+        stopIfKilled();
         try (var dynamoDb = client(runContext)) {
-            var queryBuilder = QueryRequest.builder()
-                .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow())
-                .keyConditionExpression(runContext.render(keyConditionExpression).as(String.class).orElseThrow())
-                .expressionAttributeValues(valueMapFrom(runContext.render(expressionAttributeValues).asMap(String.class, Object.class)));
+            onKill(runContext, dynamoDb::close);
+            var rTable = runContext.render(this.tableName).as(String.class).orElseThrow(() -> missingProperty("tableName"));
+            var rKeyCondition = runContext.render(keyConditionExpression).as(String.class).orElseThrow(() -> missingProperty("keyConditionExpression"));
+            var rValues = valueMapFrom(runContext.render(expressionAttributeValues).asMap(String.class, Object.class));
+            var rFetch = runContext.render(this.fetchType).as(FetchType.class).orElse(FetchType.STORE);
+            var rMaxResults = maxResults(runContext, this.limit, rFetch);
+            String rFilter = filterExpression == null
+                ? null
+                : runContext.render(filterExpression).as(String.class).orElseThrow(() -> missingProperty("filterExpression"));
 
-            if (limit != null) {
-                queryBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
-            }
-            if (filterExpression != null) {
-                queryBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
-            }
+            var items = readPages(rMaxResults, (exclusiveStartKey, pageLimit) ->
+            {
+                var queryBuilder = QueryRequest.builder()
+                    .tableName(rTable)
+                    .keyConditionExpression(rKeyCondition)
+                    .expressionAttributeValues(rValues);
+                if (exclusiveStartKey != null) {
+                    queryBuilder.exclusiveStartKey(exclusiveStartKey);
+                }
+                if (pageLimit != null) {
+                    queryBuilder.limit(pageLimit);
+                }
+                if (rFilter != null) {
+                    queryBuilder.filterExpression(rFilter);
+                }
+                var response = dynamoDb.query(queryBuilder.build());
+                var nextKey = response.hasLastEvaluatedKey() ? response.lastEvaluatedKey() : null;
+                return new DynamoPage(response.items(), nextKey);
+            });
 
-            var query = queryBuilder.build();
-            var items = dynamoDb.query(query).items();
-
-            return this.fetchOutputs(items, runContext.render(this.fetchType).as(FetchType.class).orElseThrow(), runContext);
+            return this.fetchOutputs(items, rFetch, runContext);
         }
     }
 }
