@@ -25,6 +25,7 @@ import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
 import software.amazon.awssdk.http.ExecutableHttpRequest;
 import software.amazon.awssdk.http.HttpExecuteRequest;
 import software.amazon.awssdk.http.HttpExecuteResponse;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
@@ -170,7 +171,7 @@ public abstract class AbstractS3Files extends AbstractConnection {
         // TODO: replace Aws4Signer (deprecated) with the generated s3files SDK client once published to Maven Central
         SdkHttpFullRequest signedRequest = Aws4Signer.create().sign(unsignedRequest, signerParams);
 
-        try (ApacheHttpClient httpClient = (ApacheHttpClient) ApacheHttpClient.create()) {
+        try (SdkHttpClient httpClient = ApacheHttpClient.create()) {
             ExecutableHttpRequest executableRequest = httpClient.prepareRequest(
                 HttpExecuteRequest.builder()
                     .request(signedRequest)
