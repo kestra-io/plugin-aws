@@ -115,7 +115,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
                 TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(min).build()
             )
         );
-        int rMaxPages = maxPages(runContext, maxPages);
+        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var rows = new ArrayList<Map<String, Object>>();
         var totalImpact = BigDecimal.ZERO;

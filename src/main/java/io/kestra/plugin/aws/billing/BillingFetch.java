@@ -8,7 +8,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -36,6 +38,14 @@ final class BillingFetch {
         };
         runContext.metric(Counter.of("fetch.rows", result.size()));
         return result;
+    }
+
+    static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {
+        int value = runContext.render(maxPages).as(Integer.class).orElseThrow();
+        if (value < 1) {
+            throw new IllegalArgumentException("maxPages must be at least 1, got " + value);
+        }
+        return value;
     }
 
     private static URI store(RunContext runContext, List<Map<String, Object>> items) throws IOException {

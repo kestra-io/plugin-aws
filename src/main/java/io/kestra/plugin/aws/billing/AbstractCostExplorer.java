@@ -62,14 +62,6 @@ public abstract class AbstractCostExplorer extends AbstractConnection {
         }
     }
 
-    static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {
-        int value = runContext.render(maxPages).as(Integer.class).orElseThrow();
-        if (value < 1) {
-            throw new IllegalArgumentException("maxPages must be at least 1, got " + value);
-        }
-        return value;
-    }
-
     @VisibleForTesting
     CostExplorerClient client(RunContext runContext) throws IllegalVariableEvaluationException {
         return ConnectionUtils.configureSyncClient(awsClientConfig(runContext), CostExplorerClient.builder()).build();

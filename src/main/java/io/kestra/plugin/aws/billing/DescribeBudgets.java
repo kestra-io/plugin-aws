@@ -83,7 +83,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
     @Override
     public Output run(RunContext runContext) throws Exception {
         var rAccountId = runContext.render(accountId).as(String.class).orElseThrow();
-        int rMaxPages = AbstractCostExplorer.maxPages(runContext, maxPages);
+        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var rows = new ArrayList<Map<String, Object>>();
         String nextToken = null;

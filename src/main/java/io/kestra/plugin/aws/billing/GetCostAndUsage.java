@@ -172,7 +172,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             throw new IllegalArgumentException("Cost Explorer supports at most " + MAX_GROUP_BY + " groupBy entries, got " + rGroupBy.size());
         }
         var rFilter = runContext.render(dimensionFilter).asMap(String.class, List.class);
-        int rMaxPages = maxPages(runContext, maxPages);
+        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var requestBuilder = GetCostAndUsageRequest.builder()
             .timePeriod(dateInterval(runContext))
