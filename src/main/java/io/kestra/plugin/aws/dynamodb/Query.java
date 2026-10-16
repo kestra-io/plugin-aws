@@ -139,7 +139,7 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
                 ? null
                 : runContext.render(filterExpression).as(String.class).orElseThrow(() -> missingProperty("filterExpression"));
 
-            var items = readPages(rMaxResults, (exclusiveStartKey, pageLimit) ->
+            return this.fetchOutputs(rFetch, rMaxResults, runContext, (exclusiveStartKey, pageLimit) ->
             {
                 var queryBuilder = QueryRequest.builder()
                     .tableName(rTable)
@@ -148,7 +148,8 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
                 if (exclusiveStartKey != null) {
                     queryBuilder.exclusiveStartKey(exclusiveStartKey);
                 }
-                if (pageLimit != null) {
+                // DynamoDB Limit caps items evaluated, not items matching the filter.
+                if (pageLimit != null && rFilter == null) {
                     queryBuilder.limit(pageLimit);
                 }
                 if (rFilter != null) {
@@ -158,8 +159,6 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
                 var nextKey = response.hasLastEvaluatedKey() ? response.lastEvaluatedKey() : null;
                 return new DynamoPage(response.items(), nextKey);
             });
-
-            return this.fetchOutputs(items, rFetch, runContext);
         }
     }
 }

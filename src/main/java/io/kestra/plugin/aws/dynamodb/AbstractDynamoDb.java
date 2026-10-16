@@ -163,30 +163,6 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return AttributeValue.fromS(value.toString());
     }
 
-    protected List<Map<String, AttributeValue>> readPages(Integer maxResults, PageSource source) {
-        var items = new ArrayList<Map<String, AttributeValue>>();
-        Map<String, AttributeValue> exclusiveStartKey = null;
-        do {
-            stopIfKilled();
-            var pageLimit = maxResults == null ? null : maxResults - items.size();
-            if (pageLimit != null && pageLimit <= 0) {
-                break;
-            }
-            var page = source.read(exclusiveStartKey, pageLimit);
-            if (page.items() != null && !page.items().isEmpty()) {
-                items.addAll(page.items());
-            }
-            if (maxResults != null && items.size() >= maxResults) {
-                if (items.size() > maxResults) {
-                    return new ArrayList<>(items.subList(0, maxResults));
-                }
-                return items;
-            }
-            exclusiveStartKey = page.lastEvaluatedKey();
-        } while (exclusiveStartKey != null && !exclusiveStartKey.isEmpty());
-        return items;
-    }
-
     protected Integer maxResults(RunContext runContext, Property<Integer> limit, FetchType fetchType) throws IllegalVariableEvaluationException {
         var rLimit = limit == null ? null : runContext.render(limit).as(Integer.class).orElseThrow(() -> missingProperty("limit"));
         if (fetchType == FetchType.FETCH_ONE) {
@@ -195,30 +171,27 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return rLimit;
     }
 
-    protected FetchOutput fetchOutputs(List<Map<String, AttributeValue>> items, FetchType fetchType, RunContext runContext) throws IOException, IllegalVariableEvaluationException {
+    protected FetchOutput fetchOutputs(FetchType fetchType, Integer maxResults, RunContext runContext, PageSource source) throws IOException, IllegalVariableEvaluationException {
         var outputBuilder = FetchOutput.builder();
         switch (fetchType) {
-            case FETCH:
-                Pair<List<Object>, Long> fetch = this.fetch(items);
+            case FETCH -> {
+                var fetched = this.fetch(collectPages(maxResults, source));
                 outputBuilder
-                    .rows(fetch.getLeft())
-                    .size(fetch.getRight());
-                break;
-
-            case FETCH_ONE:
-                var o = this.fetchOne(items);
-
+                    .rows(fetched.getLeft())
+                    .size(fetched.getRight());
+            }
+            case FETCH_ONE -> {
+                var row = this.fetchOne(collectPages(maxResults, source));
                 outputBuilder
-                    .row(o)
-                    .size(o != null ? 1L : 0L);
-                break;
-
-            case STORE:
-                Pair<URI, Long> store = this.store(runContext, items);
+                    .row(row)
+                    .size(row != null ? 1L : 0L);
+            }
+            case STORE -> {
+                var stored = this.store(runContext, maxResults, source);
                 outputBuilder
-                    .uri(store.getLeft())
-                    .size(store.getRight());
-                break;
+                    .uri(stored.getLeft())
+                    .size(stored.getRight());
+            }
         }
 
         var output = outputBuilder.build();
@@ -233,15 +206,32 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return output;
     }
 
-    private Pair<URI, Long> store(RunContext runContext, List<Map<String, AttributeValue>> items) throws IOException {
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+    private List<Map<String, AttributeValue>> collectPages(Integer maxResults, PageSource source) {
+        var items = new ArrayList<Map<String, AttributeValue>>();
+        var cursor = new PageCursor(maxResults, source);
+        for (var item = cursor.nextItem(); item != null; item = cursor.nextItem()) {
+            items.add(item);
+        }
+        return items;
+    }
 
+    private Pair<URI, Long> store(RunContext runContext, Integer maxResults, PageSource source) throws IOException {
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var cursor = new PageCursor(maxResults, source);
         try (var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
-            var flux = Flux.fromIterable(items).map(attributes -> objectMapFrom(attributes));
-            Long count = FileSerde.writeAll(output, flux).block();
+            var rows = Flux.<Map<String, Object>> generate(sink ->
+            {
+                var item = cursor.nextItem();
+                if (item == null) {
+                    sink.complete();
+                    return;
+                }
+                sink.next(objectMapFrom(item));
+            });
+            var count = FileSerde.writeAll(output, rows).block();
             return Pair.of(
                 runContext.storage().putFile(tempFile),
-                count
+                count == null ? 0L : count
             );
         }
     }
@@ -272,5 +262,59 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     }
 
     protected record DynamoPage(List<Map<String, AttributeValue>> items, Map<String, AttributeValue> lastEvaluatedKey) {
+    }
+
+    private final class PageCursor {
+        private final Integer maxResults;
+        private final PageSource source;
+        private Map<String, AttributeValue> exclusiveStartKey;
+        private List<Map<String, AttributeValue>> page = List.of();
+        private int index;
+        private long seen;
+        private boolean started;
+
+        private PageCursor(Integer maxResults, PageSource source) {
+            this.maxResults = maxResults;
+            this.source = source;
+        }
+
+        private Map<String, AttributeValue> nextItem() {
+            while (index >= page.size()) {
+                if (!readNextPage()) {
+                    return null;
+                }
+            }
+            seen++;
+            return page.get(index++);
+        }
+
+        private boolean readNextPage() {
+            if (maxResults != null && seen >= maxResults) {
+                return false;
+            }
+            if (started && (exclusiveStartKey == null || exclusiveStartKey.isEmpty())) {
+                return false;
+            }
+            stopIfKilled();
+            var pageLimit = maxResults == null ? null : Math.toIntExact(maxResults - seen);
+            if (pageLimit != null && pageLimit <= 0) {
+                return false;
+            }
+            var response = source.read(exclusiveStartKey, pageLimit);
+            started = true;
+            exclusiveStartKey = response.lastEvaluatedKey();
+            var items = response.items();
+            if (items == null || items.isEmpty()) {
+                page = List.of();
+                index = 0;
+                return exclusiveStartKey != null && !exclusiveStartKey.isEmpty();
+            }
+            if (maxResults != null && seen + items.size() > maxResults) {
+                items = items.subList(0, Math.toIntExact(maxResults - seen));
+            }
+            page = items;
+            index = 0;
+            return true;
+        }
     }
 }

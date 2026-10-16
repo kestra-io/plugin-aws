@@ -131,13 +131,14 @@ public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> 
                 rValues = null;
             }
 
-            var items = readPages(rMaxResults, (exclusiveStartKey, pageLimit) ->
+            return this.fetchOutputs(rFetch, rMaxResults, runContext, (exclusiveStartKey, pageLimit) ->
             {
                 var scanBuilder = ScanRequest.builder().tableName(rTable);
                 if (exclusiveStartKey != null) {
                     scanBuilder.exclusiveStartKey(exclusiveStartKey);
                 }
-                if (pageLimit != null) {
+                // DynamoDB Limit caps items evaluated, not items matching the filter.
+                if (pageLimit != null && rFilter == null) {
                     scanBuilder.limit(pageLimit);
                 }
                 if (rFilter != null) {
@@ -148,8 +149,6 @@ public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> 
                 var nextKey = response.hasLastEvaluatedKey() ? response.lastEvaluatedKey() : null;
                 return new DynamoPage(response.items(), nextKey);
             });
-
-            return this.fetchOutputs(items, rFetch, runContext);
         }
     }
 }
