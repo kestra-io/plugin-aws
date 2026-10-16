@@ -124,7 +124,7 @@ class GetCostAndUsageTest {
         var client = mock(CostExplorerClient.class);
         when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(page("more", group("Amazon EC2", "1")));
 
-        var output = withClient(task().maxPages(Property.ofValue(3)).fetchType(Property.ofValue(FetchType.NONE)).build(), client)
+        var output = withClient(task().groupBy(Property.ofValue(List.of("SERVICE"))).maxPages(Property.ofValue(3)).fetchType(Property.ofValue(FetchType.NONE)).build(), client)
             .run(runContextFactory.of());
 
         verify(client, times(3)).getCostAndUsage(any(GetCostAndUsageRequest.class));
@@ -138,7 +138,7 @@ class GetCostAndUsageTest {
         var client = mock(CostExplorerClient.class);
         when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(page(null, group("Amazon EC2", "1"), group("Amazon S3", "2")));
 
-        var output = withClient(task().build(), client).run(runContextFactory.of());
+        var output = withClient(task().groupBy(Property.ofValue(List.of("SERVICE"))).build(), client).run(runContextFactory.of());
 
         assertThat(output.getUri(), notNullValue());
         assertThat(output.getSize(), is(2L));
@@ -153,5 +153,26 @@ class GetCostAndUsageTest {
         assertThrows(IllegalArgumentException.class, () -> withClient(task().endDate(Property.ofValue("2026-09-01")).build(), client).run(runContextFactory.of()));
         assertThrows(IllegalArgumentException.class, () -> withClient(task().startDate(Property.ofValue("09/01/2026")).build(), client).run(runContextFactory.of()));
         verifyNoInteractions(client);
+    }
+
+    @Test
+    void givenGroupByAndPeriodWithoutGroups_whenFetch_thenAddsNoEmptyRow() throws Exception {
+        var client = mock(CostExplorerClient.class);
+        when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(
+            GetCostAndUsageResponse.builder()
+                .resultsByTime(
+                    ResultByTime.builder()
+                        .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
+                        .total(Map.of("UnblendedCost", MetricValue.builder().amount("0").unit("USD").build()))
+                        .build()
+                )
+                .build()
+        );
+
+        var output = withClient(task().groupBy(Property.ofValue(List.of("SERVICE"))).fetchType(Property.ofValue(FetchType.FETCH)).build(), client)
+            .run(runContextFactory.of());
+
+        assertThat(output.getSize(), is(0L));
+        assertThat(output.getRows(), empty());
     }
 }

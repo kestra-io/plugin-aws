@@ -195,7 +195,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
                 var response = client.getCostAndUsage(requestBuilder.nextPageToken(nextPageToken).build());
                 pages++;
                 for (var result : response.resultsByTime()) {
-                    if (result.groups().isEmpty()) {
+                    if (rGroupBy.isEmpty()) {
                         unit = addRow(rows, totals, result, List.of(), result.total(), unit);
                     } else {
                         for (var group : result.groups()) {
