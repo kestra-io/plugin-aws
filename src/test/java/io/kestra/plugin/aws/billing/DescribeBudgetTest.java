@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -51,5 +52,14 @@ class DescribeBudgetTest {
         verify(client).describeBudget(captor.capture());
         assertThat(captor.getValue().budgetName(), is("monthly-total"));
         assertThat(captor.getValue().accountId(), is("123456789012"));
+    }
+
+    @Test
+    void givenBudgetOverLimit_whenComparedInPebble_thenAmountsAreNumeric() throws Exception {
+        var budget = AbstractBudgets.toMap(DescribeBudgetsTest.budget("monthly-total", "1000", "999.5"));
+        var runContext = runContextFactory.of(Map.of("budget", budget));
+
+        assertThat(budget.get("actualSpendAmount"), instanceOf(BigDecimal.class));
+        assertThat(runContext.render("{{ budget.actualSpendAmount > budget.limitAmount }}"), is("false"));
     }
 }
