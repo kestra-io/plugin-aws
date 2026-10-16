@@ -74,7 +74,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
     @NotNull
     @Builder.Default
     @PluginProperty(group = "advanced")
-    private Property<Integer> maxPages = Property.ofValue(10);
+    private Property<Integer> maxPages = Property.ofValue(BillingFetch.DEFAULT_MAX_PAGES);
 
     @Schema(
         title = "Fetch strategy",
@@ -113,7 +113,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
             runContext.logger().warn("Stopped after maxPages={} requests, more budgets are available. Increase maxPages to read them.", rMaxPages);
         }
 
-        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElseThrow(), rows);
+        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE), rows);
         return Output.builder()
             .rows(fetched.rows())
             .row(fetched.row())

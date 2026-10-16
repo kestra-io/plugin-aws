@@ -40,8 +40,10 @@ final class BillingFetch {
         return result;
     }
 
+    static final int DEFAULT_MAX_PAGES = 10;
+
     static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {
-        int value = runContext.render(maxPages).as(Integer.class).orElseThrow();
+        int value = runContext.render(maxPages).as(Integer.class).orElse(DEFAULT_MAX_PAGES);
         if (value < 1) {
             throw new IllegalArgumentException("maxPages must be at least 1, got " + value);
         }

@@ -94,7 +94,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
     @NotNull
     @Builder.Default
     @PluginProperty(group = "advanced")
-    private Property<Integer> maxPages = Property.ofValue(10);
+    private Property<Integer> maxPages = Property.ofValue(BillingFetch.DEFAULT_MAX_PAGES);
 
     @Schema(
         title = "Fetch strategy",
@@ -146,7 +146,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
             runContext.logger().warn("Stopped after maxPages={} Cost Explorer requests, more anomalies are available. Increase maxPages or narrow the request.", rMaxPages);
         }
 
-        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElseThrow(), rows);
+        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE), rows);
         return Output.builder()
             .rows(fetched.rows())
             .row(fetched.row())
