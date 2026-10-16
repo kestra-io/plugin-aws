@@ -8,8 +8,10 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -61,6 +63,9 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                       secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
+    },
+    metrics = {
+        @Metric(name = "requests", type = Counter.TYPE, unit = "requests", description = "Number of paid Cost Explorer requests made.")
     }
 )
 public class GetCostForecast extends AbstractCostExplorer implements RunnableTask<GetCostForecast.Output> {
@@ -90,12 +95,20 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
             .timePeriod(dateInterval(runContext))
             .metric(runContext.render(metric).as(software.amazon.awssdk.services.costexplorer.model.Metric.class).orElseThrow())
             .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow());
-        runContext.render(predictionIntervalLevel).as(Integer.class).ifPresent(requestBuilder::predictionIntervalLevel);
+        var rPredictionIntervalLevel = runContext.render(predictionIntervalLevel).as(Integer.class);
+        if (rPredictionIntervalLevel.isPresent()) {
+            int level = rPredictionIntervalLevel.get();
+            if (level < 51 || level > 99) {
+                throw new IllegalArgumentException("predictionIntervalLevel must be between 51 and 99, got " + level);
+            }
+            requestBuilder.predictionIntervalLevel(level);
+        }
 
         GetCostForecastResponse response;
         try (var client = client(runContext)) {
             response = client.getCostForecast(requestBuilder.build());
         }
+        runContext.metric(Counter.of("requests", 1));
 
         List<Map<String, Object>> forecast = response.forecastResultsByTime().stream()
             .map(result ->

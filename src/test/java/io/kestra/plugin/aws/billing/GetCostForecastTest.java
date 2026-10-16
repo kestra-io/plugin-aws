@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -65,5 +66,26 @@ class GetCostForecastTest {
         verify(client).getCostForecast(captor.capture());
         assertThat(captor.getValue().metric(), is(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST));
         assertThat(captor.getValue().predictionIntervalLevel(), is(80));
+    }
+
+    @Test
+    void givenInvalidPredictionIntervalLevel_whenRun_thenFailsBeforeCallingAws() throws Exception {
+        var task = GetCostForecast.builder()
+            .id("forecast")
+            .type(GetCostForecast.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .startDate(Property.ofValue("2026-10-14"))
+            .endDate(Property.ofValue("2026-11-01"))
+            .metric(Property.ofValue(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST))
+            .granularity(Property.ofValue(Granularity.MONTHLY))
+            .predictionIntervalLevel(Property.ofValue(100))
+            .build();
+
+        var client = mock(CostExplorerClient.class);
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+        verifyNoInteractions(client);
     }
 }
