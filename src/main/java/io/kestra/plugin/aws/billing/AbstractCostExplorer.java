@@ -38,8 +38,8 @@ public abstract class AbstractCostExplorer extends AbstractConnection {
 
     @Schema(
         title = "End date",
-        description = "End of the time period, as `yyyy-MM-dd`. Exclusive, like in the Cost Explorer API: " +
-            "to get the whole month of January, use `2026-01-01` to `2026-02-01`."
+        description = "End of the time period, as `yyyy-MM-dd`. Exclusive for `GetCostAndUsage` and `GetCostForecast`, like in the Cost Explorer API " +
+            "(the whole month of January is `2026-01-01` to `2026-02-01`); inclusive for `GetAnomalies` (`2026-01-01` to `2026-01-31`)."
     )
     @NotNull
     @PluginProperty(group = "main")
