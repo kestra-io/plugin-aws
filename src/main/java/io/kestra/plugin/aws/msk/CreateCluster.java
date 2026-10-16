@@ -13,6 +13,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.shared.AbstractConnection;
 import io.kestra.plugin.aws.shared.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -129,16 +130,22 @@ public class CreateCluster extends AbstractConnection implements RunnableTask<Cr
             .clusterName(rName)
             .kafkaVersion(rKafkaVersion)
             .numberOfBrokerNodes(rBrokerCount)
-            .brokerNodeGroupInfo(BrokerNodeGroupInfo.builder()
-                .instanceType(rInstanceType)
-                .clientSubnets(rSubnets)
-                .securityGroups(rSecurityGroups)
-                .storageInfo(StorageInfo.builder()
-                    .ebsStorageInfo(EBSStorageInfo.builder()
-                        .volumeSize(rVolumeSize)
-                        .build())
-                    .build())
-                .build())
+            .brokerNodeGroupInfo(
+                BrokerNodeGroupInfo.builder()
+                    .instanceType(rInstanceType)
+                    .clientSubnets(rSubnets)
+                    .securityGroups(rSecurityGroups)
+                    .storageInfo(
+                        StorageInfo.builder()
+                            .ebsStorageInfo(
+                                EBSStorageInfo.builder()
+                                    .volumeSize(rVolumeSize)
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
             .build();
 
         logger.debug("Creating MSK cluster '{}' with Kafka {} and {} brokers", rName, rKafkaVersion, rBrokerCount);

@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.msk;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,6 +11,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.shared.AbstractConnection;
 import io.kestra.plugin.aws.shared.ConnectionUtils;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
@@ -74,13 +76,16 @@ public class DeleteCluster extends AbstractConnection implements RunnableTask<De
         // Single client instance for both describe (to fetch currentVersion) and delete
         try (var client = client(runContext)) {
             var describeResponse = client.describeCluster(
-                DescribeClusterRequest.builder().clusterArn(rArn).build());
+                DescribeClusterRequest.builder().clusterArn(rArn).build()
+            );
             var currentVersion = describeResponse.clusterInfo().currentVersion();
 
-            var response = client.deleteCluster(DeleteClusterRequest.builder()
-                .clusterArn(rArn)
-                .currentVersion(currentVersion)
-                .build());
+            var response = client.deleteCluster(
+                DeleteClusterRequest.builder()
+                    .clusterArn(rArn)
+                    .currentVersion(currentVersion)
+                    .build()
+            );
 
             logger.debug("MSK cluster '{}' deletion initiated, state={}", rArn, response.state());
             return Output.builder()

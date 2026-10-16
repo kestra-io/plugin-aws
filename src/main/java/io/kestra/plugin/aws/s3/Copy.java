@@ -6,8 +6,8 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.shared.s3.AbstractS3Connection;
 import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
+import io.kestra.plugin.aws.shared.s3.AbstractS3Connection;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

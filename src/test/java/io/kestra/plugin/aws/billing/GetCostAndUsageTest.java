@@ -175,4 +175,33 @@ class GetCostAndUsageTest {
         assertThat(output.getSize(), is(0L));
         assertThat(output.getRows(), empty());
     }
+
+    @Test
+    void givenCostAndUsageMetrics_whenRun_thenTotalsOnlyCostMetrics() throws Exception {
+        var client = mock(CostExplorerClient.class);
+        when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(
+            GetCostAndUsageResponse.builder()
+                .resultsByTime(
+                    ResultByTime.builder()
+                        .timePeriod(DateInterval.builder().start("2026-09-01").end("2026-10-01").build())
+                        .total(
+                            Map.of(
+                                "UsageQuantity", MetricValue.builder().amount("730").unit("Hrs").build(),
+                                "UnblendedCost", MetricValue.builder().amount("5").unit("USD").build()
+                            )
+                        )
+                        .build()
+                )
+                .build()
+        );
+
+        var output = withClient(
+            task().metrics(Property.ofValue(List.of("UsageQuantity", "UnblendedCost"))).fetchType(Property.ofValue(FetchType.FETCH)).build(),
+            client
+        ).run(runContextFactory.of());
+
+        assertThat(output.getCostTotals().keySet(), is(java.util.Set.of("UnblendedCost")));
+        assertThat(output.getUnit(), is("USD"));
+        assertThat(output.getRows().getFirst().get("UsageQuantity"), is(new BigDecimal("730")));
+    }
 }

@@ -72,7 +72,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @ToString.Exclude
     private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
-
     @NotNull
     @Schema(
         title = "Stream name",
@@ -119,8 +118,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     )
     @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
-
-
 
     @Override
     public void kill() {

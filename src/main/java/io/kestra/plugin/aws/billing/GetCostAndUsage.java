@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -109,6 +110,8 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 )
 public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTask<GetCostAndUsage.Output> {
     private static final int MAX_GROUP_BY = 2;
+
+    private static final Set<String> USAGE_METRICS = Set.of("UsageQuantity", "NormalizedUsageAmount");
 
     @Schema(
         title = "Granularity",
@@ -235,8 +238,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             var amount = entry.getValue().amount() == null ? BigDecimal.ZERO : new BigDecimal(entry.getValue().amount());
             row.put(entry.getKey(), amount);
             row.put(entry.getKey() + "Unit", entry.getValue().unit());
+            if (USAGE_METRICS.contains(entry.getKey())) {
+                continue;
+            }
             totals.merge(entry.getKey(), amount, BigDecimal::add);
-            if (unit == null && !"UsageQuantity".equals(entry.getKey())) {
+            if (unit == null) {
                 unit = entry.getValue().unit();
             }
         }
@@ -300,11 +306,12 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
         @Schema(
             title = "Cost totals",
-            description = "Sum of each requested metric over all returned rows, keyed by metric name (e.g. `costTotals.UnblendedCost`)."
+            description = "Sum of each requested cost metric over all returned rows, keyed by metric name (e.g. `costTotals.UnblendedCost`). " +
+                "Usage metrics (`UsageQuantity`, `NormalizedUsageAmount`) are not totaled because their units differ between rows."
         )
         private Map<String, BigDecimal> costTotals;
 
-        @Schema(title = "Cost unit", description = "Currency of the cost metrics, usually `USD`.")
+        @Schema(title = "Cost unit", description = "Currency of the cost metrics in `costTotals`, usually `USD`. Usage metric units are not considered.")
         private String unit;
 
         @Schema(title = "Truncated", description = "True when `maxPages` was reached before all results were read.")

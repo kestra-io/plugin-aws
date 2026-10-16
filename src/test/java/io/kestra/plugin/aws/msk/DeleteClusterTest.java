@@ -1,11 +1,13 @@
 package io.kestra.plugin.aws.msk;
 
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.*;
 
@@ -34,11 +36,13 @@ class DeleteClusterTest {
             .build();
 
         var describeResponse = DescribeClusterResponse.builder()
-            .clusterInfo(ClusterInfo.builder()
-                .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc123")
-                .currentVersion("K3AEGXETSR30VB")
-                .state(ClusterState.ACTIVE)
-                .build())
+            .clusterInfo(
+                ClusterInfo.builder()
+                    .clusterArn("arn:aws:kafka:us-east-1:123456789012:cluster/my-cluster/abc123")
+                    .currentVersion("K3AEGXETSR30VB")
+                    .state(ClusterState.ACTIVE)
+                    .build()
+            )
             .build();
 
         var deleteResponse = DeleteClusterResponse.builder()
