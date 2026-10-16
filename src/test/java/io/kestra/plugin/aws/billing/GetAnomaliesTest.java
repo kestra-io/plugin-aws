@@ -76,4 +76,28 @@ class GetAnomaliesTest {
         assertThat(first.totalImpact().startValue(), is(100.0));
         assertThat(captor.getAllValues().get(1).nextPageToken(), is("next"));
     }
+
+    @Test
+    void givenSameStartAndEndDate_whenRun_thenSendsInclusiveInterval() throws Exception {
+        var task = GetAnomalies.builder()
+            .id("anomalies")
+            .type(GetAnomalies.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .startDate(Property.ofValue("2026-10-14"))
+            .endDate(Property.ofValue("2026-10-14"))
+            .fetchType(Property.ofValue(FetchType.NONE))
+            .build();
+
+        var client = mock(CostExplorerClient.class);
+        when(client.getAnomalies(any(GetAnomaliesRequest.class))).thenReturn(GetAnomaliesResponse.builder().build());
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        spy.run(runContextFactory.of());
+
+        var captor = ArgumentCaptor.forClass(GetAnomaliesRequest.class);
+        verify(client).getAnomalies(captor.capture());
+        assertThat(captor.getValue().dateInterval().startDate(), is("2026-10-14"));
+        assertThat(captor.getValue().dateInterval().endDate(), is("2026-10-14"));
+    }
 }

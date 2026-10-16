@@ -34,7 +34,8 @@ import software.amazon.awssdk.services.costexplorer.model.*;
     title = "List AWS cost anomalies detected by Cost Anomaly Detection",
     description = """
         Calls the Cost Explorer `GetAnomalies` API to list the cost anomalies detected in a time period, optionally for
-        one anomaly monitor and above a minimum total impact. Each paginated request costs $0.01."""
+        one anomaly monitor and above a minimum total impact. Unlike the other Cost Explorer tasks, `endDate` is inclusive here,
+        so `startDate` and `endDate` can be the same day. Each paginated request costs $0.01."""
 )
 @Plugin(
     examples = {
@@ -106,9 +107,13 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var interval = dateInterval(runContext);
+        var start = parseDate("startDate", runContext.render(startDate).as(String.class).orElseThrow());
+        var end = parseDate("endDate", runContext.render(endDate).as(String.class).orElseThrow());
+        if (end.isBefore(start)) {
+            throw new IllegalArgumentException("endDate (" + end + ") must not be before startDate (" + start + ")");
+        }
         var requestBuilder = GetAnomaliesRequest.builder()
-            .dateInterval(AnomalyDateInterval.builder().startDate(interval.start()).endDate(interval.end()).build());
+            .dateInterval(AnomalyDateInterval.builder().startDate(start.toString()).endDate(end.toString()).build());
         runContext.render(monitorArn).as(String.class).ifPresent(requestBuilder::monitorArn);
         runContext.render(minImpactUsd).as(Double.class).ifPresent(
             min -> requestBuilder.totalImpact(
