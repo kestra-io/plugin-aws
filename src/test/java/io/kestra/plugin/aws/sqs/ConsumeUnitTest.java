@@ -84,8 +84,7 @@ class ConsumeUnitTest {
 
         SqsClient mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenAnswer(invocation ->
-            {
+            .thenAnswer(invocation -> {
                 Thread.sleep(100);
                 return receiveResponse;
             });
@@ -104,9 +103,8 @@ class ConsumeUnitTest {
         doReturn(mockClient).when(task).client(any());
 
         java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
-
-        Thread thread = new Thread(() ->
-        {
+        
+        Thread thread = new Thread(() -> {
             try {
                 output.set(task.run(runContext));
             } catch (Exception e) {

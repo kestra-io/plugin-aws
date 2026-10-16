@@ -7,8 +7,8 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
@@ -75,6 +75,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     private final AtomicBoolean isStopped = new AtomicBoolean(false);
+
+
 
     @Schema(
         title = "Max records",
@@ -195,6 +197,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
         receiptHandles.clear();
     }
+
+
 
     @Override
     public void kill() {

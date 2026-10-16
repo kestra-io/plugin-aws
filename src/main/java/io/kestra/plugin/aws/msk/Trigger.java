@@ -1,12 +1,7 @@
 package io.kestra.plugin.aws.msk;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Optional;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -23,7 +18,6 @@ import io.kestra.core.storages.kv.KVMetadata;
 import io.kestra.core.storages.kv.KVValueAndMetadata;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.shared.ConnectionUtils;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -35,6 +29,10 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.ClusterState;
 import software.amazon.awssdk.services.kafka.model.DescribeClusterRequest;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Optional;
 
 @SuperBuilder
 @ToString
@@ -189,12 +187,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Persist fired state so subsequent polls don't re-fire
-            kvStore.put(
-                stateKey, new KVValueAndMetadata(
-                    new KVMetadata("MSK trigger last-fired state", (Duration) null),
-                    rTargetState.toString().getBytes(StandardCharsets.UTF_8)
-                )
-            );
+            kvStore.put(stateKey, new KVValueAndMetadata(
+                new KVMetadata("MSK trigger last-fired state", (Duration) null),
+                rTargetState.toString().getBytes(StandardCharsets.UTF_8)
+            ));
 
             logger.debug("MSK cluster '{}' reached target state={}, firing trigger", rArn, rTargetState);
             var output = Output.builder()

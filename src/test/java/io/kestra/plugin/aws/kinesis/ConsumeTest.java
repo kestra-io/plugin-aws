@@ -86,9 +86,8 @@ class ConsumeTest extends AbstractKinesisTest {
             .build();
 
         java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
-
-        Thread thread = new Thread(() ->
-        {
+        
+        Thread thread = new Thread(() -> {
             try {
                 output.set(consume.run(runContext));
             } catch (Exception e) {

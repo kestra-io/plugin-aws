@@ -205,12 +205,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }
 
             // Persist the jobId so we don't fire on it again
-            kvStore.put(
-                stateKey, new KVValueAndMetadata(
-                    new KVMetadata("HealthLake trigger last-fired job id", (Duration) null),
-                    jobId.getBytes(StandardCharsets.UTF_8)
-                )
-            );
+            kvStore.put(stateKey, new KVValueAndMetadata(
+                new KVMetadata("HealthLake trigger last-fired job id", (Duration) null),
+                jobId.getBytes(StandardCharsets.UTF_8)
+            ));
 
             logger.debug("Job '{}' reached terminal status={}, firing trigger", jobId, jobStatus);
             var output = Output.builder().jobId(jobId).jobStatus(jobStatus).build();

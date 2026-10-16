@@ -1,12 +1,7 @@
 package io.kestra.plugin.aws.msk;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.annotations.VisibleForTesting;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -15,7 +10,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.shared.AbstractConnection;
 import io.kestra.plugin.aws.shared.ConnectionUtils;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -25,6 +19,10 @@ import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.kafka.KafkaClient;
 import software.amazon.awssdk.services.kafka.model.ListClustersRequest;
 import software.amazon.awssdk.services.kafka.model.ListClustersResponse;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -100,18 +98,15 @@ public class ListClusters extends AbstractConnection implements RunnableTask<Lis
                 }
                 ListClustersResponse response = client.listClusters(reqBuilder.build());
                 for (var info : response.clusterInfoList()) {
-                    clusters.add(
-                        Map.of(
-                            "clusterArn", info.clusterArn() != null ? info.clusterArn() : "",
-                            "clusterName", info.clusterName() != null ? info.clusterName() : "",
-                            "state", info.state() != null ? info.state().toString() : "",
-                            "kafkaVersion", info.currentBrokerSoftwareInfo() != null && info.currentBrokerSoftwareInfo().kafkaVersion() != null
-                                ? info.currentBrokerSoftwareInfo().kafkaVersion()
-                                : "",
-                            "numberOfBrokerNodes", info.numberOfBrokerNodes() != null ? info.numberOfBrokerNodes() : 0,
-                            "creationTime", info.creationTime() != null ? info.creationTime().toString() : ""
-                        )
-                    );
+                    clusters.add(Map.of(
+                        "clusterArn", info.clusterArn() != null ? info.clusterArn() : "",
+                        "clusterName", info.clusterName() != null ? info.clusterName() : "",
+                        "state", info.state() != null ? info.state().toString() : "",
+                        "kafkaVersion", info.currentBrokerSoftwareInfo() != null && info.currentBrokerSoftwareInfo().kafkaVersion() != null
+                            ? info.currentBrokerSoftwareInfo().kafkaVersion() : "",
+                        "numberOfBrokerNodes", info.numberOfBrokerNodes() != null ? info.numberOfBrokerNodes() : 0,
+                        "creationTime", info.creationTime() != null ? info.creationTime().toString() : ""
+                    ));
                     if (clusters.size() >= MAX_RESULTS) {
                         logger.warn("Result cap of {} reached; further clusters are omitted.", MAX_RESULTS);
                         nextToken = null;
