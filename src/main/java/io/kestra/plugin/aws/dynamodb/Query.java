@@ -94,13 +94,12 @@ public class Query extends AbstractDynamoDb implements RunnableTask<FetchOutput>
     @PluginProperty(group = "processing")
     private Property<FetchType> fetchType = Property.ofValue(FetchType.STORE);
 
-    @Min(1)
     @Schema(
         title = "Max results",
         description = "Maximum number of matching items to return across pages. Minimum 1 when set. Leave empty to return every match. This is not a DynamoDB page size."
     )
     @PluginProperty(group = "processing")
-    private Property<Integer> limit;
+    private Property<@Min(1) Integer> limit;
 
     @Schema(
         title = "Key condition expression",
