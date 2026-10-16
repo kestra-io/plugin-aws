@@ -37,8 +37,8 @@ pluginDefaults:
 
 ## Dates
 
-`startDate` and `endDate` use the `yyyy-MM-dd` format. Like in Cost Explorer, `endDate` is **exclusive**: the whole month of January is `startDate: 2026-01-01` and `endDate: 2026-02-01`.
+`startDate` and `endDate` use the `yyyy-MM-dd` format. For `GetCostAndUsage` and `GetCostForecast`, `endDate` is **exclusive** like in Cost Explorer: the whole month of January is `startDate: 2026-01-01` and `endDate: 2026-02-01`. For `GetAnomalies`, `endDate` is **inclusive** (the last day an anomaly was observed), so January is `2026-01-01` to `2026-01-31`.
 
 ## Outputs
 
-List tasks follow the `fetchType` convention used by `athena.Query`: `STORE` (default) writes an ION file and returns its `uri`, `FETCH` returns `rows`, `FETCH_ONE` returns `row`, and `NONE` returns only the counts. `size` is always the number of rows. `GetCostAndUsage` also returns `costTotals`, the sum of each metric (e.g. `costTotals.UnblendedCost`), and `GetAnomalies` returns `totalImpact` in USD.
+List tasks follow the `fetchType` convention used by `athena.Query`: `STORE` (default) writes an ION file and returns its `uri`, `FETCH` returns `rows`, `FETCH_ONE` returns `row`, and `NONE` returns only the counts. `size` is always the number of rows. `GetCostAndUsage` also returns `costTotals`, the sum of each cost metric (e.g. `costTotals.UnblendedCost`; usage metrics `UsageQuantity` and `NormalizedUsageAmount` are not totaled because their units differ), and `GetAnomalies` returns `totalImpact` in USD.
