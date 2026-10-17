@@ -18,6 +18,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Rethrow;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+import io.kestra.plugin.aws.utils.KillableClients;
 import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -136,7 +137,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
-    @Schema(title = "Auto delete")
+    @Schema(
+        title = "Auto delete",
+        description = "If true (default), received messages are deleted from the queue in batches of 10 while polling. " +
+            "If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; " +
+            "set to false to keep them on the queue until the visibility timeout expires."
+    )
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
@@ -147,13 +153,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private final AtomicBoolean killed = new AtomicBoolean();
+    private final transient AtomicBoolean killed = new AtomicBoolean();
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private final AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
+    private final transient AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -188,7 +194,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .visibilityTimeout(this.visibilityTimeout)
             .build();
 
-        Consume.Output run = runKillable(task.client(runContext), client -> task.run(runContext, client));
+        Consume.Output run = runKillable(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", run.getCount());
@@ -203,7 +209,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(execution);
     }
 
-    private <C extends SdkAutoCloseable, T> T runKillable(C client, Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+    private <C extends SdkAutoCloseable, T> T runKillable(
+        Rethrow.SupplierChecked<C, Exception> clientFactory,
+        Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+        if (killed.get()) {
+            throw new TriggerKilledException();
+        }
+
+        C client = clientFactory.get();
         activeClient.set(client);
         try {
             if (killed.get()) {
@@ -222,7 +235,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             throw e;
         } finally {
             if (activeClient.compareAndSet(client, null)) {
-                client.close();
+                KillableClients.closeQuietly(client);
             }
         }
     }
@@ -235,7 +248,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         killed.set(true);
         SdkAutoCloseable client = activeClient.getAndSet(null);
         if (client != null) {
-            client.close();
+            KillableClients.closeQuietly(client);
         }
     }
 }

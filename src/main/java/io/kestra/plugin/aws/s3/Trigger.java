@@ -21,6 +21,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.Rethrow;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
+import io.kestra.plugin.aws.utils.KillableClients;
 import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -202,13 +203,13 @@ public class Trigger extends AbstractTrigger
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private final AtomicBoolean killed = new AtomicBoolean();
+    private final transient AtomicBoolean killed = new AtomicBoolean();
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private final AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
+    private final transient AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -255,7 +256,7 @@ public class Trigger extends AbstractTrigger
             .forcePathStyle(this.forcePathStyle)
             .build();
 
-        List.Output run = runKillable(task.client(runContext), client -> task.run(runContext, client));
+        List.Output run = runKillable(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (run.getObjects().isEmpty()) {
             return Optional.empty();
@@ -300,7 +301,7 @@ public class Trigger extends AbstractTrigger
                         .forcePathStyle(this.forcePathStyle)
                         .build();
 
-                    var dlOut = runKillable(download.asyncClient(runContext), client -> download.run(runContext, client));
+                    var dlOut = runKillable(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
                     var downloaded = object.withUri(dlOut.getUri());
 
                     actionBlobs.add(object);
@@ -320,13 +321,26 @@ public class Trigger extends AbstractTrigger
             throw new TriggerKilledException();
         }
 
-        writeState(runContext, rStateKey, previousState, rStateTtl);
-
         if (toFire.isEmpty()) {
+            writeState(runContext, rStateKey, previousState, rStateTtl);
             return Optional.empty();
         }
 
-        S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+        // state is written only once the action succeeded, so objects left unprocessed by a failed or killed
+        // MOVE/DELETE are picked up again on the next evaluation instead of being marked as seen
+        try {
+            S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+        } catch (Exception e) {
+            if (killed.get()) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new TriggerKilledException();
+            }
+            throw e;
+        }
+
+        writeState(runContext, rStateKey, previousState, rStateTtl);
 
         var output = Output.builder().objects(toFire).build();
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
@@ -334,7 +348,14 @@ public class Trigger extends AbstractTrigger
         return Optional.of(execution);
     }
 
-    private <C extends SdkAutoCloseable, T> T runKillable(C client, Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+    private <C extends SdkAutoCloseable, T> T runKillable(
+        Rethrow.SupplierChecked<C, Exception> clientFactory,
+        Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+        if (killed.get()) {
+            throw new TriggerKilledException();
+        }
+
+        C client = clientFactory.get();
         activeClient.set(client);
         try {
             if (killed.get()) {
@@ -353,7 +374,7 @@ public class Trigger extends AbstractTrigger
             throw e;
         } finally {
             if (activeClient.compareAndSet(client, null)) {
-                client.close();
+                KillableClients.closeQuietly(client);
             }
         }
     }
@@ -366,7 +387,7 @@ public class Trigger extends AbstractTrigger
         killed.set(true);
         SdkAutoCloseable client = activeClient.getAndSet(null);
         if (client != null) {
-            client.close();
+            KillableClients.closeQuietly(client);
         }
     }
 

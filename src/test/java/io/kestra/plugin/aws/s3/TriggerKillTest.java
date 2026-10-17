@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,31 @@ class TriggerKillTest {
             .build();
 
         trigger.kill();
+    }
+
+    @Test
+    void killStateDoesNotChangeTriggerEquality() {
+        assertTrue(EqualsBuilder.reflectionEquals(hangingTrigger(), hangingTrigger()));
+    }
+
+    @Test
+    void moveTriggerRevisionsAreEqual() {
+        assertTrue(EqualsBuilder.reflectionEquals(moveTrigger(), moveTrigger()));
+    }
+
+    private Trigger moveTrigger() {
+        return Trigger.builder()
+            .id("s3-move")
+            .type(Trigger.class.getName())
+            .bucket(Property.ofValue("bucket"))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(
+                Copy.CopyObject.builder()
+                    .bucket(Property.ofValue("archive"))
+                    .key(Property.ofValue("archived"))
+                    .build()
+            )
+            .build();
     }
 
     private Trigger hangingTrigger() {
