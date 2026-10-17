@@ -85,6 +85,9 @@ dependencies {
     api 'software.amazon.awssdk:healthlake'
     // AWS SDK — Amazon MSK
     api 'software.amazon.awssdk:kafka'
+    // AWS SDK — AWS Cost Explorer (incl. Cost Anomaly Detection) and AWS Budgets
+    api 'software.amazon.awssdk:costexplorer'
+    api 'software.amazon.awssdk:budgets'
 }
 
 /**********************************************************************************************************************\
