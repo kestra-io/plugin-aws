@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
@@ -16,12 +18,16 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
+import io.kestra.core.utils.Rethrow;
 import io.kestra.plugin.aws.s3.models.S3Object;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
+import io.kestra.plugin.aws.utils.KillableClients;
+import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -193,8 +199,29 @@ public class Trigger extends AbstractTrigger
     )
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicBoolean killed = new AtomicBoolean();
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        try {
+            return doEvaluate(conditionContext, context);
+        } catch (TriggerKilledException e) {
+            conditionContext.getRunContext().logger().debug("Trigger killed, evaluation stopped");
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Execution> doEvaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
@@ -229,7 +256,7 @@ public class Trigger extends AbstractTrigger
             .forcePathStyle(this.forcePathStyle)
             .build();
 
-        List.Output run = task.run(runContext);
+        List.Output run = runKillable(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (run.getObjects().isEmpty()) {
             return Optional.empty();
@@ -274,7 +301,7 @@ public class Trigger extends AbstractTrigger
                         .forcePathStyle(this.forcePathStyle)
                         .build();
 
-                    var dlOut = download.run(runContext);
+                    var dlOut = runKillable(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
                     var downloaded = object.withUri(dlOut.getUri());
 
                     actionBlobs.add(object);
@@ -290,18 +317,78 @@ public class Trigger extends AbstractTrigger
             }))
             .toList();
 
-        writeState(runContext, rStateKey, previousState, rStateTtl);
+        if (killed.get()) {
+            throw new TriggerKilledException();
+        }
 
         if (toFire.isEmpty()) {
+            writeState(runContext, rStateKey, previousState, rStateTtl);
             return Optional.empty();
         }
 
-        S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+        // state is written only once the action succeeded, so objects left unprocessed by a failed or killed
+        // MOVE/DELETE are picked up again on the next evaluation instead of being marked as seen
+        try {
+            S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+        } catch (Exception e) {
+            if (killed.get()) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new TriggerKilledException();
+            }
+            throw e;
+        }
+
+        writeState(runContext, rStateKey, previousState, rStateTtl);
 
         var output = Output.builder().objects(toFire).build();
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
 
         return Optional.of(execution);
+    }
+
+    private <C extends SdkAutoCloseable, T> T runKillable(
+        Rethrow.SupplierChecked<C, Exception> clientFactory,
+        Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+        if (killed.get()) {
+            throw new TriggerKilledException();
+        }
+
+        C client = clientFactory.get();
+        activeClient.set(client);
+        try {
+            if (killed.get()) {
+                throw new TriggerKilledException();
+            }
+            return call.apply(client);
+        } catch (TriggerKilledException e) {
+            throw e;
+        } catch (Exception e) {
+            if (killed.get()) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new TriggerKilledException();
+            }
+            throw e;
+        } finally {
+            if (activeClient.compareAndSet(client, null)) {
+                KillableClients.closeQuietly(client);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        killed.set(true);
+        SdkAutoCloseable client = activeClient.getAndSet(null);
+        if (client != null) {
+            KillableClients.closeQuietly(client);
+        }
     }
 
     public enum ChangeType {

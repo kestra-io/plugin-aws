@@ -2,6 +2,8 @@ package io.kestra.plugin.aws.sqs;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 
@@ -13,13 +15,17 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.Rethrow;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+import io.kestra.plugin.aws.utils.KillableClients;
+import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 @SuperBuilder
 @ToString
@@ -131,15 +137,41 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
-    @Schema(title = "Auto delete")
+    @Schema(
+        title = "Auto delete",
+        description = "If true (default), received messages are deleted from the queue in batches of 10 while polling. " +
+            "If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; " +
+            "set to false to keep them on the queue until the visibility timeout expires."
+    )
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
     @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicBoolean killed = new AtomicBoolean();
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicReference<SdkAutoCloseable> activeClient = new AtomicReference<>();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        try {
+            return doEvaluate(conditionContext, context);
+        } catch (TriggerKilledException e) {
+            conditionContext.getRunContext().logger().debug("Trigger killed, evaluation stopped");
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Execution> doEvaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
@@ -162,7 +194,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .visibilityTimeout(this.visibilityTimeout)
             .build();
 
-        Consume.Output run = task.run(runContext);
+        Consume.Output run = runKillable(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", run.getCount());
@@ -175,5 +207,48 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, run);
 
         return Optional.of(execution);
+    }
+
+    private <C extends SdkAutoCloseable, T> T runKillable(
+        Rethrow.SupplierChecked<C, Exception> clientFactory,
+        Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {
+        if (killed.get()) {
+            throw new TriggerKilledException();
+        }
+
+        C client = clientFactory.get();
+        activeClient.set(client);
+        try {
+            if (killed.get()) {
+                throw new TriggerKilledException();
+            }
+            return call.apply(client);
+        } catch (TriggerKilledException e) {
+            throw e;
+        } catch (Exception e) {
+            if (killed.get()) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw new TriggerKilledException();
+            }
+            throw e;
+        } finally {
+            if (activeClient.compareAndSet(client, null)) {
+                KillableClients.closeQuietly(client);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        killed.set(true);
+        SdkAutoCloseable client = activeClient.getAndSet(null);
+        if (client != null) {
+            KillableClients.closeQuietly(client);
+        }
     }
 }
