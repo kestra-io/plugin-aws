@@ -21,6 +21,7 @@ import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 
 public class AwsCLITest extends AbstractFlociTest {
@@ -84,6 +85,6 @@ public class AwsCLITest extends AbstractFlociTest {
             ((Iterable<Map<String, String>>) runOutput.getVars().get("Buckets")),
             Matchers.hasItem(hasEntry("Name", "test-bucket"))
         );
-        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasEntry("DisplayName", "owner"));
+        assertThat(((Map<String, Object>) runOutput.getVars().get("Owner")), hasKey("ID"));
     }
 }

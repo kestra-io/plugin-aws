@@ -14,8 +14,10 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 
 @SuperBuilder
@@ -25,7 +27,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 @NoArgsConstructor
 @Schema(
     title = "Scan items from a DynamoDB table",
-    description = "Performs a Scan over the table. fetchType defaults to STORE; FETCH and FETCH_ONE read into memory. Optional limit and filterExpression reduce the returned set."
+    description = "Performs a Scan over the table and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE; FETCH and FETCH_ONE read into memory. Optional limit stops once that many matching items are collected."
 )
 @Plugin(
     examples = {
@@ -86,10 +88,10 @@ public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> 
 
     @Schema(
         title = "Max results",
-        description = "Maximum items to return."
+        description = "Maximum number of matching items to return across pages. Minimum 1 when set. Leave empty to return every match. This is not a DynamoDB page size."
     )
     @PluginProperty(group = "processing")
-    private Property<Integer> limit;
+    private Property<@Min(1) Integer> limit;
 
     @Schema(
         title = "Filter expression",
@@ -107,26 +109,45 @@ public class Scan extends AbstractDynamoDb implements RunnableTask<FetchOutput> 
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
+        stopIfKilled();
         try (var dynamoDb = client(runContext)) {
-            var scanBuilder = ScanRequest.builder()
-                .tableName(runContext.render(this.getTableName()).as(String.class).orElseThrow());
+            onKill(runContext, dynamoDb::close);
+            var rTable = runContext.render(this.tableName).as(String.class).orElseThrow(() -> missingProperty("tableName"));
+            var rFetch = runContext.render(this.fetchType).as(FetchType.class).orElse(FetchType.STORE);
+            var rMaxResults = maxResults(runContext, this.limit, rFetch);
 
-            if (limit != null) {
-                scanBuilder.limit(runContext.render(limit).as(Integer.class).orElseThrow());
-            }
+            String rFilter;
+            Map<String, AttributeValue> rValues;
             if (filterExpression != null) {
                 var attributes = runContext.render(expressionAttributeValues).asMap(String.class, Object.class);
                 if (attributes.isEmpty()) {
                     throw new IllegalArgumentException("'expressionAttributeValues' must be provided when 'filterExpression' is used");
                 }
-                scanBuilder.filterExpression(runContext.render(filterExpression).as(String.class).orElseThrow());
-                scanBuilder.expressionAttributeValues(valueMapFrom(attributes));
+                rFilter = runContext.render(filterExpression).as(String.class).orElseThrow(() -> missingProperty("filterExpression"));
+                rValues = valueMapFrom(attributes);
+            } else {
+                rFilter = null;
+                rValues = null;
             }
 
-            var scan = scanBuilder.build();
-            var items = dynamoDb.scan(scan).items();
-
-            return this.fetchOutputs(items, runContext.render(this.fetchType).as(FetchType.class).orElseThrow(), runContext);
+            return this.fetchOutputs(rFetch, rMaxResults, runContext, (exclusiveStartKey, pageLimit) ->
+            {
+                var scanBuilder = ScanRequest.builder().tableName(rTable);
+                if (exclusiveStartKey != null) {
+                    scanBuilder.exclusiveStartKey(exclusiveStartKey);
+                }
+                // DynamoDB Limit caps items evaluated, not items matching the filter.
+                if (pageLimit != null && rFilter == null) {
+                    scanBuilder.limit(pageLimit);
+                }
+                if (rFilter != null) {
+                    scanBuilder.filterExpression(rFilter);
+                    scanBuilder.expressionAttributeValues(rValues);
+                }
+                var response = dynamoDb.scan(scanBuilder.build());
+                var nextKey = response.hasLastEvaluatedKey() ? response.lastEvaluatedKey() : null;
+                return new DynamoPage(response.items(), nextKey);
+            });
         }
     }
 }
