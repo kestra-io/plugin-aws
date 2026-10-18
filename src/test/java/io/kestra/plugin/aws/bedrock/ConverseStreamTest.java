@@ -129,4 +129,21 @@ class ConverseStreamTest {
 
         assertThrows(IllegalArgumentException.class, () -> spy.run(runContext));
     }
+
+    @Test
+    void givenConverseStreamTask_whenValidate_thenNoConstraintViolationOrCrash() {
+        ConverseStream task = ConverseStream.builder()
+            .id("test-converse-stream-validation")
+            .type(ConverseStream.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("test-key"))
+            .secretKeyId(Property.ofValue("test-secret"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of(Map.of("role", "user", "content", "Hello!"))))
+            .build();
+
+        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var violations = validator.validate(task);
+        assertThat(violations, is(empty()));
+    }
 }
