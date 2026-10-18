@@ -19,7 +19,6 @@ import io.kestra.plugin.aws.shared.AbstractConnection;
 import io.kestra.plugin.aws.shared.ConnectionUtils;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -87,7 +86,7 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
         description = "Ordered list of conversation turns. Each entry must have a `role` (`user` or `assistant`) and `content` (text string)."
     )
     @PluginProperty(group = "main")
-    @NotEmpty
+    @NotNull
     private Property<List<Map<String, String>>> messages;
 
     @Schema(
@@ -114,6 +113,9 @@ public class ConverseStream extends AbstractConnection implements RunnableTask<C
         try {
             @SuppressWarnings("unchecked")
             var cast = (List<Map<String, String>>) (List<?>) runContext.render(this.messages).asList(Map.class);
+            if (cast == null || cast.isEmpty()) {
+                throw new IllegalArgumentException("messages cannot be empty");
+            }
             rawMessages = cast;
         } catch (ClassCastException e) {
             throw new IllegalArgumentException("messages must be a list of {role, content} maps", e);
