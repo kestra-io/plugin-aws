@@ -197,13 +197,20 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
 
-        Consume task = Consume.builder()
+        return Flux.from(publisher(consumeTask(), runContext))
+            .map(record -> TriggerService.generateRealtimeExecution(this, conditionContext, context, record));
+    }
+
+    Consume consumeTask() {
+        return Consume.builder()
             .queueUrl(queueUrl)
             .accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
             .sessionToken(sessionToken)
             .region(region)
             .endpointOverride(endpointOverride)
+            .maxConcurrency(this.maxConcurrency)
+            .connectionAcquisitionTimeout(this.connectionAcquisitionTimeout)
             .serdeType(this.serdeType)
             .stsRoleArn(this.stsRoleArn)
             .stsRoleSessionName(this.stsRoleSessionName)
@@ -213,9 +220,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .autoDelete(this.autoDelete)
             .visibilityTimeout(this.visibilityTimeout)
             .build();
-
-        return Flux.from(publisher(task, conditionContext.getRunContext()))
-            .map(record -> TriggerService.generateRealtimeExecution(this, conditionContext, context, record));
     }
 
     public Flux<Message> publisher(final Consume task,
