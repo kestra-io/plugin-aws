@@ -204,4 +204,37 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         consumeTrue.run(runContext);
     }
+
+    @Test
+    void consumeStoresBeforeDeleting() throws Exception {
+        RunContext runContext = runContextFactory.of();
+
+        var publish = Publish.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .from(List.of(
+                Message.builder().data("message-1").build(),
+                Message.builder().data("message-2").build()
+            ))
+            .build();
+
+        publish.run(runContext);
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .maxRecords(Property.ofValue(2))
+            .autoDelete(Property.ofValue(true))
+            .build();
+
+        var out = consume.run(runContext);
+        assertThat(out.getCount(), is(2));
+        assertThat(out.getUri(), notNullValue());
+    }
 }
