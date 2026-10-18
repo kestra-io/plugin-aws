@@ -142,30 +142,37 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     var msg = sqsClient.receiveMessage(receiveRequest);
                     for (var m : msg.messages()) {
                         FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
-                        // Increment immediately after write so count always reflects what is in the file,
-                        // even if a subsequent flushDeletes call throws.
+                        // Increment immediately after write so count always reflects what is in the file
                         total.getAndIncrement();
                         if (rAutoDelete) {
                             pendingDeletes.add(m.receiptHandle());
-                            if (pendingDeletes.size() == 10) {
-                                flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
-                            }
                         }
                     }
 
                     Thread.sleep(100);
                 } while (!this.ended(total, started, runContext));
 
-                if (rAutoDelete && !pendingDeletes.isEmpty()) {
-                    flushDeletes(sqsClient, queueUrl, pendingDeletes, runContext);
-                }
-
                 runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
                 outputFile.flush();
             }
 
+            var uri = runContext.storage().putFile(tempFile);
+
+            if (rAutoDelete && !pendingDeletes.isEmpty()) {
+                var batch = new ArrayList<String>(10);
+                for (String receiptHandle : pendingDeletes) {
+                    batch.add(receiptHandle);
+                    if (batch.size() == 10) {
+                        flushDeletes(sqsClient, queueUrl, batch, runContext);
+                    }
+                }
+                if (!batch.isEmpty()) {
+                    flushDeletes(sqsClient, queueUrl, batch, runContext);
+                }
+            }
+
             return Output.builder()
-                .uri(runContext.storage().putFile(tempFile))
+                .uri(uri)
                 .count(total.get())
                 .build();
         }
