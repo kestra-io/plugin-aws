@@ -77,4 +77,21 @@ class ConverseTest {
         assertThat(output.getInputTokens(), is(10));
         assertThat(output.getOutputTokens(), is(15));
     }
+
+    @Test
+    void givenConverseTask_whenValidate_thenNoConstraintViolationOrCrash() {
+        Converse task = Converse.builder()
+            .id("test-converse-validation")
+            .type(Converse.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("test-key"))
+            .secretKeyId(Property.ofValue("test-secret"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of(Map.of("role", "user", "content", "Hello!"))))
+            .build();
+
+        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+        var violations = validator.validate(task);
+        assertThat(violations, is(empty()));
+    }
 }
