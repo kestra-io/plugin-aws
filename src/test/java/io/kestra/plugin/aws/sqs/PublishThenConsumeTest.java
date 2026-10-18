@@ -204,4 +204,24 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         consumeTrue.run(runContext);
     }
+    @Test
+    void consumeWithMaxDurationOnEmptyQueue() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .queueUrl(Property.ofValue(queueUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(2)))
+            .build();
+
+        long start = System.currentTimeMillis();
+        var consumeOutput = consume.run(runContext);
+        long elapsed = System.currentTimeMillis() - start;
+
+        assertThat(consumeOutput.getCount(), is(0));
+        assertThat(elapsed >= 1500, is(true));
+    }
 }
