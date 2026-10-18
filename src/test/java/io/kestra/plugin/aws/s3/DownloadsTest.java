@@ -258,4 +258,28 @@ class DownloadsTest extends AbstractTest {
 
         assertThat(run.getObjects().size(), is(5));
     }
+
+    @Test
+    void deleteWithSessionToken() throws Exception {
+        this.createBucket();
+
+        upload("/tasks/s3-session");
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-sessionToken")
+            .type(Downloads.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .sessionToken(Property.ofValue("mock-session-token"))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .action(Property.ofValue(ActionInterface.Action.DELETE))
+            .build();
+
+        Downloads.Output run = task.run(runContext(task));
+        assertThat(run.getObjects().size(), is(1));
+    }
 }
