@@ -285,4 +285,35 @@ class PutEventsTest extends AbstractFlociTest {
         private List<String> Resources;
 
     }
+    @Test
+    void runBatchMoreThanTenEntries() throws Exception {
+        var runContext = runContextFactory.of();
+
+        List<Entry> entries = new java.util.ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            entries.add(
+                Entry.builder()
+                    .source("Kestra")
+                    .detailType("hello")
+                    .detail(Map.of("index", i))
+                    .build()
+            );
+        }
+
+        var put = PutEvents.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .entries(entries)
+            .build();
+
+        List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
+        assertThat(outputEntries, hasSize(15));
+        for (int i = 0; i < 15; i++) {
+            assertThat(outputEntries.get(i).getEventId(), notNullValue());
+            assertThat(outputEntries.get(i).getErrorCode(), nullValue());
+            assertThat(outputEntries.get(i).getErrorMessage(), nullValue());
+        }
+    }
 }
