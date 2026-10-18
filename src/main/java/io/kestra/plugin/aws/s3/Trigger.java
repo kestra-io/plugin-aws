@@ -290,13 +290,14 @@ public class Trigger extends AbstractTrigger
             }))
             .toList();
 
-        writeState(runContext, rStateKey, previousState, rStateTtl);
-
         if (toFire.isEmpty()) {
+            writeState(runContext, rStateKey, previousState, rStateTtl);
             return Optional.empty();
         }
 
         S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+
+        writeState(runContext, rStateKey, previousState, rStateTtl);
 
         var output = Output.builder().objects(toFire).build();
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
