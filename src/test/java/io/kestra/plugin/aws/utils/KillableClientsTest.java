@@ -44,6 +44,27 @@ class KillableClientsTest {
     }
 
     @Test
+    void closeInBackgroundDoesNotWaitForClose() throws Exception {
+        var release = new CountDownLatch(1);
+        var closeCompleted = new CountDownLatch(1);
+
+        // kill() calls this while the worker holds its lock, so it must return before a slow close finishes
+        var closer = KillableClients.closeInBackground(() ->
+        {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            closeCompleted.countDown();
+        });
+
+        assertThat(closer.isAlive(), is(true));
+        release.countDown();
+        assertThat(closeCompleted.await(5, TimeUnit.SECONDS), is(true));
+    }
+
+    @Test
     void closeFailureIsSwallowed() {
         KillableClients.closeQuietly(() ->
         {

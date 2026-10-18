@@ -14,16 +14,9 @@ public final class KillableClients {
      * event loop to shut down logs ERROR traces. The interrupt is deferred until the close is done, then restored.
      */
     public static void closeQuietly(SdkAutoCloseable client) {
-        Thread closer = Thread.ofVirtual().start(() ->
-        {
-            try {
-                client.close();
-            } catch (RuntimeException e) {
-                log.debug("Failed to close AWS client of a killed trigger", e);
-            }
-        });
+        var closer = closeInBackground(client);
 
-        boolean interrupted = false;
+        var interrupted = false;
         while (true) {
             try {
                 closer.join();
@@ -36,5 +29,16 @@ public final class KillableClients {
         if (interrupted) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    public static Thread closeInBackground(SdkAutoCloseable client) {
+        return Thread.ofVirtual().start(() ->
+        {
+            try {
+                client.close();
+            } catch (RuntimeException e) {
+                log.debug("Failed to close AWS client of a killed trigger", e);
+            }
+        });
     }
 }

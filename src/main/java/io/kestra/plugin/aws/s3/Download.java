@@ -198,8 +198,9 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
      * Downloads the single {@code key} with a client owned by the caller, so the caller can close it to abort an in-flight request.
      */
     Output run(RunContext runContext, S3AsyncClient client) throws Exception {
-        String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
-        return downloadSingleFile(runContext, bucket, client);
+        var rBucket = runContext.render(this.bucket).as(String.class)
+            .orElseThrow(() -> new IllegalArgumentException("'bucket' is required"));
+        return downloadSingleFile(runContext, rBucket, client);
     }
 
     private Output downloadSingleFile(RunContext runContext, String bucket, S3AsyncClient client) throws Exception {

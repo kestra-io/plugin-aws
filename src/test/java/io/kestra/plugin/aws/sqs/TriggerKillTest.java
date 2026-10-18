@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
@@ -114,7 +115,7 @@ class TriggerKillTest {
     @Test
     void killWithoutEvaluationIsNoop() {
         var trigger = Trigger.builder()
-            .id("sqs-kill-noop")
+            .id("sqs-kill-noop-" + IdUtils.create())
             .type(Trigger.class.getName())
             .build();
 
@@ -123,13 +124,18 @@ class TriggerKillTest {
 
     @Test
     void killStateDoesNotChangeTriggerEquality() {
-        assertTrue(EqualsBuilder.reflectionEquals(hangingTrigger(), hangingTrigger()));
+        var id = "sqs-kill-" + IdUtils.create();
+        assertTrue(EqualsBuilder.reflectionEquals(hangingTrigger(id), hangingTrigger(id)));
     }
 
     private Trigger hangingTrigger() {
+        return hangingTrigger("sqs-kill-" + IdUtils.create());
+    }
+
+    private Trigger hangingTrigger(String id) {
         var endpoint = "http://localhost:" + hangingServer.getLocalPort();
         return Trigger.builder()
-            .id("sqs-kill")
+            .id(id)
             .type(Trigger.class.getName())
             .endpointOverride(Property.ofValue(endpoint))
             .queueUrl(Property.ofValue(endpoint + "/000000000000/hanging-queue"))

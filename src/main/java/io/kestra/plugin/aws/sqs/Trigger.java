@@ -139,9 +139,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     @Schema(
         title = "Auto delete",
-        description = "If true (default), received messages are deleted from the queue in batches of 10 while polling. " +
-            "If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; " +
-            "set to false to keep them on the queue until the visibility timeout expires."
+        description = """
+            If true (default), received messages are deleted from the queue in batches of 10 while polling. \
+            If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; \
+            set to false to keep them on the queue until the visibility timeout expires."""
     )
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
@@ -216,7 +217,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             throw new TriggerKilledException();
         }
 
-        C client = clientFactory.get();
+        var client = clientFactory.get();
         activeClient.set(client);
         try {
             if (killed.get()) {
@@ -246,9 +247,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Override
     public void kill() {
         killed.set(true);
-        SdkAutoCloseable client = activeClient.getAndSet(null);
+        var client = activeClient.getAndSet(null);
         if (client != null) {
-            KillableClients.closeQuietly(client);
+            KillableClients.closeInBackground(client);
         }
     }
 }
