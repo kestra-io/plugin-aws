@@ -114,11 +114,23 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
     }
 
     protected Object objectFrom(AttributeValue value) {
-        if (value == null || (value.nul() != null && value.hasSs())) {
+        if (value == null || (value.nul() != null && value.nul())) {
             return null;
         }
-        if (value.bool() != null && value.bool()) {
-            return true;
+        if (value.bool() != null) {
+            return value.bool();
+        }
+        if (value.n() != null) {
+            String nStr = value.n();
+            if (nStr.contains(".")) {
+                return Double.parseDouble(nStr);
+            } else {
+                try {
+                    return Long.parseLong(nStr);
+                } catch (NumberFormatException e) {
+                    return new java.math.BigDecimal(nStr);
+                }
+            }
         }
         if (value.hasSs()) {
             return value.ss();
@@ -151,6 +163,9 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         }
         if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
+        }
+        if (value instanceof Number) {
+            return AttributeValue.fromN(value.toString());
         }
         if (value instanceof List) {
             return AttributeValue.fromSs((List<String>) value);
