@@ -193,17 +193,34 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         return tempFile;
     }
 
+    private static final int MAX_BATCH_SIZE = 10;
+
     private PutEventsResponse putEvents(RunContext runContext, List<Entry> entryList) throws Exception {
         try (var eventBridgeClient = client(runContext)) {
-            List<PutEventsRequestEntry> requestEntries = entryList.stream()
-                .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
-                .collect(Collectors.toList());
+            List<PutEventsResultEntry> allResponseEntries = new java.util.ArrayList<>();
+            int totalFailedCount = 0;
 
-            PutEventsRequest eventsRequest = PutEventsRequest.builder()
-                .entries(requestEntries)
+            for (int i = 0; i < entryList.size(); i += MAX_BATCH_SIZE) {
+                List<Entry> batch = entryList.subList(i, Math.min(i + MAX_BATCH_SIZE, entryList.size()));
+                List<PutEventsRequestEntry> requestEntries = batch.stream()
+                    .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
+                    .collect(Collectors.toList());
+
+                PutEventsRequest eventsRequest = PutEventsRequest.builder()
+                    .entries(requestEntries)
+                    .build();
+
+                PutEventsResponse response = eventBridgeClient.putEvents(eventsRequest);
+                if (response.entries() != null) {
+                    allResponseEntries.addAll(response.entries());
+                }
+                totalFailedCount += response.failedEntryCount() != null ? response.failedEntryCount() : 0;
+            }
+
+            return PutEventsResponse.builder()
+                .entries(allResponseEntries)
+                .failedEntryCount(totalFailedCount)
                 .build();
-
-            return eventBridgeClient.putEvents(eventsRequest);
         }
     }
 

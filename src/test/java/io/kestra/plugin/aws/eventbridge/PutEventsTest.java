@@ -271,6 +271,43 @@ class PutEventsTest extends AbstractFlociTest {
         assertThat(outputEntries.get(0).getEntry().getDetail(), equalTo(entry.Detail));
     }
 
+    @Test
+    void runBatchingMoreThanTen() throws Exception {
+        var runContext = runContextFactory.of();
+
+        List<Entry> entries = new java.util.ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            entries.add(
+                Entry.builder()
+                    .eventBusName("test-bus")
+                    .source("Kestra")
+                    .detailType("batch-test")
+                    .detail(Map.of("message", "event " + i))
+                    .build()
+            );
+        }
+
+        var put = PutEvents.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .entries(entries)
+            .build();
+
+        var output = put.run(runContext);
+        assertThat(output.getEntryCount(), is(15));
+        assertThat(output.getFailedEntryCount(), is(0));
+
+        List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
+        assertThat(outputEntries, hasSize(15));
+        for (PutEvents.OutputEntry outputEntry : outputEntries) {
+            assertThat(outputEntry.getEventId(), notNullValue());
+            assertThat(outputEntry.getErrorCode(), nullValue());
+            assertThat(outputEntry.getErrorMessage(), nullValue());
+        }
+    }
+
     /**
      * Test that user can use AWS notation in json
      */
