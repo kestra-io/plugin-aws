@@ -216,8 +216,11 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
 
         var duration = runContext.render(this.maxDuration).as(Duration.class);
-        if (duration.isPresent() && ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond()) {
-            return true;
+        if (duration.isPresent()) {
+            // When maxDuration is set, keep polling until it elapses, even if
+            // no message has been received yet. Falling through to the
+            // count-based check would end the task after the first empty poll.
+            return ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond();
         }
 
         return count.get() == 0;
