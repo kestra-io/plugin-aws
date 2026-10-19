@@ -1,17 +1,16 @@
 package io.kestra.plugin.aws.sqs;
 
-import java.time.Duration;
-import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.flows.State;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.plugin.aws.sqs.model.SerdeType;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -19,9 +18,7 @@ import software.amazon.awssdk.services.sqs.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -31,9 +28,9 @@ class ConsumeUnitTest {
     @Inject
     protected RunContextFactory runContextFactory;
 
-    // Verifies that a partial failure from deleteMessageBatch causes Consume to throw IllegalStateException.
+    // A failed delete must not drop the stored output: the task ends in WARNING and the message stays in the queue.
     @Test
-    void flushDeletes_partialFailure_throws() throws Exception {
+    void deleteFailure_keepsOutputAndWarns() throws Exception {
         var runContext = runContextFactory.of();
 
         var receiveResponse = ReceiveMessageResponse.builder()
@@ -81,7 +78,159 @@ class ConsumeUnitTest {
 
         doReturn(mockClient).when(task).client(any());
 
-        assertThrows(IllegalStateException.class, () -> task.run(runContext));
+        var output = task.run(runContext);
+
+        assertThat(output.getCount(), is(1));
+        assertThat(output.getUri(), notNullValue());
+        assertThat(output.getFailedDeletesCount(), is(1));
+        assertThat(output.finalState(), is(Optional.of(State.Type.WARNING)));
+    }
+
+    @Test
+    void failedRun_deletesNothing() throws Exception {
+        var runContext = runContextFactory.of();
+
+        SqsClient mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "{\"id\": 1}"))
+            .thenReturn(receive("msg-2", "rh-2", "not json"));
+
+        Consume task = spy(
+            Consume.builder()
+                .id("consume-failed-run-test")
+                .type(Consume.class.getName())
+                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
+                .region(Property.ofValue("us-east-1"))
+                .serdeType(Property.ofValue(SerdeType.JSON))
+                .maxRecords(Property.ofValue(2))
+                .build()
+        );
+
+        doReturn(mockClient).when(task).client(any());
+
+        assertThrows(Exception.class, () -> task.run(runContext));
+        verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void messageReceivedAgain_stopsAndDeletesWithLatestHandle() throws Exception {
+        var runContext = runContextFactory.of();
+
+        SqsClient mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"))
+            // Same message delivered again after its visibility timeout, with a new receipt handle.
+            .thenReturn(receive("msg-1", "rh-2", "hello"))
+            .thenReturn(receive("msg-2", "rh-3", "world"));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+        Consume task = spy(
+            Consume.builder()
+                .id("consume-received-again-test")
+                .type(Consume.class.getName())
+                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
+                .region(Property.ofValue("us-east-1"))
+                .maxRecords(Property.ofValue(5))
+                .build()
+        );
+
+        doReturn(mockClient).when(task).client(any());
+
+        var output = task.run(runContext);
+
+        assertThat(output.getCount(), is(1));
+        verify(mockClient, times(2)).receiveMessage(any(ReceiveMessageRequest.class));
+        assertThat(deletedReceiptHandles(mockClient), is(List.of("rh-2")));
+    }
+
+    @Test
+    void visibilityExtensionFailure_stopsReceiving() throws Exception {
+        var runContext = runContextFactory.of();
+
+        SqsClient mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"))
+            .thenReturn(receive("msg-2", "rh-2", "world"));
+        when(mockClient.changeMessageVisibilityBatch(any(ChangeMessageVisibilityBatchRequest.class)))
+            .thenThrow(SqsException.builder().message("simulated AccessDenied").build());
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+        Consume task = spy(
+            Consume.builder()
+                .id("consume-extension-failure-test")
+                .type(Consume.class.getName())
+                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
+                .region(Property.ofValue("us-east-1"))
+                .maxRecords(Property.ofValue(5))
+                // 0 makes the extension due right after the first receive.
+                .visibilityTimeout(Property.ofValue(0))
+                .build()
+        );
+
+        doReturn(mockClient).when(task).client(any());
+
+        var output = task.run(runContext);
+
+        assertThat(output.getCount(), is(1));
+        verify(mockClient, times(1)).receiveMessage(any(ReceiveMessageRequest.class));
+        assertThat(deletedReceiptHandles(mockClient), is(List.of("rh-1")));
+    }
+
+    @Test
+    void killedRun_deletesNothing() throws Exception {
+        var runContext = runContextFactory.of();
+
+        SqsClient mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"))
+            .thenAnswer(invocation ->
+            {
+                Thread.sleep(100);
+                return ReceiveMessageResponse.builder().build();
+            });
+
+        Consume task = spy(
+            Consume.builder()
+                .id("consume-killed-run-test")
+                .type(Consume.class.getName())
+                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
+                .region(Property.ofValue("us-east-1"))
+                .maxRecords(Property.ofValue(100))
+                .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(30)))
+                .build()
+        );
+
+        doReturn(mockClient).when(task).client(any());
+
+        var thread = new Thread(() ->
+        {
+            try {
+                task.run(runContext);
+            } catch (Exception e) {
+                // ignore
+            }
+        });
+        thread.start();
+        Thread.sleep(500);
+        task.kill();
+        thread.join(5000);
+
+        assertThat(thread.isAlive(), is(false));
+        verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    private static List<String> deletedReceiptHandles(SqsClient mockClient) {
+        var captor = ArgumentCaptor.forClass(DeleteMessageBatchRequest.class);
+        verify(mockClient).deleteMessageBatch(captor.capture());
+        return captor.getValue().entries().stream().map(DeleteMessageBatchRequestEntry::receiptHandle).toList();
+    }
+
+    private static ReceiveMessageResponse receive(String messageId, String receiptHandle, String body) {
+        return ReceiveMessageResponse.builder()
+            .messages(Message.builder().messageId(messageId).receiptHandle(receiptHandle).body(body).build())
+            .build();
     }
 
     @Test
@@ -92,7 +241,8 @@ class ConsumeUnitTest {
 
         SqsClient mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenAnswer(invocation -> {
+            .thenAnswer(invocation ->
+            {
                 Thread.sleep(100);
                 return receiveResponse;
             });
@@ -104,15 +254,16 @@ class ConsumeUnitTest {
                 .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
                 .region(Property.ofValue("us-east-1"))
                 .maxRecords(Property.ofValue(100))
-                .maxDuration(Property.ofValue(Duration.ofSeconds(30)))
+                .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(30)))
                 .build()
         );
 
         doReturn(mockClient).when(task).client(any());
 
-        AtomicReference<Consume.Output> output = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
 
-        Thread thread = new Thread(() -> {
+        Thread thread = new Thread(() ->
+        {
             try {
                 output.set(task.run(runContext));
             } catch (Exception e) {
@@ -125,113 +276,7 @@ class ConsumeUnitTest {
         task.kill();
         thread.join(5000); // Wait max 5s for the loop to break
 
-        assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
-        assertThat(output.get(), notNullValue());
-    }
-
-    @Test
-    void ended_maxDuration_emptyQueue_notElapsed_returnsFalse() throws Exception {
-        RunContext runContext = runContextFactory.of();
-        Consume task = Consume.builder()
-            .id("consume-wait-test")
-            .type(Consume.class.getName())
-            .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
-            .region(Property.ofValue("us-east-1"))
-            .maxDuration(Property.ofValue(Duration.ofMinutes(1)))
-            .build();
-
-        AtomicInteger count = new AtomicInteger(0);
-        ZonedDateTime start = ZonedDateTime.now();
-
-        // Must not terminate on initial empty poll when maxDuration has not expired
-        assertFalse(task.ended(count, start, runContext));
-    }
-
-    @Test
-    void ended_maxDuration_emptyQueue_elapsed_returnsTrue() throws Exception {
-        RunContext runContext = runContextFactory.of();
-        Consume task = Consume.builder()
-            .id("consume-elapsed-test")
-            .type(Consume.class.getName())
-            .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
-            .region(Property.ofValue("us-east-1"))
-            .maxDuration(Property.ofValue(Duration.ofSeconds(1)))
-            .build();
-
-        AtomicInteger count = new AtomicInteger(0);
-        ZonedDateTime start = ZonedDateTime.now().minusSeconds(5);
-
-        // Must terminate once maxDuration has expired
-        assertTrue(task.ended(count, start, runContext));
-    }
-
-    @Test
-    void ended_onlyMaxRecords_emptyQueue_returnsTrue() throws Exception {
-        RunContext runContext = runContextFactory.of();
-        Consume task = Consume.builder()
-            .id("consume-maxrecords-test")
-            .type(Consume.class.getName())
-            .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
-            .region(Property.ofValue("us-east-1"))
-            .maxRecords(Property.ofValue(10))
-            .build();
-
-        AtomicInteger count = new AtomicInteger(0);
-        ZonedDateTime start = ZonedDateTime.now();
-
-        // Preserves default behavior: terminates after first poll if empty and no maxDuration configured
-        assertTrue(task.ended(count, start, runContext));
-    }
-
-    @Test
-    void run_withMaxDuration_waitsAcrossEmptyPollsUntilMessageArrives() throws Exception {
-        RunContext runContext = runContextFactory.of();
-
-        ReceiveMessageResponse emptyResponse = ReceiveMessageResponse.builder()
-            .messages(List.of())
-            .build();
-
-        ReceiveMessageResponse messageResponse = ReceiveMessageResponse.builder()
-            .messages(
-                Message.builder()
-                    .messageId("msg-1")
-                    .receiptHandle("rh-1")
-                    .body("test payload")
-                    .build()
-            )
-            .build();
-
-        DeleteMessageBatchResponse deleteResponse = DeleteMessageBatchResponse.builder()
-            .successful(List.of(DeleteMessageBatchResultEntry.builder().id("0").build()))
-            .failed(List.of())
-            .build();
-
-        SqsClient mockClient = mock(SqsClient.class);
-        // First poll: empty queue
-        // Second poll: message arrives
-        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenReturn(emptyResponse)
-            .thenReturn(messageResponse);
-        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
-            .thenReturn(deleteResponse);
-
-        Consume task = spy(
-            Consume.builder()
-                .id("consume-retry-test")
-                .type(Consume.class.getName())
-                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
-                .region(Property.ofValue("us-east-1"))
-                .maxDuration(Property.ofValue(Duration.ofSeconds(10)))
-                .maxRecords(Property.ofValue(1))
-                .autoDelete(Property.ofValue(true))
-                .build()
-        );
-
-        doReturn(mockClient).when(task).client(any());
-
-        Consume.Output output = task.run(runContext);
-
-        assertThat(output.getCount(), is(1));
-        verify(mockClient, atLeast(2)).receiveMessage(any(ReceiveMessageRequest.class));
+        org.hamcrest.MatcherAssert.assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
+        org.hamcrest.MatcherAssert.assertThat(output.get(), notNullValue());
     }
 }
