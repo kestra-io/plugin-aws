@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 import org.slf4j.Logger;
@@ -54,7 +55,7 @@ import lombok.experimental.SuperBuilder;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output> {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, StatefulTriggerInterface {
     @Schema(
         title = "Access Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
@@ -150,6 +151,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
+    @Schema(title = "State key", description = "Key under which per-shard sequence positions are persisted; defaults to a stable per-trigger value.")
+    private Property<String> stateKey;
+
+    @Schema(title = "State TTL", description = "How long persisted shard positions are retained; unset means no expiry.")
+    private Property<Duration> stateTtl;
+
     @Builder.Default
     @Schema(title = "Max records")
     private Property<Integer> maxRecords = Property.ofValue(1000);
@@ -167,10 +174,17 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
+        var rStateTtl = runContext.render(stateTtl).as(Duration.class);
+        var previousState = readState(runContext, rStateKey, rStateTtl);
+        Map<String, String> sequences = new HashMap<>();
+        previousState.forEach((shard, entry) -> sequences.put(shard, entry.getVersion()));
+
         Consume consume = Consume.builder()
             .streamName(this.streamName)
             .iteratorType(this.iteratorType)
             .startingSequenceNumber(this.startingSequenceNumber)
+            .startingSequencePerShard(sequences)
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)
             .pollDuration(this.pollDuration)
@@ -187,6 +201,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .build();
 
         Consume.Output output = consume.run(runContext);
+
+        if (output.getLastSequencePerShard() != null && !output.getLastSequencePerShard().isEmpty()) {
+            output.getLastSequencePerShard().forEach((shard, sequence) -> previousState.put(shard, StatefulTriggerService.Entry.candidate(shard, sequence, Instant.now())));
+            writeState(runContext, rStateKey, previousState, rStateTtl);
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", output.getCount());

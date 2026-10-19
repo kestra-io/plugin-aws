@@ -96,6 +96,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
+    /** Per-shard resume positions supplied by the polling trigger. */
+    @Builder.Default
+    private Map<String, String> startingSequencePerShard = Map.of();
+
     @Builder.Default
     @Schema(
         title = "Max records",
@@ -208,16 +212,19 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     }
 
     private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard) throws IllegalVariableEvaluationException {
+        String savedSequence = startingSequencePerShard.get(shard.shardId());
         var builder = GetShardIteratorRequest.builder()
             .streamName(stream)
             .shardId(shard.shardId())
             .shardIteratorType(
-                ShardIteratorType.fromValue(
-                    runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name()
-                )
+                savedSequence == null
+                    ? ShardIteratorType.fromValue(runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name())
+                    : ShardIteratorType.AFTER_SEQUENCE_NUMBER
             );
 
-        if (startingSequenceNumber != null) {
+        if (savedSequence != null) {
+            builder.startingSequenceNumber(savedSequence);
+        } else if (startingSequenceNumber != null) {
             runContext.render(startingSequenceNumber)
                 .as(String.class)
                 .ifPresent(builder::startingSequenceNumber);
