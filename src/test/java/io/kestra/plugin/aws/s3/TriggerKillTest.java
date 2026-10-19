@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
@@ -114,7 +115,7 @@ class TriggerKillTest {
     @Test
     void killWithoutEvaluationIsNoop() {
         var trigger = Trigger.builder()
-            .id("s3-kill-noop")
+            .id("s3-kill-noop-" + IdUtils.create())
             .type(Trigger.class.getName())
             .build();
 
@@ -123,17 +124,19 @@ class TriggerKillTest {
 
     @Test
     void killStateDoesNotChangeTriggerEquality() {
-        assertTrue(EqualsBuilder.reflectionEquals(hangingTrigger(), hangingTrigger()));
+        var id = "s3-kill-" + IdUtils.create();
+        assertTrue(EqualsBuilder.reflectionEquals(hangingTrigger(id), hangingTrigger(id)));
     }
 
     @Test
     void moveTriggerRevisionsAreEqual() {
-        assertTrue(EqualsBuilder.reflectionEquals(moveTrigger(), moveTrigger()));
+        var id = "s3-move-" + IdUtils.create();
+        assertTrue(EqualsBuilder.reflectionEquals(moveTrigger(id), moveTrigger(id)));
     }
 
-    private Trigger moveTrigger() {
+    private Trigger moveTrigger(String id) {
         return Trigger.builder()
-            .id("s3-move")
+            .id(id)
             .type(Trigger.class.getName())
             .bucket(Property.ofValue("bucket"))
             .action(Property.ofValue(ActionInterface.Action.MOVE))
@@ -147,9 +150,13 @@ class TriggerKillTest {
     }
 
     private Trigger hangingTrigger() {
+        return hangingTrigger("s3-kill-" + IdUtils.create());
+    }
+
+    private Trigger hangingTrigger(String id) {
         var endpoint = "http://localhost:" + hangingServer.getLocalPort();
         return Trigger.builder()
-            .id("s3-kill")
+            .id(id)
             .type(Trigger.class.getName())
             .endpointOverride(Property.ofValue(endpoint))
             .bucket(Property.ofValue("hanging-bucket"))
