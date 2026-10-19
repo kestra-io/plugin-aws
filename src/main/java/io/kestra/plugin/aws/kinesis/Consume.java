@@ -98,6 +98,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
     /** Per-shard resume positions supplied by the polling trigger. */
     @Builder.Default
+    @Schema(title = "Starting sequence number per shard", description = "Internal resume positions supplied by the polling trigger.")
     private Map<String, String> startingSequencePerShard = Map.of();
 
     @Builder.Default

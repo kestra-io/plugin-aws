@@ -21,6 +21,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import static io.kestra.core.models.triggers.StatefulTriggerService.*;
+
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -151,6 +153,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
+    @Builder.Default
+    @Schema(title = "Trigger condition", description = "Stateful trigger condition; defaults to CREATE_OR_UPDATE.")
+    private final Property<StatefulTriggerInterface.On> on = Property.ofValue(StatefulTriggerInterface.On.CREATE_OR_UPDATE);
+
     @Schema(title = "State key", description = "Key under which per-shard sequence positions are persisted; defaults to a stable per-trigger value.")
     private Property<String> stateKey;
 
@@ -178,7 +184,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
         var previousState = readState(runContext, rStateKey, rStateTtl);
         Map<String, String> sequences = new HashMap<>();
-        previousState.forEach((shard, entry) -> sequences.put(shard, entry.getVersion()));
+        previousState.forEach((shard, entry) -> sequences.put(shard, entry.version()));
 
         Consume consume = Consume.builder()
             .streamName(this.streamName)
