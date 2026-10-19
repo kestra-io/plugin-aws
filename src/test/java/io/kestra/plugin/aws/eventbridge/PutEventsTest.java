@@ -138,6 +138,55 @@ class PutEventsTest extends AbstractFlociTest {
     }
 
     @Test
+    void batchesAtMostTenEntries() {
+        var entries = java.util.stream.IntStream.rangeClosed(1, 23).boxed().toList();
+
+        List<List<Integer>> batches = PutEvents.batchEntries(entries);
+
+        assertThat(batches, hasSize(3));
+        assertThat(batches.get(0), hasSize(10));
+        assertThat(batches.get(1), hasSize(10));
+        assertThat(batches.get(2), contains(21, 22, 23));
+        assertThat(batches.stream().mapToInt(List::size).sum(), is(entries.size()));
+    }
+
+    @Test
+    void batchesEmptyList() {
+        assertThat(PutEvents.batchEntries(List.of()), empty());
+    }
+
+    @Test
+    void runMoreThanTenEntries() throws Exception {
+        var runContext = runContextFactory.of();
+
+        List<Entry> entries = java.util.stream.IntStream.rangeClosed(1, 11)
+            .mapToObj(i -> Entry.builder()
+                .eventBusName("test-bus")
+                .source("Kestra")
+                .detailType("hello")
+                .detail(Map.of("message", "event " + i))
+                .build())
+            .toList();
+
+        var put = PutEvents.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .entries(entries)
+            .build();
+
+        List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
+        assertThat(outputEntries, hasSize(11));
+        for (int i = 0; i < entries.size(); i++) {
+            assertThat(outputEntries.get(i).getEventId(), notNullValue());
+            assertThat(outputEntries.get(i).getErrorCode(), nullValue());
+            assertThat(outputEntries.get(i).getErrorMessage(), nullValue());
+            assertThat(outputEntries.get(i).getEntry(), equalTo(entries.get(i)));
+        }
+    }
+
+    @Test
     void runStorage() throws Exception {
         var runContext = runContextFactory.of();
 
