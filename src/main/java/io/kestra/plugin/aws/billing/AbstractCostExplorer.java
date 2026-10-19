@@ -56,7 +56,7 @@ public abstract class AbstractCostExplorer extends AbstractConnection {
     }
 
     static LocalDate requiredDate(RunContext runContext, Property<String> property, String name) throws IllegalVariableEvaluationException {
-        return parseDate(name, BillingFetch.required(runContext, property, name, String.class, "as yyyy-MM-dd"));
+        return parseDate(name, BillingFetch.requiredString(runContext, property, name));
     }
 
     static LocalDate parseDate(String name, String value) {

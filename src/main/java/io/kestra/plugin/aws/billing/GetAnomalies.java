@@ -98,7 +98,10 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all anomalies to internal storage. FETCH returns all anomalies, FETCH_ONE the first one (and stops requesting pages once a page returns an anomaly, so `totalImpact` then only covers that page), NONE only the count and total impact."
+        description = """
+            Default STORE writes all anomalies to internal storage. FETCH returns all anomalies, FETCH_ONE the first one, NONE only the count and total impact. \
+            FETCH_ONE stops requesting pages as soon as a page returns an anomaly; if more pages exist, `truncated` is true \
+            and `totalImpact` only covers the pages read."""
     )
     @NotNull
     @Builder.Default
@@ -124,6 +127,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
         var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);
         var fetchOne = rFetchType == FetchType.FETCH_ONE;
+        var stoppedAtFirstRow = false;
         var rows = new ArrayList<Map<String, Object>>();
         var totalImpact = BigDecimal.ZERO;
         String nextPageToken = null;
@@ -140,13 +144,12 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
                     }
                 }
                 nextPageToken = response.nextPageToken();
-            } while (nextPageToken != null && pages < rMaxPages && !(fetchOne && !rows.isEmpty()));
+                stoppedAtFirstRow = fetchOne && !rows.isEmpty();
+            } while (nextPageToken != null && pages < rMaxPages && !stoppedAtFirstRow);
         }
 
-        var hasMorePages = nextPageToken != null && !(fetchOne && !rows.isEmpty());
-
         runContext.metric(Counter.of("requests", pages));
-        if (hasMorePages) {
+        if (nextPageToken != null && !stoppedAtFirstRow) {
             runContext.logger().warn("Stopped after maxPages={} Cost Explorer requests, more anomalies are available. Increase maxPages or narrow the request.", rMaxPages);
         }
 
@@ -157,7 +160,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
             .uri(fetched.uri())
             .size(fetched.size())
             .totalImpact(totalImpact)
-            .truncated(hasMorePages)
+            .truncated(nextPageToken != null)
             .build();
     }
 
@@ -214,10 +217,15 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         @Schema(title = "Anomaly count", description = "Number of anomalies returned.")
         private Long size;
 
-        @Schema(title = "Total impact (USD)", description = "Sum of the total impact of all returned anomalies.")
+        @Schema(title = "Total impact (USD)", description = "Sum of the total impact of the anomalies read.")
         private BigDecimal totalImpact;
 
-        @Schema(title = "Truncated", description = "True when `maxPages` was reached before all anomalies were read.")
+        @Schema(
+            title = "Truncated",
+            description = """
+                True when more pages were available but not read: `maxPages` was reached, or `fetchType` is FETCH_ONE \
+                and the first page with an anomaly was not the last one. `totalImpact` then only covers the pages read."""
+        )
         private Boolean truncated;
     }
 }

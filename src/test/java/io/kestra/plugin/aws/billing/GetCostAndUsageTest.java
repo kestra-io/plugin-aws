@@ -217,7 +217,7 @@ class GetCostAndUsageTest {
 
         verify(client, times(1)).getCostAndUsage(any(GetCostAndUsageRequest.class));
         assertThat(output.getRow().get("keys"), is(List.of("Amazon EC2")));
-        assertThat(output.getTruncated(), is(false));
+        assertThat(output.getTruncated(), is(true));
     }
 
     @Test

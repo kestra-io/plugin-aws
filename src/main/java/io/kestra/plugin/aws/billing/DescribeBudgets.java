@@ -87,7 +87,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var rAccountId = BillingFetch.required(runContext, accountId, "accountId", String.class);
+        var rAccountId = BillingFetch.requiredString(runContext, accountId, "accountId");
         var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var rows = new ArrayList<Map<String, Object>>();

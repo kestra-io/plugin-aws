@@ -160,7 +160,10 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all rows to internal storage. FETCH returns all rows, FETCH_ONE the first row, NONE only the totals. FETCH_ONE stops requesting pages as soon as a page returns a row, so `costTotals` then only cover that page."
+        description = """
+            Default STORE writes all rows to internal storage. FETCH returns all rows, FETCH_ONE the first row, NONE only the totals. \
+            FETCH_ONE stops requesting pages as soon as a page returns a row; if more pages exist, `truncated` is true \
+            and `costTotals` only cover the pages read."""
     )
     @NotNull
     @Builder.Default
@@ -182,7 +185,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
         var requestBuilder = GetCostAndUsageRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .granularity(BillingFetch.required(runContext, granularity, "granularity", Granularity.class))
+            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required")))
             .metrics(rMetrics)
             .groupBy(rGroupBy.stream().map(GetCostAndUsage::groupDefinition).toList());
         var filter = filter(rFilter);
@@ -192,6 +195,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
         var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);
         var fetchOne = rFetchType == FetchType.FETCH_ONE;
+        var stoppedAtFirstRow = false;
         var rows = new ArrayList<Map<String, Object>>();
         var totals = new LinkedHashMap<String, BigDecimal>();
         String unit = null;
@@ -212,13 +216,12 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
                     }
                 }
                 nextPageToken = response.nextPageToken();
-            } while (nextPageToken != null && pages < rMaxPages && !(fetchOne && !rows.isEmpty()));
+                stoppedAtFirstRow = fetchOne && !rows.isEmpty();
+            } while (nextPageToken != null && pages < rMaxPages && !stoppedAtFirstRow);
         }
 
-        var hasMorePages = nextPageToken != null && !(fetchOne && !rows.isEmpty());
-
         runContext.metric(Counter.of("requests", pages));
-        if (hasMorePages) {
+        if (nextPageToken != null && !stoppedAtFirstRow) {
             runContext.logger().warn("Stopped after maxPages={} Cost Explorer requests, more results are available. Increase maxPages or narrow the request.", rMaxPages);
         }
 
@@ -230,7 +233,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             .size(fetched.size())
             .costTotals(totals)
             .unit(unit)
-            .truncated(hasMorePages)
+            .truncated(nextPageToken != null)
             .build();
     }
 
@@ -315,7 +318,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         @Schema(
             title = "Cost totals",
             description = """
-                Sum of each requested cost metric over all returned rows, keyed by metric name (e.g. `costTotals.UnblendedCost`). \
+                Sum of each requested cost metric over the rows read, keyed by metric name (e.g. `costTotals.UnblendedCost`). \
                 Usage metrics (`UsageQuantity`, `NormalizedUsageAmount`) are not totaled because their units differ between rows."""
         )
         private Map<String, BigDecimal> costTotals;
@@ -323,7 +326,12 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         @Schema(title = "Cost unit", description = "Currency of the cost metrics in `costTotals`, usually `USD`. Usage metric units are not considered.")
         private String unit;
 
-        @Schema(title = "Truncated", description = "True when `maxPages` was reached before all results were read.")
+        @Schema(
+            title = "Truncated",
+            description = """
+                True when more pages were available but not read: `maxPages` was reached, or `fetchType` is FETCH_ONE \
+                and the first page with a row was not the last one. `costTotals` then only cover the pages read."""
+        )
         private Boolean truncated;
     }
 }

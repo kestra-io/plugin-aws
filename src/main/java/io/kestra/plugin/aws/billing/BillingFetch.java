@@ -37,16 +37,12 @@ final class BillingFetch {
 
     static final int DEFAULT_MAX_PAGES = 10;
 
-    static <T> T required(RunContext runContext, Property<T> property, String name, Class<T> type) throws IllegalVariableEvaluationException {
-        return required(runContext, property, name, type, null);
-    }
-
-    static <T> T required(RunContext runContext, Property<T> property, String name, Class<T> type, String hint) throws IllegalVariableEvaluationException {
-        var value = runContext.render(property).as(type);
-        if (value.isEmpty() || value.get() instanceof String string && string.isBlank()) {
-            throw new IllegalArgumentException(name + " is required" + (hint == null ? "" : ", " + hint) + ", but it rendered empty");
+    static String requiredString(RunContext runContext, Property<String> property, String name) throws IllegalVariableEvaluationException {
+        var rValue = runContext.render(property).as(String.class).orElse(null);
+        if (rValue == null || rValue.isBlank()) {
+            throw new IllegalArgumentException(name + " is required but rendered empty, check the expression that sets it");
         }
-        return value.get();
+        return rValue;
     }
 
     static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {

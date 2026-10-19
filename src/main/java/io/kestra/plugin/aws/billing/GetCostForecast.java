@@ -93,8 +93,11 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
     public Output run(RunContext runContext) throws Exception {
         var requestBuilder = GetCostForecastRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .metric(BillingFetch.required(runContext, metric, "metric", software.amazon.awssdk.services.costexplorer.model.Metric.class))
-            .granularity(BillingFetch.required(runContext, granularity, "granularity", Granularity.class));
+            .metric(
+                runContext.render(metric).as(software.amazon.awssdk.services.costexplorer.model.Metric.class)
+                    .orElseThrow(() -> new IllegalArgumentException("metric is required"))
+            )
+            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required")));
         var rPredictionIntervalLevel = runContext.render(predictionIntervalLevel).as(Integer.class);
         if (rPredictionIntervalLevel.isPresent()) {
             var level = rPredictionIntervalLevel.get();

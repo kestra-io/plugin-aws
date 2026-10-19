@@ -125,7 +125,7 @@ class GetAnomaliesTest {
 
         verify(client, times(1)).getAnomalies(any(GetAnomaliesRequest.class));
         assertThat(output.getRow().get("anomalyId"), is("a-1"));
-        assertThat(output.getTruncated(), is(false));
+        assertThat(output.getTruncated(), is(true));
     }
 
     @Test
