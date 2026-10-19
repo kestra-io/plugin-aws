@@ -98,7 +98,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all anomalies to internal storage. FETCH returns all anomalies, FETCH_ONE the first one, NONE only the count and total impact."
+        description = "Default STORE writes all anomalies to internal storage. FETCH returns all anomalies, FETCH_ONE the first one (and stops requesting pages once a page returns an anomaly, so `totalImpact` then only covers that page), NONE only the count and total impact."
     )
     @NotNull
     @Builder.Default
@@ -107,8 +107,8 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var start = parseDate("startDate", runContext.render(startDate).as(String.class).orElseThrow());
-        var end = parseDate("endDate", runContext.render(endDate).as(String.class).orElseThrow());
+        var start = requiredDate(runContext, startDate, "startDate");
+        var end = requiredDate(runContext, endDate, "endDate");
         if (end.isBefore(start)) {
             throw new IllegalArgumentException("endDate (" + end + ") must not be before startDate (" + start + ")");
         }
@@ -120,8 +120,10 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
                 TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(min).build()
             )
         );
-        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
+        var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
+        var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);
+        var fetchOne = rFetchType == FetchType.FETCH_ONE;
         var rows = new ArrayList<Map<String, Object>>();
         var totalImpact = BigDecimal.ZERO;
         String nextPageToken = null;
@@ -138,22 +140,24 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
                     }
                 }
                 nextPageToken = response.nextPageToken();
-            } while (nextPageToken != null && pages < rMaxPages);
+            } while (nextPageToken != null && pages < rMaxPages && !(fetchOne && !rows.isEmpty()));
         }
 
+        var hasMorePages = nextPageToken != null && !(fetchOne && !rows.isEmpty());
+
         runContext.metric(Counter.of("requests", pages));
-        if (nextPageToken != null) {
+        if (hasMorePages) {
             runContext.logger().warn("Stopped after maxPages={} Cost Explorer requests, more anomalies are available. Increase maxPages or narrow the request.", rMaxPages);
         }
 
-        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE), rows);
+        var fetched = BillingFetch.apply(runContext, rFetchType, rows);
         return Output.builder()
             .rows(fetched.rows())
             .row(fetched.row())
             .uri(fetched.uri())
             .size(fetched.size())
             .totalImpact(totalImpact)
-            .truncated(nextPageToken != null)
+            .truncated(hasMorePages)
             .build();
     }
 
@@ -195,8 +199,9 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Anomalies",
-            description = "All anomalies when fetchType is FETCH, each with `anomalyId`, dates, `dimensionValue`, `monitorArn`, " +
-                "impact amounts in USD (`totalImpact`, `maxImpact`, `totalActualSpend`, `totalExpectedSpend`), scores and `rootCauses`."
+            description = """
+                All anomalies when fetchType is FETCH, each with `anomalyId`, dates, `dimensionValue`, `monitorArn`, \
+                impact amounts in USD (`totalImpact`, `maxImpact`, `totalActualSpend`, `totalExpectedSpend`), scores and `rootCauses`."""
         )
         private List<Map<String, Object>> rows;
 

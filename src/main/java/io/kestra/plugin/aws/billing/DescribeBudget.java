@@ -65,8 +65,8 @@ public class DescribeBudget extends AbstractBudgets implements RunnableTask<Desc
     @Override
     public Output run(RunContext runContext) throws Exception {
         var request = DescribeBudgetRequest.builder()
-            .accountId(runContext.render(accountId).as(String.class).orElseThrow())
-            .budgetName(runContext.render(budgetName).as(String.class).orElseThrow())
+            .accountId(BillingFetch.required(runContext, accountId, "accountId", String.class))
+            .budgetName(BillingFetch.required(runContext, budgetName, "budgetName", String.class))
             .build();
 
         try (var client = client(runContext)) {
@@ -80,8 +80,9 @@ public class DescribeBudget extends AbstractBudgets implements RunnableTask<Desc
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Budget",
-            description = "The budget with `budgetName`, `budgetType`, `timeUnit`, `limitAmount`/`limitUnit`, `actualSpendAmount`/`actualSpendUnit`, " +
-                "`forecastedSpendAmount`/`forecastedSpendUnit`, `timePeriodStart`/`timePeriodEnd` and `lastUpdatedTime`."
+            description = """
+                The budget with `budgetName`, `budgetType`, `timeUnit`, `limitAmount`/`limitUnit`, `actualSpendAmount`/`actualSpendUnit`, \
+                `forecastedSpendAmount`/`forecastedSpendUnit`, `timePeriodStart`/`timePeriodEnd` and `lastUpdatedTime`."""
         )
         private Map<String, Object> budget;
     }

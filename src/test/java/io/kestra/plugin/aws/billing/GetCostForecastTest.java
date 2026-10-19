@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -9,6 +10,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
@@ -28,7 +30,7 @@ class GetCostForecastTest {
     @Test
     void givenForecast_whenRun_thenReturnsTotalAndPeriods() throws Exception {
         var task = GetCostForecast.builder()
-            .id("forecast")
+            .id(IdUtils.create())
             .type(GetCostForecast.class.getName())
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-14"))
@@ -71,7 +73,7 @@ class GetCostForecastTest {
     @Test
     void givenInvalidPredictionIntervalLevel_whenRun_thenFailsBeforeCallingAws() throws Exception {
         var task = GetCostForecast.builder()
-            .id("forecast")
+            .id(IdUtils.create())
             .type(GetCostForecast.class.getName())
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-14"))
@@ -86,6 +88,28 @@ class GetCostForecastTest {
         doReturn(client).when(spy).client(any(RunContext.class));
 
         assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+        verifyNoInteractions(client);
+    }
+
+    @Test
+    void givenBlankStartDate_whenRun_thenFailsWithClearMessageBeforeCallingAws() throws Exception {
+        var task = GetCostForecast.builder()
+            .id(IdUtils.create())
+            .type(GetCostForecast.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .startDate(Property.ofValue(""))
+            .endDate(Property.ofValue("2026-11-01"))
+            .metric(Property.ofValue(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST))
+            .granularity(Property.ofValue(Granularity.MONTHLY))
+            .build();
+
+        var client = mock(CostExplorerClient.class);
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+
+        assertThat(exception.getMessage(), Matchers.startsWith("startDate is required"));
         verifyNoInteractions(client);
     }
 }

@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -10,6 +11,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.budgets.BudgetsClient;
@@ -17,6 +19,7 @@ import software.amazon.awssdk.services.budgets.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -43,7 +46,7 @@ class DescribeBudgetsTest {
     @Test
     void givenTwoPages_whenFetch_thenUsesNextTokenAndReturnsBudgets() throws Exception {
         var task = DescribeBudgets.builder()
-            .id("budgets")
+            .id(IdUtils.create())
             .type(DescribeBudgets.class.getName())
             .region(Property.ofValue("us-east-1"))
             .accountId(Property.ofValue("123456789012"))
@@ -74,7 +77,7 @@ class DescribeBudgetsTest {
     @Test
     void givenMaxPagesReached_whenRun_thenTruncated() throws Exception {
         var task = DescribeBudgets.builder()
-            .id("budgets")
+            .id(IdUtils.create())
             .type(DescribeBudgets.class.getName())
             .accountId(Property.ofValue("123456789012"))
             .maxPages(Property.ofValue(1))
@@ -91,5 +94,23 @@ class DescribeBudgetsTest {
         verify(client, times(1)).describeBudgets(any(DescribeBudgetsRequest.class));
         assertThat(output.getTruncated(), is(true));
         assertThat(output.getUri(), notNullValue());
+    }
+
+    @Test
+    void givenBlankAccountId_whenRun_thenFailsWithClearMessageBeforeCallingAws() throws Exception {
+        var task = DescribeBudgets.builder()
+            .id(IdUtils.create())
+            .type(DescribeBudgets.class.getName())
+            .accountId(Property.ofValue(""))
+            .build();
+
+        var client = mock(BudgetsClient.class);
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+
+        assertThat(exception.getMessage(), Matchers.startsWith("accountId is required"));
+        verifyNoInteractions(client);
     }
 }

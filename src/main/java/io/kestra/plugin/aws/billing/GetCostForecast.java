@@ -93,11 +93,11 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
     public Output run(RunContext runContext) throws Exception {
         var requestBuilder = GetCostForecastRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .metric(runContext.render(metric).as(software.amazon.awssdk.services.costexplorer.model.Metric.class).orElseThrow())
-            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow());
+            .metric(BillingFetch.required(runContext, metric, "metric", software.amazon.awssdk.services.costexplorer.model.Metric.class))
+            .granularity(BillingFetch.required(runContext, granularity, "granularity", Granularity.class));
         var rPredictionIntervalLevel = runContext.render(predictionIntervalLevel).as(Integer.class);
         if (rPredictionIntervalLevel.isPresent()) {
-            int level = rPredictionIntervalLevel.get();
+            var level = rPredictionIntervalLevel.get();
             if (level < 51 || level > 99) {
                 throw new IllegalArgumentException("predictionIntervalLevel must be between 51 and 99, got " + level);
             }
@@ -110,7 +110,7 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
         }
         runContext.metric(Counter.of("requests", 1));
 
-        List<Map<String, Object>> forecast = response.forecastResultsByTime().stream()
+        var forecast = response.forecastResultsByTime().stream()
             .map(result ->
             {
                 var entry = new LinkedHashMap<String, Object>();

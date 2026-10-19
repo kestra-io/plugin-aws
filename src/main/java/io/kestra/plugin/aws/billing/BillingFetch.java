@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.billing;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -15,10 +14,6 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 
-/**
- * Applies a {@link FetchType} to rows already collected from a billing API, the same way athena.Query does:
- * STORE writes an ION file, FETCH returns all rows, FETCH_ONE the first one, NONE only the count.
- */
 final class BillingFetch {
     private BillingFetch() {
     }
@@ -27,7 +22,7 @@ final class BillingFetch {
     }
 
     static Result apply(RunContext runContext, FetchType fetchType, List<Map<String, Object>> items) throws IOException {
-        Result result = switch (fetchType) {
+        var result = switch (fetchType) {
             case FETCH -> new Result(items, null, null, items.size());
             case FETCH_ONE -> {
                 var first = items.isEmpty() ? null : items.getFirst();
@@ -42,8 +37,20 @@ final class BillingFetch {
 
     static final int DEFAULT_MAX_PAGES = 10;
 
+    static <T> T required(RunContext runContext, Property<T> property, String name, Class<T> type) throws IllegalVariableEvaluationException {
+        return required(runContext, property, name, type, null);
+    }
+
+    static <T> T required(RunContext runContext, Property<T> property, String name, Class<T> type, String hint) throws IllegalVariableEvaluationException {
+        var value = runContext.render(property).as(type);
+        if (value.isEmpty() || value.get() instanceof String string && string.isBlank()) {
+            throw new IllegalArgumentException(name + " is required" + (hint == null ? "" : ", " + hint) + ", but it rendered empty");
+        }
+        return value.get();
+    }
+
     static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {
-        int value = runContext.render(maxPages).as(Integer.class).orElse(DEFAULT_MAX_PAGES);
+        var value = runContext.render(maxPages).as(Integer.class).orElse(DEFAULT_MAX_PAGES);
         if (value < 1) {
             throw new IllegalArgumentException("maxPages must be at least 1, got " + value);
         }
@@ -51,7 +58,7 @@ final class BillingFetch {
     }
 
     private static URI store(RunContext runContext, List<Map<String, Object>> items) throws IOException {
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var out = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
             for (var item : items) {
                 FileSerde.write(out, item);

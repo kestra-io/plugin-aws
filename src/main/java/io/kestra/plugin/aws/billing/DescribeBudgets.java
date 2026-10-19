@@ -87,8 +87,8 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var rAccountId = runContext.render(accountId).as(String.class).orElseThrow();
-        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
+        var rAccountId = BillingFetch.required(runContext, accountId, "accountId", String.class);
+        var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var rows = new ArrayList<Map<String, Object>>();
         String nextToken = null;
@@ -129,8 +129,9 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Budgets",
-            description = "All budgets when fetchType is FETCH, each with `budgetName`, `budgetType`, `timeUnit`, `limitAmount`/`limitUnit`, " +
-                "`actualSpendAmount`/`actualSpendUnit`, `forecastedSpendAmount`/`forecastedSpendUnit`, `timePeriodStart`/`timePeriodEnd` and `lastUpdatedTime`."
+            description = """
+                All budgets when fetchType is FETCH, each with `budgetName`, `budgetType`, `timeUnit`, `limitAmount`/`limitUnit`, \
+                `actualSpendAmount`/`actualSpendUnit`, `forecastedSpendAmount`/`forecastedSpendUnit`, `timePeriodStart`/`timePeriodEnd` and `lastUpdatedTime`."""
         )
         private List<Map<String, Object>> rows;
 

@@ -20,9 +20,6 @@ import software.amazon.awssdk.services.budgets.BudgetsClient;
 import software.amazon.awssdk.services.budgets.model.Budget;
 import software.amazon.awssdk.services.budgets.model.Spend;
 
-/**
- * Base class for AWS Budgets tasks.
- */
 @SuperBuilder
 @ToString
 @EqualsAndHashCode

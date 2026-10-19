@@ -123,8 +123,9 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Metrics",
-        description = "Cost Explorer metrics to return, for example `UnblendedCost`, `AmortizedCost`, `NetUnblendedCost`, " +
-            "`BlendedCost` or `UsageQuantity`. At least one is required."
+        description = """
+            Cost Explorer metrics to return, for example `UnblendedCost`, `AmortizedCost`, `NetUnblendedCost`, \
+            `BlendedCost` or `UsageQuantity`. At least one is required."""
     )
     @NotNull
     @PluginProperty(group = "main")
@@ -132,16 +133,18 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Group by",
-        description = "Up to 2 groupings. A plain value is a dimension (e.g. `SERVICE`, `LINKED_ACCOUNT`, `USAGE_TYPE`, `REGION`), " +
-            "`TAG:<key>` groups by a cost allocation tag and `COST_CATEGORY:<name>` by a cost category."
+        description = """
+            Up to 2 groupings. A plain value is a dimension (e.g. `SERVICE`, `LINKED_ACCOUNT`, `USAGE_TYPE`, `REGION`), \
+            `TAG:<key>` groups by a cost allocation tag and `COST_CATEGORY:<name>` by a cost category."""
     )
     @PluginProperty(group = "processing")
     private Property<List<String>> groupBy;
 
     @Schema(
         title = "Filter",
-        description = "Only include costs matching all entries. Keys use the same syntax as `groupBy` " +
-            "(`SERVICE`, `TAG:team`, `COST_CATEGORY:env`), values are the accepted values for that key."
+        description = """
+            Only include costs matching all entries. Keys use the same syntax as `groupBy` \
+            (`SERVICE`, `TAG:team`, `COST_CATEGORY:env`), values are the accepted values for that key."""
     )
     @PluginProperty(group = "processing")
     private Property<Map<String, List<String>>> dimensionFilter;
@@ -157,7 +160,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all rows to internal storage. FETCH returns all rows, FETCH_ONE the first row, NONE only the totals."
+        description = "Default STORE writes all rows to internal storage. FETCH returns all rows, FETCH_ONE the first row, NONE only the totals. FETCH_ONE stops requesting pages as soon as a page returns a row, so `costTotals` then only cover that page."
     )
     @NotNull
     @Builder.Default
@@ -175,11 +178,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             throw new IllegalArgumentException("Cost Explorer supports at most " + MAX_GROUP_BY + " groupBy entries, got " + rGroupBy.size());
         }
         var rFilter = runContext.render(dimensionFilter).asMap(String.class, List.class);
-        int rMaxPages = BillingFetch.maxPages(runContext, maxPages);
+        var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var requestBuilder = GetCostAndUsageRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow())
+            .granularity(BillingFetch.required(runContext, granularity, "granularity", Granularity.class))
             .metrics(rMetrics)
             .groupBy(rGroupBy.stream().map(GetCostAndUsage::groupDefinition).toList());
         var filter = filter(rFilter);
@@ -187,6 +190,8 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             requestBuilder.filter(filter);
         }
 
+        var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);
+        var fetchOne = rFetchType == FetchType.FETCH_ONE;
         var rows = new ArrayList<Map<String, Object>>();
         var totals = new LinkedHashMap<String, BigDecimal>();
         String unit = null;
@@ -207,15 +212,17 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
                     }
                 }
                 nextPageToken = response.nextPageToken();
-            } while (nextPageToken != null && pages < rMaxPages);
+            } while (nextPageToken != null && pages < rMaxPages && !(fetchOne && !rows.isEmpty()));
         }
 
+        var hasMorePages = nextPageToken != null && !(fetchOne && !rows.isEmpty());
+
         runContext.metric(Counter.of("requests", pages));
-        if (nextPageToken != null) {
+        if (hasMorePages) {
             runContext.logger().warn("Stopped after maxPages={} Cost Explorer requests, more results are available. Increase maxPages or narrow the request.", rMaxPages);
         }
 
-        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE), rows);
+        var fetched = BillingFetch.apply(runContext, rFetchType, rows);
         return Output.builder()
             .rows(fetched.rows())
             .row(fetched.row())
@@ -223,7 +230,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
             .size(fetched.size())
             .costTotals(totals)
             .unit(unit)
-            .truncated(nextPageToken != null)
+            .truncated(hasMorePages)
             .build();
     }
 
@@ -262,7 +269,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         var expressions = new ArrayList<Expression>();
         for (var entry : filters.entrySet()) {
             var key = Key.parse(entry.getKey());
-            List<String> values = entry.getValue().stream().map(String::valueOf).toList();
+            var values = entry.getValue().stream().map(String::valueOf).toList();
             expressions.add(switch (key.type()) {
                 case TAG -> Expression.builder().tags(TagValues.builder().key(key.name()).values(values).build()).build();
                 case COST_CATEGORY -> Expression.builder().costCategories(CostCategoryValues.builder().key(key.name()).values(values).build()).build();
@@ -290,8 +297,9 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "Rows",
-            description = "All rows when fetchType is FETCH. Each row has `start`, `end`, `estimated`, `keys` (the group values), " +
-                "and for each metric its amount (e.g. `UnblendedCost`) and unit (e.g. `UnblendedCostUnit`)."
+            description = """
+                All rows when fetchType is FETCH. Each row has `start`, `end`, `estimated`, `keys` (the group values), \
+                and for each metric its amount (e.g. `UnblendedCost`) and unit (e.g. `UnblendedCostUnit`)."""
         )
         private List<Map<String, Object>> rows;
 
@@ -306,8 +314,9 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
         @Schema(
             title = "Cost totals",
-            description = "Sum of each requested cost metric over all returned rows, keyed by metric name (e.g. `costTotals.UnblendedCost`). " +
-                "Usage metrics (`UsageQuantity`, `NormalizedUsageAmount`) are not totaled because their units differ between rows."
+            description = """
+                Sum of each requested cost metric over all returned rows, keyed by metric name (e.g. `costTotals.UnblendedCost`). \
+                Usage metrics (`UsageQuantity`, `NormalizedUsageAmount`) are not totaled because their units differ between rows."""
         )
         private Map<String, BigDecimal> costTotals;
 

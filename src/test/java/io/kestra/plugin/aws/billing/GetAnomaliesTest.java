@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -12,6 +13,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
@@ -19,6 +21,7 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -42,7 +45,7 @@ class GetAnomaliesTest {
     @Test
     void givenTwoPages_whenFetch_thenReturnsAnomaliesAndTotalImpact() throws Exception {
         var task = GetAnomalies.builder()
-            .id("anomalies")
+            .id(IdUtils.create())
             .type(GetAnomalies.class.getName())
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-07"))
@@ -80,7 +83,7 @@ class GetAnomaliesTest {
     @Test
     void givenSameStartAndEndDate_whenRun_thenSendsInclusiveInterval() throws Exception {
         var task = GetAnomalies.builder()
-            .id("anomalies")
+            .id(IdUtils.create())
             .type(GetAnomalies.class.getName())
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-14"))
@@ -99,5 +102,49 @@ class GetAnomaliesTest {
         verify(client).getAnomalies(captor.capture());
         assertThat(captor.getValue().dateInterval().startDate(), is("2026-10-14"));
         assertThat(captor.getValue().dateInterval().endDate(), is("2026-10-14"));
+    }
+
+    @Test
+    void givenFetchOneAndNextPageToken_whenRun_thenStopsAfterFirstPageWithRows() throws Exception {
+        var task = GetAnomalies.builder()
+            .id(IdUtils.create())
+            .type(GetAnomalies.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .startDate(Property.ofValue("2026-10-07"))
+            .endDate(Property.ofValue("2026-10-14"))
+            .fetchType(Property.ofValue(FetchType.FETCH_ONE))
+            .build();
+
+        var client = mock(CostExplorerClient.class);
+        when(client.getAnomalies(any(GetAnomaliesRequest.class)))
+            .thenReturn(GetAnomaliesResponse.builder().anomalies(anomaly("a-1", 150.5)).nextPageToken("next").build());
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var output = spy.run(runContextFactory.of());
+
+        verify(client, times(1)).getAnomalies(any(GetAnomaliesRequest.class));
+        assertThat(output.getRow().get("anomalyId"), is("a-1"));
+        assertThat(output.getTruncated(), is(false));
+    }
+
+    @Test
+    void givenEmptyEndDate_whenRun_thenFailsWithClearMessageBeforeCallingAws() throws Exception {
+        var task = GetAnomalies.builder()
+            .id(IdUtils.create())
+            .type(GetAnomalies.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .startDate(Property.ofValue("2026-10-07"))
+            .endDate(Property.ofValue(""))
+            .build();
+
+        var client = mock(CostExplorerClient.class);
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+
+        assertThat(exception.getMessage(), Matchers.startsWith("endDate is required"));
+        verifyNoInteractions(client);
     }
 }

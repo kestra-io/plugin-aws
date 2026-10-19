@@ -38,20 +38,25 @@ public abstract class AbstractCostExplorer extends AbstractConnection {
 
     @Schema(
         title = "End date",
-        description = "End of the time period, as `yyyy-MM-dd`. Exclusive for `GetCostAndUsage` and `GetCostForecast`, like in the Cost Explorer API " +
-            "(the whole month of January is `2026-01-01` to `2026-02-01`); inclusive for `GetAnomalies` (`2026-01-01` to `2026-01-31`)."
+        description = """
+            End of the time period, as `yyyy-MM-dd`. Exclusive for `GetCostAndUsage` and `GetCostForecast`, like in the Cost Explorer API \
+            (the whole month of January is `2026-01-01` to `2026-02-01`); inclusive for `GetAnomalies` (`2026-01-01` to `2026-01-31`)."""
     )
     @NotNull
     @PluginProperty(group = "main")
     protected Property<String> endDate;
 
     protected DateInterval dateInterval(RunContext runContext) throws IllegalVariableEvaluationException {
-        var start = parseDate("startDate", runContext.render(startDate).as(String.class).orElseThrow());
-        var end = parseDate("endDate", runContext.render(endDate).as(String.class).orElseThrow());
+        var start = requiredDate(runContext, startDate, "startDate");
+        var end = requiredDate(runContext, endDate, "endDate");
         if (!end.isAfter(start)) {
             throw new IllegalArgumentException("endDate (" + end + ") must be after startDate (" + start + "); endDate is exclusive.");
         }
         return DateInterval.builder().start(start.toString()).end(end.toString()).build();
+    }
+
+    static LocalDate requiredDate(RunContext runContext, Property<String> property, String name) throws IllegalVariableEvaluationException {
+        return parseDate(name, BillingFetch.required(runContext, property, name, String.class, "as yyyy-MM-dd"));
     }
 
     static LocalDate parseDate(String name, String value) {

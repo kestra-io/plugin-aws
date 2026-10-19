@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -12,6 +13,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.costexplorer.CostExplorerClient;
@@ -30,7 +32,7 @@ class GetCostAndUsageTest {
 
     private GetCostAndUsage.GetCostAndUsageBuilder<?, ?> task() {
         return GetCostAndUsage.builder()
-            .id("cost")
+            .id(IdUtils.create())
             .type(GetCostAndUsage.class.getName())
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-09-01"))
@@ -203,5 +205,28 @@ class GetCostAndUsageTest {
         assertThat(output.getCostTotals().keySet(), is(java.util.Set.of("UnblendedCost")));
         assertThat(output.getUnit(), is("USD"));
         assertThat(output.getRows().getFirst().get("UsageQuantity"), is(new BigDecimal("730")));
+    }
+
+    @Test
+    void givenFetchOneAndNextPageToken_whenRun_thenStopsAfterFirstPageWithRows() throws Exception {
+        var client = mock(CostExplorerClient.class);
+        when(client.getCostAndUsage(any(GetCostAndUsageRequest.class))).thenReturn(page("more", group("Amazon EC2", "1")));
+
+        var output = withClient(task().groupBy(Property.ofValue(List.of("SERVICE"))).fetchType(Property.ofValue(FetchType.FETCH_ONE)).build(), client)
+            .run(runContextFactory.of());
+
+        verify(client, times(1)).getCostAndUsage(any(GetCostAndUsageRequest.class));
+        assertThat(output.getRow().get("keys"), is(List.of("Amazon EC2")));
+        assertThat(output.getTruncated(), is(false));
+    }
+
+    @Test
+    void givenBlankStartDate_whenRun_thenFailsWithClearMessageBeforeCallingAws() {
+        var client = mock(CostExplorerClient.class);
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> withClient(task().startDate(Property.ofValue(" ")).build(), client).run(runContextFactory.of()));
+
+        assertThat(exception.getMessage(), Matchers.startsWith("startDate is required"));
+        verifyNoInteractions(client);
     }
 }
