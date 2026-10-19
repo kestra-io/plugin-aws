@@ -121,7 +121,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 @Schema(
     title = "Send events to Amazon EventBridge",
-    description = "Publishes one or more events to EventBridge. Supports inline entries or a kestra:// URI containing serialized Entry objects. Records per-event success/failure metrics; optionally fails when any entry is rejected (failOnUnsuccessfulEvents default true)."
+    description = "Publishes one or more events to EventBridge in batches of at most 10 entries. Supports inline entries or a kestra:// URI containing serialized Entry objects. Aggregates per-event results and metrics across batches; optionally fails when any entry is rejected (failOnUnsuccessfulEvents default true)."
 )
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -193,17 +193,41 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         return tempFile;
     }
 
+    private static final int MAX_ENTRIES_PER_REQUEST = 10;
+
+    static <T> List<List<T>> batchEntries(List<T> entries) {
+        return java.util.stream.IntStream
+            .range(0, (entries.size() + MAX_ENTRIES_PER_REQUEST - 1) / MAX_ENTRIES_PER_REQUEST)
+            .mapToObj(i -> entries.subList(
+                i * MAX_ENTRIES_PER_REQUEST,
+                Math.min((i + 1) * MAX_ENTRIES_PER_REQUEST, entries.size())
+            ))
+            .collect(Collectors.toList());
+    }
+
     private PutEventsResponse putEvents(RunContext runContext, List<Entry> entryList) throws Exception {
         try (var eventBridgeClient = client(runContext)) {
             List<PutEventsRequestEntry> requestEntries = entryList.stream()
                 .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
                 .collect(Collectors.toList());
 
-            PutEventsRequest eventsRequest = PutEventsRequest.builder()
-                .entries(requestEntries)
-                .build();
+            List<PutEventsResultEntry> responseEntries = new java.util.ArrayList<>(requestEntries.size());
+            int failedEntryCount = 0;
 
-            return eventBridgeClient.putEvents(eventsRequest);
+            for (List<PutEventsRequestEntry> batch : batchEntries(requestEntries)) {
+                PutEventsResponse response = eventBridgeClient.putEvents(
+                    PutEventsRequest.builder()
+                        .entries(batch)
+                        .build()
+                );
+                responseEntries.addAll(response.entries());
+                failedEntryCount += response.failedEntryCount();
+            }
+
+            return PutEventsResponse.builder()
+                .entries(responseEntries)
+                .failedEntryCount(failedEntryCount)
+                .build();
         }
     }
 
