@@ -15,6 +15,7 @@ import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
+import io.kestra.plugin.aws.utils.KillableClientHolder;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -131,15 +132,31 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Builder.Default
-    @Schema(title = "Auto delete")
+    @Schema(
+        title = "Auto delete",
+        description = """
+            If true (default), received messages are deleted from the queue in batches of 10 while polling. \
+            If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; \
+            set to false to keep them on the queue until the visibility timeout expires."""
+    )
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
     @Schema(title = "Visibility timeout")
     private Property<Integer> visibilityTimeout = Property.ofValue(30);
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient KillableClientHolder killable = new KillableClientHolder();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        return killable.evaluate(conditionContext.getRunContext().logger(), () -> doEvaluate(conditionContext, context));
+    }
+
+    private Optional<Execution> doEvaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
@@ -162,7 +179,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .visibilityTimeout(this.visibilityTimeout)
             .build();
 
-        Consume.Output run = task.run(runContext);
+        Consume.Output run = killable.run(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", run.getCount());
@@ -175,5 +192,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, run);
 
         return Optional.of(execution);
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        killable.kill();
     }
 }
