@@ -47,6 +47,9 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                 tasks:
                   - id: forecast
                     type: io.kestra.plugin.aws.billing.GetCostForecast
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     startDate: "{{ now() | date('yyyy-MM-dd') }}"
                     endDate: "{{ now() | dateAdd(1, 'MONTHS') | date('yyyy-MM-01') }}"
                     granularity: MONTHLY
@@ -56,13 +59,6 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                   - id: log_forecast
                     type: io.kestra.plugin.core.log.Log
                     message: "Forecast for the rest of the month: {{ outputs.forecast.totalAmount }} {{ outputs.forecast.unit }}"
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     },

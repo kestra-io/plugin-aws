@@ -51,6 +51,9 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                 tasks:
                   - id: anomalies
                     type: io.kestra.plugin.aws.billing.GetAnomalies
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     startDate: "{{ now() | dateAdd(-7, 'DAYS') | date('yyyy-MM-dd') }}"
                     endDate: "{{ now() | date('yyyy-MM-dd') }}"
                     minImpactUsd: 100
@@ -59,13 +62,6 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                   - id: log_anomalies
                     type: io.kestra.plugin.core.log.Log
                     message: "{{ outputs.anomalies.size }} anomalies, {{ outputs.anomalies.totalImpact }} USD of total impact"
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     },

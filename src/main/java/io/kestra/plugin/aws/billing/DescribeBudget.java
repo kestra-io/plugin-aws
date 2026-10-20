@@ -38,6 +38,9 @@ import software.amazon.awssdk.services.budgets.model.DescribeBudgetRequest;
                 tasks:
                   - id: budget
                     type: io.kestra.plugin.aws.billing.DescribeBudget
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     accountId: "{{ secret('AWS_ACCOUNT_ID') }}"
                     budgetName: monthly-total
 
@@ -45,13 +48,6 @@ import software.amazon.awssdk.services.budgets.model.DescribeBudgetRequest;
                     type: io.kestra.plugin.core.execution.Fail
                     condition: "{{ outputs.budget.budget.actualSpendAmount > outputs.budget.budget.limitAmount }}"
                     errorMessage: "Budget monthly-total exceeded: {{ outputs.budget.budget.actualSpendAmount }} {{ outputs.budget.budget.actualSpendUnit }}"
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     }

@@ -14,15 +14,15 @@ The AWS Budgets API used by `DescribeBudgets` and `DescribeBudget` is free.
 
 ## Authentication
 
-All billing tasks inherit the standard `plugin-aws` authentication. Cost Explorer and Budgets are global services served from `us-east-1`, so set `region: us-east-1`. The IAM identity needs `ce:GetCostAndUsage`, `ce:GetCostForecast`, `ce:GetAnomalies` and `budgets:ViewBudget`.
+All billing tasks inherit the standard `plugin-aws` authentication. Cost Explorer and Budgets are global services served from `us-east-1`, so set `region: us-east-1`. Set the credentials on each task, as in the examples (flow-level `pluginDefaults` are not accepted on Kestra 2.0). The IAM identity needs `ce:GetCostAndUsage`, `ce:GetCostForecast`, `ce:GetAnomalies` and `budgets:ViewBudget`.
 
 ```yaml
-pluginDefaults:
-  - type: io.kestra.plugin.aws
-    values:
-      region: us-east-1
-      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+- id: costs
+  type: io.kestra.plugin.aws.billing.GetCostAndUsage
+  region: us-east-1
+  accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+  secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
+  # ...task properties
 ```
 
 ## Choosing a task

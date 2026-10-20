@@ -46,19 +46,15 @@ import software.amazon.awssdk.services.budgets.model.DescribeBudgetsRequest;
                 tasks:
                   - id: budgets
                     type: io.kestra.plugin.aws.billing.DescribeBudgets
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     accountId: "{{ secret('AWS_ACCOUNT_ID') }}"
                     fetchType: FETCH
 
                   - id: log_budgets
                     type: io.kestra.plugin.core.log.Log
                     message: "{{ outputs.budgets.size }} budgets found"
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     },

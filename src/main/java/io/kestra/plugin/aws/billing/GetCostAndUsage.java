@@ -53,6 +53,9 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                 tasks:
                   - id: cost
                     type: io.kestra.plugin.aws.billing.GetCostAndUsage
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     startDate: "{{ now() | dateAdd(-1, 'MONTHS') | date('yyyy-MM-01') }}"
                     endDate: "{{ now() | date('yyyy-MM-01') }}"
                     granularity: MONTHLY
@@ -65,13 +68,6 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                   - id: log_total
                     type: io.kestra.plugin.core.log.Log
                     message: "Last month: {{ outputs.cost.costTotals.UnblendedCost }} {{ outputs.cost.unit }} over {{ outputs.cost.size }} services"
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         ),
         @Example(
@@ -84,6 +80,9 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                 tasks:
                   - id: cost
                     type: io.kestra.plugin.aws.billing.GetCostAndUsage
+                    region: us-east-1
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                     startDate: "{{ now() | dateAdd(-7, 'DAYS') | date('yyyy-MM-dd') }}"
                     endDate: "{{ now() | date('yyyy-MM-dd') }}"
                     granularity: DAILY
@@ -95,13 +94,6 @@ import software.amazon.awssdk.services.costexplorer.model.*;
                     dimensionFilter:
                       "TAG:team":
                         - data-platform
-
-                pluginDefaults:
-                  - type: io.kestra.plugin.aws
-                    values:
-                      region: us-east-1
-                      accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
-                      secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                 """
         )
     },
