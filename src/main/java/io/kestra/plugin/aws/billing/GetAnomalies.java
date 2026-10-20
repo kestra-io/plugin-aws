@@ -74,14 +74,16 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<GetAnomalies.Output> {
     @Schema(
         title = "Monitor ARN",
-        description = "Only return anomalies detected by this anomaly monitor. All monitors when not set."
+        description = """
+            Only return anomalies detected by this anomaly monitor. All monitors when not set."""
     )
     @PluginProperty(group = "processing")
     private Property<String> monitorArn;
 
     @Schema(
         title = "Minimum total impact (USD)",
-        description = "Only return anomalies whose total impact is greater than or equal to this amount."
+        description = """
+            Only return anomalies whose total impact is greater than or equal to this amount."""
     )
     @PluginProperty(group = "processing")
     private Property<Double> minImpactUsd;
@@ -214,10 +216,18 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         )
         private List<Map<String, Object>> rows;
 
-        @Schema(title = "First anomaly", description = "Single anomaly when fetchType is FETCH_ONE.")
+        @Schema(
+            title = "First anomaly",
+            description = """
+                Single anomaly when fetchType is FETCH_ONE."""
+        )
         private Map<String, Object> row;
 
-        @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all anomalies when fetchType is STORE.")
+        @Schema(
+            title = "Stored data URI",
+            description = """
+                Internal storage URI of an ION file with all anomalies when fetchType is STORE."""
+        )
         private URI uri;
 
         @Schema(
@@ -227,7 +237,11 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         )
         private Long size;
 
-        @Schema(title = "Total impact (USD)", description = "Sum of the total impact of the anomalies read.")
+        @Schema(
+            title = "Total impact (USD)",
+            description = """
+                Sum of the total impact of the anomalies read."""
+        )
         private BigDecimal totalImpact;
 
         @Schema(

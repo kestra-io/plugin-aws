@@ -110,7 +110,8 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Granularity",
-        description = "`DAILY`, `MONTHLY` or `HOURLY`. `HOURLY` must be enabled on the account."
+        description = """
+            `DAILY`, `MONTHLY` or `HOURLY`. `HOURLY` must be enabled on the account."""
     )
     @NotNull
     @PluginProperty(group = "main")
@@ -307,10 +308,18 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         )
         private List<Map<String, Object>> rows;
 
-        @Schema(title = "First row", description = "Single row when fetchType is FETCH_ONE.")
+        @Schema(
+            title = "First row",
+            description = """
+                Single row when fetchType is FETCH_ONE."""
+        )
         private Map<String, Object> row;
 
-        @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all rows when fetchType is STORE.")
+        @Schema(
+            title = "Stored data URI",
+            description = """
+                Internal storage URI of an ION file with all rows when fetchType is STORE."""
+        )
         private URI uri;
 
         @Schema(
@@ -328,7 +337,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         )
         private Map<String, BigDecimal> costTotals;
 
-        @Schema(title = "Cost unit", description = "Currency of the cost metrics in `costTotals`, usually `USD`. Usage metric units are not considered.")
+        @Schema(
+            title = "Cost unit",
+            description = """
+                Currency of the cost metrics in `costTotals`, usually `USD`. Usage metric units are not considered."""
+        )
         private String unit;
 
         @Schema(

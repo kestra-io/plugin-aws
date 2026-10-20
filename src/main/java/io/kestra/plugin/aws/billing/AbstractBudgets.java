@@ -28,7 +28,8 @@ import software.amazon.awssdk.services.budgets.model.Spend;
 public abstract class AbstractBudgets extends AbstractConnection {
     @Schema(
         title = "AWS account ID",
-        description = "The 12-digit ID of the account that owns the budgets. Required by the AWS Budgets API."
+        description = """
+            The 12-digit ID of the account that owns the budgets. Required by the AWS Budgets API."""
     )
     @NotNull
     @PluginProperty(group = "main")

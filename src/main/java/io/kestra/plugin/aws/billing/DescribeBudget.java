@@ -26,7 +26,8 @@ import software.amazon.awssdk.services.budgets.model.NotFoundException;
 @NoArgsConstructor
 @Schema(
     title = "Get one AWS Budget",
-    description = "Calls the AWS Budgets `DescribeBudget` API and returns the budget with its limit, actual and forecasted spend."
+    description = """
+        Calls the AWS Budgets `DescribeBudget` API and returns the budget with its limit, actual and forecasted spend."""
 )
 @Plugin(
     examples = {
@@ -55,7 +56,11 @@ import software.amazon.awssdk.services.budgets.model.NotFoundException;
     }
 )
 public class DescribeBudget extends AbstractBudgets implements RunnableTask<DescribeBudget.Output> {
-    @Schema(title = "Budget name", description = "Name of the budget to describe.")
+    @Schema(
+        title = "Budget name",
+        description = """
+            Name of the budget to describe."""
+    )
     @NotNull
     @PluginProperty(group = "main")
     private Property<String> budgetName;

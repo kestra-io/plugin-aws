@@ -70,13 +70,18 @@ import software.amazon.awssdk.services.costexplorer.model.*;
 public class GetCostForecast extends AbstractCostExplorer implements RunnableTask<GetCostForecast.Output> {
     @Schema(
         title = "Metric",
-        description = "The cost metric to forecast, for example `UNBLENDED_COST`, `AMORTIZED_COST`, `NET_UNBLENDED_COST` or `BLENDED_COST`."
+        description = """
+            The cost metric to forecast, for example `UNBLENDED_COST`, `AMORTIZED_COST`, `NET_UNBLENDED_COST` or `BLENDED_COST`."""
     )
     @NotNull
     @PluginProperty(group = "main")
     private Property<software.amazon.awssdk.services.costexplorer.model.Metric> metric;
 
-    @Schema(title = "Granularity", description = "`DAILY` or `MONTHLY`.")
+    @Schema(
+        title = "Granularity",
+        description = """
+            `DAILY` or `MONTHLY`."""
+    )
     @NotNull
     @PluginProperty(group = "main")
     private Property<Granularity> granularity;
@@ -145,15 +150,24 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
     @Getter
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Forecasted total", description = "Total forecasted amount for the whole time period.")
+        @Schema(
+            title = "Forecasted total",
+            description = """
+                Total forecasted amount for the whole time period."""
+        )
         private BigDecimal totalAmount;
 
-        @Schema(title = "Cost unit", description = "Currency of the forecast, usually `USD`.")
+        @Schema(
+            title = "Cost unit",
+            description = """
+                Currency of the forecast, usually `USD`."""
+        )
         private String unit;
 
         @Schema(
             title = "Forecast by period",
-            description = "One entry per period with `start`, `end`, `meanValue`, and `lowerBound` / `upperBound` when `predictionIntervalLevel` is set."
+            description = """
+                One entry per period with `start`, `end`, `meanValue`, and `lowerBound` / `upperBound` when `predictionIntervalLevel` is set."""
         )
         private List<Map<String, Object>> forecast;
     }

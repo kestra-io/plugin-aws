@@ -33,7 +33,8 @@ import software.amazon.awssdk.services.budgets.model.DescribeBudgetsRequest;
 @NoArgsConstructor
 @Schema(
     title = "List AWS Budgets of an account",
-    description = "Calls the AWS Budgets `DescribeBudgets` API and returns each budget with its limit, actual and forecasted spend."
+    description = """
+        Calls the AWS Budgets `DescribeBudgets` API and returns each budget with its limit, actual and forecasted spend."""
 )
 @Plugin(
     examples = {
@@ -80,7 +81,8 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
 
     @Schema(
         title = "Fetch strategy",
-        description = "Default STORE writes all budgets to internal storage. FETCH returns all budgets, FETCH_ONE the first one, NONE only the count."
+        description = """
+            Default STORE writes all budgets to internal storage. FETCH returns all budgets, FETCH_ONE the first one, NONE only the count."""
     )
     @NotNull
     @Builder.Default
@@ -140,10 +142,18 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
         )
         private List<Map<String, Object>> rows;
 
-        @Schema(title = "First budget", description = "Single budget when fetchType is FETCH_ONE.")
+        @Schema(
+            title = "First budget",
+            description = """
+                Single budget when fetchType is FETCH_ONE."""
+        )
         private Map<String, Object> row;
 
-        @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all budgets when fetchType is STORE.")
+        @Schema(
+            title = "Stored data URI",
+            description = """
+                Internal storage URI of an ION file with all budgets when fetchType is STORE."""
+        )
         private URI uri;
 
         @Schema(
@@ -153,7 +163,11 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
         )
         private Long size;
 
-        @Schema(title = "Truncated", description = "True when `maxPages` was reached before all budgets were read.")
+        @Schema(
+            title = "Truncated",
+            description = """
+                True when `maxPages` was reached before all budgets were read."""
+        )
         private Boolean truncated;
     }
 }

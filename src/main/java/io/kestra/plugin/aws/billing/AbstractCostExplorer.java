@@ -30,7 +30,8 @@ import software.amazon.awssdk.services.costexplorer.model.DateInterval;
 public abstract class AbstractCostExplorer extends AbstractConnection {
     @Schema(
         title = "Start date",
-        description = "Start of the time period, inclusive, as `yyyy-MM-dd`."
+        description = """
+            Start of the time period, inclusive, as `yyyy-MM-dd`."""
     )
     @NotNull
     @PluginProperty(group = "main")
