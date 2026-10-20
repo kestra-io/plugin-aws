@@ -118,7 +118,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
     testImplementation 'org.mockito:mockito-inline:5.2.0'
-    testImplementation 'org.wiremock:wiremock-jetty12:3.13.2'
+    testImplementation 'org.wiremock:wiremock-jetty12'
 
     testAnnotationProcessor group: "io.kestra", name: "processor"
     testImplementation group: "io.kestra", name: "core"
