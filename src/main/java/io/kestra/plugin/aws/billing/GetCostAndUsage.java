@@ -201,7 +201,7 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         var totals = new LinkedHashMap<String, BigDecimal>();
         String unit = null;
         String nextPageToken = null;
-        int pages = 0;
+        var pages = 0;
 
         try (var client = client(runContext)) {
             do {

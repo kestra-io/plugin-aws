@@ -93,7 +93,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
 
         var rows = new ArrayList<Map<String, Object>>();
         String nextToken = null;
-        int pages = 0;
+        var pages = 0;
 
         try (var client = client(runContext)) {
             do {

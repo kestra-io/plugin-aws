@@ -133,7 +133,7 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         var rows = new ArrayList<Map<String, Object>>();
         var totalImpact = BigDecimal.ZERO;
         String nextPageToken = null;
-        int pages = 0;
+        var pages = 0;
 
         try (var client = client(runContext)) {
             do {
