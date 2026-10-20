@@ -25,6 +25,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.costexplorer.model.*;
 
 @SuperBuilder
@@ -149,6 +150,8 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
                 nextPageToken = response.nextPageToken();
                 stoppedAtFirstRow = fetchOne && !rows.isEmpty();
             } while (nextPageToken != null && pages < rMaxPages && !stoppedAtFirstRow);
+        } catch (AwsServiceException e) {
+            throw BillingFetch.translate(e, "ce:GetAnomalies");
         }
 
         runContext.metric(Counter.of("requests", pages));

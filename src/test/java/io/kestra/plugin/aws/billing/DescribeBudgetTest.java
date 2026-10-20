@@ -14,9 +14,12 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.services.budgets.BudgetsClient;
+import software.amazon.awssdk.services.budgets.model.AccessDeniedException;
 import software.amazon.awssdk.services.budgets.model.DescribeBudgetRequest;
 import software.amazon.awssdk.services.budgets.model.DescribeBudgetResponse;
+import software.amazon.awssdk.services.budgets.model.NotFoundException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -104,5 +107,46 @@ class DescribeBudgetTest {
 
         assertThat(exception.getMessage(), Matchers.startsWith("budgetName is required"));
         verifyNoInteractions(client);
+    }
+
+    @Test
+    void givenUnknownBudget_whenRun_thenFailsWithClearMessage() throws Exception {
+        var task = DescribeBudget.builder()
+            .id(IdUtils.create())
+            .type(DescribeBudget.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accountId(Property.ofValue("123456789012"))
+            .budgetName(Property.ofValue("typo"))
+            .build();
+        var client = mock(BudgetsClient.class);
+        when(client.describeBudget(any(DescribeBudgetRequest.class))).thenThrow(NotFoundException.builder().message("Unable to get budget: typo").build());
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var e = assertThrows(IllegalArgumentException.class, () -> spy.run(runContextFactory.of()));
+        assertThat(e.getMessage(), containsString("Budget 'typo' not found in account 123456789012"));
+    }
+
+    @Test
+    void givenAccessDenied_whenRun_thenNamesThePermission() throws Exception {
+        var task = DescribeBudget.builder()
+            .id(IdUtils.create())
+            .type(DescribeBudget.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .accountId(Property.ofValue("123456789012"))
+            .budgetName(Property.ofValue("monthly-total"))
+            .build();
+        var client = mock(BudgetsClient.class);
+        when(client.describeBudget(any(DescribeBudgetRequest.class))).thenThrow(
+            AccessDeniedException.builder()
+                .statusCode(400)
+                .awsErrorDetails(AwsErrorDetails.builder().errorCode("AccessDeniedException").errorMessage("not authorized").build())
+                .build()
+        );
+        var spy = spy(task);
+        doReturn(client).when(spy).client(any(RunContext.class));
+
+        var e = assertThrows(IllegalStateException.class, () -> spy.run(runContextFactory.of()));
+        assertThat(e.getMessage(), containsString("budgets:ViewBudget"));
     }
 }

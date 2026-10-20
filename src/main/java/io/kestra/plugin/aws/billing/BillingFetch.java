@@ -14,6 +14,8 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+
 final class BillingFetch {
     private BillingFetch() {
     }
@@ -44,6 +46,16 @@ final class BillingFetch {
             throw new IllegalArgumentException(name + " is required but rendered empty, check the expression that sets it");
         }
         return rValue;
+    }
+
+    static RuntimeException translate(AwsServiceException e, String permission) {
+        var errorCode = e.awsErrorDetails() == null ? null : e.awsErrorDetails().errorCode();
+        if (e.statusCode() == 403 || (errorCode != null && errorCode.contains("AccessDenied"))) {
+            return new IllegalStateException(
+                "AWS denied the request: the IAM identity needs the " + permission + " permission, see the billing how-to doc. AWS said: " + e.awsErrorDetails().errorMessage(), e
+            );
+        }
+        return e;
     }
 
     static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {

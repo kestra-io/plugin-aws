@@ -23,6 +23,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.budgets.model.DescribeBudgetsRequest;
 
 @SuperBuilder
@@ -109,6 +110,8 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
                 response.budgets().forEach(budget -> rows.add(toMap(budget)));
                 nextToken = response.nextToken();
             } while (nextToken != null && pages < rMaxPages);
+        } catch (AwsServiceException e) {
+            throw BillingFetch.translate(e, "budgets:ViewBudget");
         }
 
         if (nextToken != null) {

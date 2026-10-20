@@ -15,7 +15,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.budgets.model.DescribeBudgetRequest;
+import software.amazon.awssdk.services.budgets.model.NotFoundException;
 
 @SuperBuilder
 @ToString
@@ -69,6 +71,10 @@ public class DescribeBudget extends AbstractBudgets implements RunnableTask<Desc
 
         try (var client = client(runContext)) {
             return Output.builder().budget(toMap(client.describeBudget(request).budget())).build();
+        } catch (NotFoundException e) {
+            throw new IllegalArgumentException("Budget '" + rBudgetName + "' not found in account " + rAccountId + "; check budgetName and accountId", e);
+        } catch (AwsServiceException e) {
+            throw BillingFetch.translate(e, "budgets:ViewBudget");
         }
     }
 

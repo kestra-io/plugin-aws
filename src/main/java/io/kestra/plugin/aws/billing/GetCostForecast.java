@@ -22,6 +22,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.costexplorer.model.*;
 
 @SuperBuilder
@@ -110,6 +111,8 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
         GetCostForecastResponse response;
         try (var client = client(runContext)) {
             response = client.getCostForecast(requestBuilder.build());
+        } catch (AwsServiceException e) {
+            throw BillingFetch.translate(e, "ce:GetCostForecast");
         }
         runContext.metric(Counter.of("requests", 1));
 
