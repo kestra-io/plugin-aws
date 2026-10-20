@@ -91,10 +91,8 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
         description = """
             Confidence level of the prediction interval, between 51 and 99. When set, each forecast entry also has `lowerBound` and `upperBound`."""
     )
-    @Min(51)
-    @Max(99)
     @PluginProperty(group = "advanced")
-    private Property<Integer> predictionIntervalLevel;
+    private Property<@Min(51) @Max(99) Integer> predictionIntervalLevel;
 
     @Override
     public Output run(RunContext runContext) throws Exception {

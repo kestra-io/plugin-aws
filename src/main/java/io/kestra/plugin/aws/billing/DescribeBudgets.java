@@ -72,12 +72,10 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
         description = """
             Stops after this many `DescribeBudgets` requests of 100 budgets each, and logs a warning if more budgets were available. Default 10, between 1 and 1000."""
     )
-    @Min(1)
-    @Max(1000)
     @NotNull
     @Builder.Default
     @PluginProperty(group = "advanced")
-    private Property<Integer> maxPages = Property.ofValue(BillingFetch.DEFAULT_MAX_PAGES);
+    private Property<@Min(1) @Max(1000) Integer> maxPages = Property.ofValue(BillingFetch.DEFAULT_MAX_PAGES);
 
     @Schema(
         title = "Fetch strategy",
