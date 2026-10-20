@@ -33,10 +33,7 @@ public final class KillableClientHolder {
         }
     }
 
-    /**
-     * Creates a client, publishes it so {@link #kill()} can close it, and runs the call with it. The client is only
-     * created if the trigger was not killed, and it is closed once the call is done.
-     */
+    /** The client is published so {@link #kill()} can close it and abort the in-flight request. */
     public <C extends SdkAutoCloseable, T> T run(
         Rethrow.SupplierChecked<C, Exception> clientFactory,
         Rethrow.FunctionChecked<C, T, Exception> call) throws Exception {

@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import software.amazon.awssdk.utils.SdkAutoCloseable;
@@ -17,7 +18,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class KillableClientHolderTest {
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(KillableClientHolderTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KillableClientHolderTest.class);
 
     @Test
     void runClosesClientOnce() throws Exception {
