@@ -20,6 +20,8 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -89,8 +91,11 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Schema(
         title = "Maximum number of pages",
-        description = "Stops after this many `GetAnomalies` requests, each one costing $0.01, and logs a warning if more anomalies were available."
+        description = """
+            Stops after this many `GetAnomalies` requests, each one costing $0.01, and logs a warning if more anomalies were available. Default 10, between 1 and 1000."""
     )
+    @Min(1)
+    @Max(1000)
     @NotNull
     @Builder.Default
     @PluginProperty(group = "advanced")

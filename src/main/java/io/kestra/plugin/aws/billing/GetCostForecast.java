@@ -17,6 +17,8 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -84,8 +86,11 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Prediction interval level",
-        description = "Confidence level of the prediction interval, between 51 and 99. When set, each forecast entry also has `lowerBound` and `upperBound`."
+        description = """
+            Confidence level of the prediction interval, between 51 and 99. When set, each forecast entry also has `lowerBound` and `upperBound`."""
     )
+    @Min(51)
+    @Max(99)
     @PluginProperty(group = "advanced")
     private Property<Integer> predictionIntervalLevel;
 

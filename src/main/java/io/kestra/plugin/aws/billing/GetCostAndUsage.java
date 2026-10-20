@@ -21,6 +21,8 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -151,8 +153,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
 
     @Schema(
         title = "Maximum number of pages",
-        description = "Stops after this many `GetCostAndUsage` requests, each one costing $0.01, and logs a warning if more data was available."
+        description = """
+            Stops after this many `GetCostAndUsage` requests, each one costing $0.01, and logs a warning if more data was available. Default 10, between 1 and 1000."""
     )
+    @Min(1)
+    @Max(1000)
     @NotNull
     @Builder.Default
     @PluginProperty(group = "advanced")
