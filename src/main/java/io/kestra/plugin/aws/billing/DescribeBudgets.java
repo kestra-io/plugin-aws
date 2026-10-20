@@ -143,7 +143,11 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
         @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all budgets when fetchType is STORE.")
         private URI uri;
 
-        @Schema(title = "Budget count", description = "Number of budgets returned.")
+        @Schema(
+            title = "Budget count",
+            description = """
+                Number of budgets in the output: all budgets read for FETCH, STORE and NONE, 1 or 0 for FETCH_ONE."""
+        )
         private Long size;
 
         @Schema(title = "Truncated", description = "True when `maxPages` was reached before all budgets were read.")

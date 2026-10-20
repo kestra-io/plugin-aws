@@ -217,7 +217,11 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
         @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all anomalies when fetchType is STORE.")
         private URI uri;
 
-        @Schema(title = "Anomaly count", description = "Number of anomalies returned.")
+        @Schema(
+            title = "Anomaly count",
+            description = """
+                Number of anomalies in the output: all anomalies read for FETCH, STORE and NONE, 1 or 0 for FETCH_ONE."""
+        )
         private Long size;
 
         @Schema(title = "Total impact (USD)", description = "Sum of the total impact of the anomalies read.")

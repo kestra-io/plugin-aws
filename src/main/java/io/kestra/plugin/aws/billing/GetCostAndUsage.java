@@ -310,7 +310,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         @Schema(title = "Stored data URI", description = "Internal storage URI of an ION file with all rows when fetchType is STORE.")
         private URI uri;
 
-        @Schema(title = "Row count", description = "Number of rows returned by Cost Explorer.")
+        @Schema(
+            title = "Row count",
+            description = """
+                Number of rows in the output: all rows read for FETCH, STORE and NONE, 1 or 0 for FETCH_ONE."""
+        )
         private Long size;
 
         @Schema(
