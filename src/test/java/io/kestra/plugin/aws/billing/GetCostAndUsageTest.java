@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.billing;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -83,8 +84,8 @@ class GetCostAndUsageTest {
         var output = task.run(runContextFactory.of());
 
         assertThat(output.getSize(), is(2L));
-        assertThat(output.getRows().get(0).get("keys"), is(List.of("Amazon EC2")));
-        assertThat(output.getRows().get(0).get("UnblendedCost"), is(new BigDecimal("12.50")));
+        assertThat(output.getRows().getFirst().get("keys"), is(List.of("Amazon EC2")));
+        assertThat(output.getRows().getFirst().get("UnblendedCost"), is(new BigDecimal("12.50")));
         assertThat(output.getCostTotals().get("UnblendedCost"), is(new BigDecimal("13.25")));
         assertThat(output.getUnit(), is("USD"));
         assertThat(output.getTruncated(), is(false));
@@ -93,7 +94,7 @@ class GetCostAndUsageTest {
         verify(client, times(2)).getCostAndUsage(captor.capture());
         var first = captor.getAllValues().getFirst();
         assertThat(first.timePeriod().end(), is("2026-10-01"));
-        assertThat(first.groupBy().get(0).type(), is(GroupDefinitionType.DIMENSION));
+        assertThat(first.groupBy().getFirst().type(), is(GroupDefinitionType.DIMENSION));
         assertThat(first.groupBy().get(1).type(), is(GroupDefinitionType.TAG));
         assertThat(first.groupBy().get(1).key(), is("team"));
         assertThat(first.filter().dimensions().keyAsString(), is("REGION"));
@@ -202,7 +203,7 @@ class GetCostAndUsageTest {
             client
         ).run(runContextFactory.of());
 
-        assertThat(output.getCostTotals().keySet(), is(java.util.Set.of("UnblendedCost")));
+        assertThat(output.getCostTotals().keySet(), is(Set.of("UnblendedCost")));
         assertThat(output.getUnit(), is("USD"));
         assertThat(output.getRows().getFirst().get("UsageQuantity"), is(new BigDecimal("730")));
     }

@@ -35,7 +35,7 @@ class GetCostForecastTest {
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-14"))
             .endDate(Property.ofValue("2026-11-01"))
-            .metric(Property.ofValue(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST))
+            .metric(Property.ofValue(Metric.UNBLENDED_COST))
             .granularity(Property.ofValue(Granularity.MONTHLY))
             .predictionIntervalLevel(Property.ofValue(80))
             .build();
@@ -66,7 +66,7 @@ class GetCostForecastTest {
 
         var captor = ArgumentCaptor.forClass(GetCostForecastRequest.class);
         verify(client).getCostForecast(captor.capture());
-        assertThat(captor.getValue().metric(), is(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST));
+        assertThat(captor.getValue().metric(), is(Metric.UNBLENDED_COST));
         assertThat(captor.getValue().predictionIntervalLevel(), is(80));
     }
 
@@ -78,7 +78,7 @@ class GetCostForecastTest {
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue("2026-10-14"))
             .endDate(Property.ofValue("2026-11-01"))
-            .metric(Property.ofValue(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST))
+            .metric(Property.ofValue(Metric.UNBLENDED_COST))
             .granularity(Property.ofValue(Granularity.MONTHLY))
             .predictionIntervalLevel(Property.ofValue(100))
             .build();
@@ -99,7 +99,7 @@ class GetCostForecastTest {
             .region(Property.ofValue("us-east-1"))
             .startDate(Property.ofValue(""))
             .endDate(Property.ofValue("2026-11-01"))
-            .metric(Property.ofValue(software.amazon.awssdk.services.costexplorer.model.Metric.UNBLENDED_COST))
+            .metric(Property.ofValue(Metric.UNBLENDED_COST))
             .granularity(Property.ofValue(Granularity.MONTHLY))
             .build();
 

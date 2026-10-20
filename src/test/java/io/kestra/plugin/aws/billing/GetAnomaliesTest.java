@@ -66,9 +66,9 @@ class GetAnomaliesTest {
 
         assertThat(output.getSize(), is(2L));
         assertThat(output.getTotalImpact(), comparesEqualTo(new BigDecimal("350.5")));
-        assertThat(output.getRows().get(0).get("anomalyId"), is("a-1"));
+        assertThat(output.getRows().getFirst().get("anomalyId"), is("a-1"));
         @SuppressWarnings("unchecked")
-        var rootCauses = (List<Map<String, Object>>) output.getRows().get(0).get("rootCauses");
+        var rootCauses = (List<Map<String, Object>>) output.getRows().getFirst().get("rootCauses");
         assertThat(rootCauses.getFirst().get("service"), is("Amazon EC2"));
 
         var captor = ArgumentCaptor.forClass(GetAnomaliesRequest.class);

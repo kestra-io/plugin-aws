@@ -64,13 +64,13 @@ class DescribeBudgetsTest {
 
         assertThat(output.getSize(), is(2L));
         assertThat(output.getTruncated(), is(false));
-        assertThat(output.getRows().get(0).get("budgetName"), is("monthly-total"));
-        assertThat(output.getRows().get(0).get("actualSpendAmount"), is(new BigDecimal("512.3")));
-        assertThat(output.getRows().get(0).get("timeUnit"), is("MONTHLY"));
+        assertThat(output.getRows().getFirst().get("budgetName"), is("monthly-total"));
+        assertThat(output.getRows().getFirst().get("actualSpendAmount"), is(new BigDecimal("512.3")));
+        assertThat(output.getRows().getFirst().get("timeUnit"), is("MONTHLY"));
 
         var captor = ArgumentCaptor.forClass(DescribeBudgetsRequest.class);
         verify(client, times(2)).describeBudgets(captor.capture());
-        assertThat(captor.getAllValues().get(0).accountId(), is("123456789012"));
+        assertThat(captor.getAllValues().getFirst().accountId(), is("123456789012"));
         assertThat(captor.getAllValues().get(1).nextToken(), is("t2"));
     }
 
