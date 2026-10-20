@@ -182,10 +182,11 @@ public class GetCostAndUsage extends AbstractCostExplorer implements RunnableTas
         }
         var rFilter = runContext.render(dimensionFilter).asMap(String.class, List.class);
         var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
+        var rGranularity = runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required"));
 
         var requestBuilder = GetCostAndUsageRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required")))
+            .granularity(rGranularity)
             .metrics(rMetrics)
             .groupBy(rGroupBy.stream().map(GetCostAndUsage::groupDefinition).toList());
         var filter = filter(rFilter);

@@ -91,20 +91,19 @@ public class GetCostForecast extends AbstractCostExplorer implements RunnableTas
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+        var rMetric = runContext.render(metric).as(software.amazon.awssdk.services.costexplorer.model.Metric.class)
+            .orElseThrow(() -> new IllegalArgumentException("metric is required"));
+        var rGranularity = runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required"));
+        var rPredictionIntervalLevel = runContext.render(predictionIntervalLevel).as(Integer.class).orElse(null);
         var requestBuilder = GetCostForecastRequest.builder()
             .timePeriod(dateInterval(runContext))
-            .metric(
-                runContext.render(metric).as(software.amazon.awssdk.services.costexplorer.model.Metric.class)
-                    .orElseThrow(() -> new IllegalArgumentException("metric is required"))
-            )
-            .granularity(runContext.render(granularity).as(Granularity.class).orElseThrow(() -> new IllegalArgumentException("granularity is required")));
-        var rPredictionIntervalLevel = runContext.render(predictionIntervalLevel).as(Integer.class);
-        if (rPredictionIntervalLevel.isPresent()) {
-            var level = rPredictionIntervalLevel.get();
-            if (level < 51 || level > 99) {
-                throw new IllegalArgumentException("predictionIntervalLevel must be between 51 and 99, got " + level);
+            .metric(rMetric)
+            .granularity(rGranularity);
+        if (rPredictionIntervalLevel != null) {
+            if (rPredictionIntervalLevel < 51 || rPredictionIntervalLevel > 99) {
+                throw new IllegalArgumentException("predictionIntervalLevel must be between 51 and 99, got " + rPredictionIntervalLevel);
             }
-            requestBuilder.predictionIntervalLevel(level);
+            requestBuilder.predictionIntervalLevel(rPredictionIntervalLevel);
         }
 
         GetCostForecastResponse response;

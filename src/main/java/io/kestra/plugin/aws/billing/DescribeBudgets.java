@@ -89,6 +89,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
     public Output run(RunContext runContext) throws Exception {
         var rAccountId = BillingFetch.requiredString(runContext, accountId, "accountId");
         var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
+        var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);
 
         var rows = new ArrayList<Map<String, Object>>();
         String nextToken = null;
@@ -113,7 +114,7 @@ public class DescribeBudgets extends AbstractBudgets implements RunnableTask<Des
             runContext.logger().warn("Stopped after maxPages={} requests, more budgets are available. Increase maxPages to read them.", rMaxPages);
         }
 
-        var fetched = BillingFetch.apply(runContext, runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE), rows);
+        var fetched = BillingFetch.apply(runContext, rFetchType, rows);
         return Output.builder()
             .rows(fetched.rows())
             .row(fetched.row())

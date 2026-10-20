@@ -110,19 +110,21 @@ public class GetAnomalies extends AbstractCostExplorer implements RunnableTask<G
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        var start = requiredDate(runContext, startDate, "startDate");
-        var end = requiredDate(runContext, endDate, "endDate");
-        if (end.isBefore(start)) {
-            throw new IllegalArgumentException("endDate (" + end + ") must not be before startDate (" + start + ")");
+        var rStartDate = requiredDate(runContext, startDate, "startDate");
+        var rEndDate = requiredDate(runContext, endDate, "endDate");
+        if (rEndDate.isBefore(rStartDate)) {
+            throw new IllegalArgumentException("endDate (" + rEndDate + ") must not be before startDate (" + rStartDate + ")");
         }
+        var rMonitorArn = runContext.render(monitorArn).as(String.class).orElse(null);
+        var rMinImpactUsd = runContext.render(minImpactUsd).as(Double.class).orElse(null);
         var requestBuilder = GetAnomaliesRequest.builder()
-            .dateInterval(AnomalyDateInterval.builder().startDate(start.toString()).endDate(end.toString()).build());
-        runContext.render(monitorArn).as(String.class).ifPresent(requestBuilder::monitorArn);
-        runContext.render(minImpactUsd).as(Double.class).ifPresent(
-            min -> requestBuilder.totalImpact(
-                TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(min).build()
-            )
-        );
+            .dateInterval(AnomalyDateInterval.builder().startDate(rStartDate.toString()).endDate(rEndDate.toString()).build())
+            .monitorArn(rMonitorArn);
+        if (rMinImpactUsd != null) {
+            requestBuilder.totalImpact(
+                TotalImpactFilter.builder().numericOperator(NumericOperator.GREATER_THAN_OR_EQUAL).startValue(rMinImpactUsd).build()
+            );
+        }
         var rMaxPages = BillingFetch.maxPages(runContext, maxPages);
 
         var rFetchType = runContext.render(fetchType).as(FetchType.class).orElse(FetchType.STORE);

@@ -46,11 +46,11 @@ final class BillingFetch {
     }
 
     static int maxPages(RunContext runContext, Property<Integer> maxPages) throws IllegalVariableEvaluationException {
-        var value = runContext.render(maxPages).as(Integer.class).orElse(DEFAULT_MAX_PAGES);
-        if (value < 1) {
-            throw new IllegalArgumentException("maxPages must be at least 1, got " + value);
+        var rMaxPages = runContext.render(maxPages).as(Integer.class).orElse(DEFAULT_MAX_PAGES);
+        if (rMaxPages < 1) {
+            throw new IllegalArgumentException("maxPages must be at least 1, got " + rMaxPages);
         }
-        return value;
+        return rMaxPages;
     }
 
     private static URI store(RunContext runContext, List<Map<String, Object>> items) throws IOException {

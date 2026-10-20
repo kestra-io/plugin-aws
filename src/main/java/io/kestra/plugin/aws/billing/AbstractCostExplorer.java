@@ -47,12 +47,12 @@ public abstract class AbstractCostExplorer extends AbstractConnection {
     protected Property<String> endDate;
 
     protected DateInterval dateInterval(RunContext runContext) throws IllegalVariableEvaluationException {
-        var start = requiredDate(runContext, startDate, "startDate");
-        var end = requiredDate(runContext, endDate, "endDate");
-        if (!end.isAfter(start)) {
-            throw new IllegalArgumentException("endDate (" + end + ") must be after startDate (" + start + "); endDate is exclusive.");
+        var rStartDate = requiredDate(runContext, startDate, "startDate");
+        var rEndDate = requiredDate(runContext, endDate, "endDate");
+        if (!rEndDate.isAfter(rStartDate)) {
+            throw new IllegalArgumentException("endDate (" + rEndDate + ") must be after startDate (" + rStartDate + "); endDate is exclusive.");
         }
-        return DateInterval.builder().start(start.toString()).end(end.toString()).build();
+        return DateInterval.builder().start(rStartDate.toString()).end(rEndDate.toString()).build();
     }
 
     static LocalDate requiredDate(RunContext runContext, Property<String> property, String name) throws IllegalVariableEvaluationException {

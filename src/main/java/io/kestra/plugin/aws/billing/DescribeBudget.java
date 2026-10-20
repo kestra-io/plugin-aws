@@ -64,9 +64,11 @@ public class DescribeBudget extends AbstractBudgets implements RunnableTask<Desc
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+        var rAccountId = BillingFetch.requiredString(runContext, accountId, "accountId");
+        var rBudgetName = BillingFetch.requiredString(runContext, budgetName, "budgetName");
         var request = DescribeBudgetRequest.builder()
-            .accountId(BillingFetch.requiredString(runContext, accountId, "accountId"))
-            .budgetName(BillingFetch.requiredString(runContext, budgetName, "budgetName"))
+            .accountId(rAccountId)
+            .budgetName(rBudgetName)
             .build();
 
         try (var client = client(runContext)) {
