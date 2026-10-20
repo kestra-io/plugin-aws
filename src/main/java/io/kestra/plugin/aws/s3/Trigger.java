@@ -16,8 +16,9 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.s3.models.S3Object;
+import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
+import io.kestra.plugin.aws.utils.KillableClientHolder;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -193,8 +194,18 @@ public class Trigger extends AbstractTrigger
     )
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient KillableClientHolder killable = new KillableClientHolder();
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        return killable.evaluate(conditionContext.getRunContext().logger(), () -> doEvaluate(conditionContext, context));
+    }
+
+    private Optional<Execution> doEvaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
@@ -229,7 +240,7 @@ public class Trigger extends AbstractTrigger
             .forcePathStyle(this.forcePathStyle)
             .build();
 
-        List.Output run = task.run(runContext);
+        List.Output run = killable.run(() -> task.client(runContext), client -> task.run(runContext, client));
 
         if (run.getObjects().isEmpty()) {
             return Optional.empty();
@@ -274,7 +285,7 @@ public class Trigger extends AbstractTrigger
                         .forcePathStyle(this.forcePathStyle)
                         .build();
 
-                    var dlOut = download.run(runContext);
+                    var dlOut = killable.run(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
                     var downloaded = object.withUri(dlOut.getUri());
 
                     actionBlobs.add(object);
@@ -290,18 +301,31 @@ public class Trigger extends AbstractTrigger
             }))
             .toList();
 
-        writeState(runContext, rStateKey, previousState, rStateTtl);
+        killable.throwIfKilled();
 
         if (toFire.isEmpty()) {
+            writeState(runContext, rStateKey, previousState, rStateTtl);
             return Optional.empty();
         }
 
-        S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this);
+        // state is written only once the action succeeded, so objects left unprocessed by a failed or killed
+        // MOVE/DELETE are picked up again on the next evaluation instead of being marked as seen
+        killable.runWithoutClient(() -> S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this));
+
+        writeState(runContext, rStateKey, previousState, rStateTtl);
 
         var output = Output.builder().objects(toFire).build();
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
 
         return Optional.of(execution);
+    }
+
+    /**
+     * {@inheritDoc}
+     **/
+    @Override
+    public void kill() {
+        killable.kill();
     }
 
     public enum ChangeType {
