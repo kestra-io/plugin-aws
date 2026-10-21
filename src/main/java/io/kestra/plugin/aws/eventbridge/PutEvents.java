@@ -223,7 +223,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         }
     }
 
-    private EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+    EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
     }
