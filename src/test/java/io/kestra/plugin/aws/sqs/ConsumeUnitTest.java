@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import jakarta.inject.Inject;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -76,8 +78,7 @@ class ConsumeUnitTest {
         assertThrows(IllegalStateException.class, () -> task.run(runContext));
     }
 
-    // Regression test for https://github.com/kestra-io/plugin-aws/issues/826:
-    // with maxDuration set, an empty first poll must not end the task.
+    // Regression test for #826: an empty first poll must not end the task.
     @Test
     void consumeWithMaxDurationOnEmptyQueue_keepsPolling() throws Exception {
         var runContext = runContextFactory.of();
@@ -93,19 +94,19 @@ class ConsumeUnitTest {
             )
             .build();
 
-        SqsClient mockClient = mock(SqsClient.class);
+        var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(emptyResponse)
             .thenReturn(messageResponse)
             .thenReturn(emptyResponse);
 
-        Consume task = spy(
+        var task = spy(
             Consume.builder()
                 .id("consume-empty-queue-test")
                 .type(Consume.class.getName())
                 .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
                 .region(Property.ofValue("us-east-1"))
-                .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(3)))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(3)))
                 .autoDelete(Property.ofValue(false))
                 .build()
         );
@@ -114,9 +115,7 @@ class ConsumeUnitTest {
 
         var output = task.run(runContext);
 
-        // The message arriving after the first empty poll is consumed...
-        org.hamcrest.MatcherAssert.assertThat(output.getCount(), is(1));
-        // ...proving the task kept polling instead of exiting after the first empty receive.
+        assertThat(output.getCount(), is(1));
         verify(mockClient, atLeast(3)).receiveMessage(any(ReceiveMessageRequest.class));
     }
 
