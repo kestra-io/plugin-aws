@@ -108,7 +108,7 @@ class ConsumeUnitTest {
 
         var task = spy(
             Consume.builder()
-                .id("consume-empty-queue-test")
+                .id(IdUtils.create())
                 .type(Consume.class.getName())
                 .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
                 .region(Property.ofValue("us-east-1"))
