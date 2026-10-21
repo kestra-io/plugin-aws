@@ -21,8 +21,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import static io.kestra.core.models.triggers.StatefulTriggerService.*;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -57,7 +55,7 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, StatefulTriggerInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output> {
     @Schema(
         title = "Access Key Id in order to connect to AWS",
         description = "If no credentials are defined, we will use the [default credentials provider chain](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials-chain.html) to fetch credentials."
@@ -153,14 +151,23 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
-    @Builder.Default
-    @Schema(title = "Trigger condition", description = "Stateful trigger condition; defaults to CREATE_OR_UPDATE.")
-    private final Property<StatefulTriggerInterface.On> on = Property.ofValue(StatefulTriggerInterface.On.CREATE_OR_UPDATE);
-
-    @Schema(title = "State key", description = "Key under which per-shard sequence positions are persisted; defaults to a stable per-trigger value.")
+    @Schema(
+        title = "State key",
+        description = """
+            Key under which per-shard sequence positions are persisted.
+            Defaults to a length-prefixed key derived from namespace, flow, trigger, region, endpoint and stream.
+            """
+    )
+    @PluginProperty(group = "advanced")
     private Property<String> stateKey;
 
-    @Schema(title = "State TTL", description = "How long persisted shard positions are retained; unset means no expiry.")
+    @Schema(
+        title = "State TTL",
+        description = """
+            How long persisted shard positions are retained; unset means no expiry.
+            """
+    )
+    @PluginProperty(group = "advanced")
     private Property<Duration> stateTtl;
 
     @Builder.Default
@@ -180,17 +187,25 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
-        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
+        var rStream = runContext.render(streamName).as(String.class).orElseThrow();
+        var rRegion = runContext.render(region).as(String.class).orElse("");
+        var rEndpoint = runContext.render(endpointOverride).as(String.class).orElse("");
+        var streamScope = stateScope(rRegion, rEndpoint, rStream);
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(stateKey(context, rRegion, rEndpoint, rStream));
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
-        var previousState = readState(runContext, rStateKey, rStateTtl);
-        Map<String, String> sequences = new HashMap<>();
-        previousState.forEach((shard, entry) -> sequences.put(shard, entry.version()));
+        var previousState = StatefulTriggerService.readState(runContext, rStateKey, rStateTtl);
+        var sequences = new HashMap<String, String>();
+        previousState.forEach((key, entry) -> {
+            if (key.startsWith(streamScope)) {
+                sequences.put(key.substring(streamScope.length()), entry.version());
+            }
+        });
 
         Consume consume = Consume.builder()
             .streamName(this.streamName)
             .iteratorType(this.iteratorType)
             .startingSequenceNumber(this.startingSequenceNumber)
-            .startingSequencePerShard(sequences)
+            .startingSequencePerShard(Property.ofValue(sequences))
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)
             .pollDuration(this.pollDuration)
@@ -208,10 +223,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         Consume.Output output = consume.run(runContext);
 
-        if (output.getLastSequencePerShard() != null && !output.getLastSequencePerShard().isEmpty()) {
-            output.getLastSequencePerShard().forEach((shard, sequence) -> previousState.put(shard, StatefulTriggerService.Entry.candidate(shard, sequence, Instant.now())));
-            writeState(runContext, rStateKey, previousState, rStateTtl);
-        }
+        output.getLastSequencePerShard().forEach((shard, sequence) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, sequence, Instant.now())));
+        StatefulTriggerService.writeState(runContext, rStateKey, previousState, rStateTtl);
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", output.getCount());
@@ -224,5 +237,18 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(
             TriggerService.generateExecution(this, conditionContext, context, output)
         );
+    }
+
+    private static String stateKey(TriggerContext context, String region, String endpoint, String stream) {
+        return "kinesis_" + lengthPrefixed(context.getNamespace()) + lengthPrefixed(context.getFlowId()) + lengthPrefixed(context.getTriggerId())
+            + lengthPrefixed(region) + lengthPrefixed(endpoint) + lengthPrefixed(stream);
+    }
+
+    private static String stateScope(String region, String endpoint, String stream) {
+        return lengthPrefixed(region) + lengthPrefixed(endpoint) + lengthPrefixed(stream);
+    }
+
+    private static String lengthPrefixed(String value) {
+        return value.length() + "_" + value;
     }
 }

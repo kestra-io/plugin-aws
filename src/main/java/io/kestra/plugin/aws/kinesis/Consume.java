@@ -96,10 +96,15 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
-    /** Per-shard resume positions supplied by the polling trigger. */
     @Builder.Default
-    @Schema(title = "Starting sequence number per shard", description = "Internal resume positions supplied by the polling trigger.")
-    private Map<String, String> startingSequencePerShard = Map.of();
+    @Schema(
+        title = "Starting sequence number per shard",
+        description = """
+            Internal resume positions supplied by the polling trigger.
+            """
+    )
+    @PluginProperty(hidden = true, group = "advanced")
+    private Property<Map<String, String>> startingSequencePerShard = Property.ofValue(Map.of());
 
     @Builder.Default
     @Schema(
@@ -140,6 +145,8 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
+        var rStartingSequencePerShard = runContext.render(startingSequencePerShard).asMap(String.class, String.class);
+        var pollStartedAt = Instant.now();
 
         File outFile = runContext.workingDir().createTempFile(".ion").toFile();
         BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(outFile));
@@ -147,17 +154,22 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         int consumed = 0;
         Map<String, String> lastSequence = new HashMap<>();
         var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
+        var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE);
 
         for (Shard shard : shards) {
-            if (isStopped.get()) {
+            if (isStopped.get() || consumed >= rMaxRecords) {
                 break;
             }
-            String iterator = buildShardIterator(runContext, client, rStream, shard);
+            var startingPosition = rStartingSequencePerShard.get(shard.shardId());
+            var lastPosition = startingPosition == null ? timestampPosition(pollStartedAt) : startingPosition;
+            var iterator = buildShardIterator(runContext, client, rStream, shard, startingPosition);
+            var shardRead = false;
 
             while (iterator != null) {
                 if (isStopped.get()) {
                     break;
                 }
+                shardRead = true;
 
                 GetRecordsResponse response = client.getRecords(
                     GetRecordsRequest.builder()
@@ -178,9 +190,9 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                     FileSerde.write(output, consumedRecord);
 
                     consumed++;
-                    lastSequence.put(shard.shardId(), record.sequenceNumber());
+                    lastPosition = record.sequenceNumber();
 
-                    if (consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)) {
+                    if (consumed >= rMaxRecords) {
                         break;
                     }
                 }
@@ -189,12 +201,16 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
                 if (
                     Instant.now().isAfter(rMaxDuration) ||
-                        consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)
+                        consumed >= rMaxRecords
                 ) {
                     break;
                 }
 
                 Thread.sleep(runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1)).toMillis());
+            }
+
+            if (shardRead) {
+                lastSequence.put(shard.shardId(), lastPosition);
             }
         }
 
@@ -212,19 +228,26 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             .build();
     }
 
-    private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard) throws IllegalVariableEvaluationException {
-        String savedSequence = startingSequencePerShard.get(shard.shardId());
+    private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
+        var savedSequence = startingPosition != null && !startingPosition.startsWith("timestamp:") ? startingPosition : null;
+        var savedTimestamp = startingPosition != null && startingPosition.startsWith("timestamp:")
+            ? Instant.parse(startingPosition.substring("timestamp:".length()))
+            : null;
         var builder = GetShardIteratorRequest.builder()
             .streamName(stream)
             .shardId(shard.shardId())
             .shardIteratorType(
-                savedSequence == null
-                    ? ShardIteratorType.fromValue(runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name())
-                    : ShardIteratorType.AFTER_SEQUENCE_NUMBER
+                savedSequence != null
+                    ? ShardIteratorType.AFTER_SEQUENCE_NUMBER
+                    : savedTimestamp != null
+                        ? ShardIteratorType.AT_TIMESTAMP
+                        : ShardIteratorType.fromValue(runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name())
             );
 
         if (savedSequence != null) {
             builder.startingSequenceNumber(savedSequence);
+        } else if (savedTimestamp != null) {
+            builder.timestamp(savedTimestamp);
         } else if (startingSequenceNumber != null) {
             runContext.render(startingSequenceNumber)
                 .as(String.class)
@@ -232,6 +255,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         }
 
         return client.getShardIterator(builder.build()).shardIterator();
+    }
+
+    private static String timestampPosition(Instant timestamp) {
+        return "timestamp:" + timestamp;
     }
 
     @Getter
