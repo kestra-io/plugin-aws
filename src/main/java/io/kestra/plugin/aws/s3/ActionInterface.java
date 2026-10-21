@@ -15,7 +15,13 @@ public interface ActionInterface {
     Property<Action> getAction();
 
     @Schema(
-        title = "The destination bucket and key for `MOVE` action"
+        title = "The destination bucket and key for `MOVE` action",
+        description = """
+            When moving files, any relative directory structure under the configured `prefix` is preserved under `moveTo.key`.
+            If the `prefix` does not end on a folder boundary (e.g. `data/2023`), the common parent folder (`data/`) is used to preserve subdirectories.
+            If no `prefix` is configured, only the file name is appended.
+            If multiple objects resolve to the same destination key, execution fails before any copy or delete occurs to prevent data loss.
+            """
     )
     @PluginProperty(dynamic = true, group = "destination")
     Copy.CopyObject getMoveTo();

@@ -246,11 +246,14 @@ public class Trigger extends AbstractTrigger
             return Optional.empty();
         }
 
+        S3Service.moveTargets(run.getObjects(), this.action, this.moveTo, runContext, this);
+
         var previousState = readState(runContext, rStateKey, rStateTtl);
 
         java.util.List<S3Object> actionBlobs = new ArrayList<>();
 
         var toFire = run.getObjects().stream()
+            .filter(object -> !S3Service.isDirectoryMarker(object))
             .flatMap(throwFunction(object ->
             {
                 var resolvedBucket = runContext.render(bucket).as(String.class).orElse("");
