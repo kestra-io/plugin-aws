@@ -5,8 +5,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -275,7 +277,7 @@ class PutEventsTest extends AbstractFlociTest {
     void runBatchingMoreThanTen() throws Exception {
         var runContext = runContextFactory.of();
 
-        List<Entry> entries = new java.util.ArrayList<>();
+        var entries = new ArrayList<Entry>();
         for (int i = 0; i < 15; i++) {
             entries.add(
                 Entry.builder()

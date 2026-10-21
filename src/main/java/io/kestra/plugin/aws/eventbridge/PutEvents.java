@@ -4,9 +4,9 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -126,6 +126,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+    private static final int MAX_BATCH_SIZE = 10;
 
     @NotNull
     @Schema(
@@ -193,21 +194,19 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
         return tempFile;
     }
 
-    private static final int MAX_BATCH_SIZE = 10;
-
     private PutEventsResponse putEvents(RunContext runContext, List<Entry> entryList) throws Exception {
         try (var eventBridgeClient = client(runContext)) {
-            List<PutEventsResultEntry> allResponseEntries = new java.util.ArrayList<>();
+            var requestEntries = entryList.stream()
+                .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
+                .toList();
+
+            var allResponseEntries = new ArrayList<PutEventsResultEntry>();
             int totalFailedCount = 0;
 
-            for (int i = 0; i < entryList.size(); i += MAX_BATCH_SIZE) {
-                List<Entry> batch = entryList.subList(i, Math.min(i + MAX_BATCH_SIZE, entryList.size()));
-                List<PutEventsRequestEntry> requestEntries = batch.stream()
-                    .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
-                    .collect(Collectors.toList());
-
-                PutEventsRequest eventsRequest = PutEventsRequest.builder()
-                    .entries(requestEntries)
+            for (int i = 0; i < requestEntries.size(); i += MAX_BATCH_SIZE) {
+                var batch = requestEntries.subList(i, Math.min(i + MAX_BATCH_SIZE, requestEntries.size()));
+                var eventsRequest = PutEventsRequest.builder()
+                    .entries(batch)
                     .build();
 
                 PutEventsResponse response = eventBridgeClient.putEvents(eventsRequest);
