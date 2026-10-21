@@ -1,7 +1,9 @@
 package io.kestra.plugin.aws.s3;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.Map;
@@ -16,9 +18,11 @@ import io.kestra.plugin.aws.s3.models.S3Object;
 import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DownloadsTest extends AbstractTest {
     @Test
@@ -257,5 +261,149 @@ class DownloadsTest extends AbstractTest {
         Downloads.Output run = task.run(runContext(task));
 
         assertThat(run.getObjects().size(), is(5));
+    }
+
+    private void uploadContent(String key, byte[] content) throws Exception {
+        var source = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI("/" + IdUtils.create()),
+            new ByteArrayInputStream(content)
+        );
+        var upload = Upload.builder()
+            .id(IdUtils.create())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .build();
+        upload.run(runContext(upload));
+    }
+
+    @Test
+    void shouldPreserveSubdirectoriesAndSkipDirectoryMarkersOnMove() throws Exception {
+        this.createBucket();
+
+        var content2023 = "year,sales\n2023,100";
+        var content2024 = "year,sales\n2024,200";
+
+        uploadContent("incoming/2023/report.csv", content2023.getBytes(StandardCharsets.UTF_8));
+        uploadContent("incoming/2024/report.csv", content2024.getBytes(StandardCharsets.UTF_8));
+        uploadContent("incoming/subfolder/", new byte[0]);
+
+        var task = Downloads.builder()
+            .id(IdUtils.create())
+            .type(Downloads.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .prefix(Property.ofValue("incoming/"))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue("archive/"))
+                    .build()
+            )
+            .build();
+
+        var run = task.run(runContext(task));
+
+        assertThat(run.getObjects().size(), is(2));
+        assertThat(run.getOutputFiles().size(), is(2));
+
+        var listIncoming = list().prefix(Property.ofValue("incoming/")).build();
+        var incomingResult = listIncoming.run(runContext(listIncoming));
+        assertThat(incomingResult.getObjects().size(), is(1));
+        assertThat(incomingResult.getObjects().getFirst().getKey(), is("incoming/subfolder/"));
+
+        var listArchive = list().prefix(Property.ofValue("archive/")).build();
+        var archiveResult = listArchive.run(runContext(listArchive));
+        assertThat(archiveResult.getObjects().size(), is(2));
+
+        var movedKeys = archiveResult.getObjects().stream().map(S3Object::getKey).toList();
+        assertThat(movedKeys, containsInAnyOrder("archive/2023/report.csv", "archive/2024/report.csv"));
+
+        var download2023 = Download.builder()
+            .id(IdUtils.create())
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .key(Property.ofValue("archive/2023/report.csv"))
+            .build();
+        var out2023 = download2023.run(runContext(download2023));
+        try (var is = storageInterface.get(TenantService.MAIN_TENANT, null, out2023.getUri())) {
+            var readContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            assertThat(readContent, is(content2023));
+        }
+
+        var download2024 = Download.builder()
+            .id(IdUtils.create())
+            .type(Download.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .key(Property.ofValue("archive/2024/report.csv"))
+            .build();
+        var out2024 = download2024.run(runContext(download2024));
+        try (var is = storageInterface.get(TenantService.MAIN_TENANT, null, out2024.getUri())) {
+            var readContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            assertThat(readContent, is(content2024));
+        }
+    }
+
+    @Test
+    void shouldPreventDataLossOnMoveCollision() throws Exception {
+        this.createBucket();
+
+        uploadContent("folderA/file.txt", "data1".getBytes(StandardCharsets.UTF_8));
+        uploadContent("folderB/file.txt", "data2".getBytes(StandardCharsets.UTF_8));
+
+        var task = Downloads.builder()
+            .id(IdUtils.create())
+            .type(Downloads.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue("archive/"))
+                    .build()
+            )
+            .build();
+
+        assertThrows(
+            IllegalStateException.class,
+            () -> task.run(runContext(task))
+        );
+
+        var listFolderA = list().prefix(Property.ofValue("folderA/")).build();
+        assertThat(listFolderA.run(runContext(listFolderA)).getObjects().size(), is(1));
+
+        var listFolderB = list().prefix(Property.ofValue("folderB/")).build();
+        assertThat(listFolderB.run(runContext(listFolderB)).getObjects().size(), is(1));
     }
 }
