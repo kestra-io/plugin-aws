@@ -1,5 +1,8 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -241,7 +244,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private static String stateKey(TriggerContext context, String region, String endpoint, String stream) {
         return "kinesis_" + lengthPrefixed(context.getNamespace()) + lengthPrefixed(context.getFlowId()) + lengthPrefixed(context.getTriggerId())
-            + lengthPrefixed(region) + lengthPrefixed(endpoint) + lengthPrefixed(stream);
+            + sha256Hex(region + "\n" + endpoint + "\n" + stream);
     }
 
     private static String stateScope(String region, String endpoint, String stream) {
@@ -250,5 +253,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private static String lengthPrefixed(String value) {
         return value.length() + "_" + value;
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 }
