@@ -74,4 +74,93 @@ class S3ServiceListTest {
         // Verify the second call carried the continuation token.
         verify(mockClient, times(2)).listObjectsV2(any(ListObjectsV2Request.class));
     }
+
+    @Test
+    void shouldContinuePaginationWhenInitialPageDoesNotMatchFilter() throws Exception {
+        RunContext runContext = runContextFactory.of();
+
+        var obj1 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("archive/old1.txt").size(10L).build();
+        var obj2 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("archive/old2.txt").size(20L).build();
+        var obj3 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("data/orders.csv").size(30L).build();
+
+        var page1 = ListObjectsV2Response.builder()
+            .isTruncated(true)
+            .nextContinuationToken("token-page2")
+            .contents(obj1, obj2)
+            .build();
+
+        var page2 = ListObjectsV2Response.builder()
+            .isTruncated(false)
+            .contents(obj3)
+            .build();
+
+        S3Client mockClient = mock(S3Client.class);
+        when(mockClient.listObjectsV2(any(ListObjectsV2Request.class)))
+            .thenAnswer(inv -> {
+                ListObjectsV2Request req = inv.getArgument(0);
+                return "token-page2".equals(req.continuationToken()) ? page2 : page1;
+            });
+
+        var task = io.kestra.plugin.aws.s3.List.builder()
+            .id("s3-service-list-pagination-filter")
+            .type(io.kestra.plugin.aws.s3.List.class.getName())
+            .bucket(Property.ofValue("my-bucket"))
+            .regexp(Property.ofValue(".*\\.csv"))
+            .maxKeys(Property.ofValue(2))
+            .build();
+
+        List<S3Object> result = S3Service.list(runContext, mockClient, task, task);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0).getKey(), is("data/orders.csv"));
+        verify(mockClient, times(2)).listObjectsV2(any(ListObjectsV2Request.class));
+    }
+
+    @Test
+    void shouldStopPaginationWhenMatchingCountReachesMaxKeys() throws Exception {
+        RunContext runContext = runContextFactory.of();
+
+        var obj1 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("orders-1.csv").size(10L).build();
+        var obj2 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("orders-2.csv").size(20L).build();
+        var obj3 = software.amazon.awssdk.services.s3.model.S3Object.builder()
+            .key("orders-3.csv").size(30L).build();
+
+        var page1 = ListObjectsV2Response.builder()
+            .isTruncated(true)
+            .nextContinuationToken("token-page2")
+            .contents(obj1, obj2)
+            .build();
+
+        var page2 = ListObjectsV2Response.builder()
+            .isTruncated(false)
+            .contents(obj3)
+            .build();
+
+        S3Client mockClient = mock(S3Client.class);
+        when(mockClient.listObjectsV2(any(ListObjectsV2Request.class)))
+            .thenAnswer(inv -> {
+                ListObjectsV2Request req = inv.getArgument(0);
+                return "token-page2".equals(req.continuationToken()) ? page2 : page1;
+            });
+
+        var task = io.kestra.plugin.aws.s3.List.builder()
+            .id("s3-service-list-max-keys")
+            .type(io.kestra.plugin.aws.s3.List.class.getName())
+            .bucket(Property.ofValue("my-bucket"))
+            .regexp(Property.ofValue(".*\\.csv"))
+            .maxKeys(Property.ofValue(2))
+            .build();
+
+        List<S3Object> result = S3Service.list(runContext, mockClient, task, task);
+
+        assertThat(result, hasSize(2));
+        assertThat(result.get(0).getKey(), is("orders-1.csv"));
+        assertThat(result.get(1).getKey(), is("orders-2.csv"));
+        verify(mockClient, times(1)).listObjectsV2(any(ListObjectsV2Request.class));
+    }
 }

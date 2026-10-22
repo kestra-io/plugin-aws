@@ -32,7 +32,6 @@ import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
 
-import static io.kestra.core.utils.Rethrow.throwPredicate;
 
 public class S3Service {
 
@@ -275,23 +274,24 @@ public class S3Service {
         var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
 
         ListObjectsV2Request baseRequest = builder.build();
-        List<software.amazon.awssdk.services.s3.model.S3Object> allContents = new ArrayList<>();
+        List<S3Object> result = new ArrayList<>();
 
         ListObjectsV2Request currentRequest = baseRequest;
         ListObjectsV2Response response;
         do {
             response = client.listObjectsV2(currentRequest);
-            allContents.addAll(response.contents());
-
-            // maxKeys is a total cap across pages, the per-page size is capped at 1000 by S3.
-            if (allContents.size() >= rMaxKeys) {
-                break;
+            for (var s3Object : response.contents()) {
+                if (S3Service.filter(s3Object, regExp, filter)) {
+                    result.add(S3Object.of(s3Object));
+                    if (result.size() >= rMaxKeys) {
+                        return result;
+                    }
+                }
             }
 
             if (response.isTruncated()) {
                 String nextToken = response.nextContinuationToken();
                 if (nextToken == null) {
-                    // Guard: isTruncated=true but no token returned, stop to avoid an infinite loop.
                     runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no continuation token available.");
                     break;
                 }
@@ -299,12 +299,7 @@ public class S3Service {
             }
         } while (response.isTruncated());
 
-        var contents = allContents.size() > rMaxKeys ? allContents.subList(0, rMaxKeys) : allContents;
-
-        return contents.stream()
-            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
-            .map(S3Object::of)
-            .toList();
+        return result;
     }
 
     private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
