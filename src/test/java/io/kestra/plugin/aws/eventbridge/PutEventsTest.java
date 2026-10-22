@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -301,9 +300,9 @@ class PutEventsTest extends AbstractFlociTest {
         assertThat(output.getEntryCount(), is(15));
         assertThat(output.getFailedEntryCount(), is(0));
 
-        List<PutEvents.OutputEntry> outputEntries = getOutputEntries(put, runContext);
+        var outputEntries = getOutputEntries(put, runContext);
         assertThat(outputEntries, hasSize(15));
-        for (PutEvents.OutputEntry outputEntry : outputEntries) {
+        for (var outputEntry : outputEntries) {
             assertThat(outputEntry.getEventId(), notNullValue());
             assertThat(outputEntry.getErrorCode(), nullValue());
             assertThat(outputEntry.getErrorMessage(), nullValue());

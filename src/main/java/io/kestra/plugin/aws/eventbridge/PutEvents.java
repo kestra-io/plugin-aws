@@ -201,7 +201,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
                 .toList();
 
             var allResponseEntries = new ArrayList<PutEventsResultEntry>();
-            int totalFailedCount = 0;
+            var totalFailedCount = 0;
 
             for (int i = 0; i < requestEntries.size(); i += MAX_BATCH_SIZE) {
                 var batch = requestEntries.subList(i, Math.min(i + MAX_BATCH_SIZE, requestEntries.size()));
@@ -209,7 +209,7 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
                     .entries(batch)
                     .build();
 
-                PutEventsResponse response = eventBridgeClient.putEvents(eventsRequest);
+                var response = eventBridgeClient.putEvents(eventsRequest);
                 if (response.entries() != null) {
                     allResponseEntries.addAll(response.entries());
                 }
