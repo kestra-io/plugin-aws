@@ -277,7 +277,7 @@ class PutEventsTest extends AbstractFlociTest {
         var runContext = runContextFactory.of();
 
         var entries = new ArrayList<Entry>();
-        for (int i = 0; i < 15; i++) {
+        for (var i = 0; i < 15; i++) {
             entries.add(
                 Entry.builder()
                     .eventBusName("test-bus")

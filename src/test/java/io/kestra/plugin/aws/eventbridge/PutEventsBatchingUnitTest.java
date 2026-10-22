@@ -44,7 +44,7 @@ class PutEventsBatchingUnitTest {
             );
 
         var entries = new ArrayList<Entry>();
-        for (int i = 0; i < 15; i++) {
+        for (var i = 0; i < 15; i++) {
             entries.add(
                 Entry.builder()
                     .source("custom.test")
