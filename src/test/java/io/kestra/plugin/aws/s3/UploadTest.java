@@ -456,4 +456,54 @@ class UploadTest extends AbstractTest {
 
         assertThat(uploadOutput.getFiles().keySet(), containsInAnyOrder("first.yml", "second.yml"));
     }
+
+    @Test
+    void run_collidingFileNamesInListShouldThrow() throws Exception {
+        this.createBucket();
+
+        URI source1 = storagePut("report.csv");
+        URI source2 = storagePut("report.csv");
+
+        Upload upload = Upload.builder()
+            .id(IdUtils.create())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(this.BUCKET))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(java.util.List.of(source1.toString(), source2.toString()))
+            .key(Property.ofValue(IdUtils.create() + "/"))
+            .build();
+
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> upload.run(runContext(upload))
+        );
+
+        assertThat(
+            exception.getMessage(),
+            is("Cannot upload files: multiple source URIs resolve to the same destination key 'report.csv': '%s' and '%s'. Use a Map in the 'from' property to specify unique destination keys for each file, or ensure source file names are distinct.".formatted(source1, source2))
+        );
+    }
+
+    @Test
+    void shouldThrowWhenUriListContainsCollidingFileNames() {
+        var uris = java.util.List.of(
+            "kestra:///step1/report.csv",
+            "kestra:///step2/report.csv"
+        );
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> Upload.uriListToMap(uris)
+        );
+
+        assertThat(
+            exception.getMessage(),
+            is("Cannot upload files: multiple source URIs resolve to the same destination key 'report.csv': 'kestra:///step1/report.csv' and 'kestra:///step2/report.csv'. Use a Map in the 'from' property to specify unique destination keys for each file, or ensure source file names are distinct.")
+        );
+    }
 }
