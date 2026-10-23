@@ -62,5 +62,50 @@ class TriggerTest extends AbstractKinesisTest {
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
 
         assertThat(execution.isPresent(), is(true));
+
+        assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(streamName))
+            .records(List.of(Record.builder().partitionKey("pk").data("record 4").build()))
+            .build()
+            .run(runContextFactory.of());
+
+        var nextExecution = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(nextExecution.isPresent(), is(true));
+        assertThat(nextExecution.orElseThrow().getTrigger().getVariables().get("count"), is(1));
+    }
+
+    @Test
+    void evaluateLatest() throws Exception {
+        var trigger = Trigger.builder()
+            .id(TriggerTest.class.getSimpleName() + "Latest")
+            .type(TriggerTest.class.getName())
+            .streamName(Property.ofValue(streamName))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.LATEST))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(streamName))
+            .records(List.of(Record.builder().partitionKey("pk").data("latest record").build()))
+            .build()
+            .run(runContextFactory.of());
+
+        assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(true));
     }
 }
