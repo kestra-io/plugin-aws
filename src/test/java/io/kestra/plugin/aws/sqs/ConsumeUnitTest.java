@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -7,11 +8,13 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,6 +77,47 @@ class ConsumeUnitTest {
         doReturn(mockClient).when(task).client(any());
 
         assertThrows(IllegalStateException.class, () -> task.run(runContext));
+    }
+
+    // Regression test for #826: an empty first poll must not end the task.
+    @Test
+    void consumeWithMaxDurationOnEmptyQueue_keepsPolling() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var emptyResponse = ReceiveMessageResponse.builder().build();
+        var messageResponse = ReceiveMessageResponse.builder()
+            .messages(
+                Message.builder()
+                    .messageId("msg-1")
+                    .receiptHandle("rh-1")
+                    .body("hello")
+                    .build()
+            )
+            .build();
+
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(emptyResponse)
+            .thenReturn(messageResponse)
+            .thenReturn(emptyResponse);
+
+        var task = spy(
+            Consume.builder()
+                .id(IdUtils.create())
+                .type(Consume.class.getName())
+                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
+                .region(Property.ofValue("us-east-1"))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(3)))
+                .autoDelete(Property.ofValue(false))
+                .build()
+        );
+
+        doReturn(mockClient).when(task).client(any());
+
+        var output = task.run(runContext);
+
+        assertThat(output.getCount(), is(1));
+        verify(mockClient, atLeast(3)).receiveMessage(any(ReceiveMessageRequest.class));
     }
 
     @Test
