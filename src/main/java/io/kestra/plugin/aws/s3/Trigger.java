@@ -3,6 +3,7 @@ package io.kestra.plugin.aws.s3;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -19,6 +20,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 import io.kestra.plugin.aws.utils.KillableClientHolder;
+import io.kestra.plugin.aws.utils.TriggerKilledException;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -34,7 +36,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on S3 object creation/update",
-    description = "Polls a bucket on a fixed interval, listing with prefix/regex filters. Downloads matched objects to internal storage and can move or delete them to prevent reprocessing. Maintains state per trigger to avoid duplicates."
+    description = "Polls a bucket on a fixed interval, listing with prefix/regex filters. Downloads matched objects to internal storage and can move or delete them to prevent reprocessing. Maintains state per trigger to avoid duplicates. If the move or delete fails for an object, that object is not recorded in the state and is retried on the next poll."
 )
 @Plugin(
     examples = {
@@ -249,8 +251,8 @@ public class Trigger extends AbstractTrigger
         S3Service.moveTargets(run.getObjects(), this.action, this.moveTo, runContext, this);
 
         var previousState = readState(runContext, rStateKey, rStateTtl);
-
-        java.util.List<S3Object> actionBlobs = new ArrayList<>();
+        // State as read, to roll back the objects whose action fails so the next poll picks them up again.
+        var stateAsRead = new HashMap<>(previousState);
 
         var toFire = run.getObjects().stream()
             .filter(object -> !S3Service.isDirectoryMarker(object))
@@ -291,8 +293,6 @@ public class Trigger extends AbstractTrigger
                     var dlOut = killable.run(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
                     var downloaded = object.withUri(dlOut.getUri());
 
-                    actionBlobs.add(object);
-
                     return Stream.of(
                         TriggeredObject.builder()
                             .object(downloaded)
@@ -306,18 +306,43 @@ public class Trigger extends AbstractTrigger
 
         killable.throwIfKilled();
 
-        if (toFire.isEmpty()) {
-            writeState(runContext, rStateKey, previousState, rStateTtl);
-            return Optional.empty();
+        // The action runs before the state is saved, one object at a time: an object whose action fails is not recorded
+        // as seen, so it is retried on the next poll instead of being skipped forever. A kill aborts the evaluation
+        // cleanly (propagated as TriggerKilledException) rather than being treated as a retryable action failure.
+        var resolvedBucket = runContext.render(bucket).as(String.class).orElse("");
+        var fired = new ArrayList<TriggeredObject>();
+        Exception actionFailure = null;
+        for (var triggered : toFire) {
+            killable.throwIfKilled();
+            try {
+                killable.runWithoutClient(() -> S3Service.performAction(java.util.List.of(triggered.toObject()), this.action, this.moveTo, runContext, this, this));
+                fired.add(triggered);
+            } catch (TriggerKilledException e) {
+                throw e;
+            } catch (Exception e) {
+                var uri = String.format("s3://%s/%s", resolvedBucket, triggered.toObject().getKey());
+                if (stateAsRead.containsKey(uri)) {
+                    previousState.put(uri, stateAsRead.get(uri));
+                } else {
+                    previousState.remove(uri);
+                }
+                runContext.logger().warn("Action failed for '{}', it will be retried on the next poll: {}", triggered.toObject().getKey(), e.getMessage());
+                if (actionFailure == null) {
+                    actionFailure = e;
+                }
+            }
         }
-
-        // state is written only once the action succeeded, so objects left unprocessed by a failed or killed
-        // MOVE/DELETE are picked up again on the next evaluation instead of being marked as seen
-        killable.runWithoutClient(() -> S3Service.performAction(actionBlobs, this.action, this.moveTo, runContext, this, this));
 
         writeState(runContext, rStateKey, previousState, rStateTtl);
 
-        var output = Output.builder().objects(toFire).build();
+        if (fired.isEmpty()) {
+            if (actionFailure != null) {
+                throw actionFailure;
+            }
+            return Optional.empty();
+        }
+
+        var output = Output.builder().objects(fired).build();
         Execution execution = TriggerService.generateExecution(this, conditionContext, context, output);
 
         return Optional.of(execution);
