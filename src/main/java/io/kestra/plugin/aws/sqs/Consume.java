@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -106,7 +107,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
     @Schema(
         title = "Auto-delete",
-        description = "If true (default), delete the messages from the queue once they are stored in internal storage. A run that fails or is killed deletes nothing, so its messages are delivered again after the visibility timeout."
+        description = "If true (default), delete the messages from the queue once they are stored in internal storage. Messages are held until the run ends, so a run that fails or is killed deletes nothing and its messages are delivered again after the visibility timeout. Set `maxRecords` to bound how many messages a run holds, SQS caps in-flight messages at 120,000 (20,000 for FIFO queues)."
     )
     @Builder.Default
     @PluginProperty(group = "destination")
@@ -114,7 +115,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
     @Schema(
         title = "Visibility timeout",
-        description = "Seconds a received message stays hidden; default 30s. With `autoDelete`, a run longer than this extends the timeout of the messages it holds until they are deleted (needs `sqs:ChangeMessageVisibility`); if that fails, the run stops receiving early."
+        description = "Seconds a received message stays hidden. Default 30s. With `autoDelete`, a run longer than this extends the timeout of every message it holds until they are deleted, which needs `sqs:ChangeMessageVisibility`. If that fails, the run stops receiving early."
     )
     @Builder.Default
     @PluginProperty(group = "execution")
@@ -157,8 +158,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 var msg = sqsClient.receiveMessage(receiveRequest);
                 for (var m : msg.messages()) {
                     if (rAutoDelete && receiptHandles.put(m.messageId(), m.receiptHandle()) != null) {
-                        // Already held by this run, so its visibility timeout elapsed: keep the newest receipt handle
-                        // (the only one SQS deletes with) and stop receiving before more messages come back.
+                        // Received again, so its visibility elapsed: keep the newest receipt handle, the only one SQS deletes with
                         runContext.logger().warn("Message {} was received again before it could be deleted, stopping receiving", m.messageId());
                         stopReceiving = true;
                         continue;
@@ -198,23 +198,16 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             .build();
     }
 
-    /**
-     * Pushes back the visibility timeout of the held messages, in batches of 10 (the SQS limit). Returns false when
-     * that fails, so the caller stops receiving and deletes the stored messages before they become visible again.
-     */
+    // Returns false on failure so the caller stops receiving and deletes what it stored before the messages reappear
     private boolean extendVisibility(SqsClient sqsClient, String queueUrl, List<String> receiptHandles, int visibilityTimeout, RunContext runContext) {
-        for (int from = 0; from < receiptHandles.size(); from += 10) {
-            var batch = receiptHandles.subList(from, Math.min(from + 10, receiptHandles.size()));
-            var entries = new ArrayList<ChangeMessageVisibilityBatchRequestEntry>(batch.size());
-            for (int i = 0; i < batch.size(); i++) {
-                entries.add(
-                    ChangeMessageVisibilityBatchRequestEntry.builder()
-                        .id(String.valueOf(i))
-                        .receiptHandle(batch.get(i))
-                        .visibilityTimeout(visibilityTimeout)
-                        .build()
-                );
-            }
+        for (var batch : inBatchesOf10(receiptHandles)) {
+            var entries = IntStream.range(0, batch.size())
+                .mapToObj(i -> ChangeMessageVisibilityBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(batch.get(i))
+                    .visibilityTimeout(visibilityTimeout)
+                    .build())
+                .toList();
 
             try {
                 var response = sqsClient.changeMessageVisibilityBatch(
@@ -226,7 +219,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 if (!response.failed().isEmpty()) {
                     runContext.logger().warn(
                         "Could not extend the visibility timeout of {} message(s), stopping receiving: {}",
-                        response.failed().size(), response.failed().stream().map(f -> f.code() + " " + f.message()).toList()
+                        response.failed().size(), response.failed().stream().map(f -> "%s %s".formatted(f.code(), f.message())).toList()
                     );
                     return false;
                 }
@@ -238,23 +231,16 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         return true;
     }
 
-    /**
-     * Deletes the stored messages in batches of 10 (the SQS limit) and returns how many could not be deleted.
-     * Failures do not fail the task: the messages are already stored, and the ones not deleted stay in the queue.
-     */
+    // Delete failures do not fail the task: the messages are stored, the ones not deleted stay in the queue
     private int deleteMessages(SqsClient sqsClient, String queueUrl, List<Map.Entry<String, String>> messages, RunContext runContext) {
         var failed = 0;
-        for (int from = 0; from < messages.size(); from += 10) {
-            var batch = messages.subList(from, Math.min(from + 10, messages.size()));
-            var entries = new ArrayList<DeleteMessageBatchRequestEntry>(batch.size());
-            for (int i = 0; i < batch.size(); i++) {
-                entries.add(
-                    DeleteMessageBatchRequestEntry.builder()
-                        .id(String.valueOf(i))
-                        .receiptHandle(batch.get(i).getValue())
-                        .build()
-                );
-            }
+        for (var batch : inBatchesOf10(messages)) {
+            var entries = IntStream.range(0, batch.size())
+                .mapToObj(i -> DeleteMessageBatchRequestEntry.builder()
+                    .id(String.valueOf(i))
+                    .receiptHandle(batch.get(i).getValue())
+                    .build())
+                .toList();
 
             DeleteMessageBatchResponse response;
             try {
@@ -275,7 +261,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
             if (!response.failed().isEmpty()) {
                 var failedDetails = response.failed().stream()
-                    .map(f -> "messageId=" + batch.get(Integer.parseInt(f.id())).getKey() + " code=" + f.code() + " message=" + f.message())
+                    .map(f -> "messageId=%s code=%s message=%s".formatted(batch.get(Integer.parseInt(f.id())).getKey(), f.code(), f.message()))
                     .toList();
                 runContext.logger().warn(
                     "SQS batch delete had {} failure(s), these messages stay in the queue and will be delivered again: {}",
@@ -285,6 +271,13 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             }
         }
         return failed;
+    }
+
+    // SQS batch calls accept at most 10 entries
+    private static <T> List<List<T>> inBatchesOf10(List<T> items) {
+        return IntStream.range(0, (items.size() + 9) / 10)
+            .mapToObj(i -> items.subList(i * 10, Math.min(i * 10 + 10, items.size())))
+            .toList();
     }
 
     @Override
@@ -325,13 +318,13 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         private final URI uri;
         @Schema(
             title = "Messages not deleted",
-            description = "Stored messages whose delete failed; they stay in the queue and are delivered again. The task ends in WARNING when this is not 0."
+            description = "Stored messages whose delete failed. They stay in the queue and are delivered again. The task ends in WARNING when this is not 0."
         )
-        private final Integer failedDeletesCount;
+        private final int failedDeletesCount;
 
         @Override
         public Optional<State.Type> finalState() {
-            return failedDeletesCount != null && failedDeletesCount > 0 ? Optional.of(State.Type.WARNING) : io.kestra.core.models.tasks.Output.super.finalState();
+            return failedDeletesCount > 0 ? Optional.of(State.Type.WARNING) : io.kestra.core.models.tasks.Output.super.finalState();
         }
     }
 }

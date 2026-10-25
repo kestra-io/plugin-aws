@@ -1,6 +1,6 @@
 package io.kestra.plugin.aws.sqs;
 
-import java.net.URI;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,9 +15,6 @@ import io.kestra.core.utils.Await;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
@@ -226,7 +223,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         // 12 valid messages (more than one delete batch), then a malformed one received last.
         var messages = new ArrayList<Message>();
         for (int i = 0; i < 12; i++) {
-            messages.add(Message.builder().data("{\"id\": " + i + "}").build());
+            messages.add(Message.builder().data("{\"id\": %d}".formatted(i)).build());
         }
         messages.add(Message.builder().data("not json").delaySeconds(3).build());
 
@@ -252,7 +249,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .visibilityTimeout(Property.ofValue(5))
             .build();
 
-        assertThrows(Exception.class, () -> consume.run(runContextFactory.of()));
+        assertThrows(IOException.class, () -> consume.run(runContextFactory.of()));
 
         // Nothing was deleted: once the visibility timeout elapses, all 13 messages are back in the queue.
         try (var sqsClient = sqsClient()) {
@@ -266,7 +263,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
             var expected = new ArrayList<String>();
             for (int i = 0; i < 12; i++) {
-                expected.add("{\"id\": " + i + "}");
+                expected.add("{\"id\": %d}".formatted(i));
             }
             expected.add("not json");
             assertThat(bodies, containsInAnyOrder(expected.toArray()));
@@ -279,7 +276,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         var messages = new ArrayList<Message>();
         for (int i = 0; i < 12; i++) {
-            messages.add(Message.builder().data("delete-me-" + i).build());
+            messages.add(Message.builder().data("delete-me-%d".formatted(i)).build());
         }
 
         Publish.builder()
@@ -313,14 +310,6 @@ class PublishThenConsumeTest extends AbstractSqsTest {
         try (var sqsClient = sqsClient()) {
             assertThat(visibleMessages(sqsClient) + invisibleMessages(sqsClient), is(0));
         }
-    }
-
-    private SqsClient sqsClient() {
-        return SqsClient.builder()
-            .endpointOverride(URI.create(endpointUrl()))
-            .region(Region.of(REGION))
-            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-            .build();
     }
 
     private List<String> drain(SqsClient sqsClient) {

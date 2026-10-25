@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -90,12 +92,12 @@ class ConsumeUnitTest {
     void failedRun_deletesNothing() throws Exception {
         var runContext = runContextFactory.of();
 
-        SqsClient mockClient = mock(SqsClient.class);
+        var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(receive("msg-1", "rh-1", "{\"id\": 1}"))
             .thenReturn(receive("msg-2", "rh-2", "not json"));
 
-        Consume task = spy(
+        var task = spy(
             Consume.builder()
                 .id("consume-failed-run-test")
                 .type(Consume.class.getName())
@@ -108,7 +110,7 @@ class ConsumeUnitTest {
 
         doReturn(mockClient).when(task).client(any());
 
-        assertThrows(Exception.class, () -> task.run(runContext));
+        assertThrows(IOException.class, () -> task.run(runContext));
         verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
     }
 
@@ -116,7 +118,7 @@ class ConsumeUnitTest {
     void messageReceivedAgain_stopsAndDeletesWithLatestHandle() throws Exception {
         var runContext = runContextFactory.of();
 
-        SqsClient mockClient = mock(SqsClient.class);
+        var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(receive("msg-1", "rh-1", "hello"))
             // Same message delivered again after its visibility timeout, with a new receipt handle.
@@ -125,7 +127,7 @@ class ConsumeUnitTest {
         when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
             .thenReturn(DeleteMessageBatchResponse.builder().build());
 
-        Consume task = spy(
+        var task = spy(
             Consume.builder()
                 .id("consume-received-again-test")
                 .type(Consume.class.getName())
@@ -148,7 +150,7 @@ class ConsumeUnitTest {
     void visibilityExtensionFailure_stopsReceiving() throws Exception {
         var runContext = runContextFactory.of();
 
-        SqsClient mockClient = mock(SqsClient.class);
+        var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(receive("msg-1", "rh-1", "hello"))
             .thenReturn(receive("msg-2", "rh-2", "world"));
@@ -157,7 +159,7 @@ class ConsumeUnitTest {
         when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
             .thenReturn(DeleteMessageBatchResponse.builder().build());
 
-        Consume task = spy(
+        var task = spy(
             Consume.builder()
                 .id("consume-extension-failure-test")
                 .type(Consume.class.getName())
@@ -182,7 +184,7 @@ class ConsumeUnitTest {
     void killedRun_deletesNothing() throws Exception {
         var runContext = runContextFactory.of();
 
-        SqsClient mockClient = mock(SqsClient.class);
+        var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(receive("msg-1", "rh-1", "hello"))
             .thenAnswer(invocation ->
@@ -191,14 +193,14 @@ class ConsumeUnitTest {
                 return ReceiveMessageResponse.builder().build();
             });
 
-        Consume task = spy(
+        var task = spy(
             Consume.builder()
                 .id("consume-killed-run-test")
                 .type(Consume.class.getName())
                 .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
                 .region(Property.ofValue("us-east-1"))
                 .maxRecords(Property.ofValue(100))
-                .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(30)))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(30)))
                 .build()
         );
 
