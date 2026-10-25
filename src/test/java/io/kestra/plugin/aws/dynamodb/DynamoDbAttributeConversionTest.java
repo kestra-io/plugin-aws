@@ -33,4 +33,13 @@ class DynamoDbAttributeConversionTest {
         assertThat(task.objectFrom(30).n(), is("30"));
         assertThat(task.objectFrom(false).bool(), is(false));
     }
+
+    @Test
+    void shouldStoreAStringListAsAStringSetAndAnyOtherListAsAList() {
+        assertThat(task.objectFrom(List.of("a", "b")).ss(), is(List.of("a", "b")));
+        assertThat(
+            task.objectFrom(List.of(new BigDecimal("1"), new BigDecimal("2"))).l(),
+            is(List.of(AttributeValue.fromN("1"), AttributeValue.fromN("2")))
+        );
+    }
 }

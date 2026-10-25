@@ -161,8 +161,11 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
         }
-        if (value instanceof List) {
-            return AttributeValue.fromSs((List<String>) value);
+        if (value instanceof List<?> list) {
+            if (list.stream().allMatch(element -> element instanceof String)) {
+                return AttributeValue.fromSs(list.stream().map(String.class::cast).toList());
+            }
+            return AttributeValue.fromL(list.stream().map(this::objectFrom).toList());
         }
         if (value instanceof Map) {
             return AttributeValue.fromM(valueMapFrom((Map<String, Object>) value));
