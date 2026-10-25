@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -31,7 +32,6 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
-
 
 public class S3Service {
 
@@ -239,11 +239,12 @@ public class S3Service {
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
+        if (rMaxKeys <= 0) {
+            return List.of();
+        }
 
         ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
-            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages
-            .maxKeys(Math.min(rMaxKeys, 1000));
+            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow(() -> new IllegalArgumentException("The 'bucket' property is required")));
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -272,16 +273,20 @@ public class S3Service {
 
         String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
         var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
+        var pattern = regExp == null ? null : Pattern.compile(regExp);
+
+        // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages, and a regexp or filter can skip most keys so it reads full pages
+        builder.maxKeys(pattern == null && filter == ListInterface.Filter.BOTH ? Math.min(rMaxKeys, 1000) : 1000);
 
         ListObjectsV2Request baseRequest = builder.build();
-        List<S3Object> result = new ArrayList<>();
+        var result = new ArrayList<S3Object>();
 
         ListObjectsV2Request currentRequest = baseRequest;
         ListObjectsV2Response response;
         do {
             response = client.listObjectsV2(currentRequest);
             for (var s3Object : response.contents()) {
-                if (S3Service.filter(s3Object, regExp, filter)) {
+                if (S3Service.filter(s3Object, pattern, filter)) {
                     result.add(S3Object.of(s3Object));
                     if (result.size() >= rMaxKeys) {
                         return result;
@@ -292,6 +297,7 @@ public class S3Service {
             if (response.isTruncated()) {
                 String nextToken = response.nextContinuationToken();
                 if (nextToken == null) {
+                    // Guard: isTruncated=true but no token returned, stop to avoid an infinite loop.
                     runContext.logger().warn("S3 list pagination stopped: isTruncated=true but no continuation token available.");
                     break;
                 }
@@ -302,8 +308,8 @@ public class S3Service {
         return result;
     }
 
-    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
-        return (regExp == null || object.key().matches(regExp)) &&
+    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, Pattern pattern, ListInterface.Filter filter) {
+        return (pattern == null || pattern.matcher(object.key()).matches()) &&
             (filter == ListInterface.Filter.BOTH ||
                 (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
                 (filter == ListInterface.Filter.FILES && !object.key().endsWith("/")));
