@@ -12,6 +12,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.Await;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.sqs.model.Message;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 
@@ -138,7 +139,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         // 15 messages spans two batch requests (10 + 5), verifying the buffer(10) path.
         var messages = new ArrayList<Message>(15);
-        for (var i = 0; i < 15; i++) {
+        for (int i = 0; i < 15; i++) {
             messages.add(Message.builder().data("batch-msg-" + i).build());
         }
 
@@ -238,6 +239,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .run(runContext);
 
         var consume = Consume.builder()
+            .id("consume-%s".formatted(IdUtils.create()))
             .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
             .region(Property.ofValue(REGION))
@@ -292,6 +294,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .run(runContext);
 
         var consumeOutput = Consume.builder()
+            .id("consume-%s".formatted(IdUtils.create()))
             .endpointOverride(Property.ofValue(endpointUrl()))
             .queueUrl(Property.ofValue(queueUrl()))
             .region(Property.ofValue(REGION))

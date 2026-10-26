@@ -154,6 +154,27 @@ class ConsumeUnitTest {
     }
 
     @Test
+    void receive_capsHiddenTimeAtTheSqsMaximum() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+        var task = withClient(
+            consume()
+                .maxRecords(Property.ofValue(1))
+                .maxDuration(Property.ofValue(Duration.ofHours(24)))
+                .build(),
+            mockClient
+        );
+
+        task.run(runContextFactory.of());
+
+        assertThat(receivedVisibilityTimeout(mockClient), is(Consume.MAX_VISIBILITY_TIMEOUT));
+    }
+
+    @Test
     void receive_keepsVisibilityTimeoutWithoutAutoDeleteOrMaxDuration() throws Exception {
         var withoutAutoDelete = mock(SqsClient.class);
         when(withoutAutoDelete.receiveMessage(any(ReceiveMessageRequest.class)))

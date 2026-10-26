@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -24,6 +23,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.utils.ListUtils;
 import io.kestra.plugin.aws.sqs.model.SerdeType;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -45,7 +45,8 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 @NoArgsConstructor
 @Schema(
     title = "Consume messages from SQS",
-    description = "Polls a queue until maxRecords or maxDuration is reached, stores messages to internal storage, then optionally deletes them from the queue."
+    description = """
+        Polls a queue until `maxRecords` or `maxDuration` is reached, stores messages to internal storage, then optionally deletes them from the queue."""
 )
 @Plugin(
     examples = {
@@ -76,7 +77,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
     }
 )
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
-    private static final int MAX_VISIBILITY_TIMEOUT = 43200;
+    static final int MAX_VISIBILITY_TIMEOUT = 43200;
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
@@ -109,7 +110,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         description = """
             If true (default), delete the messages from the queue once they are stored in internal storage.
             Messages are held until the run ends, so a run that fails or is killed deletes nothing and its messages are delivered again once hidden time runs out.
-            Set `maxRecords` to bound how many messages a run holds, since SQS caps in-flight messages per queue."""
+            Set `maxRecords` to bound how many messages a run holds, since SQS caps in-flight messages per queue.
+            The task ends in WARNING when some deletes fail, and fails when none succeed."""
     )
     @Builder.Default
     @PluginProperty(group = "destination")
@@ -119,8 +121,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         title = "Visibility timeout",
         description = """
             Seconds a received message stays hidden, from 0 to 43200. Default 30s.
-            With `autoDelete` and `maxDuration`, messages are hidden for the rest of the run plus this value, so they are stored and deleted before anyone else receives them.
-            Without `maxDuration`, a run stops receiving when one of its messages is received again."""
+            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the run plus this value, capped at 43200, so the run has this many seconds after `maxDuration` to store and delete them.
+            With `autoDelete` and no `maxDuration`, a run stops receiving when one of its messages comes back, so it receives for about this many seconds at most."""
     )
     @Builder.Default
     @PluginProperty(group = "execution")
@@ -144,6 +146,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
         var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
         var rMaxDuration = runContext.render(maxDuration).as(Duration.class).orElse(null);
+        var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(null);
 
         var total = new AtomicInteger();
         var started = ZonedDateTime.now();
@@ -160,8 +163,9 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                     .build();
                 var msg = sqsClient.receiveMessage(receiveRequest);
                 for (var m : msg.messages()) {
-                    // Received again: it is already stored, only the newest receipt handle deletes it, and the run has gone through the queue
-                    if (rAutoDelete && receiptHandleByMessageId.put(m.messageId(), m.receiptHandle()) != null) {
+                    var previousHandle = rAutoDelete ? receiptHandleByMessageId.put(m.messageId(), m.receiptHandle()) : null;
+                    // Hidden time ran out: already stored, keep the newest receipt handle for the delete
+                    if (previousHandle != null) {
                         stopReceiving = true;
                         continue;
                     }
@@ -170,7 +174,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 }
 
                 Thread.sleep(100);
-            } while (!stopReceiving && !this.ended(total, started, runContext));
+            } while (!stopReceiving && !this.ended(total, started, rMaxRecords, rMaxDuration));
 
             runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
             outputFile.flush();
@@ -199,7 +203,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     // Returns how many deletes failed: the messages are stored, the ones not deleted stay in the queue
     private int deleteMessages(SqsClient sqsClient, String queueUrl, List<Map.Entry<String, String>> messages, RunContext runContext) {
         var failed = 0;
-        for (var batch : inBatchesOf10(messages)) {
+        // SQS batch calls accept at most 10 entries
+        for (var batch : ListUtils.partition(messages, 10)) {
             var entries = IntStream.range(0, batch.size())
                 .mapToObj(
                     i -> DeleteMessageBatchRequestEntry.builder()
@@ -246,31 +251,24 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         return (int) Math.min(remaining + visibilityTimeout, MAX_VISIBILITY_TIMEOUT);
     }
 
-    // SQS batch calls accept at most 10 entries
-    private static <T> List<List<T>> inBatchesOf10(List<T> items) {
-        return IntStream.range(0, (items.size() + 9) / 10)
-            .mapToObj(i -> items.subList(i * 10, Math.min(i * 10 + 10, items.size())))
-            .toList();
-    }
-
     @Override
     public void kill() {
         isStopped.set(true);
     }
 
-    boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
+    private boolean ended(AtomicInteger count, ZonedDateTime start, Integer maxRecords, Duration maxDuration) {
         if (isStopped.get()) {
             return true;
         }
 
-        var max = runContext.render(this.maxRecords).as(Integer.class);
-        if (max.isPresent() && count.get() >= max.get()) {
+        if (maxRecords != null && count.get() >= maxRecords) {
             return true;
         }
 
-        var duration = runContext.render(this.maxDuration).as(Duration.class);
-        if (duration.isPresent()) {
-            return ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond();
+        // With maxDuration set, keep polling until it elapses even on an empty queue, instead of stopping on the
+        // first empty poll (#860, fixes #852); without it, stop once a poll returns nothing.
+        if (maxDuration != null) {
+            return ZonedDateTime.now().toEpochSecond() > start.plus(maxDuration).toEpochSecond();
         }
 
         return count.get() == 0;
@@ -293,7 +291,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             title = "Messages not deleted",
             description = """
                 Stored messages whose delete failed. They stay in the queue and are delivered again.
-                The task ends in WARNING when this is not 0."""
+                The task ends in WARNING when some deletes fail, and fails when none succeed."""
         )
         private final int failedDeletesCount;
 
