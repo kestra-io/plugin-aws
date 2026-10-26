@@ -121,7 +121,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         title = "Visibility timeout",
         description = """
             Seconds a received message stays hidden, from 0 to 43200. Default 30s.
-            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the run plus this value, capped at 43200, so the run has this many seconds after `maxDuration` to store and delete them.
+            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the run plus this value, so the run has this many seconds after `maxDuration` to store and delete them. Past the 43200 cap, a message comes back mid-run and the run stops receiving.
             With `autoDelete` and no `maxDuration`, a run stops receiving when one of its messages comes back, so it receives for about this many seconds at most."""
     )
     @Builder.Default
@@ -243,12 +243,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
     }
 
     // Hides held messages until the run ends plus visibilityTimeout, so no one else receives them before they are stored and deleted
-    private static int receiveVisibility(boolean autoDelete, int visibilityTimeout, Duration maxDuration, ZonedDateTime started) {
-        if (!autoDelete || maxDuration == null) {
-            return visibilityTimeout;
+    private static int receiveVisibility(boolean rAutoDelete, int rVisibilityTimeout, Duration rMaxDuration, ZonedDateTime started) {
+        if (!rAutoDelete || rMaxDuration == null) {
+            return rVisibilityTimeout;
         }
-        var remaining = Math.max(0, Duration.between(ZonedDateTime.now(), started.plus(maxDuration)).toSeconds());
-        return (int) Math.min(remaining + visibilityTimeout, MAX_VISIBILITY_TIMEOUT);
+        var remaining = Math.max(0, Duration.between(ZonedDateTime.now(), started.plus(rMaxDuration)).toSeconds());
+        return (int) Math.min(remaining + rVisibilityTimeout, MAX_VISIBILITY_TIMEOUT);
     }
 
     @Override
@@ -256,19 +256,19 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         isStopped.set(true);
     }
 
-    private boolean ended(AtomicInteger count, ZonedDateTime start, Integer maxRecords, Duration maxDuration) {
+    private boolean ended(AtomicInteger count, ZonedDateTime start, Integer rMaxRecords, Duration rMaxDuration) {
         if (isStopped.get()) {
             return true;
         }
 
-        if (maxRecords != null && count.get() >= maxRecords) {
+        if (rMaxRecords != null && count.get() >= rMaxRecords) {
             return true;
         }
 
         // With maxDuration set, keep polling until it elapses even on an empty queue, instead of stopping on the
         // first empty poll (#860, fixes #852); without it, stop once a poll returns nothing.
-        if (maxDuration != null) {
-            return ZonedDateTime.now().toEpochSecond() > start.plus(maxDuration).toEpochSecond();
+        if (rMaxDuration != null) {
+            return ZonedDateTime.now().toEpochSecond() > start.plus(rMaxDuration).toEpochSecond();
         }
 
         return count.get() == 0;

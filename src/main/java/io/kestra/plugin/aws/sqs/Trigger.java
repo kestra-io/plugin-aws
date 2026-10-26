@@ -150,7 +150,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Visibility timeout",
         description = """
             Seconds a received message stays hidden, from 0 to 43200. Default 30s.
-            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the poll plus this value, capped at 43200, so the poll has this many seconds after `maxDuration` to store and delete them.
+            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the poll plus this value, so the poll has this many seconds after `maxDuration` to store and delete them. Past the 43200 cap, a message comes back mid-poll and the poll stops receiving.
             With `autoDelete` and no `maxDuration`, a poll stops receiving when one of its messages comes back, so it receives for about this many seconds at most."""
     )
     @PluginProperty(group = "execution")
