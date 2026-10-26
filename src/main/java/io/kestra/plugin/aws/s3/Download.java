@@ -126,7 +126,7 @@ public class Download extends AbstractS3Object implements RunnableTask<Download.
 
     @Schema(
         title = "Max keys",
-        description = "Maximum keys per list request in multi-file mode; default 1000."
+        description = "Maximum number of files listed in multi-file mode, counted after `regexp`. Default 1000. `maxFiles` caps how many are downloaded."
     )
     @Builder.Default
     @PluginProperty(group = "connection")
