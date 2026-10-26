@@ -41,5 +41,10 @@ class DynamoDbAttributeConversionTest {
             task.objectFrom(List.of(new BigDecimal("1"), new BigDecimal("2"))).l(),
             is(List.of(AttributeValue.fromN("1"), AttributeValue.fromN("2")))
         );
+        assertThat(task.objectFrom(List.of()).l(), is(List.of()));
+        assertThat(
+            task.objectFrom(List.of("a", "a")).l(),
+            is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("a")))
+        );
     }
 }
