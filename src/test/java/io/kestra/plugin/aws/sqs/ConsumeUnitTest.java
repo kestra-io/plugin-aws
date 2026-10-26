@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
@@ -130,7 +131,7 @@ class ConsumeUnitTest {
 
     @Test
     void ended_maxDuration_emptyQueue_notElapsed_returnsFalse() throws Exception {
-        var runContext = runContextFactory.of();
+        RunContext runContext = runContextFactory.of();
         Consume task = Consume.builder()
             .id("consume-wait-test")
             .type(Consume.class.getName())
@@ -148,7 +149,7 @@ class ConsumeUnitTest {
 
     @Test
     void ended_maxDuration_emptyQueue_elapsed_returnsTrue() throws Exception {
-        var runContext = runContextFactory.of();
+        RunContext runContext = runContextFactory.of();
         Consume task = Consume.builder()
             .id("consume-elapsed-test")
             .type(Consume.class.getName())
@@ -166,7 +167,7 @@ class ConsumeUnitTest {
 
     @Test
     void ended_onlyMaxRecords_emptyQueue_returnsTrue() throws Exception {
-        var runContext = runContextFactory.of();
+        RunContext runContext = runContextFactory.of();
         Consume task = Consume.builder()
             .id("consume-maxrecords-test")
             .type(Consume.class.getName())
@@ -184,13 +185,13 @@ class ConsumeUnitTest {
 
     @Test
     void run_withMaxDuration_waitsAcrossEmptyPollsUntilMessageArrives() throws Exception {
-        var runContext = runContextFactory.of();
+        RunContext runContext = runContextFactory.of();
 
-        var emptyResponse = ReceiveMessageResponse.builder()
+        ReceiveMessageResponse emptyResponse = ReceiveMessageResponse.builder()
             .messages(List.of())
             .build();
 
-        var messageResponse = ReceiveMessageResponse.builder()
+        ReceiveMessageResponse messageResponse = ReceiveMessageResponse.builder()
             .messages(
                 Message.builder()
                     .messageId("msg-1")
@@ -200,7 +201,7 @@ class ConsumeUnitTest {
             )
             .build();
 
-        var deleteResponse = DeleteMessageBatchResponse.builder()
+        DeleteMessageBatchResponse deleteResponse = DeleteMessageBatchResponse.builder()
             .successful(List.of(DeleteMessageBatchResultEntry.builder().id("0").build()))
             .failed(List.of())
             .build();
