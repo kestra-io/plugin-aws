@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
@@ -31,8 +30,6 @@ class S3ServiceListTest {
     // Verifies the V2 isTruncated -> continuationToken -> next page loop.
     @Test
     void list_paginatesAcrossTwoTruncatedPages() throws Exception {
-        RunContext runContext = runContextFactory.of();
-
         var mockClient = twoPageClient(List.of("file1.txt", "file2.txt"), List.of("file3.txt"));
 
         var task = listTask()
@@ -40,12 +37,9 @@ class S3ServiceListTest {
             .maxFiles(Property.ofValue(1000))
             .build();
 
-        List<S3Object> result = S3Service.list(runContext, mockClient, task, task);
+        var result = S3Service.list(runContextFactory.of(), mockClient, task, task);
 
-        assertThat(result, hasSize(3));
-        assertThat(result.get(0).getKey(), is("file1.txt"));
-        assertThat(result.get(1).getKey(), is("file2.txt"));
-        assertThat(result.get(2).getKey(), is("file3.txt"));
+        assertThat(result.stream().map(S3Object::getKey).toList(), contains("file1.txt", "file2.txt", "file3.txt"));
 
         // Verify the second call carried the continuation token.
         verify(mockClient, times(2)).listObjectsV2(any(ListObjectsV2Request.class));

@@ -42,9 +42,9 @@ public interface ListInterface {
     @Schema(
         title = "Maximum number of objects returned across all paginated S3 calls",
         description = """
-            Total upper bound on the objects returned, counted after `regexp` and `filter`. Default 1000.
+            Total upper bound on the objects returned, counted after `regexp` and `filter`. Default 1000, must be 0 or more, and 0 returns no objects.
             When `regexp` is unset and `filter` is `BOTH`, it also sets the per-page size sent to S3, which AWS caps at 1000.
-            The listing pages until this total is reached or the bucket is exhausted."""
+            The listing pages until this total is reached or the bucket is exhausted, so a `regexp` or `filter` that matches few keys can read every key under `prefix`. Set `prefix` to narrow it."""
     )
     @PluginProperty(group = "execution")
     Property<Integer> getMaxKeys();

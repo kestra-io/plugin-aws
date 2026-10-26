@@ -310,10 +310,10 @@ public class S3Service {
         return result;
     }
 
-    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, Pattern pattern, ListInterface.Filter filter) {
+    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, Pattern pattern, ListInterface.Filter type) {
         return (pattern == null || pattern.matcher(object.key()).matches()) &&
-            (filter == ListInterface.Filter.BOTH ||
-                (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
-                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/")));
+            (type == ListInterface.Filter.BOTH ||
+                (type == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
+                (type == ListInterface.Filter.FILES && !object.key().endsWith("/")));
     }
 }
