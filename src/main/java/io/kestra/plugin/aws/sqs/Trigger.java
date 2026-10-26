@@ -18,6 +18,8 @@ import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.kestra.plugin.aws.utils.KillableClientHolder;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -135,15 +137,19 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(
         title = "Auto delete",
         description = """
-            If true (default), received messages are deleted from the queue in batches of 10 while polling. \
-            If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; \
-            set to false to keep them on the queue until the visibility timeout expires."""
+            If true (default), received messages are deleted from the queue once they are stored.
+            A poll that fails or is killed deletes nothing, and its messages are delivered again after the visibility timeout."""
     )
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
-    @Schema(title = "Visibility timeout")
-    private Property<Integer> visibilityTimeout = Property.ofValue(30);
+    @Schema(
+        title = "Visibility timeout",
+        description = """
+            Seconds a received message stays hidden, from 0 to 43200. Default 30s.
+            With `autoDelete`, messages are deleted when the poll ends, so set it above `maxDuration` to keep other consumers from receiving them during the poll."""
+    )
+    private Property<@Min(0) @Max(43200) Integer> visibilityTimeout = Property.ofValue(30);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)

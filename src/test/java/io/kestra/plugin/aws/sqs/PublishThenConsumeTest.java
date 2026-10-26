@@ -274,10 +274,12 @@ class PublishThenConsumeTest extends AbstractSqsTest {
     void successfulRunDeletesStoredMessages() throws Exception {
         var runContext = runContextFactory.of();
 
+        // The last message arrives after the visibility timeout, so the run receives the first ones again and must delete them with their latest receipt handle.
         var messages = new ArrayList<Message>();
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 11; i++) {
             messages.add(Message.builder().data("delete-me-%d".formatted(i)).build());
         }
+        messages.add(Message.builder().data("delete-me-11").delaySeconds(4).build());
 
         Publish.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
@@ -297,7 +299,6 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .maxRecords(Property.ofValue(12))
             .maxDuration(Property.ofValue(Duration.ofSeconds(20)))
-            // Shorter than the time needed to receive 12 messages, so the held messages need their visibility extended.
             .visibilityTimeout(Property.ofValue(2))
             .build()
             .run(runContextFactory.of());
