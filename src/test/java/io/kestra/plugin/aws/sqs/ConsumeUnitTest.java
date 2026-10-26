@@ -33,12 +33,12 @@ class ConsumeUnitTest {
     @Inject
     protected RunContextFactory runContextFactory;
 
-    // A failed delete must not drop the stored output: the task ends in WARNING and the message stays in the queue.
+    // A partial delete failure must not drop the stored output: the task ends in WARNING and the message stays in the queue.
     @Test
-    void deleteFailure_keepsOutputAndWarns() throws Exception {
+    void partialDeleteFailure_keepsOutputAndWarns() throws Exception {
         var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenReturn(receive("msg-1", "rh-1", "hello"));
+            .thenReturn(receive("msg-1", "rh-1", "hello"), receive("msg-2", "rh-2", "world"));
         when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
             .thenReturn(
                 DeleteMessageBatchResponse.builder()
@@ -46,25 +46,55 @@ class ConsumeUnitTest {
                     .build()
             );
 
-        var task = withClient(consume().maxRecords(Property.ofValue(1)).build(), mockClient);
+        var task = withClient(consume().maxRecords(Property.ofValue(2)).build(), mockClient);
 
         var output = task.run(runContextFactory.of());
 
-        assertThat(output.getCount(), is(1));
+        assertThat(output.getCount(), is(2));
         assertThat(output.getUri(), notNullValue());
         assertThat(output.getFailedDeletesCount(), is(1));
         assertThat(output.finalState(), is(Optional.of(State.Type.WARNING)));
     }
 
+    @Test
+    void failedDeleteCall_countsItsBatch() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-0", "rh-0", "m"), receives(1, 11));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build())
+            .thenThrow(SqsException.builder().message("simulated outage").build());
+
+        var task = withClient(consume().maxRecords(Property.ofValue(11)).build(), mockClient);
+
+        var output = task.run(runContextFactory.of());
+
+        assertThat(output.getCount(), is(11));
+        assertThat(output.getFailedDeletesCount(), is(1));
+        assertThat(output.finalState(), is(Optional.of(State.Type.WARNING)));
+    }
+
+    // With no message deleted, for example without sqs:DeleteMessage, a trigger must not create the same execution on every poll.
+    @Test
+    void allDeletesFailing_failsTheRun() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenThrow(SqsException.builder().message("simulated AccessDenied").build());
+
+        var task = withClient(consume().maxRecords(Property.ofValue(1)).build(), mockClient);
+
+        var exception = assertThrows(IllegalStateException.class, () -> task.run(runContextFactory.of()));
+        assertThat(exception.getMessage(), containsString("sqs:DeleteMessage"));
+    }
+
     // 11 valid messages, more than one delete batch, then one that fails to parse.
     @Test
     void failedRun_deletesNothing() throws Exception {
-        var responses = IntStream.range(1, 11)
-            .mapToObj(i -> receive("msg-%d".formatted(i), "rh-%d".formatted(i), "{\"id\": %d}".formatted(i)))
-            .toArray(ReceiveMessageResponse[]::new);
         var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenReturn(receive("msg-0", "rh-0", "{\"id\": 0}"), responses)
+            .thenReturn(receive("msg-0", "rh-0", "{\"id\": 0}"), receives(1, 11))
             .thenReturn(receive("msg-bad", "rh-bad", "not json"));
         when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
             .thenReturn(DeleteMessageBatchResponse.builder().build());
@@ -82,23 +112,70 @@ class ConsumeUnitTest {
     }
 
     @Test
-    void messageReceivedAgain_isStoredOnceAndDeletedWithLatestHandle() throws Exception {
+    void messageReceivedAgain_stopsAndDeletesWithLatestHandle() throws Exception {
         var mockClient = mock(SqsClient.class);
         when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
             .thenReturn(receive("msg-1", "rh-1", "hello"))
-            // Same message delivered again after its visibility timeout, with a new receipt handle.
+            // Same message delivered again after its hidden time ran out, with a new receipt handle.
             .thenReturn(receive("msg-1", "rh-2", "hello"))
             .thenReturn(receive("msg-2", "rh-3", "world"));
         when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
             .thenReturn(DeleteMessageBatchResponse.builder().build());
 
-        var task = withClient(consume().maxRecords(Property.ofValue(2)).build(), mockClient);
+        var task = withClient(consume().maxRecords(Property.ofValue(5)).build(), mockClient);
 
         var output = task.run(runContextFactory.of());
 
-        assertThat(output.getCount(), is(2));
-        verify(mockClient, times(3)).receiveMessage(any(ReceiveMessageRequest.class));
-        assertThat(deletedReceiptHandles(mockClient), is(List.of("rh-2", "rh-3")));
+        assertThat(output.getCount(), is(1));
+        verify(mockClient, times(2)).receiveMessage(any(ReceiveMessageRequest.class));
+        assertThat(deletedReceiptHandles(mockClient), is(List.of("rh-2")));
+    }
+
+    @Test
+    void receive_hidesMessagesUntilTheRunEnds() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+        var task = withClient(
+            consume()
+                .maxRecords(Property.ofValue(1))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(60)))
+                .build(),
+            mockClient
+        );
+
+        task.run(runContextFactory.of());
+
+        // The rest of the 60s run plus the default 30s visibility timeout.
+        assertThat(receivedVisibilityTimeout(mockClient), allOf(greaterThanOrEqualTo(85), lessThanOrEqualTo(90)));
+    }
+
+    @Test
+    void receive_keepsVisibilityTimeoutWithoutAutoDeleteOrMaxDuration() throws Exception {
+        var withoutAutoDelete = mock(SqsClient.class);
+        when(withoutAutoDelete.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"));
+        withClient(
+            consume()
+                .autoDelete(Property.ofValue(false))
+                .maxRecords(Property.ofValue(1))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(60)))
+                .build(),
+            withoutAutoDelete
+        ).run(runContextFactory.of());
+
+        var withoutMaxDuration = mock(SqsClient.class);
+        when(withoutMaxDuration.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(receive("msg-1", "rh-1", "hello"));
+        when(withoutMaxDuration.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+        withClient(consume().maxRecords(Property.ofValue(1)).build(), withoutMaxDuration).run(runContextFactory.of());
+
+        assertThat(receivedVisibilityTimeout(withoutAutoDelete), is(30));
+        assertThat(receivedVisibilityTimeout(withoutMaxDuration), is(30));
     }
 
     @Test
@@ -153,6 +230,12 @@ class ConsumeUnitTest {
         return spied;
     }
 
+    private static int receivedVisibilityTimeout(SqsClient mockClient) {
+        var captor = ArgumentCaptor.forClass(ReceiveMessageRequest.class);
+        verify(mockClient, atLeastOnce()).receiveMessage(captor.capture());
+        return captor.getAllValues().getFirst().visibilityTimeout();
+    }
+
     private static List<String> deletedReceiptHandles(SqsClient mockClient) {
         var captor = ArgumentCaptor.forClass(DeleteMessageBatchRequest.class);
         verify(mockClient).deleteMessageBatch(captor.capture());
@@ -165,50 +248,10 @@ class ConsumeUnitTest {
             .build();
     }
 
-    @Test
-    void testKill() throws Exception {
-        var runContext = runContextFactory.of();
-
-        var receiveResponse = ReceiveMessageResponse.builder().build();
-
-        SqsClient mockClient = mock(SqsClient.class);
-        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
-            .thenAnswer(invocation ->
-            {
-                Thread.sleep(100);
-                return receiveResponse;
-            });
-
-        Consume task = spy(
-            Consume.builder()
-                .id("test-kill")
-                .type(Consume.class.getName())
-                .queueUrl(Property.ofValue("https://sqs.us-east-1.amazonaws.com/000000000000/test-queue"))
-                .region(Property.ofValue("us-east-1"))
-                .maxRecords(Property.ofValue(100))
-                .maxDuration(Property.ofValue(java.time.Duration.ofSeconds(30)))
-                .build()
-        );
-
-        doReturn(mockClient).when(task).client(any());
-
-        java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
-
-        Thread thread = new Thread(() ->
-        {
-            try {
-                output.set(task.run(runContext));
-            } catch (Exception e) {
-                // ignore
-            }
-        });
-
-        thread.start();
-        Thread.sleep(500); // let it start polling
-        task.kill();
-        thread.join(5000); // Wait max 5s for the loop to break
-
-        org.hamcrest.MatcherAssert.assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
-        org.hamcrest.MatcherAssert.assertThat(output.get(), notNullValue());
+    // One JSON message per response, ids from start inclusive to end exclusive.
+    private static ReceiveMessageResponse[] receives(int start, int end) {
+        return IntStream.range(start, end)
+            .mapToObj(i -> receive("msg-%d".formatted(i), "rh-%d".formatted(i), "{\"id\": %d}".formatted(i)))
+            .toArray(ReceiveMessageResponse[]::new);
     }
 }

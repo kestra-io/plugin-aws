@@ -138,8 +138,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Auto delete",
         description = """
             If true (default), received messages are deleted from the queue once they are stored.
-            A poll that fails or is killed deletes nothing, and its messages are delivered again after the visibility timeout."""
+            A poll that fails or is killed deletes nothing, and its messages are delivered again once hidden time runs out."""
     )
+    @PluginProperty(group = "destination")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
@@ -147,8 +148,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "Visibility timeout",
         description = """
             Seconds a received message stays hidden, from 0 to 43200. Default 30s.
-            With `autoDelete`, messages are deleted when the poll ends, so set it above `maxDuration` to keep other consumers from receiving them during the poll."""
+            With `autoDelete` and `maxDuration`, messages are hidden for the rest of the poll plus this value, so they are stored and deleted before anyone else receives them.
+            Without `maxDuration`, a poll stops receiving when one of its messages is received again."""
     )
+    @PluginProperty(group = "execution")
     private Property<@Min(0) @Max(43200) Integer> visibilityTimeout = Property.ofValue(30);
 
     @Builder.Default

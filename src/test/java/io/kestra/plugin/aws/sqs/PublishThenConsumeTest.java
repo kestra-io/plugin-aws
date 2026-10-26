@@ -138,7 +138,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         // 15 messages spans two batch requests (10 + 5), verifying the buffer(10) path.
         var messages = new ArrayList<Message>(15);
-        for (int i = 0; i < 15; i++) {
+        for (var i = 0; i < 15; i++) {
             messages.add(Message.builder().data("batch-msg-" + i).build());
         }
 
@@ -222,7 +222,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
 
         // 12 valid messages (more than one delete batch), then a malformed one received last.
         var messages = new ArrayList<Message>();
-        for (int i = 0; i < 12; i++) {
+        for (var i = 0; i < 12; i++) {
             messages.add(Message.builder().data("{\"id\": %d}".formatted(i)).build());
         }
         messages.add(Message.builder().data("not json").delaySeconds(3).build());
@@ -244,8 +244,8 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .serdeType(Property.ofValue(SerdeType.JSON))
+            // Without maxDuration the messages are hidden for visibilityTimeout only, so they come back quickly after the failure.
             .maxRecords(Property.ofValue(20))
-            .maxDuration(Property.ofValue(Duration.ofSeconds(20)))
             .visibilityTimeout(Property.ofValue(5))
             .build();
 
@@ -262,7 +262,7 @@ class PublishThenConsumeTest extends AbstractSqsTest {
             }
 
             var expected = new ArrayList<String>();
-            for (int i = 0; i < 12; i++) {
+            for (var i = 0; i < 12; i++) {
                 expected.add("{\"id\": %d}".formatted(i));
             }
             expected.add("not json");
@@ -274,9 +274,9 @@ class PublishThenConsumeTest extends AbstractSqsTest {
     void successfulRunDeletesStoredMessages() throws Exception {
         var runContext = runContextFactory.of();
 
-        // The last message arrives after the visibility timeout, so the run receives the first ones again and must delete them with their latest receipt handle.
+        // The last message arrives after the 2s visibility timeout, so the first ones must stay hidden until the run deletes them.
         var messages = new ArrayList<Message>();
-        for (int i = 0; i < 11; i++) {
+        for (var i = 0; i < 11; i++) {
             messages.add(Message.builder().data("delete-me-%d".formatted(i)).build());
         }
         messages.add(Message.builder().data("delete-me-11").delaySeconds(4).build());

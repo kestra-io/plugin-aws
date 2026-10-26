@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +76,8 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
     }
 )
 public class Consume extends AbstractSqs implements RunnableTask<Consume.Output> {
+    private static final int MAX_VISIBILITY_TIMEOUT = 43200;
+
     @Builder.Default
     @Getter(AccessLevel.NONE)
     @EqualsAndHashCode.Exclude
@@ -107,8 +108,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         title = "Auto-delete",
         description = """
             If true (default), delete the messages from the queue once they are stored in internal storage.
-            Messages are held until the run ends, so a run that fails or is killed deletes nothing and its messages are delivered again after the visibility timeout.
-            Set `maxRecords` to bound how many messages a run holds. SQS caps in-flight messages at 120,000 (20,000 for FIFO queues)."""
+            Messages are held until the run ends, so a run that fails or is killed deletes nothing and its messages are delivered again once hidden time runs out.
+            Set `maxRecords` to bound how many messages a run holds, since SQS caps in-flight messages per queue."""
     )
     @Builder.Default
     @PluginProperty(group = "destination")
@@ -118,11 +119,12 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         title = "Visibility timeout",
         description = """
             Seconds a received message stays hidden, from 0 to 43200. Default 30s.
-            With `autoDelete`, messages are deleted when the run ends, so set it above `maxDuration` to keep other consumers from receiving them during the run."""
+            With `autoDelete` and `maxDuration`, messages are hidden for the rest of the run plus this value, so they are stored and deleted before anyone else receives them.
+            Without `maxDuration`, a run stops receiving when one of its messages is received again."""
     )
     @Builder.Default
     @PluginProperty(group = "execution")
-    private Property<@Min(0) @Max(43200) Integer> visibilityTimeout = Property.ofValue(30);
+    private Property<@Min(0) @Max(MAX_VISIBILITY_TIMEOUT) Integer> visibilityTimeout = Property.ofValue(30);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -141,24 +143,26 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         var rSerdeType = runContext.render(serdeType).as(SerdeType.class).orElse(SerdeType.STRING);
         var rAutoDelete = runContext.render(autoDelete).as(Boolean.class).orElse(true);
         var rVisibilityTimeout = runContext.render(visibilityTimeout).as(Integer.class).orElse(30);
+        var rMaxDuration = runContext.render(maxDuration).as(Duration.class).orElse(null);
 
         var total = new AtomicInteger();
         var started = ZonedDateTime.now();
         var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-        // Message id -> latest receipt handle of the messages held by this run until they are stored and deleted.
-        var receiptHandles = new LinkedHashMap<String, String>();
+        var receiptHandleByMessageId = new LinkedHashMap<String, String>();
+        var stopReceiving = false;
 
         try (var outputFile = new BufferedOutputStream(new FileOutputStream(tempFile))) {
             do {
                 var receiveRequest = ReceiveMessageRequest.builder()
                     .waitTimeSeconds(1) // this would avoid generating too many calls if there are no messages
                     .queueUrl(queueUrl)
-                    .visibilityTimeout(rVisibilityTimeout)
+                    .visibilityTimeout(receiveVisibility(rAutoDelete, rVisibilityTimeout, rMaxDuration, started))
                     .build();
                 var msg = sqsClient.receiveMessage(receiveRequest);
                 for (var m : msg.messages()) {
-                    // Received again after its visibility elapsed: it is already stored, and only the newest receipt handle deletes it
-                    if (rAutoDelete && receiptHandles.put(m.messageId(), m.receiptHandle()) != null) {
+                    // Received again: it is already stored, only the newest receipt handle deletes it, and the run has gone through the queue
+                    if (rAutoDelete && receiptHandleByMessageId.put(m.messageId(), m.receiptHandle()) != null) {
+                        stopReceiving = true;
                         continue;
                     }
                     FileSerde.write(outputFile, rSerdeType.deserialize(m.body()));
@@ -166,7 +170,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
                 }
 
                 Thread.sleep(100);
-            } while (!this.ended(total, started, runContext));
+            } while (!stopReceiving && !this.ended(total, started, runContext));
 
             runContext.metric(Counter.of("sqs.consume.messages", total.get(), "queue", queueUrl));
             outputFile.flush();
@@ -177,8 +181,13 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
 
         // A killed run may not publish its output, so its messages are left in the queue to be delivered again.
         var failedDeletes = !isStopped.get()
-            ? deleteMessages(sqsClient, queueUrl, new ArrayList<>(receiptHandles.entrySet()), runContext)
+            ? deleteMessages(sqsClient, queueUrl, List.copyOf(receiptHandleByMessageId.entrySet()), runContext)
             : 0;
+        if (failedDeletes > 0 && failedDeletes == receiptHandleByMessageId.size()) {
+            throw new IllegalStateException(
+                "None of the %d stored messages could be deleted from %s, so they stay in the queue. Check that the role has `sqs:DeleteMessage`.".formatted(failedDeletes, queueUrl)
+            );
+        }
 
         return Output.builder()
             .uri(uri)
@@ -187,15 +196,17 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             .build();
     }
 
-    // Delete failures do not fail the task: the messages are stored, the ones not deleted stay in the queue
+    // Returns how many deletes failed: the messages are stored, the ones not deleted stay in the queue
     private int deleteMessages(SqsClient sqsClient, String queueUrl, List<Map.Entry<String, String>> messages, RunContext runContext) {
         var failed = 0;
         for (var batch : inBatchesOf10(messages)) {
             var entries = IntStream.range(0, batch.size())
-                .mapToObj(i -> DeleteMessageBatchRequestEntry.builder()
-                    .id(String.valueOf(i))
-                    .receiptHandle(batch.get(i).getValue())
-                    .build())
+                .mapToObj(
+                    i -> DeleteMessageBatchRequestEntry.builder()
+                        .id(String.valueOf(i))
+                        .receiptHandle(batch.get(i).getValue())
+                        .build()
+                )
                 .toList();
 
             try {
@@ -224,6 +235,15 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             }
         }
         return failed;
+    }
+
+    // Hides held messages until the run ends plus visibilityTimeout, so no one else receives them before they are stored and deleted
+    private static int receiveVisibility(boolean autoDelete, int visibilityTimeout, Duration maxDuration, ZonedDateTime started) {
+        if (!autoDelete || maxDuration == null) {
+            return visibilityTimeout;
+        }
+        var remaining = Math.max(0, Duration.between(ZonedDateTime.now(), started.plus(maxDuration)).toSeconds());
+        return (int) Math.min(remaining + visibilityTimeout, MAX_VISIBILITY_TIMEOUT);
     }
 
     // SQS batch calls accept at most 10 entries
