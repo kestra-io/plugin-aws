@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.sqs;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -24,6 +25,7 @@ import software.amazon.awssdk.services.sqs.model.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -234,6 +236,60 @@ class ConsumeUnitTest {
 
         assertThat(thread.isAlive(), is(false));
         assertThat(output.get().getCount(), is(1));
+        verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void maxDuration_keepsPollingThroughEmptyPolls() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(ReceiveMessageResponse.builder().build(), receive("msg-1", "rh-1", "hello"));
+        when(mockClient.deleteMessageBatch(any(DeleteMessageBatchRequest.class)))
+            .thenReturn(DeleteMessageBatchResponse.builder().build());
+
+        var task = withClient(
+            consume()
+                .maxRecords(Property.ofValue(1))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(10)))
+                .build(),
+            mockClient
+        );
+
+        var output = task.run(runContextFactory.of());
+
+        assertThat(output.getCount(), is(1));
+        verify(mockClient, times(2)).receiveMessage(any(ReceiveMessageRequest.class));
+    }
+
+    @Test
+    void maxDuration_emptyQueue_stopsOnceElapsed() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(ReceiveMessageResponse.builder().build());
+
+        var task = withClient(consume().maxDuration(Property.ofValue(Duration.ofSeconds(2))).build(), mockClient);
+
+        var started = Instant.now();
+        var output = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> task.run(runContextFactory.of()));
+
+        assertThat(output.getCount(), is(0));
+        assertThat(Duration.between(started, Instant.now()), greaterThanOrEqualTo(Duration.ofSeconds(2)));
+        verify(mockClient, atLeast(2)).receiveMessage(any(ReceiveMessageRequest.class));
+        verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
+    }
+
+    @Test
+    void maxRecordsOnly_emptyQueue_stopsAfterFirstPoll() throws Exception {
+        var mockClient = mock(SqsClient.class);
+        when(mockClient.receiveMessage(any(ReceiveMessageRequest.class)))
+            .thenReturn(ReceiveMessageResponse.builder().build());
+
+        var task = withClient(consume().maxRecords(Property.ofValue(10)).build(), mockClient);
+
+        var output = task.run(runContextFactory.of());
+
+        assertThat(output.getCount(), is(0));
+        verify(mockClient, times(1)).receiveMessage(any(ReceiveMessageRequest.class));
         verify(mockClient, never()).deleteMessageBatch(any(DeleteMessageBatchRequest.class));
     }
 

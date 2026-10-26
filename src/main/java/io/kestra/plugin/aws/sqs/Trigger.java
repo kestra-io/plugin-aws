@@ -105,7 +105,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(
         title = "Max duration",
-        description = "Stop after this duration elapses."
+        description = "Keep polling until this duration elapses, even if the queue is empty, or until maxRecords is reached."
     )
     @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;

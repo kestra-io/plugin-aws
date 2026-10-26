@@ -265,8 +265,6 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
             return true;
         }
 
-        // With maxDuration set, keep polling until it elapses even on an empty queue, instead of stopping on the
-        // first empty poll (#860, fixes #852); without it, stop once a poll returns nothing.
         if (rMaxDuration != null) {
             return ZonedDateTime.now().toEpochSecond() > start.plus(rMaxDuration).toEpochSecond();
         }
