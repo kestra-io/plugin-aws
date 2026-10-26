@@ -207,7 +207,7 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         isStopped.set(true);
     }
 
-    private boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
+    boolean ended(AtomicInteger count, ZonedDateTime start, RunContext runContext) throws IllegalVariableEvaluationException {
         if (isStopped.get()) {
             return true;
         }
@@ -218,8 +218,8 @@ public class Consume extends AbstractSqs implements RunnableTask<Consume.Output>
         }
 
         var duration = runContext.render(this.maxDuration).as(Duration.class);
-        if (duration.isPresent() && ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond()) {
-            return true;
+        if (duration.isPresent()) {
+            return ZonedDateTime.now().toEpochSecond() > start.plus(duration.get()).toEpochSecond();
         }
 
         return count.get() == 0;
