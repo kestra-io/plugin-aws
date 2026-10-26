@@ -239,12 +239,15 @@ public class S3Service {
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
-        if (rMaxKeys <= 0) {
+        if (rMaxKeys < 0) {
+            throw new IllegalArgumentException("The `maxKeys` property must be 0 or more, got %d.".formatted(rMaxKeys));
+        }
+        if (rMaxKeys == 0) {
             return List.of();
         }
 
         ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
-            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow(() -> new IllegalArgumentException("The 'bucket' property is required")));
+            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow(() -> new IllegalArgumentException("The `bucket` property is required.")));
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -271,12 +274,11 @@ public class S3Service {
             builder.requestPayer(runContext.render(abstractS3.getRequestPayer()).as(String.class).orElseThrow());
         }
 
-        String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
-        var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
-        var pattern = regExp == null ? null : Pattern.compile(regExp);
+        var rPattern = runContext.render(list.getRegexp()).as(String.class).map(Pattern::compile).orElse(null);
+        var rFilter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElse(ListInterface.Filter.BOTH);
 
         // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages, and a regexp or filter can skip most keys so it reads full pages
-        builder.maxKeys(pattern == null && filter == ListInterface.Filter.BOTH ? Math.min(rMaxKeys, 1000) : 1000);
+        builder.maxKeys(rPattern == null && rFilter == ListInterface.Filter.BOTH ? Math.min(rMaxKeys, 1000) : 1000);
 
         ListObjectsV2Request baseRequest = builder.build();
         var result = new ArrayList<S3Object>();
@@ -285,13 +287,13 @@ public class S3Service {
         ListObjectsV2Response response;
         do {
             response = client.listObjectsV2(currentRequest);
-            for (var s3Object : response.contents()) {
-                if (S3Service.filter(s3Object, pattern, filter)) {
-                    result.add(S3Object.of(s3Object));
-                    if (result.size() >= rMaxKeys) {
-                        return result;
-                    }
-                }
+            response.contents().stream()
+                .filter(s3Object -> filter(s3Object, rPattern, rFilter))
+                .limit(rMaxKeys - result.size())
+                .map(S3Object::of)
+                .forEach(result::add);
+            if (result.size() >= rMaxKeys) {
+                return result;
             }
 
             if (response.isTruncated()) {
