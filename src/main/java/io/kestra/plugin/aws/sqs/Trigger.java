@@ -18,6 +18,8 @@ import io.kestra.plugin.aws.sqs.model.SerdeType;
 import io.kestra.plugin.aws.utils.KillableClientHolder;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -103,7 +105,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(
         title = "Max duration",
-        description = "Stop after this duration elapses."
+        description = "Keep polling until this duration elapses, even if the queue is empty, or until maxRecords is reached."
     )
     @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
@@ -135,15 +137,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(
         title = "Auto delete",
         description = """
-            If true (default), received messages are deleted from the queue in batches of 10 while polling. \
-            If the trigger is killed mid-poll (e.g. restarted), messages already deleted are not delivered; \
-            set to false to keep them on the queue until the visibility timeout expires."""
+            If true (default), received messages are deleted from the queue once they are stored.
+            A poll that fails or is killed deletes nothing, and its messages are delivered again once hidden time runs out.
+            Set `maxRecords` to bound how many messages a poll holds, since SQS caps in-flight messages per queue.
+            The evaluation fails when no delete succeeds."""
     )
+    @PluginProperty(group = "destination")
     private Property<Boolean> autoDelete = Property.ofValue(true);
 
     @Builder.Default
-    @Schema(title = "Visibility timeout")
-    private Property<Integer> visibilityTimeout = Property.ofValue(30);
+    @Schema(
+        title = "Visibility timeout",
+        description = """
+            Seconds a received message stays hidden, from 0 to 43200. Default 30s.
+            With `autoDelete` and `maxDuration`, received messages stay hidden for the rest of the poll plus this value, so the poll has this many seconds after `maxDuration` to store and delete them. Past the 43200 cap, a message comes back mid-poll and the poll stops receiving.
+            With `autoDelete` and no `maxDuration`, a poll stops receiving when one of its messages comes back, so it receives for about this many seconds at most."""
+    )
+    @PluginProperty(group = "execution")
+    private Property<@Min(0) @Max(Consume.MAX_VISIBILITY_TIMEOUT) Integer> visibilityTimeout = Property.ofValue(30);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)

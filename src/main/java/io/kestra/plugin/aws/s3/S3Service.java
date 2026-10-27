@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -31,8 +32,6 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
-
-import static io.kestra.core.utils.Rethrow.throwPredicate;
 
 public class S3Service {
 
@@ -190,8 +189,10 @@ public class S3Service {
                     .forcePathStyle(abstractS3.getForcePathStyle())
                     .accessKeyId(abstractS3.getAccessKeyId())
                     .secretKeyId(abstractS3.getSecretKeyId())
+                    .sessionToken(abstractS3.getSessionToken())
                     .key(Property.ofValue(object.getKey()))
                     .bucket(abstractS3Object.getBucket())
+                    .requestPayer(abstractS3Object.getRequestPayer())
                     .stsRoleArn(abstractS3.getStsRoleArn())
                     .stsRoleExternalId(abstractS3.getStsRoleExternalId())
                     .stsRoleSessionName(abstractS3.getStsRoleSessionName())
@@ -215,6 +216,7 @@ public class S3Service {
                     .forcePathStyle(abstractS3.getForcePathStyle())
                     .accessKeyId(abstractS3.getAccessKeyId())
                     .secretKeyId(abstractS3.getSecretKeyId())
+                    .sessionToken(abstractS3.getSessionToken())
                     .stsRoleArn(abstractS3.getStsRoleArn())
                     .stsRoleExternalId(abstractS3.getStsRoleExternalId())
                     .stsRoleSessionName(abstractS3.getStsRoleSessionName())
@@ -240,11 +242,15 @@ public class S3Service {
 
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
+        if (rMaxKeys < 0) {
+            throw new IllegalArgumentException("The `maxKeys` property must be 0 or more, got %d.".formatted(rMaxKeys));
+        }
+        if (rMaxKeys == 0) {
+            return List.of();
+        }
 
         ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
-            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow())
-            // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages
-            .maxKeys(Math.min(rMaxKeys, 1000));
+            .bucket(runContext.render(list.getBucket()).as(String.class).orElseThrow(() -> new IllegalArgumentException("The `bucket` property is required.")));
 
         if (list.getPrefix() != null) {
             builder.prefix(runContext.render(list.getPrefix()).as(String.class).orElseThrow());
@@ -271,21 +277,26 @@ public class S3Service {
             builder.requestPayer(runContext.render(abstractS3.getRequestPayer()).as(String.class).orElseThrow());
         }
 
-        String regExp = runContext.render(list.getRegexp()).as(String.class).orElse(null);
-        var filter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElseThrow();
+        var rPattern = runContext.render(list.getRegexp()).as(String.class).map(Pattern::compile).orElse(null);
+        var rFilter = runContext.render(list.getFilter()).as(ListInterface.Filter.class).orElse(ListInterface.Filter.BOTH);
+
+        // per-page size is capped at 1000 by S3, rMaxKeys is the total cap across pages, and a regexp or filter can skip most keys so it reads full pages
+        builder.maxKeys(rPattern == null && rFilter == ListInterface.Filter.BOTH ? Math.min(rMaxKeys, 1000) : 1000);
 
         ListObjectsV2Request baseRequest = builder.build();
-        List<software.amazon.awssdk.services.s3.model.S3Object> allContents = new ArrayList<>();
+        var result = new ArrayList<S3Object>();
 
         ListObjectsV2Request currentRequest = baseRequest;
         ListObjectsV2Response response;
         do {
             response = client.listObjectsV2(currentRequest);
-            allContents.addAll(response.contents());
-
-            // maxKeys is a total cap across pages, the per-page size is capped at 1000 by S3.
-            if (allContents.size() >= rMaxKeys) {
-                break;
+            response.contents().stream()
+                .filter(s3Object -> filter(s3Object, rPattern, rFilter))
+                .limit(rMaxKeys - result.size())
+                .map(S3Object::of)
+                .forEach(result::add);
+            if (result.size() >= rMaxKeys) {
+                return result;
             }
 
             if (response.isTruncated()) {
@@ -299,18 +310,13 @@ public class S3Service {
             }
         } while (response.isTruncated());
 
-        var contents = allContents.size() > rMaxKeys ? allContents.subList(0, rMaxKeys) : allContents;
-
-        return contents.stream()
-            .filter(throwPredicate(s3Object -> S3Service.filter(s3Object, regExp, filter)))
-            .map(S3Object::of)
-            .toList();
+        return result;
     }
 
-    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, String regExp, ListInterface.Filter filter) {
-        return (regExp == null || object.key().matches(regExp)) &&
-            (filter == ListInterface.Filter.BOTH ||
-                (filter == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
-                (filter == ListInterface.Filter.FILES && !object.key().endsWith("/")));
+    private static boolean filter(software.amazon.awssdk.services.s3.model.S3Object object, Pattern pattern, ListInterface.Filter type) {
+        return (pattern == null || pattern.matcher(object.key()).matches()) &&
+            (type == ListInterface.Filter.BOTH ||
+                (type == ListInterface.Filter.DIRECTORY && object.key().endsWith("/")) ||
+                (type == ListInterface.Filter.FILES && !object.key().endsWith("/")));
     }
 }

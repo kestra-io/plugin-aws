@@ -4,9 +4,9 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -126,6 +126,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class PutEvents extends AbstractConnection implements RunnableTask<PutEvents.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+    private static final int MAX_BATCH_SIZE = 10;
 
     @NotNull
     @Schema(
@@ -195,19 +196,34 @@ public class PutEvents extends AbstractConnection implements RunnableTask<PutEve
 
     private PutEventsResponse putEvents(RunContext runContext, List<Entry> entryList) throws Exception {
         try (var eventBridgeClient = client(runContext)) {
-            List<PutEventsRequestEntry> requestEntries = entryList.stream()
+            var requestEntries = entryList.stream()
                 .map(throwFunction(entry -> entry.toRequestEntry(runContext)))
-                .collect(Collectors.toList());
+                .toList();
 
-            PutEventsRequest eventsRequest = PutEventsRequest.builder()
-                .entries(requestEntries)
+            var allResponseEntries = new ArrayList<PutEventsResultEntry>();
+            var totalFailedCount = 0;
+
+            for (var i = 0; i < requestEntries.size(); i += MAX_BATCH_SIZE) {
+                var batch = requestEntries.subList(i, Math.min(i + MAX_BATCH_SIZE, requestEntries.size()));
+                var eventsRequest = PutEventsRequest.builder()
+                    .entries(batch)
+                    .build();
+
+                var response = eventBridgeClient.putEvents(eventsRequest);
+                if (response.entries() != null) {
+                    allResponseEntries.addAll(response.entries());
+                }
+                totalFailedCount += response.failedEntryCount() != null ? response.failedEntryCount() : 0;
+            }
+
+            return PutEventsResponse.builder()
+                .entries(allResponseEntries)
+                .failedEntryCount(totalFailedCount)
                 .build();
-
-            return eventBridgeClient.putEvents(eventsRequest);
         }
     }
 
-    private EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
+    EventBridgeClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
         return ConnectionUtils.configureSyncClient(clientConfig, EventBridgeClient.builder()).build();
     }
