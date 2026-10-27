@@ -17,6 +17,7 @@ import com.sun.net.httpserver.HttpServer;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
 import jakarta.inject.Inject;
@@ -55,6 +56,7 @@ class S3ServiceActionTest {
         S3Service.performAction(objects(), task.getAction(), null, runContextFactory.of(), task, task);
 
         assertThat(requests.stream().map(r -> r.get("operation")).toList(), contains("DeleteObject", "DeleteObject"));
+        assertThat(requests.stream().map(r -> r.get("path")).toList(), contains("/source/in/a.txt", "/source/in/b.txt"));
         assertThat(requests, everyItem(hasEntry("token", SESSION_TOKEN)));
         assertThat(requests, everyItem(hasEntry("requestPayer", "requester")));
     }
@@ -72,14 +74,18 @@ class S3ServiceActionTest {
             requests.stream().map(r -> r.get("operation")).toList(),
             contains("CopyObject", "DeleteObject", "CopyObject", "DeleteObject")
         );
+        assertThat(
+            requests.stream().map(r -> r.get("path")).toList(),
+            contains("/archive/archived/a.txt", "/source/in/a.txt", "/archive/archived/b.txt", "/source/in/b.txt")
+        );
         assertThat(requests, everyItem(hasEntry("token", SESSION_TOKEN)));
     }
 
     private Downloads.DownloadsBuilder<?, ?> downloads() {
         return Downloads.builder()
-            .id("s3-service-action")
+            .id(IdUtils.create())
             .type(Downloads.class.getName())
-            .endpointOverride(Property.ofValue("http://127.0.0.1:" + server.getAddress().getPort()))
+            .endpointOverride(Property.ofValue("http://127.0.0.1:%d".formatted(server.getAddress().getPort())))
             .region(Property.ofValue("us-east-1"))
             .accessKeyId(Property.ofValue("ASIATEMPORARYKEY"))
             .secretKeyId(Property.ofValue("temporary-secret"))
@@ -101,7 +107,8 @@ class S3ServiceActionTest {
             Map.of(
                 "operation", isCopy ? "CopyObject" : "DELETE".equals(exchange.getRequestMethod()) ? "DeleteObject" : exchange.getRequestMethod(),
                 "token", String.valueOf(headers.getFirst("x-amz-security-token")),
-                "requestPayer", String.valueOf(headers.getFirst("x-amz-request-payer"))
+                "requestPayer", String.valueOf(headers.getFirst("x-amz-request-payer")),
+                "path", exchange.getRequestURI().getPath()
             )
         );
         exchange.getRequestBody().readAllBytes();
