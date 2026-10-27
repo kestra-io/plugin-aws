@@ -168,6 +168,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         title = "State TTL",
         description = """
             How long persisted shard positions are retained; unset means no expiry.
+            Should exceed the stream retention period plus the longest expected pause of the trigger. If the TTL expires while the trigger is disabled or paused, TRIM_HORIZON will re-deliver all records still within the stream retention period.
             """
     )
     @PluginProperty(group = "advanced")
