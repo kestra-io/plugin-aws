@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -147,6 +148,80 @@ class PutRecordsTest extends AbstractKinesisTest {
         assertThat(outputEntries.get(2).getErrorCode(), nullValue());
         assertThat(outputEntries.get(2).getErrorMessage(), nullValue());
         assertThat(outputEntries.get(2).getRecord(), equalTo(record3));
+    }
+
+    @Test
+    void runStorageMoreThanOneBatch() throws Exception {
+        var runContext = runContextFactory.of();
+
+        List<Record> records = generateRecords(1_201);
+
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        try (var stream = new FileOutputStream(tempFile)) {
+            records.forEach(throwConsumer(r -> FileSerde.write(stream, r)));
+        }
+
+        var put = PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .records(runContext.storage().putFile(tempFile).toString())
+            .streamName(Property.ofValue(streamName))
+            .build();
+
+        var output = put.run(runContext);
+
+        assertThat(output.getRecordCount(), is(1_201));
+        assertThat(output.getFailedRecordsCount(), is(0));
+        assertOutputEntriesMatch(runContext, output.getUri(), records);
+    }
+
+    @Test
+    void runMapAtAndAboveBatchLimit() throws Exception {
+        for (int count : List.of(PutRecords.MAX_RECORDS_PER_REQUEST, PutRecords.MAX_RECORDS_PER_REQUEST + 1)) {
+            var runContext = runContextFactory.of();
+            List<Record> records = generateRecords(count);
+
+            var put = PutRecords.builder()
+                .endpointOverride(Property.ofValue(endpointUrl()))
+                .region(Property.ofValue(REGION))
+                .accessKeyId(Property.ofValue(ACCESS_KEY))
+                .secretKeyId(Property.ofValue(SECRET_KEY))
+                .streamName(Property.ofValue(streamName))
+                .records(records)
+                .build();
+
+            var output = put.run(runContext);
+
+            assertThat(output.getRecordCount(), is(count));
+            assertThat(output.getFailedRecordsCount(), is(0));
+            assertOutputEntriesMatch(runContext, output.getUri(), records);
+        }
+    }
+
+    private static List<Record> generateRecords(int count) {
+        return IntStream.range(0, count)
+            .mapToObj(i -> Record.builder()
+                .partitionKey("partitionKey-" + i)
+                .data("record " + i)
+                .build())
+            .toList();
+    }
+
+    private static void assertOutputEntriesMatch(RunContext runContext, URI uri, List<Record> expected) throws Exception {
+        List<PutRecords.OutputEntry> outputEntries;
+        try (var inputStream = new BufferedInputStream(runContext.storage().getFile(uri), FileSerde.BUFFER_SIZE)) {
+            outputEntries = FileSerde.readAll(inputStream, PutRecords.OutputEntry.class).collectList().block();
+        }
+
+        // Output entries keep the input order across batches, each paired with its own record and a sequence number.
+        assertThat(outputEntries, hasSize(expected.size()));
+        for (int i = 0; i < expected.size(); i++) {
+            assertThat(outputEntries.get(i).getRecord(), equalTo(expected.get(i)));
+            assertThat(outputEntries.get(i).getSequenceNumber(), notNullValue());
+            assertThat(outputEntries.get(i).getErrorCode(), nullValue());
+        }
     }
 
     @Test
