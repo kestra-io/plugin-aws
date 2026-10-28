@@ -2,6 +2,7 @@ package io.kestra.plugin.aws.kinesis;
 
 import java.io.BufferedInputStream;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -67,6 +68,26 @@ class ConsumeTest extends AbstractKinesisTest {
         assertThat(records.getFirst().getSequenceNumber(), notNullValue());
         assertThat(records.getFirst().getShardId(), notNullValue());
         assertThat(records.getFirst().getApproximateArrivalTimestamp(), instanceOf(Instant.class));
+    }
+
+    @Test
+    void testIdleLatestResumePositionIsNotASequenceOutput() throws Exception {
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(streamName))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.LATEST))
+            .maxDuration(Property.ofValue(Duration.ZERO))
+            .pollDuration(Property.ofValue(Duration.ZERO))
+            .build();
+
+        var output = consume.run(runContextFactory.of());
+
+        assertThat(output.getLastSequencePerShard(), anEmptyMap());
+        assertThat(output.getResumePositionPerShard(), not(anEmptyMap()));
+        assertThat(output.getResumePositionPerShard().values(), everyItem(startsWith("timestamp:")));
     }
 
     @Test

@@ -227,7 +227,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         Consume.Output output = consume.run(runContext);
 
-        output.getLastSequencePerShard().forEach((shard, sequence) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, sequence, Instant.now())));
+        output.getResumePositionPerShard().forEach((shard, position) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, position, Instant.now())));
         StatefulTriggerService.writeState(runContext, rStateKey, previousState, rStateTtl);
 
         if (logger.isDebugEnabled()) {

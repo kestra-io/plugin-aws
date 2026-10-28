@@ -8,7 +8,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -146,7 +147,9 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
-        var rStartingSequencePerShard = runContext.render(startingSequencePerShard).asMap(String.class, String.class);
+        var rStartingSequencePerShard = Optional.ofNullable(
+            runContext.render(startingSequencePerShard).asMap(String.class, String.class)
+        ).orElse(Map.of());
         var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
         var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
 
@@ -154,7 +157,8 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(outFile));
 
         int consumed = 0;
-        Map<String, String> lastSequence = new HashMap<>();
+        var lastSequence = new HashMap<String, String>();
+        var resumePositionPerShard = new HashMap<String, String>();
         var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
         var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE);
 
@@ -162,9 +166,9 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             if (isStopped.get() || consumed >= rMaxRecords) {
                 break;
             }
-            var startingPositionRef = new AtomicReference<>(rStartingSequencePerShard.get(shard.shardId()));
-            var iterator = buildShardIterator(runContext, client, rStream, shard, startingPositionRef);
-            var startingPosition = startingPositionRef.get();
+            var shardStart = buildShardIterator(runContext, client, rStream, shard, rStartingSequencePerShard.get(shard.shardId()));
+            var iterator = shardStart.iterator();
+            var startingPosition = shardStart.startingPosition();
             String lastPosition = null;
             Long millisBehindLatest = null;
             var shardRead = false;
@@ -217,10 +221,11 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             if (shardRead) {
                 if (lastPosition != null) {
                     lastSequence.put(shard.shardId(), lastPosition);
+                    resumePositionPerShard.put(shard.shardId(), lastPosition);
                 } else if (startingPosition != null) {
-                    lastSequence.put(shard.shardId(), startingPosition);
+                    resumePositionPerShard.put(shard.shardId(), startingPosition);
                 } else if (rIteratorType == IteratorType.LATEST || (millisBehindLatest != null && millisBehindLatest == 0L)) {
-                    lastSequence.put(shard.shardId(), timestampPosition(pollStartedAt));
+                    resumePositionPerShard.put(shard.shardId(), timestampPosition(pollStartedAt));
                 }
             }
         }
@@ -236,30 +241,27 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             .uri(uri)
             .count(consumed)
             .lastSequencePerShard(lastSequence)
+            .resumePositionPerShard(resumePositionPerShard)
             .build();
     }
 
-    private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, AtomicReference<String> startingPositionRef) throws IllegalVariableEvaluationException {
-        var startingPosition = startingPositionRef.get();
+    private ShardStart buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
         if (startingPosition != null) {
             try {
-                return getShardIterator(runContext, client, stream, shard, startingPosition);
+                return new ShardStart(getShardIterator(runContext, client, stream, shard, startingPosition), startingPosition);
             } catch (InvalidArgumentException e) {
                 runContext.logger().warn(
                     "Saved position '{}' rejected for shard '{}' in stream '{}', falling back to configured iterator type: {}",
                     startingPosition, shard.shardId(), stream, e.getMessage()
                 );
-                startingPositionRef.set(null);
-                return getShardIterator(runContext, client, stream, shard, null);
+                return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
             }
         }
 
-        return getShardIterator(runContext, client, stream, shard, null);
+        return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
     }
 
-    private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
-        return buildShardIterator(runContext, client, stream, shard, new AtomicReference<>(startingPosition));
-    }
+    private record ShardStart(String iterator, String startingPosition) {}
 
     private String getShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
         var savedSequence = startingPosition != null && !startingPosition.startsWith("timestamp:") ? startingPosition : null;
@@ -342,5 +344,8 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             description = "Map of shardId to last consumed sequence number."
         )
         private final Map<String, String> lastSequencePerShard;
+
+        @JsonIgnore
+        private final Map<String, String> resumePositionPerShard;
     }
 }

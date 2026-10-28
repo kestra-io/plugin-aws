@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +130,7 @@ class TriggerTest extends AbstractKinesisTest {
                     )
                 )
                 .region(Region.of(REGION))
-                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .endpointOverride(URI.create(endpointUrl()))
                 .build()
         ) {
             kinesisClient.createStream(
@@ -224,7 +226,7 @@ class TriggerTest extends AbstractKinesisTest {
         invalidState.put(streamScope + "shardId-000000000000", StatefulTriggerService.Entry.candidate(
             streamScope + "shardId-000000000000",
             "99999999999999999999999999999999999999999999999999999999",
-            java.time.Instant.now()
+            Instant.now()
         ));
         StatefulTriggerService.writeState(context.getKey().getRunContext(), stateKey, invalidState, Optional.empty());
 
