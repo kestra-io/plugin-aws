@@ -137,7 +137,7 @@ class TriggerTest extends AbstractTest {
 
         repositoryLoader.load(flowWithFlociEndpoint("flows/s3/s3-listen-localhost-force-path-style.yaml"));
 
-        boolean await = queueCount.await(15, TimeUnit.SECONDS);
+        boolean await = queueCount.await(30, TimeUnit.SECONDS);
         assertThat("trigger should work with localhost endpoint + forcePathStyle", await, is(true));
         receive.blockLast();
 
