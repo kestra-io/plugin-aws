@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.athena;
 
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -188,6 +189,67 @@ class QueryTest {
         assertThat(valueRow.get("big"), is(42L));
         assertThat(valueRow.get("active"), is(true));
         assertThat(valueRow.get("name"), is("foo"));
+    }
+
+    // Regression for #867: a default-precision timestamp (timestamp(3), 3 fractional digits) and a value with no
+    // fractional part must both parse instead of throwing DateTimeParseException. The existing null test only
+    // exercised a 6-digit value, which happens to be the one width the old fixed SSSSSS pattern accepted.
+    @SuppressWarnings("unchecked")
+    @Test
+    void runFetch_timestampWithDefaultPrecision() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var client = mock(AthenaClient.class);
+
+        when(client.startQueryExecution(any(StartQueryExecutionRequest.class)))
+            .thenReturn(StartQueryExecutionResponse.builder().queryExecutionId("query-ts").build());
+
+        when(client.getQueryExecution(any(GetQueryExecutionRequest.class)))
+            .thenReturn(succeededExecution());
+
+        when(client.getQueryResults(any(GetQueryResultsRequest.class)))
+            .thenReturn(
+                GetQueryResultsResponse.builder()
+                    .resultSet(
+                        ResultSet.builder()
+                            .resultSetMetadata(
+                                ResultSetMetadata.builder()
+                                    .columnInfo(ColumnInfo.builder().name("ts").type("timestamp").build())
+                                    .build()
+                            )
+                            .rows(
+                                // Athena's default timestamp(3): three fractional digits
+                                Row.builder().data(Datum.builder().varCharValue("2026-10-28 10:15:30.123").build()).build(),
+                                // a value with no fractional part
+                                Row.builder().data(Datum.builder().varCharValue("2026-10-28 10:15:30").build()).build(),
+                                // a 6-digit value still parses
+                                Row.builder().data(Datum.builder().varCharValue("2026-10-28 10:15:30.123456").build()).build()
+                            )
+                            .build()
+                    )
+                    .build()
+            );
+
+        var task = spy(
+            Query.builder()
+                .id(IdUtils.create())
+                .type(Query.class.getName())
+                .database(Property.ofValue("db"))
+                .outputLocation(Property.ofValue("s3://dummy"))
+                .query(Property.ofValue("select ts from t"))
+                .fetchType(Property.ofValue(FetchType.FETCH))
+                .skipHeader(Property.ofValue(false))
+                .build()
+        );
+
+        doReturn(client).when(task).athenaClient(any());
+
+        var output = task.run(runContext);
+
+        assertThat(output.getRows(), hasSize(3));
+        assertThat(((Map<String, Object>) output.getRows().get(0)).get("ts"), is(LocalDateTime.of(2026, 10, 28, 10, 15, 30, 123_000_000)));
+        assertThat(((Map<String, Object>) output.getRows().get(1)).get("ts"), is(LocalDateTime.of(2026, 10, 28, 10, 15, 30)));
+        assertThat(((Map<String, Object>) output.getRows().get(2)).get("ts"), is(LocalDateTime.of(2026, 10, 28, 10, 15, 30, 123_456_000)));
     }
 
     // Regression: rows beyond the first Athena page must not be silently dropped.
