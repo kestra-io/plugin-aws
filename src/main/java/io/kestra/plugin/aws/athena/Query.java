@@ -177,9 +177,7 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
     private static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    // Athena renders a timestamp with a variable number of fractional-second digits: the default timestamp(3)
-    // gives 3 digits, timestamp(6)/(9) give 6/9, and an exact-second value has none. Parse an optional 0-to-9
-    // digit fraction instead of a fixed six, which previously failed anything other than a 6-digit value.
+    // Athena emits 0 to 9 fractional-second digits depending on timestamp(p), so parse a variable-width fraction.
     private static final DateTimeFormatter timestampFormatter = new DateTimeFormatterBuilder()
         .appendPattern("yyyy-MM-dd HH:mm:ss")
         .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)

@@ -191,9 +191,7 @@ class QueryTest {
         assertThat(valueRow.get("name"), is("foo"));
     }
 
-    // Regression for #867: a default-precision timestamp (timestamp(3), 3 fractional digits) and a value with no
-    // fractional part must both parse instead of throwing DateTimeParseException. The existing null test only
-    // exercised a 6-digit value, which happens to be the one width the old fixed SSSSSS pattern accepted.
+    // Regression for #867: default-precision timestamp(3) and no-fraction values must parse, not only 6-digit ones.
     @SuppressWarnings("unchecked")
     @Test
     void runFetch_timestampWithDefaultPrecision() throws Exception {
