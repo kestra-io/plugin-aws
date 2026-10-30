@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.kinesis.model.*;
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 @Testcontainers
@@ -154,9 +155,9 @@ class PutRecordsTest extends AbstractKinesisTest {
     void runStorageMoreThanOneBatch() throws Exception {
         var runContext = runContextFactory.of();
 
-        List<Record> records = generateRecords(1_201);
+        var records = generateRecords(1_201);
 
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var stream = new FileOutputStream(tempFile)) {
             records.forEach(throwConsumer(r -> FileSerde.write(stream, r)));
         }
@@ -179,9 +180,9 @@ class PutRecordsTest extends AbstractKinesisTest {
 
     @Test
     void runMapAtAndAboveBatchLimit() throws Exception {
-        for (int count : List.of(PutRecords.MAX_RECORDS_PER_REQUEST, PutRecords.MAX_RECORDS_PER_REQUEST + 1)) {
+        for (int count : List.of(RecordBatcher.MAX_RECORDS_PER_REQUEST, RecordBatcher.MAX_RECORDS_PER_REQUEST + 1)) {
             var runContext = runContextFactory.of();
-            List<Record> records = generateRecords(count);
+            var records = generateRecords(count);
 
             var put = PutRecords.builder()
                 .endpointOverride(Property.ofValue(endpointUrl()))
@@ -198,6 +199,32 @@ class PutRecordsTest extends AbstractKinesisTest {
             assertThat(output.getFailedRecordsCount(), is(0));
             assertOutputEntriesMatch(runContext, output.getUri(), records);
         }
+    }
+
+    @Test
+    void runStorageWithoutPartitionKey() throws Exception {
+        var runContext = runContextFactory.of();
+        var records = List.of(
+            Record.builder().partitionKey("partitionKey").data("record").build(),
+            Record.builder().data("record without partition key").build()
+        );
+
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        try (var stream = new FileOutputStream(tempFile)) {
+            records.forEach(throwConsumer(r -> FileSerde.write(stream, r)));
+        }
+
+        var put = PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .records(runContext.storage().putFile(tempFile).toString())
+            .streamName(Property.ofValue(streamName))
+            .build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> put.run(runContext));
+        assertThat(exception.getMessage(), is("Record at position 1 has no partitionKey, set it on every record"));
     }
 
     private static List<Record> generateRecords(int count) {
