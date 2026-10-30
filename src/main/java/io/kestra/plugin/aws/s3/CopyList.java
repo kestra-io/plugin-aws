@@ -20,8 +20,6 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.aws.s3.models.CopyListDestination;
-import io.kestra.plugin.aws.s3.models.CopyListSource;
 import io.kestra.plugin.aws.s3.models.S3Object;
 import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 import io.kestra.plugin.aws.shared.s3.AbstractS3Connection;
@@ -179,7 +177,7 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
         }
 
         try (S3Client client = this.client(runContext)) {
-            List<S3Object> s3Objects = S3Service.list(runContext, client, this.from, this.from);
+            List<S3Object> s3Objects = S3Service.list(runContext, client, this.from);
 
             // Filter out directory markers
             List<S3Object> filesToCopy = s3Objects.stream()
@@ -331,5 +329,106 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
 
         @Schema(title = "List of copied objects output info")
         private final List<S3Object> objects;
+    }
+
+    @SuperBuilder
+    @ToString
+    @EqualsAndHashCode
+    @Getter
+    @NoArgsConstructor
+    public static class CopyListSource implements ListInterface {
+
+        @Schema(
+            title = "The S3 bucket to list and copy objects from"
+        )
+        @NotNull
+        @PluginProperty(group = "source")
+        private Property<String> bucket;
+
+        @Schema(
+            title = "Limits the response to keys that begin with the specified prefix"
+        )
+        @PluginProperty(group = "source")
+        private Property<String> prefix;
+
+        @Schema(
+            title = "A delimiter is a character you use to group keys"
+        )
+        @PluginProperty(group = "processing")
+        private Property<String> delimiter;
+
+        @Schema(
+            title = "Marker is where you want Amazon S3 to start listing from",
+            description = "Amazon S3 starts listing after this specified key."
+        )
+        @PluginProperty(group = "advanced")
+        private Property<String> marker;
+
+        @Schema(
+            title = "The EncodingType property for this object"
+        )
+        @PluginProperty(group = "advanced")
+        private Property<String> encodingType;
+
+        @Builder.Default
+        @Schema(
+            title = "Maximum number of objects returned across all paginated S3 calls",
+            description = "Total upper bound on the objects returned. Default 1000."
+        )
+        @PluginProperty(group = "execution")
+        private Property<Integer> maxKeys = Property.ofValue(1000);
+
+        @Schema(
+            title = "The account ID of the expected bucket owner"
+        )
+        @PluginProperty(group = "advanced")
+        private Property<String> expectedBucketOwner;
+
+        @Schema(
+            title = "A regexp to filter on full key"
+        )
+        @PluginProperty(group = "processing")
+        private Property<String> regexp;
+
+        @Builder.Default
+        @Schema(
+            title = "The type of objects to filter: files, directory, or both"
+        )
+        @PluginProperty(group = "processing")
+        private Property<Filter> filter = Property.ofValue(Filter.BOTH);
+    }
+
+    @SuperBuilder
+    @ToString
+    @EqualsAndHashCode
+    @Getter
+    @NoArgsConstructor
+    public static class CopyListDestination {
+
+        @Schema(
+            title = "The destination bucket name",
+            description = "If omitted, defaults to the source bucket name."
+        )
+        @PluginProperty(group = "destination")
+        private Property<String> bucket;
+
+        @Schema(
+            title = "The destination prefix (folder path)"
+        )
+        @PluginProperty(group = "destination")
+        private Property<String> prefix;
+
+        @Schema(
+            title = "Server side encryption to apply to the target object",
+            description = "Example: AES256 or AWS_KMS"
+        )
+        @PluginProperty(group = "destination")
+        private Property<S3ServerSideEncryption> serverSideEncryption;
+
+        @Schema(
+            title = "KMS Key ARN or Key ID to use when server side encryption is AWS_KMS"
+        )
+        @PluginProperty(group = "destination")
+        private Property<String> kmsKeyId;
     }
 }

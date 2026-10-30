@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.aws.s3.models.CopyListDestination;
-import io.kestra.plugin.aws.s3.models.CopyListSource;
+import io.kestra.plugin.aws.s3.CopyList.CopyListDestination;
+import io.kestra.plugin.aws.s3.CopyList.CopyListSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
