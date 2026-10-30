@@ -1,9 +1,9 @@
 plugins {
-    id 'io.kestra.gradle.repository-conventions' version '1.2.11'
-    id 'io.kestra.gradle.spotless-conventions' version '1.2.11'
+    id 'io.kestra.gradle.repository-conventions' version '1.2.12'
+    id 'io.kestra.gradle.spotless-conventions' version '1.2.12'
     id "com.vanniktech.maven.publish" version "0.37.0"
-    id "io.kestra.gradle.inject-bom-versions" version '1.2.11'
-    id "io.kestra.gradle.plugin-doc-lint" version '1.2.11'
+    id "io.kestra.gradle.inject-bom-versions" version '1.2.12'
+    id "io.kestra.gradle.plugin-doc-lint" version '1.2.12'
     id 'java-library'
     id "idea"
     id 'jacoco'
@@ -60,7 +60,7 @@ dependencies {
 
     // Shared kernel (AWS connection/auth + S3 client factory), also brings s3, s3-transfer-manager,
     // sts, apache-client, netty-nio-client and aws-crt transitively as `api`
-    implementation 'io.kestra.plugin:plugin-aws-lib:1.0.1'
+    implementation 'io.kestra.plugin:plugin-aws-lib:1.1.0'
 
     // AWS libraries are managed by the the Kestra Platform so they are aligned on all plugins
     api 'software.amazon.awssdk:cloudwatchlogs'
@@ -85,6 +85,9 @@ dependencies {
     api 'software.amazon.awssdk:healthlake'
     // AWS SDK — Amazon MSK
     api 'software.amazon.awssdk:kafka'
+    // AWS SDK — AWS Cost Explorer (incl. Cost Anomaly Detection) and AWS Budgets
+    api 'software.amazon.awssdk:costexplorer'
+    api 'software.amazon.awssdk:budgets'
 }
 
 /**********************************************************************************************************************\
@@ -115,6 +118,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
     testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.wiremock:wiremock-jetty12'
 
     testAnnotationProcessor group: "io.kestra", name: "processor"
     testImplementation group: "io.kestra", name: "core"

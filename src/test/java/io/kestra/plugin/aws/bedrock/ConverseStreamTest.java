@@ -12,6 +12,8 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
+import jakarta.validation.MessageInterpolator;
+import jakarta.validation.Validation;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
@@ -128,5 +130,52 @@ class ConverseStreamTest {
         doReturn(mockClient).when(spy).asyncClient(any(RunContext.class));
 
         assertThrows(IllegalArgumentException.class, () -> spy.run(runContext));
+    }
+
+    @Test
+    void givenEmptyMessages_whenConverseStream_thenThrowsExpectedException() {
+        RunContext runContext = runContextFactory.of();
+
+        ConverseStream task = ConverseStream.builder()
+            .id("test-converse-stream-empty-messages")
+            .type(ConverseStream.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of()))
+            .build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+
+        assertThat(exception.getMessage(), is("messages must not be empty"));
+    }
+
+    @Test
+    void givenValidMessages_whenValidated_thenDoesNotProduceHv000030() {
+        ConverseStream task = ConverseStream.builder()
+            .id("test-converse-stream-validation")
+            .type(ConverseStream.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of(Map.of("role", "user", "content", "Hello!"))))
+            .build();
+
+        var violations = Validation.byDefaultProvider()
+            .configure()
+            .messageInterpolator(new MessageInterpolator() {
+                @Override
+                public String interpolate(String messageTemplate, Context context) {
+                    return messageTemplate;
+                }
+
+                @Override
+                public String interpolate(String messageTemplate, Context context, java.util.Locale locale) {
+                    return messageTemplate;
+                }
+            })
+            .buildValidatorFactory()
+            .getValidator()
+            .validate(task);
+
+        assertThat(violations, empty());
     }
 }

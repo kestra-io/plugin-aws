@@ -248,11 +248,14 @@ public class Trigger extends AbstractTrigger
             return Optional.empty();
         }
 
+        S3Service.moveTargets(run.getObjects(), this.action, this.moveTo, runContext, this);
+
         var previousState = readState(runContext, rStateKey, rStateTtl);
         // State as read, to roll back the objects whose action fails so the next poll picks them up again.
         var stateAsRead = new HashMap<>(previousState);
 
         var toFire = run.getObjects().stream()
+            .filter(object -> !S3Service.isDirectoryMarker(object))
             .flatMap(throwFunction(object ->
             {
                 var resolvedBucket = runContext.render(bucket).as(String.class).orElse("");
