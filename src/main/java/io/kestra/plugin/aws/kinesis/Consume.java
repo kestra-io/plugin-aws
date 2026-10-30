@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
@@ -129,30 +131,45 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+        return run(runContext, Map.of());
+    }
+
+    Output run(RunContext runContext, Map<String, String> startingPositionPerShard) throws Exception {
         long startedAt = System.nanoTime();
         var rStream = runContext.render(this.streamName).as(String.class).orElseThrow();
 
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
+        var startingPositions = startingPositionPerShard == null ? Map.<String, String>of() : startingPositionPerShard;
+        var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
+        var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
 
         File outFile = runContext.workingDir().createTempFile(".ion").toFile();
         BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(outFile));
 
         int consumed = 0;
-        Map<String, String> lastSequence = new HashMap<>();
+        var lastSequence = new HashMap<String, String>();
+        var resumePositionPerShard = new HashMap<String, String>();
         var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
+        var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE);
 
         for (Shard shard : shards) {
-            if (isStopped.get()) {
+            if (isStopped.get() || consumed >= rMaxRecords) {
                 break;
             }
-            String iterator = buildShardIterator(runContext, client, rStream, shard);
+            var shardStart = buildShardIterator(runContext, client, rStream, shard, startingPositions.get(shard.shardId()));
+            var iterator = shardStart.iterator();
+            var startingPosition = shardStart.startingPosition();
+            String lastPosition = null;
+            Long millisBehindLatest = null;
+            var shardRead = false;
 
             while (iterator != null) {
                 if (isStopped.get()) {
                     break;
                 }
+                shardRead = true;
 
                 GetRecordsResponse response = client.getRecords(
                     GetRecordsRequest.builder()
@@ -160,6 +177,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                         .limit(1000)
                         .build()
                 );
+                millisBehindLatest = response.millisBehindLatest();
 
                 for (Record record : response.records()) {
                     ConsumedRecord consumedRecord = ConsumedRecord.builder()
@@ -173,9 +191,9 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                     FileSerde.write(output, consumedRecord);
 
                     consumed++;
-                    lastSequence.put(shard.shardId(), record.sequenceNumber());
+                    lastPosition = record.sequenceNumber();
 
-                    if (consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)) {
+                    if (consumed >= rMaxRecords) {
                         break;
                     }
                 }
@@ -184,12 +202,23 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
                 if (
                     Instant.now().isAfter(rMaxDuration) ||
-                        consumed >= runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE)
+                        consumed >= rMaxRecords
                 ) {
                     break;
                 }
 
                 Thread.sleep(runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1)).toMillis());
+            }
+
+            if (shardRead) {
+                if (lastPosition != null) {
+                    lastSequence.put(shard.shardId(), lastPosition);
+                    resumePositionPerShard.put(shard.shardId(), lastPosition);
+                } else if (startingPosition != null) {
+                    resumePositionPerShard.put(shard.shardId(), startingPosition);
+                } else if (rIteratorType == IteratorType.LATEST || (millisBehindLatest != null && millisBehindLatest == 0L)) {
+                    resumePositionPerShard.put(shard.shardId(), timestampPosition(pollStartedAt));
+                }
             }
         }
 
@@ -204,26 +233,59 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             .uri(uri)
             .count(consumed)
             .lastSequencePerShard(lastSequence)
+            .resumePositionPerShard(resumePositionPerShard)
             .build();
     }
 
-    private String buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard) throws IllegalVariableEvaluationException {
+    private ShardStart buildShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
+        if (startingPosition != null) {
+            try {
+                return new ShardStart(getShardIterator(runContext, client, stream, shard, startingPosition), startingPosition);
+            } catch (InvalidArgumentException e) {
+                runContext.logger().warn(
+                    "Saved position '{}' rejected for shard '{}' in stream '{}', falling back to configured iterator type: {}",
+                    startingPosition, shard.shardId(), stream, e.getMessage()
+                );
+                return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
+            }
+        }
+
+        return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
+    }
+
+    private record ShardStart(String iterator, String startingPosition) {}
+
+    private String getShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
+        var savedSequence = startingPosition != null && !startingPosition.startsWith("timestamp:") ? startingPosition : null;
+        var savedTimestamp = startingPosition != null && startingPosition.startsWith("timestamp:")
+            ? Instant.parse(startingPosition.substring("timestamp:".length()))
+            : null;
         var builder = GetShardIteratorRequest.builder()
             .streamName(stream)
             .shardId(shard.shardId())
             .shardIteratorType(
-                ShardIteratorType.fromValue(
-                    runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name()
-                )
+                savedSequence != null
+                    ? ShardIteratorType.AFTER_SEQUENCE_NUMBER
+                    : savedTimestamp != null
+                        ? ShardIteratorType.AT_TIMESTAMP
+                        : ShardIteratorType.fromValue(runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST).name())
             );
 
-        if (startingSequenceNumber != null) {
+        if (savedSequence != null) {
+            builder.startingSequenceNumber(savedSequence);
+        } else if (savedTimestamp != null) {
+            builder.timestamp(savedTimestamp);
+        } else if (startingSequenceNumber != null) {
             runContext.render(startingSequenceNumber)
                 .as(String.class)
                 .ifPresent(builder::startingSequenceNumber);
         }
 
         return client.getShardIterator(builder.build()).shardIterator();
+    }
+
+    private static String timestampPosition(Instant timestamp) {
+        return "timestamp:" + timestamp;
     }
 
     @Getter
@@ -274,5 +336,8 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             description = "Map of shardId to last consumed sequence number."
         )
         private final Map<String, String> lastSequencePerShard;
+
+        @JsonIgnore
+        private final Map<String, String> resumePositionPerShard;
     }
 }
