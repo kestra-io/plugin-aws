@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.google.common.annotations.VisibleForTesting;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -21,14 +20,11 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
-import io.kestra.core.models.triggers.AbstractTrigger;
-import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
 import io.kestra.core.models.triggers.StatefulTriggerService;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
-import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -88,53 +84,8 @@ import lombok.experimental.SuperBuilder;
         )
     }
 )
-public class AnomalyTrigger extends AbstractTrigger
-    implements PollingTriggerInterface, TriggerOutput<AnomalyTrigger.Output>, AbstractConnectionInterface {
+public class AnomalyTrigger extends AbstractBillingTrigger implements TriggerOutput<AnomalyTrigger.Output> {
     static final Duration DEFAULT_LOOKBACK = Duration.ofDays(7);
-
-    @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
-    @PluginProperty(secret = true, group = "advanced")
-    @ToString.Exclude
-    protected Property<String> accessKeyId;
-
-    @Schema(title = "AWS secret access key", description = "Pairs with `accessKeyId` for static credentials.")
-    @PluginProperty(secret = true, group = "advanced")
-    @ToString.Exclude
-    protected Property<String> secretKeyId;
-
-    @Schema(title = "AWS session token", description = "Session token for temporary credentials.")
-    @PluginProperty(secret = true, group = "connection")
-    @ToString.Exclude
-    protected Property<String> sessionToken;
-
-    @Schema(title = "AWS region", description = "Cost Explorer is a global service served from `us-east-1`.")
-    @PluginProperty(group = "connection")
-    protected Property<String> region;
-
-    @Schema(title = "Endpoint override", description = "Override the default AWS endpoint URL.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> endpointOverride;
-
-    @Schema(title = "STS role ARN", description = "IAM role ARN to assume via STS before making API calls.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleArn;
-
-    @Schema(title = "STS role external ID", description = "External ID to pass when assuming the STS role.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleExternalId;
-
-    @Schema(title = "STS role session name", description = "Session name to use when assuming the STS role.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleSessionName;
-
-    @Schema(title = "STS endpoint override", description = "Override the default STS endpoint URL.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsEndpointOverride;
-
-    @Schema(title = "STS role session duration", description = "Duration of the assumed role session. Default PT15M.")
-    @PluginProperty(group = "execution")
-    @Builder.Default
-    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
     @Schema(
         title = "Poll interval",
@@ -211,27 +162,17 @@ public class AnomalyTrigger extends AbstractTrigger
         var rToday = today();
         var windowStart = rToday.minusDays(rLookback.toDays());
 
-        var fetched = GetAnomalies.builder()
+        var task = GetAnomalies.builder()
             .id(id)
             .type(GetAnomalies.class.getName())
-            .accessKeyId(accessKeyId)
-            .secretKeyId(secretKeyId)
-            .sessionToken(sessionToken)
-            .region(region)
-            .endpointOverride(endpointOverride)
-            .stsRoleArn(stsRoleArn)
-            .stsRoleExternalId(stsRoleExternalId)
-            .stsRoleSessionName(stsRoleSessionName)
-            .stsEndpointOverride(stsEndpointOverride)
-            .stsRoleSessionDuration(stsRoleSessionDuration)
             .startDate(Property.ofValue(windowStart.toString()))
             .endDate(Property.ofValue(rToday.toString()))
             .monitorArn(monitorArn)
             .minImpactUsd(rMinImpactUsd == null ? null : Property.ofValue(rMinImpactUsd))
             .maxPages(maxPages)
-            .fetchType(Property.ofValue(FetchType.FETCH))
-            .build()
-            .run(runContext);
+            .fetchType(Property.ofValue(FetchType.FETCH));
+        copyConnection(task);
+        var fetched = task.build().run(runContext);
 
         var state = StatefulTriggerService.readState(runContext, rStateKey, Optional.empty());
         var newAnomalies = new ArrayList<Map<String, Object>>();
@@ -246,8 +187,7 @@ public class AnomalyTrigger extends AbstractTrigger
             }
         }
 
-        // an anomaly last observed before the window can no longer be returned, so its ID is dropped to keep the state small;
-        // when pages were left unread, it may still be on them, so nothing is dropped
+        // pages left unread may still hold old IDs, so prune only on a full read
         if (!Boolean.TRUE.equals(fetched.getTruncated())) {
             var windowStartInstant = windowStart.atStartOfDay(ZoneOffset.UTC).toInstant();
             state.values().removeIf(entry -> entry.modifiedAt() != null && entry.modifiedAt().isBefore(windowStartInstant));
@@ -277,11 +217,6 @@ public class AnomalyTrigger extends AbstractTrigger
         StatefulTriggerService.writeState(runContext, rStateKey, state, Optional.empty());
         logger.info("{} new cost anomalies with {} USD of total impact", newAnomalies.size(), totalImpact);
         return Optional.of(execution);
-    }
-
-    @VisibleForTesting
-    LocalDate today() {
-        return LocalDate.now(ZoneOffset.UTC);
     }
 
     private static boolean isAboveMinImpact(Map<String, Object> anomaly, Double minImpactUsd) {

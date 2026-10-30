@@ -1,7 +1,9 @@
 package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -132,6 +134,24 @@ class BudgetThresholdTriggerTest {
     }
 
     @Test
+    void givenStaleSpendRightAfterPeriodRollover_whenEvaluate_thenWaitsForPeriodStartGrace() throws Exception {
+        stubBudget("100", "90", "120");
+        var raw = rawTrigger(BudgetThresholdTrigger.ThresholdType.ACTUAL, 80.0);
+        var october = spyToday(raw, OCTOBER);
+        var context = TestsUtils.mockTrigger(runContextFactory, october);
+        assertThat(october.evaluate(context.getKey(), context.getValue()).isPresent(), is(true));
+
+        // two hours into November, AWS still returns October's spend: firing now would mark November as alerted
+        var earlyNovember = spyAt(raw, Instant.parse("2026-11-01T02:00:00Z"));
+        assertThat(earlyNovember.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+        var afterGrace = spyAt(raw, Instant.parse("2026-11-01T13:00:00Z"));
+        var execution = afterGrace.evaluate(context.getKey(), context.getValue());
+        assertThat(execution.isPresent(), is(true));
+        assertThat(execution.orElseThrow().getTrigger().getVariables().get("period"), is("2026-11"));
+    }
+
+    @Test
     void givenZeroThreshold_whenEvaluate_thenFailsBeforeCallingAws() {
         var trigger = trigger(BudgetThresholdTrigger.ThresholdType.ACTUAL, 0.0, OCTOBER);
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
@@ -148,6 +168,9 @@ class BudgetThresholdTriggerTest {
         assertThat(BudgetThresholdTrigger.period("MONTHLY", null, null, day), is("2026-08"));
         assertThat(BudgetThresholdTrigger.period("QUARTERLY", null, null, day), is("2026-Q3"));
         assertThat(BudgetThresholdTrigger.period("ANNUALLY", null, null, day), is("2026"));
+        assertThat(BudgetThresholdTrigger.periodStart("QUARTERLY", null, day), is(Instant.parse("2026-07-01T00:00:00Z")));
+        assertThat(BudgetThresholdTrigger.periodStart("MONTHLY", null, day), is(Instant.parse("2026-08-01T00:00:00Z")));
+        assertThat(BudgetThresholdTrigger.periodStart("CUSTOM", "2026-01-01T00:00:00Z", day), is(Instant.parse("2026-01-01T00:00:00Z")));
         assertThat(BudgetThresholdTrigger.period("CUSTOM", "2026-01-01T00:00:00Z", "2026-06-30T00:00:00Z", day), is("2026-01-01T00:00:00Z/2026-06-30T00:00:00Z"));
     }
 
@@ -171,8 +194,12 @@ class BudgetThresholdTriggerTest {
     }
 
     private static BudgetThresholdTrigger spyToday(BudgetThresholdTrigger trigger, LocalDate today) {
+        return spyAt(trigger, today.atTime(12, 0).toInstant(ZoneOffset.UTC));
+    }
+
+    private static BudgetThresholdTrigger spyAt(BudgetThresholdTrigger trigger, Instant now) {
         var spy = spy(trigger);
-        doReturn(today).when(spy).today();
+        doReturn(now).when(spy).now();
         return spy;
     }
 

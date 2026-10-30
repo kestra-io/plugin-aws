@@ -2,10 +2,10 @@ package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +18,7 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerService;
+import io.kestra.core.models.triggers.Trigger;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
@@ -156,7 +157,7 @@ class AnomalyTriggerTest {
 
     private static AnomalyTrigger spyToday(AnomalyTrigger trigger, LocalDate today) {
         var spy = spy(trigger);
-        doReturn(today).when(spy).today();
+        doReturn(today.atTime(12, 0).toInstant(ZoneOffset.UTC)).when(spy).now();
         return spy;
     }
 
@@ -167,11 +168,11 @@ class AnomalyTriggerTest {
         return anomalies.stream().map(anomaly -> (String) anomaly.get("anomalyId")).toList();
     }
 
-    private static List<String> persistedIds(Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context, AnomalyTrigger trigger) {
+    private static List<String> persistedIds(Map.Entry<ConditionContext, Trigger> context, AnomalyTrigger trigger) {
         var key = StatefulTriggerService.defaultKey(context.getValue().getNamespace(), context.getValue().getFlowId(), trigger.getId());
         return StatefulTriggerService.readState(context.getKey().getRunContext(), key, Optional.empty()).keySet().stream()
             .sorted()
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private void stubAnomalies(String... anomalies) {

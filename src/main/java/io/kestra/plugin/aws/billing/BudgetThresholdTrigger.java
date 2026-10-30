@@ -7,11 +7,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.google.common.annotations.VisibleForTesting;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -19,14 +19,11 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.AbstractTrigger;
-import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
 import io.kestra.core.models.triggers.StatefulTriggerService;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
-import io.kestra.plugin.aws.shared.AbstractConnectionInterface;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -45,7 +42,8 @@ import lombok.experimental.SuperBuilder;
         Polls one budget with the AWS Budgets `DescribeBudget` API and starts a flow when its actual or forecasted spend
         reaches `thresholdPercent` of the budget limit. The trigger fires once per budget period: after it fires, it stays
         quiet until the budget's next period (next day, month, quarter or year, depending on the budget's time unit), even
-        if the spend keeps growing or the forecast goes down and up again. The period it fired for is persisted in the
+        if the spend keeps growing or the forecast goes down and up again. It does not fire during the first `periodStartGrace`
+        (default 12 hours) of a period, while AWS may still report the previous period's spend. The period it fired for is persisted in the
         namespace KV store, so restarts and new trigger instances do not fire again. Use one trigger per threshold, for
         example one at 80% `FORECASTED` and one at 100% `ACTUAL`. The Budgets API is free, and AWS refreshes budget spend
         a few times a day, so polling more often than every hour does not bring fresher data."""
@@ -82,53 +80,9 @@ import lombok.experimental.SuperBuilder;
         )
     }
 )
-public class BudgetThresholdTrigger extends AbstractTrigger
-    implements PollingTriggerInterface, TriggerOutput<BudgetThresholdTrigger.Output>, AbstractConnectionInterface {
+public class BudgetThresholdTrigger extends AbstractBillingTrigger implements TriggerOutput<BudgetThresholdTrigger.Output> {
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
-
-    @Schema(title = "AWS access key ID", description = "Optional static credential. If omitted, the default credentials provider chain is used.")
-    @PluginProperty(secret = true, group = "advanced")
-    @ToString.Exclude
-    protected Property<String> accessKeyId;
-
-    @Schema(title = "AWS secret access key", description = "Pairs with `accessKeyId` for static credentials.")
-    @PluginProperty(secret = true, group = "advanced")
-    @ToString.Exclude
-    protected Property<String> secretKeyId;
-
-    @Schema(title = "AWS session token", description = "Session token for temporary credentials.")
-    @PluginProperty(secret = true, group = "connection")
-    @ToString.Exclude
-    protected Property<String> sessionToken;
-
-    @Schema(title = "AWS region", description = "AWS Budgets is a global service served from `us-east-1`.")
-    @PluginProperty(group = "connection")
-    protected Property<String> region;
-
-    @Schema(title = "Endpoint override", description = "Override the default AWS endpoint URL.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> endpointOverride;
-
-    @Schema(title = "STS role ARN", description = "IAM role ARN to assume via STS before making API calls.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleArn;
-
-    @Schema(title = "STS role external ID", description = "External ID to pass when assuming the STS role.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleExternalId;
-
-    @Schema(title = "STS role session name", description = "Session name to use when assuming the STS role.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsRoleSessionName;
-
-    @Schema(title = "STS endpoint override", description = "Override the default STS endpoint URL.")
-    @PluginProperty(group = "advanced")
-    protected Property<String> stsEndpointOverride;
-
-    @Schema(title = "STS role session duration", description = "Duration of the assumed role session. Default PT15M.")
-    @PluginProperty(group = "execution")
-    @Builder.Default
-    protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
+    static final Duration DEFAULT_PERIOD_START_GRACE = Duration.ofHours(12);
 
     @Schema(
         title = "Poll interval",
@@ -180,6 +134,21 @@ public class BudgetThresholdTrigger extends AbstractTrigger
     private Property<ThresholdType> thresholdType = Property.ofValue(ThresholdType.ACTUAL);
 
     @Schema(
+        title = "Period start grace",
+        description = """
+            How long after a new budget period starts the trigger waits before it can fire. AWS refreshes budget spend only a
+            few times a day, so just after a period rolls over (for example on the 1st of the month for a monthly budget),
+            `DescribeBudget` can still return the previous period's spend. Without this wait, the trigger could fire on that
+            stale spend, remember the new period as alerted, and then stay quiet when the real crossing happens. A crossing
+            during the wait is not lost: the trigger fires on the first poll after it. Default `PT12H`; must not be negative.
+            For daily budgets, a shorter value such as `PT6H` keeps alerts timely."""
+    )
+    @NotNull
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    private Property<Duration> periodStartGrace = Property.ofValue(DEFAULT_PERIOD_START_GRACE);
+
+    @Schema(
         title = "State key",
         description = """
             Namespace KV key under which the trigger remembers the budget period it last fired for. Defaults to a key derived
@@ -202,24 +171,18 @@ public class BudgetThresholdTrigger extends AbstractTrigger
         var rStateKey = runContext.render(stateKey).as(String.class)
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
 
-        var budget = DescribeBudget.builder()
+        var rPeriodStartGrace = runContext.render(periodStartGrace).as(Duration.class).orElse(DEFAULT_PERIOD_START_GRACE);
+        if (rPeriodStartGrace.isNegative()) {
+            throw new IllegalArgumentException("periodStartGrace must not be negative, got " + rPeriodStartGrace);
+        }
+
+        var task = DescribeBudget.builder()
             .id(id)
             .type(DescribeBudget.class.getName())
-            .accessKeyId(accessKeyId)
-            .secretKeyId(secretKeyId)
-            .sessionToken(sessionToken)
-            .region(region)
-            .endpointOverride(endpointOverride)
-            .stsRoleArn(stsRoleArn)
-            .stsRoleExternalId(stsRoleExternalId)
-            .stsRoleSessionName(stsRoleSessionName)
-            .stsEndpointOverride(stsEndpointOverride)
-            .stsRoleSessionDuration(stsRoleSessionDuration)
             .accountId(Property.ofValue(rAccountId))
-            .budgetName(Property.ofValue(rBudgetName))
-            .build()
-            .run(runContext)
-            .getBudget();
+            .budgetName(Property.ofValue(rBudgetName));
+        copyConnection(task);
+        var budget = task.build().run(runContext).getBudget();
 
         var limit = budget.get("limitAmount") instanceof BigDecimal value ? value : null;
         if (limit == null || limit.signum() <= 0) {
@@ -238,13 +201,25 @@ public class BudgetThresholdTrigger extends AbstractTrigger
             return Optional.empty();
         }
 
-        var rPeriod = period((String) budget.get("timeUnit"), (String) budget.get("timePeriodStart"), (String) budget.get("timePeriodEnd"), today());
+        var rNow = now();
+        var rToday = LocalDate.ofInstant(rNow, ZoneOffset.UTC);
+        var timeUnit = (String) budget.get("timeUnit");
+        var periodStart = periodStart(timeUnit, (String) budget.get("timePeriodStart"), rToday);
+        if (periodStart != null && rNow.isBefore(periodStart.plus(rPeriodStartGrace))) {
+            logger.debug(
+                "Budget '{}' period started at {}, within periodStartGrace={}: its spend may still be the previous period's, not firing yet",
+                rBudgetName, periodStart, rPeriodStartGrace
+            );
+            return Optional.empty();
+        }
+
+        var rPeriod = period(timeUnit, (String) budget.get("timePeriodStart"), (String) budget.get("timePeriodEnd"), rToday);
         var state = StatefulTriggerService.readState(runContext, rStateKey, Optional.empty());
         var thresholdId = String.join(
             "/", rAccountId, rBudgetName, rThresholdType.name(), BigDecimal.valueOf(rThresholdPercent).stripTrailingZeros().toPlainString()
         );
         var change = StatefulTriggerService.computeAndUpdateState(
-            state, StatefulTriggerService.Entry.candidate(thresholdId, rPeriod, Instant.now()), StatefulTriggerInterface.On.CREATE_OR_UPDATE
+            state, StatefulTriggerService.Entry.candidate(thresholdId, rPeriod, rNow), StatefulTriggerInterface.On.CREATE_OR_UPDATE
         );
         if (!change.fire()) {
             logger.debug("Budget '{}' already crossed {}% of {} spend in period {}, not firing again", rBudgetName, rThresholdPercent, rThresholdType, rPeriod);
@@ -267,9 +242,25 @@ public class BudgetThresholdTrigger extends AbstractTrigger
         return Optional.of(execution);
     }
 
-    @VisibleForTesting
-    LocalDate today() {
-        return LocalDate.now(ZoneOffset.UTC);
+    /**
+     * Start of the budget period that contains {@code today}, or null when it is unknown (custom budget without a start).
+     */
+    static Instant periodStart(String timeUnit, String timePeriodStart, LocalDate today) {
+        var start = switch (timeUnit == null ? "" : timeUnit) {
+            case "DAILY" -> today;
+            case "MONTHLY" -> today.withDayOfMonth(1);
+            case "QUARTERLY" -> LocalDate.of(today.getYear(), (today.getMonthValue() - 1) / 3 * 3 + 1, 1);
+            case "ANNUALLY" -> today.withDayOfYear(1);
+            default -> null;
+        };
+        if (start != null) {
+            return start.atStartOfDay(ZoneOffset.UTC).toInstant();
+        }
+        try {
+            return timePeriodStart == null ? null : Instant.parse(timePeriodStart);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     /**
