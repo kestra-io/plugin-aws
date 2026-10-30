@@ -29,7 +29,7 @@ Set `region` on each task. Most tasks also accept `endpointOverride` for connect
 
 ## Tasks
 
-Tasks span the most commonly used AWS services. The `s3` package covers uploads, downloads, copies, deletions, and file-arrival triggers. For messaging and streaming, `sqs` and `sns` handle queue consumption and publishing while `kinesis` covers high-throughput record streaming; both SQS and Kinesis offer a polling `Trigger` (one execution per batch) and a `RealtimeTrigger` (one execution per record) — use `Trigger` for controlled throughput and `RealtimeTrigger` for low-latency processing.
+Tasks span the most commonly used AWS services. The `s3` package covers uploads, downloads, copies, deletions, and file-arrival triggers. For messaging and streaming, `sqs` and `sns` handle queue consumption and publishing (and `sqs` can purge a queue or dead-letter queue in one call) while `kinesis` covers high-throughput record streaming; both SQS and Kinesis offer a polling `Trigger` (one execution per batch) and a `RealtimeTrigger` (one execution per record) — use `Trigger` for controlled throughput and `RealtimeTrigger` for low-latency processing.
 
 For data and compute, `athena` queries S3 data with SQL, `glue` manages ETL jobs, `emr` runs Spark and Hadoop workloads, and `lambda` invokes serverless functions. `dynamodb` covers key-value reads and writes, `cloudwatch` pushes and queries custom metrics (with a metric-based `Trigger`), and `eventbridge` publishes events to an event bus. For infrastructure and authentication, `cloudformation` creates and deletes stacks, and `ecr` and `auth` mint short-lived tokens (ECR registry auth and EKS cluster auth respectively). Use `cli.AwsCLI` for any operation not covered by a dedicated task.
 

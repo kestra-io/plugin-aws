@@ -85,6 +85,7 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.sns.Publish`
 - `io.kestra.plugin.aws.sqs.Consume`
 - `io.kestra.plugin.aws.sqs.Publish`
+- `io.kestra.plugin.aws.sqs.Purge`
 - `io.kestra.plugin.aws.sqs.RealtimeTrigger`
 - `io.kestra.plugin.aws.sqs.Trigger`
 
