@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.billing;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -145,10 +146,40 @@ class BudgetThresholdTriggerTest {
         var earlyNovember = spyAt(raw, Instant.parse("2026-11-01T02:00:00Z"));
         assertThat(earlyNovember.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
 
-        var afterGrace = spyAt(raw, Instant.parse("2026-11-01T13:00:00Z"));
-        var execution = afterGrace.evaluate(context.getKey(), context.getValue());
+        var justBeforeGraceEnd = spyAt(raw, Instant.parse("2026-11-01T11:59:59Z"));
+        assertThat(justBeforeGraceEnd.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+        // the default 12h grace ends exactly at start + 12h
+        var atGraceEnd = spyAt(raw, Instant.parse("2026-11-01T12:00:00Z"));
+        var execution = atGraceEnd.evaluate(context.getKey(), context.getValue());
         assertThat(execution.isPresent(), is(true));
         assertThat(execution.orElseThrow().getTrigger().getVariables().get("period"), is("2026-11"));
+    }
+
+    @Test
+    void givenDailyBudget_whenEvaluate_thenGraceIsCappedAtAQuarterOfTheDay() throws Exception {
+        stubBudget("DAILY", "100", "90", "120");
+        var raw = rawTrigger(BudgetThresholdTrigger.ThresholdType.ACTUAL, 80.0);
+        var blocked = spyAt(raw, Instant.parse("2026-10-21T05:59:00Z"));
+        var context = TestsUtils.mockTrigger(runContextFactory, blocked);
+
+        // the default 12h grace would block a daily budget until noon; capped, it ends at 06:00
+        assertThat(blocked.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+        var execution = spyAt(raw, Instant.parse("2026-10-21T06:00:00Z")).evaluate(context.getKey(), context.getValue());
+        assertThat(execution.isPresent(), is(true));
+        assertThat(execution.orElseThrow().getTrigger().getVariables().get("period"), is("2026-10-21"));
+    }
+
+    @Test
+    void givenNegativePeriodStartGrace_whenEvaluate_thenFailsBeforeCallingAws() {
+        var raw = rawTrigger(BudgetThresholdTrigger.ThresholdType.ACTUAL, 80.0, Duration.ofHours(-1));
+        var trigger = spyToday(raw, OCTOBER);
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        var e = assertThrows(IllegalArgumentException.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        assertThat(e.getMessage(), containsString("periodStartGrace must not be negative"));
+        server.verify(0, postRequestedFor(urlEqualTo("/")));
     }
 
     @Test
@@ -168,10 +199,32 @@ class BudgetThresholdTriggerTest {
         assertThat(BudgetThresholdTrigger.period("MONTHLY", null, null, day), is("2026-08"));
         assertThat(BudgetThresholdTrigger.period("QUARTERLY", null, null, day), is("2026-Q3"));
         assertThat(BudgetThresholdTrigger.period("ANNUALLY", null, null, day), is("2026"));
-        assertThat(BudgetThresholdTrigger.periodStart("QUARTERLY", null, day), is(Instant.parse("2026-07-01T00:00:00Z")));
-        assertThat(BudgetThresholdTrigger.periodStart("MONTHLY", null, day), is(Instant.parse("2026-08-01T00:00:00Z")));
-        assertThat(BudgetThresholdTrigger.periodStart("CUSTOM", "2026-01-01T00:00:00Z", day), is(Instant.parse("2026-01-01T00:00:00Z")));
         assertThat(BudgetThresholdTrigger.period("CUSTOM", "2026-01-01T00:00:00Z", "2026-06-30T00:00:00Z", day), is("2026-01-01T00:00:00Z/2026-06-30T00:00:00Z"));
+    }
+
+    @Test
+    void givenTimeUnit_whenPeriodBounds_thenReturnsPeriodStartEndAndCappedGrace() {
+        var day = LocalDate.of(2026, 8, 15);
+        assertThat(BudgetThresholdTrigger.periodBounds("DAILY", null, null, day), is(bounds("2026-08-15T00:00:00Z", "2026-08-16T00:00:00Z")));
+        assertThat(BudgetThresholdTrigger.periodBounds("MONTHLY", null, null, day), is(bounds("2026-08-01T00:00:00Z", "2026-09-01T00:00:00Z")));
+        assertThat(BudgetThresholdTrigger.periodBounds("QUARTERLY", null, null, day), is(bounds("2026-07-01T00:00:00Z", "2026-10-01T00:00:00Z")));
+        assertThat(BudgetThresholdTrigger.periodBounds("ANNUALLY", null, null, day), is(bounds("2026-01-01T00:00:00Z", "2027-01-01T00:00:00Z")));
+        assertThat(
+            BudgetThresholdTrigger.periodBounds("CUSTOM", "2026-01-01T00:00:00Z", "2026-06-30T00:00:00Z", day),
+            is(bounds("2026-01-01T00:00:00Z", "2026-06-30T00:00:00Z"))
+        );
+        // without a parsable custom time period, the period start is unknown and no grace applies
+        assertThat(BudgetThresholdTrigger.periodBounds("CUSTOM", "not-a-date", "2026-06-30T00:00:00Z", day), is(nullValue()));
+
+        var daily = BudgetThresholdTrigger.periodBounds("DAILY", null, null, day);
+        assertThat(BudgetThresholdTrigger.effectiveGrace(Duration.ofHours(12), daily), is(Duration.ofHours(6)));
+        assertThat(BudgetThresholdTrigger.effectiveGrace(Duration.ofHours(2), daily), is(Duration.ofHours(2)));
+        var quarterly = BudgetThresholdTrigger.periodBounds("QUARTERLY", null, null, day);
+        assertThat(BudgetThresholdTrigger.effectiveGrace(Duration.ofDays(92), quarterly), is(Duration.ofDays(92).dividedBy(4)));
+    }
+
+    private static BudgetThresholdTrigger.PeriodBounds bounds(String start, String end) {
+        return new BudgetThresholdTrigger.PeriodBounds(Instant.parse(start), Instant.parse(end));
     }
 
     private BudgetThresholdTrigger trigger(BudgetThresholdTrigger.ThresholdType type, double thresholdPercent, LocalDate today) {
@@ -179,6 +232,10 @@ class BudgetThresholdTriggerTest {
     }
 
     private BudgetThresholdTrigger rawTrigger(BudgetThresholdTrigger.ThresholdType type, double thresholdPercent) {
+        return rawTrigger(type, thresholdPercent, BudgetThresholdTrigger.DEFAULT_PERIOD_START_GRACE);
+    }
+
+    private BudgetThresholdTrigger rawTrigger(BudgetThresholdTrigger.ThresholdType type, double thresholdPercent, Duration periodStartGrace) {
         return BudgetThresholdTrigger.builder()
             .id(IdUtils.create())
             .type(BudgetThresholdTrigger.class.getName())
@@ -190,6 +247,7 @@ class BudgetThresholdTriggerTest {
             .budgetName(Property.ofValue("monthly-total"))
             .thresholdType(Property.ofValue(type))
             .thresholdPercent(Property.ofValue(thresholdPercent))
+            .periodStartGrace(Property.ofValue(periodStartGrace))
             .build();
     }
 
@@ -204,13 +262,17 @@ class BudgetThresholdTriggerTest {
     }
 
     private void stubBudget(String limit, String actual, String forecasted) {
+        stubBudget("MONTHLY", limit, actual, forecasted);
+    }
+
+    private void stubBudget(String timeUnit, String limit, String actual, String forecasted) {
         server.stubFor(
             post("/").withHeader("X-Amz-Target", equalTo(DESCRIBE_BUDGET))
                 .willReturn(okJson("""
-                    {"Budget":{"BudgetName":"monthly-total","BudgetType":"COST","TimeUnit":"MONTHLY",
+                    {"Budget":{"BudgetName":"monthly-total","BudgetType":"COST","TimeUnit":"%s",
                       "BudgetLimit":{"Amount":"%s","Unit":"USD"},
                       "CalculatedSpend":{"ActualSpend":{"Amount":"%s","Unit":"USD"},"ForecastedSpend":{"Amount":"%s","Unit":"USD"}}}}
-                    """.formatted(limit, actual, forecasted)))
+                    """.formatted(timeUnit, limit, actual, forecasted)))
         );
     }
 }

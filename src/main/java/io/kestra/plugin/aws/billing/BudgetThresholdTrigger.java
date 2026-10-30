@@ -43,8 +43,9 @@ import lombok.experimental.SuperBuilder;
         reaches `thresholdPercent` of the budget limit. The trigger fires once per budget period: after it fires, it stays
         quiet until the budget's next period (next day, month, quarter or year, depending on the budget's time unit), even
         if the spend keeps growing or the forecast goes down and up again. It does not fire during the first `periodStartGrace`
-        (default 12 hours) of a period, while AWS may still report the previous period's spend. The period it fired for is persisted in the
-        namespace KV store, so restarts and new trigger instances do not fire again. Use one trigger per threshold, for
+        of a period (default 12 hours, at most a quarter of the period), while AWS may still report the previous period's
+        spend. The period it fired for is persisted in the namespace KV store, so restarts and new trigger instances do
+        not fire again. Use one trigger per threshold, for
         example one at 80% `FORECASTED` and one at 100% `ACTUAL`. The Budgets API is free, and AWS refreshes budget spend
         a few times a day, so polling more often than every hour does not bring fresher data."""
 )
@@ -141,7 +142,8 @@ public class BudgetThresholdTrigger extends AbstractBillingTrigger implements Tr
             `DescribeBudget` can still return the previous period's spend. Without this wait, the trigger could fire on that
             stale spend, remember the new period as alerted, and then stay quiet when the real crossing happens. A crossing
             during the wait is not lost: the trigger fires on the first poll after it. Default `PT12H`; must not be negative.
-            For daily budgets, a shorter value such as `PT6H` keeps alerts timely."""
+            The wait is capped at a quarter of the budget period, so it never blocks a whole period: daily budgets wait at
+            most 6 hours, monthly budgets about a week, and custom budgets a quarter of their own time period."""
     )
     @NotNull
     @Builder.Default
@@ -204,13 +206,22 @@ public class BudgetThresholdTrigger extends AbstractBillingTrigger implements Tr
         var rNow = now();
         var rToday = LocalDate.ofInstant(rNow, ZoneOffset.UTC);
         var timeUnit = (String) budget.get("timeUnit");
-        var periodStart = periodStart(timeUnit, (String) budget.get("timePeriodStart"), rToday);
-        if (periodStart != null && rNow.isBefore(periodStart.plus(rPeriodStartGrace))) {
-            logger.debug(
-                "Budget '{}' period started at {}, within periodStartGrace={}: its spend may still be the previous period's, not firing yet",
-                rBudgetName, periodStart, rPeriodStartGrace
-            );
-            return Optional.empty();
+        var bounds = periodBounds(timeUnit, (String) budget.get("timePeriodStart"), (String) budget.get("timePeriodEnd"), rToday);
+        if (bounds != null) {
+            var grace = effectiveGrace(rPeriodStartGrace, bounds);
+            if (grace.compareTo(rPeriodStartGrace) < 0) {
+                logger.debug(
+                    "Budget '{}': periodStartGrace={} is more than a quarter of its {} period, using {}",
+                    rBudgetName, rPeriodStartGrace, bounds.length(), grace
+                );
+            }
+            if (rNow.isBefore(bounds.start().plus(grace))) {
+                logger.info(
+                    "Budget '{}' crossed {}% of {} spend, but its period started at {}, less than {} ago: the spend may still be the previous period's, not firing yet",
+                    rBudgetName, rThresholdPercent, rThresholdType, bounds.start(), grace
+                );
+                return Optional.empty();
+            }
         }
 
         var rPeriod = period(timeUnit, (String) budget.get("timePeriodStart"), (String) budget.get("timePeriodEnd"), rToday);
@@ -242,11 +253,19 @@ public class BudgetThresholdTrigger extends AbstractBillingTrigger implements Tr
         return Optional.of(execution);
     }
 
+    record PeriodBounds(Instant start, Instant end) {
+        Duration length() {
+            return Duration.between(start, end);
+        }
+    }
+
     /**
-     * Start of the budget period that contains {@code today}, or null when it is unknown (custom budget without a start).
+     * Start and end of the budget period that contains {@code today}, or null when they are unknown (custom budget without a
+     * parsable time period).
      */
-    static Instant periodStart(String timeUnit, String timePeriodStart, LocalDate today) {
-        var start = switch (timeUnit == null ? "" : timeUnit) {
+    static PeriodBounds periodBounds(String timeUnit, String timePeriodStart, String timePeriodEnd, LocalDate today) {
+        var rTimeUnit = timeUnit == null ? "" : timeUnit;
+        var start = switch (rTimeUnit) {
             case "DAILY" -> today;
             case "MONTHLY" -> today.withDayOfMonth(1);
             case "QUARTERLY" -> LocalDate.of(today.getYear(), (today.getMonthValue() - 1) / 3 * 3 + 1, 1);
@@ -254,10 +273,30 @@ public class BudgetThresholdTrigger extends AbstractBillingTrigger implements Tr
             default -> null;
         };
         if (start != null) {
-            return start.atStartOfDay(ZoneOffset.UTC).toInstant();
+            var end = switch (rTimeUnit) {
+                case "DAILY" -> start.plusDays(1);
+                case "MONTHLY" -> start.plusMonths(1);
+                case "QUARTERLY" -> start.plusMonths(3);
+                default -> start.plusYears(1);
+            };
+            return new PeriodBounds(start.atStartOfDay(ZoneOffset.UTC).toInstant(), end.atStartOfDay(ZoneOffset.UTC).toInstant());
         }
+        var customStart = parseInstant(timePeriodStart);
+        var customEnd = parseInstant(timePeriodEnd);
+        if (customStart == null || customEnd == null || !customEnd.isAfter(customStart)) {
+            return null;
+        }
+        return new PeriodBounds(customStart, customEnd);
+    }
+
+    static Duration effectiveGrace(Duration periodStartGrace, PeriodBounds bounds) {
+        var cap = bounds.length().dividedBy(4);
+        return periodStartGrace.compareTo(cap) > 0 ? cap : periodStartGrace;
+    }
+
+    private static Instant parseInstant(String value) {
         try {
-            return timePeriodStart == null ? null : Instant.parse(timePeriodStart);
+            return value == null ? null : Instant.parse(value);
         } catch (DateTimeParseException e) {
             return null;
         }

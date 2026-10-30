@@ -68,9 +68,6 @@ public abstract class AbstractBillingTrigger extends AbstractTrigger implements 
     @Builder.Default
     protected Property<Duration> stsRoleSessionDuration = Property.ofValue(AbstractConnectionInterface.AWS_MIN_STS_ROLE_SESSION_DURATION);
 
-    /**
-     * Copies this trigger's connection properties to the builder of the billing task it runs.
-     */
     protected void copyConnection(AbstractConnection.AbstractConnectionBuilder<?, ?> builder) {
         builder.accessKeyId(accessKeyId)
             .secretKeyId(secretKeyId)
