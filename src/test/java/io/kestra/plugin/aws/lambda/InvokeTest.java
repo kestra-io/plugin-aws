@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.lambda;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.models.executions.AbstractMetricEntry;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
+
+import software.amazon.awssdk.core.exception.SdkClientException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -116,6 +119,105 @@ public class InvokeTest extends AbstractInvokeTest {
 
         // Then
         assertTrue(context.metrics().isEmpty(), "Metrics should not be present");
+    }
+
+    @Test
+    public void givenSlowLambda_whenSocketTimeoutShorter_thenReadTimedOut() throws Exception {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2)).build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var e = assertThrows(
+            SdkClientException.class, () -> invoke.run(context),
+            "Invocation should time out on the client"
+        );
+
+        // Then
+        assertTrue(e.getMessage().contains("Read timed out"), "Unexpected error: " + e.getMessage());
+    }
+
+    @Test
+    public void givenSlowLambda_whenOneSdkAttempt_thenInvokedOnce() throws Exception {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2))
+            .sdkMaxAttempts(Property.ofValue(1))
+            .build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var e = assertThrows(
+            SdkClientException.class, () -> invoke.run(context),
+            "Invocation should time out on the client"
+        );
+
+        // Then
+        assertTrue(e.getMessage().contains("(SDK Attempt Count: 1)"), "Unexpected error: " + e.getMessage());
+    }
+
+    @Test
+    public void givenZeroSdkAttempts_whenClientBuilt_thenRejected() {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2))
+            .sdkMaxAttempts(Property.ofValue(0))
+            .build();
+
+        // When / Then
+        assertThrows(
+            IllegalArgumentException.class, () -> invoke.client(context),
+            "sdkMaxAttempts below 1 should be rejected"
+        );
+    }
+
+    @Test
+    public void givenLambdaPastSdkDefault_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
+        // Given: longer than the SDK's 30 s default read timeout
+        var invoke = sleepingInvoke(35, Duration.ofSeconds(60)).build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var output = invoke.run(context);
+
+        // Then
+        assertNotNull(output.getUri(), "File URI should be present");
+    }
+
+    @Test
+    public void givenSlowLambda_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(60)).build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var output = invoke.run(context);
+
+        // Then
+        assertNotNull(output.getUri(), "File URI should be present");
+    }
+
+    private Invoke.InvokeBuilder<?, ?> sleepingInvoke(int seconds, Duration socketTimeout) {
+        // ask the Lambda to sleep by function param (see test resource lambda/test.py)
+        Map<String, Object> params = new HashMap<>();
+        params.put("action", "sleep");
+        params.put("seconds", seconds);
+        return Invoke.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .functionArn(Property.ofValue(FUNCTION_NAME))
+            .functionPayload(Property.ofValue(params))
+            .socketTimeout(Property.ofValue(socketTimeout))
+            .id(InvokeTest.class.getSimpleName())
+            .type(InvokeTest.class.getName())
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY));
     }
 
 }

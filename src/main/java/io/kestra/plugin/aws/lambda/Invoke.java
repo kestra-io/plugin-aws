@@ -28,11 +28,11 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.shared.AbstractConnection;
-import io.kestra.plugin.aws.shared.ConnectionUtils;
 import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
+import io.kestra.plugin.aws.shared.AbstractConnection;
+import io.kestra.plugin.aws.shared.ConnectionUtils;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -43,10 +43,12 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
 import software.amazon.awssdk.services.lambda.LambdaClient;
+import software.amazon.awssdk.services.lambda.LambdaClientBuilder;
 import software.amazon.awssdk.services.lambda.model.InvokeRequest;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 import software.amazon.awssdk.services.lambda.model.LambdaException;
@@ -125,6 +127,22 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> functionPayload;
 
+    @Schema(
+        title = "Socket read timeout",
+        description = "How long to wait for the function's response. Defaults to the AWS SDK's 30 seconds. " +
+            "Set it above the function's own timeout (at most 15 minutes) so the function's timeout is the one reported."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Duration> socketTimeout;
+
+    @Schema(
+        title = "AWS SDK attempts",
+        description = "Total attempts the AWS SDK makes for one invocation, the first included. Defaults to the SDK's " +
+            "retry strategy. Each SDK retry invokes the function again; set 1 to leave retries to the task's `retry`."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Integer> sdkMaxAttempts;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
@@ -172,7 +190,32 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @VisibleForTesting
     LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
         final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder()).build();
+        final Optional<Duration> socketTimeout = runContext.render(this.socketTimeout).as(Duration.class);
+        final Optional<Integer> sdkMaxAttempts = runContext.render(this.sdkMaxAttempts).as(Integer.class);
+        if (sdkMaxAttempts.isPresent() && sdkMaxAttempts.get() < 1) {
+            throw new IllegalArgumentException("sdkMaxAttempts must be at least 1, got " + sdkMaxAttempts.get());
+        }
+        final LambdaClientBuilder builder = ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder());
+        // Each SDK retry is a new invocation of the function, invisible to the task's own `retry`.
+        sdkMaxAttempts.ifPresent(
+            attempts -> builder.overrideConfiguration(
+                config -> config.retryStrategy(strategy -> strategy.maxAttempts(attempts))
+            )
+        );
+        return builder
+            // Replaces the shared HTTP client, keeping its settings. A synchronous invocation holds the
+            // connection silent for as long as the function runs, up to 15 minutes: the read timeout must
+            // be settable, and TCP keepalive lets the OS keep the connection open across a NAT.
+            .httpClientBuilder(serviceDefaults ->
+            {
+                ApacheHttpClient.Builder http = ApacheHttpClient.builder()
+                    .maxConnections(100)
+                    .connectionTimeout(Duration.ofSeconds(10))
+                    .tcpKeepAlive(true);
+                socketTimeout.ifPresent(http::socketTimeout);
+                return http.build();
+            })
+            .build();
     }
 
     @VisibleForTesting
