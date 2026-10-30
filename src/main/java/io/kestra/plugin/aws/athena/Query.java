@@ -400,6 +400,11 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     private Object mapCell(ColumnInfo columnInfo, Datum datum) {
         // We try our best to convert the result to a precise type as all data comes as a varchar.
         // See https://docs.aws.amazon.com/athena/latest/ug/data-types.html for the list of supported types.
+        // SQL NULLs come back as a Datum without a varCharValue (or as no Datum at all), keep them as null.
+        if (datum == null || datum.varCharValue() == null) {
+            return null;
+        }
+
         return switch (columnInfo.type()) {
             case "boolean" -> Boolean.valueOf(datum.varCharValue());
             case "tinyint", "smallint", "int", "integer" -> Integer.valueOf(datum.varCharValue());

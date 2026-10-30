@@ -12,6 +12,7 @@ import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.utils.IdUtils;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
@@ -95,6 +96,98 @@ class QueryTest {
         Map<String, Object> row = (Map<String, Object>) output.getRows().get(0);
         assertThat(row.get("id"), is(1));
         assertThat(row.get("name"), is("foo"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void runFetch_sqlNullsAreReturnedAsNull() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var client = mock(AthenaClient.class);
+
+        when(client.startQueryExecution(any(StartQueryExecutionRequest.class)))
+            .thenReturn(StartQueryExecutionResponse.builder().queryExecutionId("query-nulls").build());
+
+        when(client.getQueryExecution(any(GetQueryExecutionRequest.class)))
+            .thenReturn(succeededExecution());
+
+        var nullDatum = Datum.builder().build();
+
+        when(client.getQueryResults(any(GetQueryResultsRequest.class)))
+            .thenReturn(
+                GetQueryResultsResponse.builder()
+                    .resultSet(
+                        ResultSet.builder()
+                            .resultSetMetadata(
+                                ResultSetMetadata.builder()
+                                    .columnInfo(
+                                        ColumnInfo.builder().name("id").type("int").build(),
+                                        ColumnInfo.builder().name("big").type("bigint").build(),
+                                        ColumnInfo.builder().name("ratio").type("double").build(),
+                                        ColumnInfo.builder().name("amount").type("decimal").build(),
+                                        ColumnInfo.builder().name("active").type("boolean").build(),
+                                        ColumnInfo.builder().name("day").type("date").build(),
+                                        ColumnInfo.builder().name("ts").type("timestamp").build(),
+                                        ColumnInfo.builder().name("name").type("varchar").build()
+                                    )
+                                    .build()
+                            )
+                            .rows(
+                                Row.builder()
+                                    .data(
+                                        Datum.builder().varCharValue("1").build(),
+                                        nullDatum, nullDatum, nullDatum, nullDatum, nullDatum, nullDatum, nullDatum
+                                    )
+                                    .build(),
+                                Row.builder()
+                                    .data(
+                                        nullDatum,
+                                        Datum.builder().varCharValue("42").build(),
+                                        Datum.builder().varCharValue("1.5").build(),
+                                        Datum.builder().varCharValue("10.25").build(),
+                                        Datum.builder().varCharValue("true").build(),
+                                        Datum.builder().varCharValue("2026-10-28").build(),
+                                        Datum.builder().varCharValue("2026-10-28 10:15:30.000000").build(),
+                                        Datum.builder().varCharValue("foo").build()
+                                    )
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            );
+
+        var task = spy(
+            Query.builder()
+                .id(IdUtils.create())
+                .type(Query.class.getName())
+                .database(Property.ofValue("db"))
+                .outputLocation(Property.ofValue("s3://dummy"))
+                .query(Property.ofValue("select * from t"))
+                .fetchType(Property.ofValue(FetchType.FETCH))
+                .skipHeader(Property.ofValue(false))
+                .build()
+        );
+
+        doReturn(client).when(task).athenaClient(any());
+
+        var output = task.run(runContext);
+
+        assertThat(output.getRows(), hasSize(2));
+
+        var nullRow = (Map<String, Object>) output.getRows().get(0);
+        assertThat(nullRow.get("id"), is(1));
+        for (var column : List.of("big", "ratio", "amount", "active", "day", "ts", "name")) {
+            assertThat(column, nullRow.containsKey(column), is(true));
+            assertThat(column, nullRow.get(column), nullValue());
+        }
+
+        var valueRow = (Map<String, Object>) output.getRows().get(1);
+        assertThat(valueRow.containsKey("id"), is(true));
+        assertThat(valueRow.get("id"), nullValue());
+        assertThat(valueRow.get("big"), is(42L));
+        assertThat(valueRow.get("active"), is(true));
+        assertThat(valueRow.get("name"), is("foo"));
     }
 
     // Regression: rows beyond the first Athena page must not be silently dropped.

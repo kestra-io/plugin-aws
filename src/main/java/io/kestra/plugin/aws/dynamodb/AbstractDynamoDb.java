@@ -1,9 +1,11 @@
 package io.kestra.plugin.aws.dynamodb;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -117,17 +119,25 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value == null || (value.nul() != null && value.hasSs())) {
             return null;
         }
-        if (value.bool() != null && value.bool()) {
-            return true;
+        if (value.bool() != null) {
+            return value.bool();
+        }
+        if (value.n() != null) {
+            return new BigDecimal(value.n());
         }
         if (value.hasSs()) {
             return value.ss();
+        }
+        if (value.hasNs()) {
+            return value.ns().stream().map(BigDecimal::new).toList();
+        }
+        if (value.hasL()) {
+            return value.l().stream().map(this::objectFrom).toList();
         }
         if (value.hasM()) {
             return objectMapFrom(value.m());
         }
 
-        //we may miss some cases, but it should be good for a first implementation.
         return value.s();
     }
 
@@ -152,15 +162,34 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
         }
-        if (value instanceof List) {
-            return AttributeValue.fromSs((List<String>) value);
+        if (value instanceof List<?> list) {
+            // DynamoDB rejects an empty string set and a string set that contains duplicates.
+            if (isStringSet(list)) {
+                return AttributeValue.fromSs(list.stream().map(String.class::cast).toList());
+            }
+            return AttributeValue.fromL(list.stream().map(this::objectFrom).toList());
         }
         if (value instanceof Map) {
             return AttributeValue.fromM(valueMapFrom((Map<String, Object>) value));
         }
+        if (value instanceof Number number) {
+            return AttributeValue.fromN(number.toString());
+        }
 
-        // in case we don't have any class we can handle, we call toString()
         return AttributeValue.fromS(value.toString());
+    }
+
+    private static boolean isStringSet(List<?> list) {
+        if (list.isEmpty()) {
+            return false;
+        }
+        var seen = new HashSet<String>();
+        for (var element : list) {
+            if (!(element instanceof String string) || !seen.add(string)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected Integer maxResults(RunContext runContext, Property<Integer> limit, FetchType fetchType) throws IllegalVariableEvaluationException {
