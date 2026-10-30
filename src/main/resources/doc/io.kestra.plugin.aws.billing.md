@@ -34,6 +34,8 @@ All billing tasks inherit the standard `plugin-aws` authentication. Cost Explore
 | `GetAnomalies` | You want the cost anomalies detected by Cost Anomaly Detection |
 | `DescribeBudgets` | You want all budgets of an account with their actual and forecasted spend |
 | `DescribeBudget` | You want one budget, for example to fail or alert when it is exceeded |
+| `BudgetThresholdTrigger` | You want a flow to start when a budget's actual or forecasted spend crosses a percentage of its limit |
+| `AnomalyTrigger` | You want a flow to start when Cost Anomaly Detection reports a new anomaly |
 
 ## Dates
 
@@ -42,3 +44,11 @@ All billing tasks inherit the standard `plugin-aws` authentication. Cost Explore
 ## Outputs
 
 List tasks follow the `fetchType` convention used by `athena.Query`: `STORE` (default) writes an ION file and returns its `uri`, `FETCH` returns `rows`, `FETCH_ONE` returns `row`, and `NONE` returns only the counts. `size` is the number of rows in the output: all rows read for `FETCH`, `STORE` and `NONE`, 1 or 0 for `FETCH_ONE`. With `FETCH_ONE`, `GetCostAndUsage` and `GetAnomalies` stop requesting pages once a page returns a row, to avoid paying for pages that are discarded; `costTotals` and `totalImpact` then only cover the pages read, and `truncated` is `true` if more pages were available. `GetCostAndUsage` also returns `costTotals`, the sum of each cost metric (e.g. `costTotals.UnblendedCost`; usage metrics `UsageQuantity` and `NormalizedUsageAmount` are not totaled because their units differ), and `GetAnomalies` returns `totalImpact` in USD.
+
+## Triggers
+
+Both triggers are polling triggers and remember what they already reported in the namespace KV store, under a key derived from the namespace, flow and trigger IDs (set `stateKey` to choose it). They write that state only after the execution is created, so a failed poll reports again instead of losing an alert.
+
+`BudgetThresholdTrigger` reads one budget with `DescribeBudget` (free) every `interval` (default `PT1H`) and fires when the spend selected by `thresholdType` (`ACTUAL` or `FORECASTED`) reaches `thresholdPercent` of the budget limit. It fires **once per budget period** for a given budget, threshold type and threshold: after a monthly budget fires in October, it stays quiet until November, even if the spend keeps growing or the forecast dips and crosses again. Periods are UTC calendar days, months, quarters or years, following the budget's time unit; a custom budget has a single period. Use one trigger per threshold, for example 80% `FORECASTED` and 100% `ACTUAL`. The IAM identity needs `budgets:ViewBudget`.
+
+`AnomalyTrigger` calls `GetAnomalies` (paid, $0.01 per page) every `interval` (default `PT6H`; Cost Anomaly Detection runs about three times a day) for the anomalies of the last `lookback` days (default `P7D`), and starts one execution with every anomaly it has not reported before, in `trigger.anomalies`. The watermark is the ID and last observed date of each reported anomaly in the lookback window: AWS often reports an anomaly a day or more after it started, so a single "last start date" would skip those. An anomaly below `minImpactUsd` is not remembered, so it fires once its impact grows above the threshold. The IAM identity needs `ce:GetAnomalies`.

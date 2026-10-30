@@ -27,6 +27,8 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 
 - `io.kestra.plugin.aws.athena.Query`
 - `io.kestra.plugin.aws.auth.EksToken`
+- `io.kestra.plugin.aws.billing.AnomalyTrigger`
+- `io.kestra.plugin.aws.billing.BudgetThresholdTrigger`
 - `io.kestra.plugin.aws.billing.DescribeBudget`
 - `io.kestra.plugin.aws.billing.DescribeBudgets`
 - `io.kestra.plugin.aws.billing.GetAnomalies`
