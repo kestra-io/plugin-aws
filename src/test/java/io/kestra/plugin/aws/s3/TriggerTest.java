@@ -24,6 +24,8 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
@@ -354,7 +356,8 @@ class TriggerTest extends AbstractTest {
         Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
         // The archive bucket does not exist yet, so the MOVE fails for every object.
-        assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        var failure = assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        assertThat(causeChain(failure).stream().anyMatch(NoSuchBucketException.class::isInstance), is(true));
 
         this.createBucket(archive);
 
@@ -418,6 +421,75 @@ class TriggerTest extends AbstractTest {
         assertThat(second.isPresent(), is(true));
         assertThat(triggeredKeys(second.get()), is(java.util.List.of(failingKey)));
         assertThat(keys(bucket, "trigger/partial").size(), is(0));
+    }
+
+    @Test
+    void killDuringActionsStillFiresTheActionedObjectsAndRetriesTheRest() throws Exception {
+        String bucket = "trigger-kill-mid-actions";
+        this.createBucket(bucket);
+        upload("trigger/kill", bucket);
+        upload("trigger/kill", bucket);
+        var uploaded = keys(bucket, "trigger/kill");
+
+        var triggerId = "s3-" + IdUtils.create();
+        var stateKey = "kill-" + triggerId;
+        java.util.function.Supplier<Trigger> newTrigger = () -> Trigger.builder()
+            .id(triggerId)
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .bucket(Property.ofValue(bucket))
+            .prefix(Property.ofValue("trigger/kill"))
+            .action(Property.ofValue(ActionInterface.Action.DELETE))
+            .stateKey(Property.ofValue(stateKey))
+            .interval(Duration.ofSeconds(10))
+            .build();
+
+        var trigger = newTrigger.get();
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        // The trigger is killed right after the first object was deleted.
+        var actioned = new AtomicReference<String>();
+        Optional<Execution> first;
+        try (
+            var ignored = Mockito.mockStatic(S3Service.class, invocation ->
+            {
+                var result = invocation.callRealMethod();
+                if (invocation.getMethod().getName().equals("performAction")) {
+                    actioned.compareAndSet(null, invocation.<java.util.List<S3Object>> getArgument(0).getFirst().getKey());
+                    trigger.kill();
+                }
+                return result;
+            })
+        ) {
+            first = trigger.evaluate(context.getKey(), context.getValue());
+        }
+
+        // The deleted object still fires and is recorded, the other one is left untouched.
+        assertThat(first.isPresent(), is(true));
+        assertThat(triggeredKeys(first.get()), is(java.util.List.of(actioned.get())));
+        var remaining = uploaded.stream().filter(key -> !key.equals(actioned.get())).toList();
+        assertThat(keys(bucket, "trigger/kill"), is(remaining));
+
+        // A fresh evaluation (same state) only picks up the object that was not processed.
+        var restarted = newTrigger.get();
+        var restartedContext = TestsUtils.mockTrigger(runContextFactory, restarted);
+        Optional<Execution> second = restarted.evaluate(restartedContext.getKey(), restartedContext.getValue());
+        assertThat(second.isPresent(), is(true));
+        assertThat(triggeredKeys(second.get()), is(remaining));
+        assertThat(keys(bucket, "trigger/kill").size(), is(0));
+    }
+
+    private static java.util.List<Throwable> causeChain(Throwable throwable) {
+        var chain = new java.util.ArrayList<Throwable>();
+        for (var current = throwable; current != null && !chain.contains(current); current = current.getCause()) {
+            chain.add(current);
+        }
+        return chain;
     }
 
     @SuppressWarnings("unchecked")
