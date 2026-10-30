@@ -6,6 +6,8 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -175,7 +177,11 @@ public class Query extends AbstractConnection implements RunnableTask<Query.Quer
     private Property<Boolean> skipHeader = Property.ofValue(true);
 
     private static final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+    // Athena emits 0 to 9 fractional-second digits depending on timestamp(p), so parse a variable-width fraction.
+    private static final DateTimeFormatter timestampFormatter = new DateTimeFormatterBuilder()
+        .appendPattern("yyyy-MM-dd HH:mm:ss")
+        .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+        .toFormatter();
 
     @Override
     public QueryOutput run(RunContext runContext) throws Exception {
