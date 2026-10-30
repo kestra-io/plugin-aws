@@ -1,7 +1,7 @@
 group: io.kestra.plugin.aws.billing
 name: "billing"
 title: "AWS Billing"
-description: "Tasks to query AWS Cost Explorer cost and usage, cost forecasts and cost anomalies, and to read AWS Budgets, so FinOps checks can run in a Kestra flow."
+description: "Tasks to query AWS Cost Explorer cost and usage, cost forecasts and cost anomalies, and to read AWS Budgets, plus triggers that start a flow when a budget threshold is crossed or a new cost anomaly is detected, so FinOps checks can run in a Kestra flow."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
