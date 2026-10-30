@@ -2,14 +2,10 @@ package io.kestra.plugin.aws.kinesis;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,15 +31,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
-import static io.kestra.core.utils.Rethrow.throwConsumer;
-import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -121,21 +112,13 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 @Schema(
     title = "Put records to Kinesis Data Streams",
-    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
+    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
 )
 public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
 
-    /**
-     * Kinesis accepts at most 500 records per PutRecords request.
-     */
-    static final int MAX_RECORDS_PER_REQUEST = 500;
-
-    /**
-     * Kinesis accepts at most 5 MiB per PutRecords request, partition keys included.
-     */
-    static final int MAX_BYTES_PER_REQUEST = 5 * 1024 * 1024;
+    static final int MAX_FAILURES_IN_MESSAGE = 10;
 
     @NotNull
     @Schema(
@@ -171,149 +154,137 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        final long start = System.nanoTime();
+        final var start = System.nanoTime();
+        var rFailOnUnsuccessfulRecords = runContext.render(failOnUnsuccessfulRecords).as(Boolean.class).orElse(true);
 
-        List<Record> records = getRecordList(this.records, runContext);
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var summary = new ResultSummary();
+        try (
+            var client = client(runContext);
+            var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)
+        ) {
+            var request = requestBuilder(runContext);
+            var batcher = new RecordBatcher<Record>(
+                entries -> client.putRecords(request.records(entries).build()),
+                duration -> Thread.sleep(duration.toMillis()),
+                (record, result) -> {
+                    summary.add(result);
+                    FileSerde.write(output, toOutputEntry(record, result));
+                }
+            );
 
-        BatchResult result = putRecords(runContext, records);
-
-        // Fail if failOnUnsuccessfulRecords
-        if (runContext.render(failOnUnsuccessfulRecords).as(Boolean.class).orElseThrow() && result.failedRecordCount() > 0) {
-            var logger = runContext.logger();
-            logger.error("Response show {} record failed: {}", result.failedRecordCount(), result.entries());
-            throw new RuntimeException(String.format("Response show %d record failed: %s", result.failedRecordCount(), result.entries()));
+            var position = new int[] { 0 };
+            forEachRecord(runContext, record -> batcher.add(record, toEntry(runContext, record, position[0]++)));
+            batcher.flush();
         }
 
-        // Set metrics
-        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("record.failed", result.failedRecordCount()));
-        runContext.metric(Counter.of("record.successful", records.size() - result.failedRecordCount()));
-        runContext.metric(Counter.of("record.count", records.size()));
+        if (rFailOnUnsuccessfulRecords && summary.getFailedCount() > 0) {
+            var message = summary.failureMessage();
+            runContext.logger().error(message);
+            throw new RuntimeException(message);
+        }
 
-        File tempFile = writeOutputFile(runContext, result, records);
+        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
+        runContext.metric(Counter.of("record.failed", summary.getFailedCount()));
+        runContext.metric(Counter.of("record.successful", summary.getCount() - summary.getFailedCount()));
+        runContext.metric(Counter.of("record.count", summary.getCount()));
+
         return Output.builder()
             .uri(runContext.storage().putFile(tempFile))
-            .failedRecordsCount(result.failedRecordCount())
-            .recordCount(records.size())
+            .failedRecordsCount(summary.getFailedCount())
+            .recordCount(summary.getCount())
             .build();
     }
 
-    private BatchResult putRecords(RunContext runContext, List<Record> records) throws IllegalVariableEvaluationException {
-        try (KinesisClient client = client(runContext)) {
-            PutRecordsRequest.Builder builder = PutRecordsRequest.builder();
-
-            var renderedStreamArn = runContext.render(streamArn).as(String.class).orElse(null);
-            var renderedStreamName = runContext.render(streamName).as(String.class).orElse(null);
-            if (!Strings.isNullOrEmpty(renderedStreamArn)) {
-                builder.streamARN(renderedStreamArn);
-            } else if (!Strings.isNullOrEmpty(renderedStreamName)) {
-                builder.streamName(renderedStreamName);
-            } else {
-                throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
-            }
-
-            List<PutRecordsRequestEntry> putRecordsRequestEntryList = records.stream()
-                .map(throwFunction(record -> record.toPutRecordsRequestEntry(runContext)))
-                .collect(Collectors.toList());
-
-            return putInBatches(putRecordsRequestEntryList, batch -> client.putRecords(builder.records(batch).build()));
+    private PutRecordsRequest.Builder requestBuilder(RunContext runContext) throws IllegalVariableEvaluationException {
+        var builder = PutRecordsRequest.builder();
+        var rStreamArn = runContext.render(streamArn).as(String.class).orElse(null);
+        var rStreamName = runContext.render(streamName).as(String.class).orElse(null);
+        if (!Strings.isNullOrEmpty(rStreamArn)) {
+            return builder.streamARN(rStreamArn);
         }
+        if (!Strings.isNullOrEmpty(rStreamName)) {
+            return builder.streamName(rStreamName);
+        }
+        throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
     }
 
-    /**
-     * Sends the entries batch by batch, in input order, so the aggregated results stay aligned with the input entries.
-     * A batch with rejected records does not stop the following batches: every entry gets an attempt and
-     * the failures are reported once, on the aggregated result.
-     */
-    static BatchResult putInBatches(List<PutRecordsRequestEntry> entries, Function<List<PutRecordsRequestEntry>, PutRecordsResponse> sender) {
-        List<PutRecordsResultEntry> results = new ArrayList<>(entries.size());
-        int failedRecordCount = 0;
-        for (List<PutRecordsRequestEntry> batch : partition(entries)) {
-            PutRecordsResponse response = sender.apply(batch);
-            results.addAll(response.records());
-            failedRecordCount += response.failedRecordCount();
+    static PutRecordsRequestEntry toEntry(RunContext runContext, Record record, int position) throws IllegalVariableEvaluationException {
+        if (record.getData() == null) {
+            throw new IllegalArgumentException("Record at position " + position + " has no data, set it on every record");
         }
-        return new BatchResult(results, failedRecordCount);
+        var entry = record.toPutRecordsRequestEntry(runContext);
+        if (Strings.isNullOrEmpty(entry.partitionKey())) {
+            throw new IllegalArgumentException("Record at position " + position + " has no partitionKey, set it on every record");
+        }
+        return entry;
     }
 
-    /**
-     * Splits the entries into consecutive batches that each fit in a single Kinesis PutRecords request:
-     * at most {@link #MAX_RECORDS_PER_REQUEST} entries and {@link #MAX_BYTES_PER_REQUEST} bytes.
-     * An entry that alone exceeds the byte limit is kept in its own batch and left for Kinesis to reject.
-     */
-    static List<List<PutRecordsRequestEntry>> partition(List<PutRecordsRequestEntry> entries) {
-        List<List<PutRecordsRequestEntry>> batches = new ArrayList<>();
-        List<PutRecordsRequestEntry> current = new ArrayList<>();
-        long currentBytes = 0;
-
-        for (PutRecordsRequestEntry entry : entries) {
-            long entryBytes = sizeOf(entry);
-            if (!current.isEmpty() && (current.size() >= MAX_RECORDS_PER_REQUEST || currentBytes + entryBytes > MAX_BYTES_PER_REQUEST)) {
-                batches.add(current);
-                current = new ArrayList<>();
-                currentBytes = 0;
-            }
-            current.add(entry);
-            currentBytes += entryBytes;
-        }
-
-        if (!current.isEmpty()) {
-            batches.add(current);
-        }
-        return batches;
-    }
-
-    /**
-     * Kinesis counts the data blob and the partition key towards the request size limit.
-     */
-    private static long sizeOf(PutRecordsRequestEntry entry) {
-        return entry.data().asByteArrayUnsafe().length + (long) entry.partitionKey().getBytes(StandardCharsets.UTF_8).length;
-    }
-
-    private List<Record> getRecordList(Object records, RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException, IOException {
-        if (records instanceof String) {
-
-            URI from = new URI(runContext.render((String) records));
-            if (!from.getScheme().equals("kestra")) {
+    // Reads an ION file lazily so only the current request is held in memory; inline lists are already in the flow.
+    private void forEachRecord(RunContext runContext, RecordConsumer consumer) throws Exception {
+        if (records instanceof String uri) {
+            var from = new URI(runContext.render(uri));
+            if (!"kestra".equals(from.getScheme())) {
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
             try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
-                return FileSerde.readAll(inputStream, Record.class)
-                    .collectList().block();
+                for (var record : FileSerde.readAll(inputStream, Record.class).toIterable()) {
+                    consumer.accept(record);
+                }
             }
-        } else if (records instanceof List) {
-            return MAPPER.convertValue(records, new TypeReference<>() {
+            return;
+        }
+
+        if (records instanceof List) {
+            List<Record> list = MAPPER.convertValue(records, new TypeReference<>() {
             });
+            for (var record : list) {
+                consumer.accept(record);
+            }
+            return;
         }
 
         throw new IllegalVariableEvaluationException("Invalid records type '" + records.getClass() + "'");
     }
 
-    private File writeOutputFile(RunContext runContext, BatchResult result, List<Record> records) throws IOException {
-        // Create Output
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-        try (var stream = new FileOutputStream(tempFile)) {
-            Flux.fromIterable(records)
-                .zipWithIterable(
-                    result.entries(), (record, response) -> OutputEntry.builder()
-                        .record(record)
-                        .sequenceNumber(response.sequenceNumber())
-                        .shardId(response.shardId())
-                        .errorCode(response.errorCode())
-                        .errorMessage(response.errorMessage())
-                        .build()
-                )
-                .doOnEach(throwConsumer(outputEntry -> FileSerde.write(stream, outputEntry.get())))
-                .collectList()
-                .block();
-        }
-        return tempFile;
+    private static OutputEntry toOutputEntry(Record record, PutRecordsResultEntry result) {
+        return OutputEntry.builder()
+            .record(record)
+            .sequenceNumber(result.sequenceNumber())
+            .shardId(result.shardId())
+            .errorCode(result.errorCode())
+            .errorMessage(result.errorMessage())
+            .build();
     }
 
-    /**
-     * Results of all the PutRecords requests sent for one task run, in input order.
-     */
-    record BatchResult(List<PutRecordsResultEntry> entries, int failedRecordCount) {
+    @FunctionalInterface
+    private interface RecordConsumer {
+        void accept(Record record) throws Exception;
+    }
+
+    // Counts the results and keeps the first few failures, so the error message stays small for large inputs.
+    @Getter
+    static class ResultSummary {
+        private int count;
+        private int failedCount;
+        private final List<String> firstFailures = new ArrayList<>();
+
+        void add(PutRecordsResultEntry result) {
+            if (result.errorCode() != null) {
+                failedCount++;
+                if (firstFailures.size() < MAX_FAILURES_IN_MESSAGE) {
+                    firstFailures.add("position " + count + ": " + result.errorCode() + " (" + result.errorMessage() + ")");
+                }
+            }
+            count++;
+        }
+
+        String failureMessage() {
+            return String.format(
+                "%d of %d records failed (throttled records were retried up to %d times). First %d failures: %s",
+                failedCount, count, RecordBatcher.MAX_RETRIES, firstFailures.size(), String.join("; ", firstFailures)
+            );
+        }
     }
 
     @Builder
