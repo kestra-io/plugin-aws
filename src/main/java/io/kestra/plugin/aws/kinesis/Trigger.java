@@ -209,7 +209,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .streamName(this.streamName)
             .iteratorType(this.iteratorType)
             .startingSequenceNumber(this.startingSequenceNumber)
-            .startingSequencePerShard(Property.ofValue(sequences))
             .maxRecords(this.maxRecords)
             .maxDuration(this.maxDuration)
             .pollDuration(this.pollDuration)
@@ -225,7 +224,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .stsRoleSessionDuration(stsRoleSessionDuration)
             .build();
 
-        Consume.Output output = consume.run(runContext);
+        Consume.Output output = consume.run(runContext, sequences);
 
         output.getResumePositionPerShard().forEach((shard, position) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, position, Instant.now())));
         StatefulTriggerService.writeState(runContext, rStateKey, previousState, rStateTtl);

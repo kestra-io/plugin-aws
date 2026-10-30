@@ -100,16 +100,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
     @Builder.Default
     @Schema(
-        title = "Starting sequence number per shard",
-        description = """
-            Internal resume positions supplied by the polling trigger.
-            """
-    )
-    @PluginProperty(hidden = true, group = "advanced")
-    private Property<Map<String, String>> startingSequencePerShard = Property.ofValue(Map.of());
-
-    @Builder.Default
-    @Schema(
         title = "Max records",
         description = "Stop after consuming this many records; default 1000."
     )
@@ -141,15 +131,17 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+        return run(runContext, Map.of());
+    }
+
+    Output run(RunContext runContext, Map<String, String> startingPositionPerShard) throws Exception {
         long startedAt = System.nanoTime();
         var rStream = runContext.render(this.streamName).as(String.class).orElseThrow();
 
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
-        var rStartingSequencePerShard = Optional.ofNullable(
-            runContext.render(startingSequencePerShard).asMap(String.class, String.class)
-        ).orElse(Map.of());
+        var rStartingSequencePerShard = startingPositionPerShard == null ? Map.<String, String>of() : startingPositionPerShard;
         var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
         var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
 
