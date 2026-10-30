@@ -85,6 +85,9 @@ dependencies {
     api 'software.amazon.awssdk:healthlake'
     // AWS SDK — Amazon MSK
     api 'software.amazon.awssdk:kafka'
+    // AWS SDK — AWS Cost Explorer (incl. Cost Anomaly Detection) and AWS Budgets
+    api 'software.amazon.awssdk:costexplorer'
+    api 'software.amazon.awssdk:budgets'
 }
 
 /**********************************************************************************************************************\
@@ -115,6 +118,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
     testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'org.wiremock:wiremock-jetty12'
 
     testAnnotationProcessor group: "io.kestra", name: "processor"
     testImplementation group: "io.kestra", name: "core"

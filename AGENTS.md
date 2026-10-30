@@ -27,6 +27,11 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 
 - `io.kestra.plugin.aws.athena.Query`
 - `io.kestra.plugin.aws.auth.EksToken`
+- `io.kestra.plugin.aws.billing.DescribeBudget`
+- `io.kestra.plugin.aws.billing.DescribeBudgets`
+- `io.kestra.plugin.aws.billing.GetAnomalies`
+- `io.kestra.plugin.aws.billing.GetCostAndUsage`
+- `io.kestra.plugin.aws.billing.GetCostForecast`
 - `io.kestra.plugin.aws.cli.AwsCLI`
 - `io.kestra.plugin.aws.cloudformation.Create`
 - `io.kestra.plugin.aws.cloudformation.Delete`
