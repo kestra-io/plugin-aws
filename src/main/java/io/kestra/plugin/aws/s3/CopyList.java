@@ -2,7 +2,6 @@ package io.kestra.plugin.aws.s3;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,7 +143,7 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
     )
     @Builder.Default
     @PluginProperty(group = "reliability")
-    private final Property<Boolean> errorOnEmpty = Property.ofValue(false);
+    private Property<Boolean> errorOnEmpty = Property.ofValue(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -239,9 +238,6 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
             }
 
             List<Pair<S3Object, Long>> results = resultFlux.collectList().block();
-            if (results == null) {
-                results = Collections.emptyList();
-            }
 
             long totalCount = results.size();
             long totalSize = results.stream().mapToLong(Pair::getRight).sum();
@@ -373,9 +369,12 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
         @Builder.Default
         @Schema(
             title = "Maximum number of objects returned across all paginated S3 calls",
-            description = "Total upper bound on the objects returned. Default 1000."
+            description = """
+                Total upper bound on the objects returned, counted after `regexp` and `filter`. Default 1000, must be 0 or more, and 0 returns no objects.
+                When `regexp` is unset and `filter` is `BOTH`, it also sets the per-page size sent to S3, which AWS caps at 1000.
+                The listing pages until this total is reached or the bucket is exhausted, so a `regexp` or `filter` that matches few keys can read every key under `prefix`. Set `prefix` to narrow it."""
         )
-        @PluginProperty(group = "execution")
+        @PluginProperty(group = "advanced")
         private Property<Integer> maxKeys = Property.ofValue(1000);
 
         @Schema(
@@ -398,11 +397,12 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
         private Property<Filter> filter = Property.ofValue(Filter.BOTH);
     }
 
-    @SuperBuilder
+    @Builder
     @ToString
     @EqualsAndHashCode
     @Getter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class CopyListDestination {
 
         @Schema(

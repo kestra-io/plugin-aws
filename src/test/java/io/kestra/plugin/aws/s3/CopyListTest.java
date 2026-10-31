@@ -295,4 +295,38 @@ class CopyListTest extends AbstractTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("source and destination bucket and key are identical");
     }
+
+    @Test
+    void shouldThrowExceptionWhenMultipleSourcesCollideOnDestinationKey() throws Exception {
+        String bucket = this.createBucket();
+        String testId = IdUtils.create();
+        this.update("tasks/s3/" + testId + "/folderA/item.txt", bucket);
+        this.update("tasks/s3/" + testId + "/folderB/item.txt", bucket);
+
+        CopyList task = CopyList.builder()
+            .id(CopyListTest.class.getSimpleName())
+            .type(CopyList.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                CopyListSource.builder()
+                    .bucket(Property.ofValue(bucket))
+                    .regexp(Property.ofValue("tasks/s3/" + testId + "/.*/item\\.txt"))
+                    .build()
+            )
+            .to(
+                CopyListDestination.builder()
+                    .prefix(Property.ofValue("tasks/s3/" + testId + "/dest"))
+                    .build()
+            )
+            .build();
+
+        assertThatThrownBy(() -> task.run(runContext(task)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("multiple source objects would overwrite the same destination key");
+    }
 }
