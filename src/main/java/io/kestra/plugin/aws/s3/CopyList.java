@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -178,7 +179,6 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
         try (S3Client client = this.client(runContext)) {
             List<S3Object> s3Objects = S3Service.list(runContext, client, this.from);
 
-            // Filter out directory markers
             List<S3Object> filesToCopy = s3Objects.stream()
                 .filter(o -> !S3Service.isDirectoryMarker(o))
                 .toList();
@@ -189,8 +189,8 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
                 );
             }
 
-            Map<String, S3Object> destinationMap = new HashMap<>();
-            List<Pair<S3Object, String>> copyTargets = new ArrayList<>();
+            Map<String, S3Object> destinationMap = new HashMap<>(filesToCopy.size());
+            List<Pair<S3Object, String>> copyTargets = new ArrayList<>(filesToCopy.size());
 
             for (S3Object object : filesToCopy) {
                 String destKey = S3Service.destinationKey(rDestPrefix, object.getKey(), rSourcePrefix);
@@ -237,7 +237,7 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
                 resultFlux = flowable.map(copyFunction);
             }
 
-            List<Pair<S3Object, Long>> results = resultFlux.collectList().block();
+            List<Pair<S3Object, Long>> results = Objects.requireNonNullElse(resultFlux.collectList().block(), List.of());
 
             long totalCount = results.size();
             long totalSize = results.stream().mapToLong(Pair::getRight).sum();
