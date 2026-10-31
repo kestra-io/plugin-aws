@@ -79,6 +79,7 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.msk.Trigger`
 - `io.kestra.plugin.aws.lambda.Invoke`
 - `io.kestra.plugin.aws.s3.Copy`
+- `io.kestra.plugin.aws.s3.CopyList`
 - `io.kestra.plugin.aws.s3.CreateBucket`
 - `io.kestra.plugin.aws.s3.Delete`
 - `io.kestra.plugin.aws.s3.DeleteList`

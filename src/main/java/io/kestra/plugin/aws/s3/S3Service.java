@@ -240,6 +240,10 @@ public class S3Service {
         }
     }
 
+    public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list) throws IllegalVariableEvaluationException {
+        return list(runContext, client, list, (AbstractS3Object) null);
+    }
+
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
         if (rMaxKeys < 0) {
@@ -273,7 +277,7 @@ public class S3Service {
             builder.expectedBucketOwner(runContext.render(list.getExpectedBucketOwner()).as(String.class).orElseThrow());
         }
 
-        if (abstractS3.getRequestPayer() != null) {
+        if (abstractS3 != null && abstractS3.getRequestPayer() != null) {
             builder.requestPayer(runContext.render(abstractS3.getRequestPayer()).as(String.class).orElseThrow());
         }
 
