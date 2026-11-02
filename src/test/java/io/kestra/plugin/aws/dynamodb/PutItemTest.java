@@ -1,5 +1,6 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -55,5 +56,40 @@ class PutItemTest extends AbstractDynamoDbTest {
         var output = put.run(runContext);
 
         assertThat(output, is(nullValue()));
+    }
+
+    @Test
+    void shouldReadANumberAndAFalseBooleanBack() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var put = PutItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .item(Map.<String, Object>of(
+                "id", "numbers",
+                "age", 30,
+                "active", false
+            ))
+            .build();
+
+        createTable(runContext, put);
+        put.run(runContext);
+
+        var get = GetItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .key(Property.ofValue(Map.of("id", "numbers")))
+            .build();
+
+        var row = get.run(runContext).getRow();
+
+        assertThat(row.get("age"), is(new BigDecimal("30")));
+        assertThat(row.get("active"), is(false));
     }
 }

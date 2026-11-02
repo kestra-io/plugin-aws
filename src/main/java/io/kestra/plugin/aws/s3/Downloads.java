@@ -184,12 +184,15 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
             .build();
         List.Output run = task.run(runContext);
 
+        S3Service.moveTargets(run.getObjects(), this.action, this.moveTo, runContext, this);
+
         boolean validate = runContext.render(this.validateChecksum).as(Boolean.class).orElse(false);
 
         try (S3AsyncClient client = this.asyncClient(runContext)) {
             java.util.List<S3Object> list = run
                 .getObjects()
                 .stream()
+                .filter(object -> !S3Service.isDirectoryMarker(object))
                 .map(throwFunction(object ->
                 {
                     GetObjectRequest.Builder builder = GetObjectRequest.builder()
@@ -208,7 +211,6 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                         .withChecksumAlgorithm(checksum.getLeft())
                         .withChecksumValue(checksum.getRight());
                 }))
-                .filter(object -> !object.getKey().endsWith("/")) // filter directory
                 .collect(Collectors.toList());
 
             runContext.metric(Counter.of("files.count", (double) list.size()));
@@ -227,7 +229,7 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                 .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
 
             S3Service.performAction(
-                run.getObjects(),
+                list,
                 this.action,
                 this.moveTo,
                 runContext,

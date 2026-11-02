@@ -435,12 +435,17 @@ public class Upload extends AbstractS3Object implements RunnableTask<Upload.Outp
         }
     }
 
-    // In case 'from' is defined as list or single element, we construct a map that has file names as keys and file URIs
-    // as values where in this case, file names are just the file name part of the file URIs.
-    private Map<String, String> uriListToMap(List<String> rUriList) {
-        Map<String, String> rUriMap = new HashMap<>();
-        for (String rUri : rUriList) {
-            rUriMap.put(FilenameUtils.getName(rUri), rUri);
+    static Map<String, String> uriListToMap(List<String> rUriList) {
+        var rUriMap = new LinkedHashMap<String, String>();
+        for (var rUri : rUriList) {
+            var name = FilenameUtils.getName(rUri);
+            var existing = rUriMap.put(name, rUri);
+            if (existing != null) {
+                throw new IllegalArgumentException(
+                    "Cannot upload files: multiple source URIs resolve to the same destination key '%s': '%s' and '%s'. Use a Map in the 'from' property to specify unique destination keys for each file, or ensure source file names are distinct."
+                        .formatted(name, existing, rUri)
+                );
+            }
         }
         return rUriMap;
     }

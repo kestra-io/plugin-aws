@@ -11,11 +11,14 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
 import jakarta.inject.Inject;
+import jakarta.validation.MessageInterpolator;
+import jakarta.validation.Validation;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -76,5 +79,52 @@ class ConverseTest {
         assertThat(output.getStopReason(), is("end_turn"));
         assertThat(output.getInputTokens(), is(10));
         assertThat(output.getOutputTokens(), is(15));
+    }
+
+    @Test
+    void givenEmptyMessages_whenConverse_thenThrowsExpectedException() {
+        RunContext runContext = runContextFactory.of();
+
+        Converse task = Converse.builder()
+            .id("test-converse-empty-messages")
+            .type(Converse.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of()))
+            .build();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+
+        assertThat(exception.getMessage(), is("messages must not be empty"));
+    }
+
+    @Test
+    void givenValidMessages_whenValidated_thenDoesNotProduceHv000030() {
+        Converse task = Converse.builder()
+            .id("test-converse-validation")
+            .type(Converse.class.getName())
+            .region(Property.ofValue("us-east-1"))
+            .modelId(Property.ofValue("anthropic.claude-3-5-sonnet-20241022-v2:0"))
+            .messages(Property.ofValue(List.of(Map.of("role", "user", "content", "Hello!"))))
+            .build();
+
+        var violations = Validation.byDefaultProvider()
+            .configure()
+            .messageInterpolator(new MessageInterpolator() {
+                @Override
+                public String interpolate(String messageTemplate, Context context) {
+                    return messageTemplate;
+                }
+
+                @Override
+                public String interpolate(String messageTemplate, Context context, java.util.Locale locale) {
+                    return messageTemplate;
+                }
+            })
+            .buildValidatorFactory()
+            .getValidator()
+            .validate(task);
+
+        assertThat(violations, empty());
     }
 }

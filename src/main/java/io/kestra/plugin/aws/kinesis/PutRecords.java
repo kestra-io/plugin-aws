@@ -2,11 +2,10 @@ package io.kestra.plugin.aws.kinesis;
 
 import java.io.*;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -32,14 +31,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
-import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
-import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
-import static io.kestra.core.utils.Rethrow.throwConsumer;
-import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -117,11 +112,13 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 @Schema(
     title = "Put records to Kinesis Data Streams",
-    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
+    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
 )
 public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
         .setSerializationInclusion(JsonInclude.Include.ALWAYS);
+
+    static final int MAX_FAILURES_IN_MESSAGE = 10;
 
     @NotNull
     @Schema(
@@ -157,94 +154,137 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        final long start = System.nanoTime();
+        final var start = System.nanoTime();
+        var rFailOnUnsuccessfulRecords = runContext.render(failOnUnsuccessfulRecords).as(Boolean.class).orElse(true);
 
-        List<Record> records = getRecordList(this.records, runContext);
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var summary = new ResultSummary();
+        try (
+            var client = client(runContext);
+            var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)
+        ) {
+            var request = requestBuilder(runContext);
+            var batcher = new RecordBatcher<Record>(
+                entries -> client.putRecords(request.records(entries).build()),
+                duration -> Thread.sleep(duration.toMillis()),
+                (record, result) -> {
+                    summary.add(result);
+                    FileSerde.write(output, toOutputEntry(record, result));
+                }
+            );
 
-        PutRecordsResponse putRecordsResponse = putRecords(runContext, records);
-
-        // Fail if failOnUnsuccessfulRecords
-        if (runContext.render(failOnUnsuccessfulRecords).as(Boolean.class).orElseThrow() && putRecordsResponse.failedRecordCount() > 0) {
-            var logger = runContext.logger();
-            logger.error("Response show {} record failed: {}", putRecordsResponse.failedRecordCount(), putRecordsResponse);
-            throw new RuntimeException(String.format("Response show %d record failed: %s", putRecordsResponse.failedRecordCount(), putRecordsResponse));
+            var position = new int[] { 0 };
+            forEachRecord(runContext, record -> batcher.add(record, toEntry(runContext, record, position[0]++)));
+            batcher.flush();
         }
 
-        // Set metrics
-        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
-        runContext.metric(Counter.of("record.failed", putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("record.successful", records.size() - putRecordsResponse.failedRecordCount()));
-        runContext.metric(Counter.of("record.count", records.size()));
+        if (rFailOnUnsuccessfulRecords && summary.getFailedCount() > 0) {
+            var message = summary.failureMessage();
+            runContext.logger().error(message);
+            throw new RuntimeException(message);
+        }
 
-        File tempFile = writeOutputFile(runContext, putRecordsResponse, records);
+        runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
+        runContext.metric(Counter.of("record.failed", summary.getFailedCount()));
+        runContext.metric(Counter.of("record.successful", summary.getCount() - summary.getFailedCount()));
+        runContext.metric(Counter.of("record.count", summary.getCount()));
+
         return Output.builder()
             .uri(runContext.storage().putFile(tempFile))
-            .failedRecordsCount(putRecordsResponse.failedRecordCount())
-            .recordCount(records.size())
+            .failedRecordsCount(summary.getFailedCount())
+            .recordCount(summary.getCount())
             .build();
     }
 
-    private PutRecordsResponse putRecords(RunContext runContext, List<Record> records) throws IllegalVariableEvaluationException {
-        try (KinesisClient client = client(runContext)) {
-            PutRecordsRequest.Builder builder = PutRecordsRequest.builder();
-
-            var renderedStreamArn = runContext.render(streamArn).as(String.class).orElse(null);
-            var renderedStreamName = runContext.render(streamName).as(String.class).orElse(null);
-            if (!Strings.isNullOrEmpty(renderedStreamArn)) {
-                builder.streamARN(renderedStreamArn);
-            } else if (!Strings.isNullOrEmpty(renderedStreamName)) {
-                builder.streamName(renderedStreamName);
-            } else {
-                throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
-            }
-
-            List<PutRecordsRequestEntry> putRecordsRequestEntryList = records.stream()
-                .map(throwFunction(record -> record.toPutRecordsRequestEntry(runContext)))
-                .collect(Collectors.toList());
-
-            builder.records(putRecordsRequestEntryList);
-            return client.putRecords(builder.build());
+    private PutRecordsRequest.Builder requestBuilder(RunContext runContext) throws IllegalVariableEvaluationException {
+        var builder = PutRecordsRequest.builder();
+        var rStreamArn = runContext.render(streamArn).as(String.class).orElse(null);
+        var rStreamName = runContext.render(streamName).as(String.class).orElse(null);
+        if (!Strings.isNullOrEmpty(rStreamArn)) {
+            return builder.streamARN(rStreamArn);
         }
+        if (!Strings.isNullOrEmpty(rStreamName)) {
+            return builder.streamName(rStreamName);
+        }
+        throw new IllegalArgumentException("Either streamName or streamArn has to be set.");
     }
 
-    private List<Record> getRecordList(Object records, RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException, IOException {
-        if (records instanceof String) {
+    static PutRecordsRequestEntry toEntry(RunContext runContext, Record record, int position) throws IllegalVariableEvaluationException {
+        if (record.getData() == null) {
+            throw new IllegalArgumentException("Record at position " + position + " has no data, set it on every record");
+        }
+        var entry = record.toPutRecordsRequestEntry(runContext);
+        if (Strings.isNullOrEmpty(entry.partitionKey())) {
+            throw new IllegalArgumentException("Record at position " + position + " has no partitionKey, set it on every record");
+        }
+        return entry;
+    }
 
-            URI from = new URI(runContext.render((String) records));
-            if (!from.getScheme().equals("kestra")) {
+    // Reads an ION file lazily so only the current request is held in memory; inline lists are already in the flow.
+    private void forEachRecord(RunContext runContext, RecordConsumer consumer) throws Exception {
+        if (records instanceof String uri) {
+            var from = new URI(runContext.render(uri));
+            if (!"kestra".equals(from.getScheme())) {
                 throw new IllegalArgumentException("Invalid records parameter, must be a Kestra internal storage URI, or a list of records.");
             }
             try (var inputStream = new BufferedInputStream(runContext.storage().getFile(from), FileSerde.BUFFER_SIZE)) {
-                return FileSerde.readAll(inputStream, Record.class)
-                    .collectList().block();
+                for (var record : FileSerde.readAll(inputStream, Record.class).toIterable()) {
+                    consumer.accept(record);
+                }
             }
-        } else if (records instanceof List) {
-            return MAPPER.convertValue(records, new TypeReference<>() {
+            return;
+        }
+
+        if (records instanceof List) {
+            List<Record> list = MAPPER.convertValue(records, new TypeReference<>() {
             });
+            for (var record : list) {
+                consumer.accept(record);
+            }
+            return;
         }
 
         throw new IllegalVariableEvaluationException("Invalid records type '" + records.getClass() + "'");
     }
 
-    private File writeOutputFile(RunContext runContext, PutRecordsResponse putRecordsResponse, List<Record> records) throws IOException {
-        // Create Output
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
-        try (var stream = new FileOutputStream(tempFile)) {
-            Flux.fromIterable(records)
-                .zipWithIterable(
-                    putRecordsResponse.records(), (record, response) -> OutputEntry.builder()
-                        .record(record)
-                        .sequenceNumber(response.sequenceNumber())
-                        .shardId(response.shardId())
-                        .errorCode(response.errorCode())
-                        .errorMessage(response.errorMessage())
-                        .build()
-                )
-                .doOnEach(throwConsumer(outputEntry -> FileSerde.write(stream, outputEntry.get())))
-                .collectList()
-                .block();
+    private static OutputEntry toOutputEntry(Record record, PutRecordsResultEntry result) {
+        return OutputEntry.builder()
+            .record(record)
+            .sequenceNumber(result.sequenceNumber())
+            .shardId(result.shardId())
+            .errorCode(result.errorCode())
+            .errorMessage(result.errorMessage())
+            .build();
+    }
+
+    @FunctionalInterface
+    private interface RecordConsumer {
+        void accept(Record record) throws Exception;
+    }
+
+    // Counts the results and keeps the first few failures, so the error message stays small for large inputs.
+    @Getter
+    static class ResultSummary {
+        private int count;
+        private int failedCount;
+        private final List<String> firstFailures = new ArrayList<>();
+
+        void add(PutRecordsResultEntry result) {
+            if (result.errorCode() != null) {
+                failedCount++;
+                if (firstFailures.size() < MAX_FAILURES_IN_MESSAGE) {
+                    firstFailures.add("position " + count + ": " + result.errorCode() + " (" + result.errorMessage() + ")");
+                }
+            }
+            count++;
         }
-        return tempFile;
+
+        String failureMessage() {
+            return String.format(
+                "%d of %d records failed (throttled records were retried up to %d times). First %d failures: %s",
+                failedCount, count, RecordBatcher.MAX_RETRIES, firstFailures.size(), String.join("; ", firstFailures)
+            );
+        }
     }
 
     @Builder

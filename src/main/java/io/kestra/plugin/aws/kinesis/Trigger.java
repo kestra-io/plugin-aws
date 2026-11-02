@@ -1,6 +1,10 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 import org.slf4j.Logger;
@@ -150,6 +154,26 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(group = "advanced")
     private Property<String> startingSequenceNumber;
 
+    @Schema(
+        title = "State key",
+        description = """
+            Key under which per-shard sequence positions are persisted.
+            Defaults to a length-prefixed key derived from namespace, flow, trigger, region, endpoint and stream.
+            """
+    )
+    @PluginProperty(group = "advanced")
+    private Property<String> stateKey;
+
+    @Schema(
+        title = "State TTL",
+        description = """
+            How long persisted shard positions are retained; unset means no expiry.
+            Should exceed the stream retention period plus the longest expected pause of the trigger. If the TTL expires while the trigger is disabled or paused, TRIM_HORIZON will re-deliver all records still within the stream retention period.
+            """
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Duration> stateTtl;
+
     @Builder.Default
     @Schema(title = "Max records")
     private Property<Integer> maxRecords = Property.ofValue(1000);
@@ -166,6 +190,20 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
+
+        var rStream = runContext.render(streamName).as(String.class).orElseThrow();
+        var rRegion = runContext.render(region).as(String.class).orElse("");
+        var rEndpoint = runContext.render(endpointOverride).as(String.class).orElse("");
+        var streamScope = stateScope(rRegion, rEndpoint, rStream);
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(stateKey(context, rRegion, rEndpoint, rStream));
+        var rStateTtl = runContext.render(stateTtl).as(Duration.class);
+        var previousState = StatefulTriggerService.readState(runContext, rStateKey, rStateTtl);
+        var sequences = new HashMap<String, String>();
+        previousState.forEach((key, entry) -> {
+            if (key.startsWith(streamScope)) {
+                sequences.put(key.substring(streamScope.length()), entry.version());
+            }
+        });
 
         Consume consume = Consume.builder()
             .streamName(this.streamName)
@@ -186,7 +224,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .stsRoleSessionDuration(stsRoleSessionDuration)
             .build();
 
-        Consume.Output output = consume.run(runContext);
+        Consume.Output output = consume.run(runContext, sequences);
+
+        output.getResumePositionPerShard().forEach((shard, position) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, position, Instant.now())));
+        StatefulTriggerService.writeState(runContext, rStateKey, previousState, rStateTtl);
 
         if (logger.isDebugEnabled()) {
             logger.debug("Consumed '{}' messaged.", output.getCount());
@@ -199,5 +240,26 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(
             TriggerService.generateExecution(this, conditionContext, context, output)
         );
+    }
+
+    private static String stateKey(TriggerContext context, String region, String endpoint, String stream) {
+        return "kinesis_" + lengthPrefixed(context.getNamespace()) + lengthPrefixed(context.getFlowId()) + lengthPrefixed(context.getTriggerId())
+            + sha256Hex(region + "\n" + endpoint + "\n" + stream);
+    }
+
+    private static String stateScope(String region, String endpoint, String stream) {
+        return lengthPrefixed(region) + lengthPrefixed(endpoint) + lengthPrefixed(stream);
+    }
+
+    private static String lengthPrefixed(String value) {
+        return value.length() + "_" + value;
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 }

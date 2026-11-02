@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.sqs;
 
+import java.net.URI;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -28,24 +30,21 @@ public class AbstractSqsTest extends AbstractFlociTest {
 
     @BeforeEach
     void beforeEach() {
-        try (
-            SqsClient sqsClient = SqsClient
-                .builder()
-                .endpointOverride(java.net.URI.create(endpointUrl()))
-                .region(Region.of(REGION))
-                .credentialsProvider(
-                    StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
-                    )
-                )
-                .build()
-        ) {
+        try (var sqsClient = sqsClient()) {
             if (!sqsClient.listQueues().queueUrls().contains(queueUrl())) {
                 sqsClient.createQueue(CreateQueueRequest.builder().queueName(queueName()).build());
             } else {
                 sqsClient.purgeQueue(PurgeQueueRequest.builder().queueUrl(queueUrl()).build());
             }
         }
+    }
+
+    protected SqsClient sqsClient() {
+        return SqsClient.builder()
+            .endpointOverride(URI.create(endpointUrl()))
+            .region(Region.of(REGION))
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+            .build();
     }
 
     String queueUrl() {

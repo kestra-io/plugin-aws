@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -269,6 +270,43 @@ class PutEventsTest extends AbstractFlociTest {
         assertThat(outputEntries.get(0).getErrorCode(), nullValue());
         assertThat(outputEntries.get(0).getErrorMessage(), nullValue());
         assertThat(outputEntries.get(0).getEntry().getDetail(), equalTo(entry.Detail));
+    }
+
+    @Test
+    void runBatchingMoreThanTen() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var entries = new ArrayList<Entry>();
+        for (var i = 0; i < 15; i++) {
+            entries.add(
+                Entry.builder()
+                    .eventBusName("test-bus")
+                    .source("Kestra")
+                    .detailType("batch-test")
+                    .detail(Map.of("message", "event " + i))
+                    .build()
+            );
+        }
+
+        var put = PutEvents.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .entries(entries)
+            .build();
+
+        var output = put.run(runContext);
+        assertThat(output.getEntryCount(), is(15));
+        assertThat(output.getFailedEntryCount(), is(0));
+
+        var outputEntries = getOutputEntries(put, runContext);
+        assertThat(outputEntries, hasSize(15));
+        for (var outputEntry : outputEntries) {
+            assertThat(outputEntry.getEventId(), notNullValue());
+            assertThat(outputEntry.getErrorCode(), nullValue());
+            assertThat(outputEntry.getErrorMessage(), nullValue());
+        }
     }
 
     /**

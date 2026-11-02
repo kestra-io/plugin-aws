@@ -1,6 +1,6 @@
 @PluginSubGroup(
     title = "SQS",
-    description = "Tasks that publish to or consume from Amazon Simple Queue Service (SQS), including polling and real-time triggers. Use them to push messages, drain queues into flow outputs, or start flows when new messages arrive.",
+    description = "Tasks that publish to, consume from, or purge Amazon Simple Queue Service (SQS) queues, including polling and real-time triggers. Use them to push messages, drain queues into flow outputs, clear a queue or dead-letter queue, or start flows when new messages arrive.",
     categories = { PluginSubGroup.PluginCategory.CLOUD }
 )
 package io.kestra.plugin.aws.sqs;

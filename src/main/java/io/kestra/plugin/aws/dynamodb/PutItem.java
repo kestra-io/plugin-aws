@@ -44,7 +44,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                     region: "eu-central-1"
                     tableName: "persons"
                     item:
-                      id: 1
+                      id: "1"
                       firstname: "John"
                       lastname: "Doe"
                 """
@@ -77,7 +77,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                       - id: first_item_as_map
                         type: io.kestra.plugin.aws.dynamodb.PutItem
                         item:
-                          id: 1
+                          id: "1"
                           flow: "{{ flow.id }}"
                           task: "{{ task.id }}"
                         tableName: demo
@@ -93,7 +93,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
                         secretKeyId: "{{ secret('AWS_SECRET_ACCESS_KEY') }}"
                         item: |
                           {
-                              "id": 2,
+                              "id": "2",
                               "flow": "{{ flow.id }}",
                               "task": "{{ task.id }}"
                           }
