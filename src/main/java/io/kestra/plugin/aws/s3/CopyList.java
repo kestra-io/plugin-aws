@@ -108,7 +108,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 @Schema(
     title = "Copy multiple S3 objects",
     description = """
-        Lists objects matching prefix/regex filters and copies them server-side to a destination bucket/prefix (optionally in parallel). Supports deleting source objects after successful copy (move operation). Note that object discovery is bounded by `from.maxKeys` (default 1000); if a source prefix holds more objects than `maxKeys`, only `maxKeys` objects will be copied or moved per task run."""
+        Lists objects matching prefix/regex filters and copies them server-side to a destination bucket/prefix (optionally in parallel). Supports deleting source objects after successful copy (move operation). Note that object discovery is bounded by `from.maxKeys` (default 1000); if a source prefix holds more objects than `maxKeys`, only `maxKeys` objects will be copied or moved per task run. Note also that server-side `copyObject` is limited to objects up to 5 GB; for copying single objects exceeding 5 GB requiring multipart transfer, use the `Copy` task."""
 )
 public class CopyList extends AbstractS3Connection implements RunnableTask<CopyList.Output> {
 
@@ -282,44 +282,58 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
 
             logger.debug("Copying '{}/{}' to '{}/{}'", sourceBucket, object.getKey(), destBucket, destKey);
 
-            CopyObjectRequest.Builder copyBuilder = CopyObjectRequest.builder()
-                .sourceBucket(sourceBucket)
-                .sourceKey(object.getKey())
-                .destinationBucket(destBucket)
-                .destinationKey(destKey);
+            try {
+                CopyObjectRequest.Builder copyBuilder = CopyObjectRequest.builder()
+                    .sourceBucket(sourceBucket)
+                    .sourceKey(object.getKey())
+                    .destinationBucket(destBucket)
+                    .destinationKey(destKey);
 
-            if (sse != null && sse != S3ServerSideEncryption.NONE) {
-                copyBuilder.serverSideEncryption(ServerSideEncryption.valueOf(sse.name()));
-                if (sse == S3ServerSideEncryption.AWS_KMS && kmsKeyId != null) {
-                    copyBuilder.ssekmsKeyId(kmsKeyId);
+                if (sse != null && sse != S3ServerSideEncryption.NONE) {
+                    copyBuilder.serverSideEncryption(ServerSideEncryption.valueOf(sse.name()));
+                    if (sse == S3ServerSideEncryption.AWS_KMS && kmsKeyId != null) {
+                        copyBuilder.ssekmsKeyId(kmsKeyId);
+                    }
                 }
-            }
 
-            CopyObjectResponse response = client.copyObject(copyBuilder.build());
-            String etag = response.copyObjectResult() != null ? response.copyObjectResult().eTag() : null;
-            Instant lastModified = response.copyObjectResult() != null && response.copyObjectResult().lastModified() != null
-                ? response.copyObjectResult().lastModified()
-                : object.getLastModified();
+                CopyObjectResponse response = client.copyObject(copyBuilder.build());
+                String etag = response.copyObjectResult() != null ? response.copyObjectResult().eTag() : null;
+                Instant lastModified = response.copyObjectResult() != null && response.copyObjectResult().lastModified() != null
+                    ? response.copyObjectResult().lastModified()
+                    : object.getLastModified();
 
-            if (deleteSource) {
-                logger.debug("Deleting source '{}/{}' after successful copy", sourceBucket, object.getKey());
-                client.deleteObject(
-                    DeleteObjectRequest.builder()
-                        .bucket(sourceBucket)
-                        .key(object.getKey())
-                        .build()
+                if (deleteSource) {
+                    logger.debug("Deleting source '{}/{}' after successful copy", sourceBucket, object.getKey());
+                    client.deleteObject(
+                        DeleteObjectRequest.builder()
+                            .bucket(sourceBucket)
+                            .key(object.getKey())
+                            .build()
+                    );
+                }
+
+                S3Object copied = S3Object.builder()
+                    .key(destKey)
+                    .etag(etag)
+                    .size(object.getSize())
+                    .lastModified(lastModified)
+                    .owner(object.getOwner())
+                    .build();
+
+                return Pair.of(copied, object.getSize() != null ? object.getSize() : 0L);
+            } catch (Exception e) {
+                throw new RuntimeException(
+                    "Failed to %s S3 object '%s/%s' to '%s/%s': %s.".formatted(
+                        deleteSource ? "move" : "copy",
+                        sourceBucket,
+                        object.getKey(),
+                        destBucket,
+                        destKey,
+                        e.getMessage()
+                    ),
+                    e
                 );
             }
-
-            S3Object copied = S3Object.builder()
-                .key(destKey)
-                .etag(etag)
-                .size(object.getSize())
-                .lastModified(lastModified)
-                .owner(object.getOwner())
-                .build();
-
-            return Pair.of(copied, object.getSize() != null ? object.getSize() : 0L);
         };
     }
 
