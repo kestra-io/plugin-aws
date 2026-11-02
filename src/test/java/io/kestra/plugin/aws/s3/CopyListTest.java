@@ -329,4 +329,75 @@ class CopyListTest extends AbstractTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("multiple source objects would overwrite the same destination key");
     }
+
+    @Test
+    void shouldLimitCopyAndMoveToMaxKeysWhenMoreObjectsExist() throws Exception {
+        String bucket = this.createBucket();
+        String sourcePrefix = "tasks/s3/" + IdUtils.create() + "/inbound";
+        String destPrefix = "tasks/s3/" + IdUtils.create() + "/outbound";
+
+        for (int i = 0; i < 3; i++) {
+            this.upload(sourcePrefix, bucket);
+        }
+
+        CopyList task = CopyList.builder()
+            .id(CopyListTest.class.getSimpleName())
+            .type(CopyList.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                CopyListSource.builder()
+                    .bucket(Property.ofValue(bucket))
+                    .prefix(Property.ofValue(sourcePrefix))
+                    .maxKeys(Property.ofValue(2))
+                    .build()
+            )
+            .to(
+                CopyListDestination.builder()
+                    .prefix(Property.ofValue(destPrefix))
+                    .build()
+            )
+            .delete(Property.ofValue(true))
+            .build();
+
+        CopyList.Output run = task.run(runContext(task));
+        assertThat(run.getCount()).isEqualTo(2L);
+        assertThat(run.getObjects()).hasSize(2);
+
+        // Destination has 2 objects
+        List listDest = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(List.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .prefix(Property.ofValue(destPrefix))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .build();
+        List.Output destOutput = listDest.run(runContext(listDest));
+        assertThat(destOutput.getObjects()).hasSize(2);
+
+        // Source still has 1 remaining un-moved object
+        List listSource = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(List.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .prefix(Property.ofValue(sourcePrefix))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .build();
+        List.Output sourceOutput = listSource.run(runContext(listSource));
+        assertThat(sourceOutput.getObjects()).hasSize(1);
+    }
 }

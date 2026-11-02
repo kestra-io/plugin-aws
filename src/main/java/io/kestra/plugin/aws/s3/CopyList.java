@@ -108,7 +108,7 @@ import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 @Schema(
     title = "Copy multiple S3 objects",
     description = """
-        Lists objects matching prefix/regex filters and copies them server-side to a destination bucket/prefix (optionally in parallel). Supports deleting source objects after successful copy (move operation)."""
+        Lists objects matching prefix/regex filters and copies them server-side to a destination bucket/prefix (optionally in parallel). Supports deleting source objects after successful copy (move operation). Note that object discovery is bounded by `from.maxKeys` (default 1000); if a source prefix holds more objects than `maxKeys`, only `maxKeys` objects will be copied or moved per task run."""
 )
 public class CopyList extends AbstractS3Connection implements RunnableTask<CopyList.Output> {
 
@@ -124,7 +124,7 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
 
     @Schema(
         title = "Delete source objects after copy",
-        description = "If true, deletes each source object after it has been successfully copied (move operation)."
+        description = "If true, deletes each source object after it has been successfully copied (move operation). Note that the move is bounded by `from.maxKeys` (default 1000); source objects beyond this limit remain in place until subsequent runs."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
@@ -178,6 +178,17 @@ public class CopyList extends AbstractS3Connection implements RunnableTask<CopyL
 
         try (S3Client client = this.client(runContext)) {
             List<S3Object> s3Objects = S3Service.list(runContext, client, this.from);
+
+            Integer maxKeys = this.from.getMaxKeys() != null
+                ? runContext.render(this.from.getMaxKeys()).as(Integer.class).orElse(1000)
+                : 1000;
+
+            if (maxKeys != null && maxKeys > 0 && s3Objects.size() >= maxKeys) {
+                logger.warn(
+                    "Listing reached `maxKeys` limit of {} objects; additional matching objects in bucket '{}' with prefix '{}' were not {}. Increase `from.maxKeys` to process more objects in a single execution.",
+                    maxKeys, rSourceBucket, rSourcePrefix != null ? rSourcePrefix : "", deleteSource ? "moved" : "copied"
+                );
+            }
 
             List<S3Object> filesToCopy = s3Objects.stream()
                 .filter(o -> !S3Service.isDirectoryMarker(o))
