@@ -3,6 +3,10 @@ package io.kestra.plugin.aws.lambda;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -174,9 +178,67 @@ public class InvokeTest extends AbstractInvokeTest {
     }
 
     @Test
-    public void givenLambdaPastSdkDefault_whenSocketTimeoutLonger_thenOutputOk() throws Exception {
-        // Given: longer than the SDK's 30 s default read timeout
-        var invoke = sleepingInvoke(35, Duration.ofSeconds(60)).build();
+    public void givenOutOfRangeSdkAttempts_whenClientBuilt_thenRejected() {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ofSeconds(2))
+            .sdkMaxAttempts(Property.ofValue(11))
+            .build();
+
+        // When / Then
+        assertThrows(
+            IllegalArgumentException.class, () -> invoke.client(context),
+            "sdkMaxAttempts above 10 should be rejected"
+        );
+    }
+
+    @Test
+    public void givenZeroSocketTimeout_whenClientBuilt_thenRejected() {
+        // Given
+        var invoke = sleepingInvoke(5, Duration.ZERO).build();
+
+        // When / Then
+        var e = assertThrows(
+            IllegalArgumentException.class, () -> invoke.client(context),
+            "A zero socketTimeout should be rejected"
+        );
+        assertTrue(e.getMessage().contains("socketTimeout"), "Unexpected error: " + e.getMessage());
+    }
+
+    @Test
+    public void givenSlowLambda_whenKilled_thenRunReturnsEarly() throws Exception {
+        // Given
+        var invoke = sleepingInvoke(30, Duration.ofSeconds(60))
+            .sdkMaxAttempts(Property.ofValue(1))
+            .build();
+
+        var client = invoke.client(context);
+        createFunction(client);
+
+        // When
+        var start = System.nanoTime();
+        var run = CompletableFuture.runAsync(() ->
+        {
+            try {
+                invoke.run(context);
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
+        Thread.sleep(3000);
+        invoke.kill();
+
+        // Then
+        assertThrows(ExecutionException.class, () -> run.get(15, TimeUnit.SECONDS), "Killed run should fail");
+        assertTrue(
+            Duration.ofNanos(System.nanoTime() - start).compareTo(Duration.ofSeconds(20)) < 0,
+            "Killed run should not wait for the function to return"
+        );
+    }
+
+    @Test
+    public void givenLambdaPastSdkDefault_whenDefaultSocketTimeout_thenOutputOk() throws Exception {
+        // Given: longer than the SDK's 30 s default read timeout, with no socketTimeout set
+        var invoke = sleepingInvoke(35, null).build();
 
         var client = invoke.client(context);
         createFunction(client);
@@ -208,11 +270,14 @@ public class InvokeTest extends AbstractInvokeTest {
         Map<String, Object> params = new HashMap<>();
         params.put("action", "sleep");
         params.put("seconds", seconds);
-        return Invoke.builder()
+        var builder = Invoke.builder();
+        if (socketTimeout != null) {
+            builder.socketTimeout(Property.ofValue(socketTimeout));
+        }
+        return builder
             .endpointOverride(Property.ofValue(endpointUrl()))
             .functionArn(Property.ofValue(FUNCTION_NAME))
             .functionPayload(Property.ofValue(params))
-            .socketTimeout(Property.ofValue(socketTimeout))
             .id(InvokeTest.class.getSimpleName())
             .type(InvokeTest.class.getName())
             .region(Property.ofValue(REGION))
