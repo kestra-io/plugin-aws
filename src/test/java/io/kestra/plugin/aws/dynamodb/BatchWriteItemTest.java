@@ -15,11 +15,14 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class BatchWriteItemTest extends AbstractDynamoDbTest {
 
@@ -61,7 +64,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue(table))
-            .items(Property.ofValue(items))
+            .from(items)
             .build();
 
         createTable(runContext, batchWrite, table);
@@ -77,7 +80,6 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
         assertThat(counter, is(notNullValue()));
         assertThat(counter.getValue(), is(30D));
 
-        // Verify items were persisted
         var scan = Scan.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
             .region(Property.ofValue(REGION))
@@ -114,7 +116,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue(table))
-            .from(Property.ofValue(storageUri.toString()))
+            .from(storageUri.toString())
             .build();
 
         createTable(runContext, batchWrite, table);
@@ -147,26 +149,25 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue(table))
-            .items(Property.ofValue(List.of(
+            .from(List.of(
                 Map.of("id", "to-keep", "name", "Keep"),
                 Map.of("id", "to-delete", "name", "Delete")
-            )))
+            ))
             .build();
 
         createTable(runContext, initialWrite, table);
         initialWrite.run(runContext);
 
-        // Delete "to-delete" and insert "new-item"
         var mixedWrite = BatchWriteItem.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
             .region(Property.ofValue(REGION))
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue(table))
-            .items(Property.ofValue(List.of(
+            .from(List.of(
                 Map.of("deleteRequest", Map.of("id", "to-delete")),
                 Map.of("id", "new-item", "name", "New")
-            )))
+            ))
             .build();
 
         var output = mixedWrite.run(runContext);
@@ -196,24 +197,107 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     }
 
     @Test
-    void shouldThrowWhenNeitherItemsNorFromConfigured() {
+    void shouldWriteItemWithLiteralCurlyBraces() throws Exception {
         var runContext = runContextFactory.of();
+        var table = tableName() + "-curly";
 
-        var task = BatchWriteItem.builder()
-            .tableName(Property.ofValue("some-table"))
+        var batchWrite = BatchWriteItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(table))
+            .from(List.of(
+                Map.of(
+                    "id", "curly-item",
+                    "content", "unrendered {{ text }} and {{ 1+1 }}"
+                )
+            ))
             .build();
 
-        assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        createTable(runContext, batchWrite, table);
+
+        var output = batchWrite.run(runContext);
+        assertThat(output.getCount(), is(1L));
+
+        var get = GetItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(table))
+            .key(Property.ofValue(Map.of("id", "curly-item")))
+            .build();
+
+        var getOutput = get.run(runContext);
+        assertThat(getOutput.getRow(), is(notNullValue()));
+        assertThat(getOutput.getRow().get("content"), is("unrendered {{ text }} and {{ 1+1 }}"));
     }
 
     @Test
-    void shouldThrowWhenBothItemsAndFromConfigured() {
+    void shouldRetryUnprocessedItemsAndSucceed() throws Exception {
+        var mockDynamoDb = mock(DynamoDbClient.class);
+        var table = "test-retry-table";
+
+        var writeReq = WriteRequest.builder()
+            .putRequest(PutRequest.builder()
+                .item(Map.of("id", AttributeValue.builder().s("1").build()))
+                .build())
+            .build();
+
+        var retryResponse = BatchWriteItemResponse.builder()
+            .unprocessedItems(Map.of(table, List.of(writeReq)))
+            .build();
+
+        var successResponse = BatchWriteItemResponse.builder()
+            .unprocessedItems(Map.of())
+            .build();
+
+        when(mockDynamoDb.batchWriteItem(any(BatchWriteItemRequest.class)))
+            .thenReturn(retryResponse)
+            .thenReturn(successResponse);
+
+        var task = BatchWriteItem.builder()
+            .tableName(Property.ofValue(table))
+            .build();
+
+        task.sendBatch(mockDynamoDb, table, List.of(writeReq), 3);
+
+        verify(mockDynamoDb, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
+    }
+
+    @Test
+    void shouldThrowIllegalStateExceptionWhenRetriesExceeded() {
+        var mockDynamoDb = mock(DynamoDbClient.class);
+        var table = "test-fail-table";
+
+        var writeReq = WriteRequest.builder()
+            .putRequest(PutRequest.builder()
+                .item(Map.of("id", AttributeValue.builder().s("1").build()))
+                .build())
+            .build();
+
+        var retryResponse = BatchWriteItemResponse.builder()
+            .unprocessedItems(Map.of(table, List.of(writeReq)))
+            .build();
+
+        when(mockDynamoDb.batchWriteItem(any(BatchWriteItemRequest.class)))
+            .thenReturn(retryResponse);
+
+        var task = BatchWriteItem.builder()
+            .tableName(Property.ofValue(table))
+            .build();
+
+        var ex = assertThrows(IllegalStateException.class, () -> task.sendBatch(mockDynamoDb, table, List.of(writeReq), 2));
+        assertThat(ex.getMessage(), containsString("failed: 1 item(s) remained unprocessed after 2 retries. Earlier batches were already written."));
+    }
+
+    @Test
+    void shouldThrowWhenFromIsNull() {
         var runContext = runContextFactory.of();
 
         var task = BatchWriteItem.builder()
             .tableName(Property.ofValue("some-table"))
-            .items(Property.ofValue(List.of(Map.of("id", "1"))))
-            .from(Property.ofValue("kestra:///some-file.ion"))
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));

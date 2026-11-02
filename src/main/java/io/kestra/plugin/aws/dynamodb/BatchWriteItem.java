@@ -1,22 +1,23 @@
 package io.kestra.plugin.aws.dynamodb;
 
-import java.io.BufferedInputStream;
-import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.serializers.JacksonMapper;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -25,6 +26,8 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
+
+import static io.kestra.core.utils.Rethrow.throwConsumer;
 
 @SuperBuilder
 @ToString
@@ -47,13 +50,35 @@ import software.amazon.awssdk.services.dynamodb.model.*;
                     secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
                     region: "eu-central-1"
                     tableName: "persons"
-                    items:
+                    from:
                       - id: "1"
                         firstname: "John"
                         lastname: "Doe"
                       - id: "2"
                         firstname: "Jane"
                         lastname: "Smith"
+                """
+        ),
+        @Example(
+            title = "Batch write items with explicit putRequest and deleteRequest wrappers",
+            full = true,
+            code = """
+                id: aws_dynamodb_batch_write_puts_and_deletes
+                namespace: company.team
+
+                tasks:
+                  - id: batch_write
+                    type: io.kestra.plugin.aws.dynamodb.BatchWriteItem
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    tableName: "persons"
+                    from:
+                      - putRequest:
+                          id: "1"
+                          firstname: "John"
+                      - deleteRequest:
+                          id: "2"
                 """
         ),
         @Example(
@@ -85,29 +110,28 @@ import software.amazon.awssdk.services.dynamodb.model.*;
 )
 @Schema(
     title = "Batch write items to DynamoDB",
-    description = "Puts or deletes multiple items in DynamoDB tables using BatchWriteItem (chunks of 25). Supports inputs from a list or an internal storage file."
+    description = "Puts or deletes multiple items in DynamoDB tables using BatchWriteItem (chunks of 25). Supports inputs from a list of maps, a single map, a JSON string, or an internal storage URI via `Data.From`. Items default to put requests, or can specify `putRequest` or `deleteRequest` wrappers. Note: DynamoDB rejects batches containing duplicate keys in the same batch request."
 )
-public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output> {
+public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output>, Data.From {
     public static final int BATCH_LIMIT = 25;
 
+    @NotNull
     @Schema(
-        title = "Source file URI from Kestra internal storage containing items to insert"
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
+        anyOf = { String.class, List.class, Map.class }
     )
-    @PluginProperty(group = "source")
-    private Property<String> from;
-
-    @Schema(
-        title = "List of items to write in map or JSON format"
-    )
-    @PluginProperty(group = "source")
-    private Property<List<Object>> items;
+    @PluginProperty(group = "main")
+    private Object from;
 
     @Builder.Default
+    @Min(0)
+    @Max(20)
     @Schema(
         title = "Max retries for unprocessed items",
-        description = "Maximum number of retry attempts when DynamoDB returns unprocessed items due to throughput throttling."
+        description = "Maximum number of retry attempts when DynamoDB returns unprocessed items due to throughput throttling. Defaults to 5."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(group = "reliability")
     private Property<Integer> maxRetries = Property.ofValue(5);
 
     @Override
@@ -115,63 +139,31 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
         var rTableName = runContext.render(this.tableName).as(String.class).orElseThrow(() -> missingProperty("tableName"));
         var rMaxRetries = runContext.render(this.maxRetries).as(Integer.class).orElse(5);
 
-        boolean hasFrom = this.from != null;
-        boolean hasItems = this.items != null;
-
-        if (!hasFrom && !hasItems) {
-            throw new IllegalArgumentException("Either 'items' or 'from' must be set.");
-        }
-        if (hasFrom && hasItems) {
-            throw new IllegalArgumentException("Cannot set both 'items' and 'from'.");
+        if (this.from == null) {
+            throw new IllegalArgumentException("The 'from' property cannot be null.");
         }
 
-        long totalWritten = 0;
+        var totalWritten = new AtomicLong();
         try (var dynamoDb = client(runContext)) {
-            var currentBatch = new ArrayList<WriteRequest>();
-
-            if (hasFrom) {
-                var rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> missingProperty("from"));
-                var fromUri = new URI(rFrom);
-                if (!"kestra".equals(fromUri.getScheme())) {
-                    throw new IllegalArgumentException("Invalid 'from' parameter, must be a Kestra internal storage URI ('kestra://...').");
-                }
-                try (var inputStream = new BufferedInputStream(runContext.storage().getFile(fromUri), FileSerde.BUFFER_SIZE)) {
-                    for (var obj : FileSerde.readAll(inputStream).toIterable()) {
-                        currentBatch.add(toWriteRequest(runContext, obj));
-                        if (currentBatch.size() == BATCH_LIMIT) {
-                            sendBatch(dynamoDb, rTableName, currentBatch, rMaxRetries);
-                            totalWritten += currentBatch.size();
-                            currentBatch.clear();
-                        }
-                    }
-                }
-            } else {
-                var rItems = runContext.render(this.items).asList(Object.class);
-                for (var obj : rItems) {
-                    currentBatch.add(toWriteRequest(runContext, obj));
-                    if (currentBatch.size() == BATCH_LIMIT) {
-                        sendBatch(dynamoDb, rTableName, currentBatch, rMaxRetries);
-                        totalWritten += currentBatch.size();
-                        currentBatch.clear();
-                    }
-                }
-            }
-
-            if (!currentBatch.isEmpty()) {
-                sendBatch(dynamoDb, rTableName, currentBatch, rMaxRetries);
-                totalWritten += currentBatch.size();
-                currentBatch.clear();
-            }
+            Data.from(this.from)
+                .read(runContext)
+                .map(this::toWriteRequest)
+                .buffer(BATCH_LIMIT)
+                .doOnNext(throwConsumer(batch -> {
+                    sendBatch(dynamoDb, rTableName, batch, rMaxRetries);
+                    totalWritten.addAndGet(batch.size());
+                }))
+                .blockLast();
         }
 
-        runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten));
+        runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten.get()));
 
         return Output.builder()
-            .count(totalWritten)
+            .count(totalWritten.get())
             .build();
     }
 
-    private void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries) throws InterruptedException {
+    void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries) throws InterruptedException {
         var requestItems = new HashMap<String, List<WriteRequest>>();
         requestItems.put(tableName, new ArrayList<>(batch));
 
@@ -187,13 +179,15 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
                 retries++;
                 if (retries > maxRetries) {
                     int unprocessedCount = response.unprocessedItems().values().stream().mapToInt(List::size).sum();
-                    throw new RuntimeException(
-                        "DynamoDB BatchWriteItem failed: %d items remained unprocessed after %d retries.".formatted(unprocessedCount, maxRetries)
+                    throw new IllegalStateException(
+                        "DynamoDB BatchWriteItem failed: %d item(s) remained unprocessed after %d retries. Earlier batches were already written. Check table throughput capacity or reduce batch volume before re-running."
+                            .formatted(unprocessedCount, maxRetries)
                     );
                 }
                 requestItems = new HashMap<>(response.unprocessedItems());
-                long backoffMs = (long) (Math.pow(2, retries) * 50);
-                Thread.sleep(Math.min(backoffMs, 1000));
+                long maxBackoffMs = Math.min(100L * (1L << retries), 5000L);
+                long jitteredBackoffMs = ThreadLocalRandom.current().nextLong(maxBackoffMs / 2, maxBackoffMs + 1);
+                Thread.sleep(jitteredBackoffMs);
             } else {
                 requestItems = null;
             }
@@ -201,15 +195,8 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
     }
 
     @SuppressWarnings("unchecked")
-    private WriteRequest toWriteRequest(RunContext runContext, Object obj) throws Exception {
-        Map<String, Object> fields;
-        if (obj instanceof Map<?, ?> map) {
-            fields = runContext.render((Map<String, Object>) map);
-        } else if (obj instanceof String str) {
-            fields = JacksonMapper.toMap(runContext.render(str));
-        } else if (obj != null) {
-            fields = JacksonMapper.toMap(obj.toString());
-        } else {
+    private WriteRequest toWriteRequest(Map<String, Object> fields) {
+        if (fields == null) {
             throw new IllegalArgumentException("Cannot write null item to DynamoDB.");
         }
 
@@ -242,4 +229,3 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
         private final long count;
     }
 }
-
