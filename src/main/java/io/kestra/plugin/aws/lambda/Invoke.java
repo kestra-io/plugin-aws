@@ -9,6 +9,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
@@ -28,14 +30,19 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.aws.shared.AbstractConnection;
-import io.kestra.plugin.aws.shared.ConnectionUtils;
 import io.kestra.plugin.aws.cloudwatch.CloudWatchLogs;
 import io.kestra.plugin.aws.lambda.Invoke.Output;
 import io.kestra.plugin.aws.s3.ObjectOutput;
+import io.kestra.plugin.aws.shared.AbstractConnection;
+import io.kestra.plugin.aws.shared.ConnectionUtils;
+import io.kestra.plugin.aws.utils.KillableClients;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,6 +50,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilterLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.FilteredLogEvent;
@@ -97,6 +105,28 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
                         firstname: "John"
                         lastname: "Doe"
                 """
+        ),
+        @Example(
+            title = "Invoke a long-running Lambda function once per task attempt, leaving retries to the task",
+            full = true,
+            code = """
+                id: aws_lambda_invoke_long_running
+                namespace: company.team
+
+                tasks:
+                  - id: invoke
+                    type: io.kestra.plugin.aws.lambda.Invoke
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    functionArn: "arn:aws:lambda:eu-central-1:123456789012:function:my-slow-function"
+                    socketTimeout: PT10M
+                    sdkMaxAttempts: 1
+                    retry:
+                      type: constant
+                      interval: PT30S
+                      maxAttempts: 2
+                """
         )
     },
     metrics = {
@@ -109,6 +139,9 @@ import software.amazon.awssdk.services.lambda.model.LambdaException;
 public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapper.ofJson();
+
+    // Above Lambda's 15-minute maximum, so the function's own timeout is the one reported.
+    private static final Duration DEFAULT_SOCKET_TIMEOUT = Duration.ofSeconds(910);
 
     @Schema(
         title = "Function ARN or name",
@@ -125,6 +158,41 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
     @PluginProperty(group = "advanced")
     private Property<Map<String, Object>> functionPayload;
 
+    @Schema(
+        title = "Socket read timeout",
+        description = """
+            How long to wait for the function's response; must be greater than zero.
+            Defaults to `PT15M10S`, just above Lambda's 15-minute maximum, so the function's own timeout is the one reported.
+            Lower it to fail sooner than the function's timeout; the task's `timeout` still bounds the whole run.
+            """
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    private Property<Duration> socketTimeout = Property.ofValue(DEFAULT_SOCKET_TIMEOUT);
+
+    @Schema(
+        title = "AWS SDK attempts",
+        description = """
+            Total attempts the AWS SDK makes for one invocation, the first included, between 1 and 10.
+            Defaults to the AWS SDK's retry strategy.
+            Each SDK retry after a read timeout invokes the function again; set `1` to leave retries to the task's `retry`.
+            """
+    )
+    @PluginProperty(group = "advanced")
+    private Property<@Min(1) @Max(10) Integer> sdkMaxAttempts;
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final AtomicBoolean isKilled = new AtomicBoolean(false);
+
+    @Builder.Default
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private final AtomicReference<LambdaClient> activeClient = new AtomicReference<>();
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         final long start = System.nanoTime();
@@ -135,15 +203,16 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
         var logger = runContext.logger();
 
         try (var lambda = client(runContext)) {
+            activeClient.set(lambda);
+            if (isKilled.get()) {
+                throw new IllegalStateException("Lambda Invoke task was killed before invoking function: " + functionArn);
+            }
             var builder = InvokeRequest.builder().functionName(functionArn);
             if (requestPayload != null && requestPayload.size() > 0) {
                 var payload = SdkBytes.fromUtf8String(OBJECT_MAPPER.writeValueAsString(requestPayload));
                 builder.payload(payload);
             }
             InvokeRequest request = builder.build();
-            // TODO take care about long-running functions: your client might disconnect during
-            // synchronous invocation while it waits for a response. Configure your HTTP client,
-            // SDK, firewall, proxy, or operating system to allow for long connections with timeout
             InvokeResponse res = lambda.invoke(request);
             Optional<String> contentTypeHeader = res.sdkHttpResponse().firstMatchingHeader(HttpHeaders.CONTENT_TYPE);
             ContentType contentType = parseContentType(contentTypeHeader);
@@ -161,6 +230,19 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
             return out;
         } catch (LambdaException e) {
             throw new LambdaInvokeException("Lambda Invoke task execution failed for function: " + functionArn, e);
+        } finally {
+            activeClient.set(null);
+        }
+    }
+
+    @Override
+    public void kill() {
+        if (isKilled.compareAndSet(false, true)) {
+            // Thread.interrupt() does not unblock a socket read: closing the client frees the worker thread.
+            var client = activeClient.getAndSet(null);
+            if (client != null) {
+                KillableClients.closeInBackground(client);
+            }
         }
     }
 
@@ -171,8 +253,34 @@ public class Invoke extends AbstractConnection implements RunnableTask<Output> {
 
     @VisibleForTesting
     LambdaClient client(final RunContext runContext) throws IllegalVariableEvaluationException {
-        final AwsClientConfig clientConfig = awsClientConfig(runContext);
-        return ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder()).build();
+        var clientConfig = awsClientConfig(runContext);
+        var rSocketTimeout = runContext.render(this.socketTimeout).as(Duration.class).orElse(DEFAULT_SOCKET_TIMEOUT);
+        if (rSocketTimeout.isZero() || rSocketTimeout.isNegative()) {
+            throw new IllegalArgumentException("socketTimeout must be greater than 0, got " + rSocketTimeout);
+        }
+        var rSdkMaxAttempts = runContext.render(this.sdkMaxAttempts).as(Integer.class);
+        if (rSdkMaxAttempts.isPresent() && (rSdkMaxAttempts.get() < 1 || rSdkMaxAttempts.get() > 10)) {
+            throw new IllegalArgumentException("sdkMaxAttempts must be between 1 and 10, got " + rSdkMaxAttempts.get());
+        }
+
+        var builder = ConnectionUtils.configureSyncClient(clientConfig, LambdaClient.builder());
+        // each SDK retry is a new invocation of the function, invisible to the task's own `retry`
+        rSdkMaxAttempts.ifPresent(
+            attempts -> builder.overrideConfiguration(
+                config -> config.retryStrategy(strategy -> strategy.maxAttempts(attempts))
+            )
+        );
+        // same pool settings as ConnectionUtils, plus read timeout and keepalive for a connection silent up to 15 min
+        return builder
+            .httpClientBuilder(
+                serviceDefaults -> ApacheHttpClient.builder()
+                    .maxConnections(100)
+                    .connectionTimeout(Duration.ofSeconds(10))
+                    .socketTimeout(rSocketTimeout)
+                    .tcpKeepAlive(true)
+                    .build()
+            )
+            .build();
     }
 
     @VisibleForTesting
