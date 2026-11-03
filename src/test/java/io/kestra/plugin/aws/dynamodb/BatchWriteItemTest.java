@@ -188,6 +188,36 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     }
 
     @Test
+    void shouldReportHowManyItemsWereWrittenWhenALaterBatchFails() throws Exception {
+        var runContext = runContextFactory.of();
+        var table = "%s-partial".formatted(tableName());
+        var items = new ArrayList<Object>();
+        for (var i = 1; i <= 25; i++) {
+            items.add(Map.of("id", "partial-%d".formatted(i), "name", "Partial"));
+        }
+        items.add(Map.of("name", "missing key"));
+
+        var batchWrite = BatchWriteItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(table))
+            .from(items)
+            .build();
+        createTable(runContext, batchWrite, table);
+
+        var e = assertThrows(IllegalStateException.class, () -> batchWrite.run(runContext));
+
+        assertThat(e.getMessage(), containsString("25 item(s) were written before the failure"));
+        var counter = (Counter) runContext.metrics().stream()
+            .filter(m -> "dynamodb.items.written.count".equals(m.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("The dynamodb.items.written.count metric is missing."));
+        assertThat(counter.getValue(), is(25D));
+    }
+
+    @Test
     void shouldWriteRowsFromAFileWithoutRenderingThem() throws Exception {
         var runContext = runContextFactory.of();
         var table = "%s-curly".formatted(tableName());
@@ -281,7 +311,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .build();
 
         var ex = assertThrows(IllegalStateException.class, () -> task.sendBatch(mockDynamoDb, table, List.of(writeReq), 2));
-        assertThat(ex.getMessage(), containsString("failed: 1 item(s) remained unprocessed after 2 retries. Earlier batches were already written."));
+        assertThat(ex.getMessage(), containsString("DynamoDB left 1 item(s) unprocessed after 2 retries."));
     }
 
 }

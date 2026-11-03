@@ -115,7 +115,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
             name = "dynamodb.items.written.count",
             type = Counter.TYPE,
             unit = "items",
-            description = "The total number of items written to DynamoDB."
+            description = "The total number of put and delete requests applied to DynamoDB."
         )
     }
 )
@@ -128,7 +128,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
         DynamoDB rejects a batch that has the same key twice, so a file with duplicate keys fails after the batches before it are written."""
 )
 public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output>, Data.From {
-    public static final int BATCH_LIMIT = 25;
+    private static final int BATCH_LIMIT = 25;
     private static final int DEFAULT_MAX_RETRIES = 5;
 
     @NotNull
@@ -167,15 +167,21 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
                     totalWritten.addAndGet(batch.size());
                 }))
                 .blockLast();
+        } catch (RuntimeException e) {
+            throw new IllegalStateException(
+                "%d item(s) were written before the failure, so a rerun should skip them: %s".formatted(totalWritten.get(), e.getMessage()),
+                e
+            );
+        } finally {
+            runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten.get()));
         }
-
-        runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten.get()));
 
         return Output.builder()
             .count(totalWritten.get())
             .build();
     }
 
+    // package-private so the retry path can be tested with a mocked client, LocalStack never throttles
     void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries) throws InterruptedException {
         var requestItems = Map.of(tableName, batch);
         for (var retries = 0; ; retries++) {
@@ -187,7 +193,7 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
             if (retries >= maxRetries) {
                 var unprocessedCount = unprocessed.values().stream().mapToInt(List::size).sum();
                 throw new IllegalStateException(
-                    "DynamoDB BatchWriteItem failed: %d item(s) remained unprocessed after %d retries. Earlier batches were already written. Check table throughput capacity or reduce batch volume before re-running."
+                    "DynamoDB left %d item(s) unprocessed after %d retries. Check the table throughput capacity or raise `maxRetries`."
                         .formatted(unprocessedCount, maxRetries)
                 );
             }
@@ -199,10 +205,6 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
 
     @SuppressWarnings("unchecked")
     private WriteRequest toWriteRequest(Map<String, Object> fields) {
-        if (fields == null) {
-            throw new IllegalArgumentException("Cannot write null item to DynamoDB.");
-        }
-
         // a wrapper is the only key of its row, so a regular item with such an attribute stays a put
         if (fields.size() == 1 && fields.get("deleteRequest") instanceof Map<?, ?> del) {
             return WriteRequest.builder()
@@ -229,7 +231,7 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "Number of items successfully written")
+        @Schema(title = "Number of put and delete requests applied")
         private final long count;
     }
 }
