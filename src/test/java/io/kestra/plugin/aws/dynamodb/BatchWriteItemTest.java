@@ -8,11 +8,9 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -25,30 +23,13 @@ import static org.mockito.Mockito.*;
 
 class BatchWriteItemTest extends AbstractDynamoDbTest {
 
-    private void createTable(RunContext runContext, AbstractDynamoDb dynamoDb, String tableName) throws IllegalVariableEvaluationException {
-        try (var dynamoDbClient = dynamoDb.client(runContext)) {
-            if (!dynamoDbClient.listTables().tableNames().contains(tableName)) {
-                var request = CreateTableRequest.builder()
-                    .tableName(tableName)
-                    .attributeDefinitions(AttributeDefinition.builder().attributeName("id").attributeType(ScalarAttributeType.S).build())
-                    .keySchema(KeySchemaElement.builder().attributeName("id").keyType(KeyType.HASH).build())
-                    .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(1L).writeCapacityUnits(1L).build())
-                    .build();
-                try {
-                    dynamoDbClient.createTable(request);
-                } catch (ResourceInUseException ignored) {
-                }
-            }
-        }
-    }
-
     @Test
     void shouldBatchWriteItemsFromList() throws Exception {
         var runContext = runContextFactory.of();
         var table = "%s-list".formatted(tableName());
 
         var items = new ArrayList<Object>();
-        for (int i = 1; i <= 30; i++) {
+        for (var i = 1; i <= 30; i++) {
             items.add(Map.of(
                 "id", "user-%d".formatted(i),
                 "firstname", "First%d".formatted(i),
@@ -99,7 +80,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
 
         var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
-            for (int i = 101; i <= 130; i++) {
+            for (var i = 101; i <= 130; i++) {
                 FileSerde.write(output, Map.of(
                     "id", "file-user-%d".formatted(i),
                     "firstname", "FileFirst%d".formatted(i),
@@ -165,12 +146,13 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .tableName(Property.ofValue(table))
             .from(List.of(
                 Map.of("deleteRequest", Map.of("id", "to-delete")),
+                Map.of("putRequest", Map.of("id", "wrapped-item", "name", "Wrapped")),
                 Map.of("id", "new-item", "name", "New")
             ))
             .build();
 
         var output = mixedWrite.run(runContext);
-        assertThat(output.getCount(), is(2L));
+        assertThat(output.getCount(), is(3L));
 
         var getDeleted = GetItem.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
@@ -193,6 +175,16 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
         var newOutput = getNew.run(runContext);
         assertThat(newOutput.getRow(), is(notNullValue()));
         assertThat(newOutput.getRow().get("name"), is("New"));
+
+        var getWrapped = GetItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(table))
+            .key(Property.ofValue(Map.of("id", "wrapped-item")))
+            .build();
+        assertThat(getWrapped.run(runContext).getRow().get("name"), is("Wrapped"));
     }
 
     @Test
@@ -292,14 +284,4 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
         assertThat(ex.getMessage(), containsString("failed: 1 item(s) remained unprocessed after 2 retries. Earlier batches were already written."));
     }
 
-    @Test
-    void shouldThrowWhenFromIsNull() {
-        var runContext = runContextFactory.of();
-
-        var task = BatchWriteItem.builder()
-            .tableName(Property.ofValue("some-table"))
-            .build();
-
-        assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
-    }
 }

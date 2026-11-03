@@ -82,7 +82,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 """
         ),
         @Example(
-            title = "Copy the items of one table into another through Kestra internal storage",
+            title = "Load the items read by a Scan into another table",
             full = true,
             code = """
                 id: aws_dynamodb_batch_write_file
@@ -125,6 +125,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 )
 public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output>, Data.From {
     public static final int BATCH_LIMIT = 25;
+    private static final int DEFAULT_MAX_RETRIES = 5;
 
     @NotNull
     @Schema(
@@ -143,19 +144,16 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
             Defaults to 5."""
     )
     @PluginProperty(group = "reliability")
-    private Property<@Min(0) @Max(20) Integer> maxRetries = Property.ofValue(5);
+    private Property<@Min(0) @Max(20) Integer> maxRetries = Property.ofValue(DEFAULT_MAX_RETRIES);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         var rTableName = runContext.render(this.tableName).as(String.class).orElseThrow(() -> missingProperty("tableName"));
-        var rMaxRetries = runContext.render(this.maxRetries).as(Integer.class).orElse(5);
-
-        if (this.from == null) {
-            throw new IllegalArgumentException("The 'from' property cannot be null.");
-        }
+        var rMaxRetries = runContext.render(this.maxRetries).as(Integer.class).orElse(DEFAULT_MAX_RETRIES);
 
         var totalWritten = new AtomicLong();
         try (var dynamoDb = client(runContext)) {
+            onKill(runContext, dynamoDb::close);
             Data.from(this.from)
                 .read(runContext)
                 .map(this::toWriteRequest)
@@ -178,7 +176,7 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
         var requestItems = new HashMap<String, List<WriteRequest>>();
         requestItems.put(tableName, new ArrayList<>(batch));
 
-        int retries = 0;
+        var retries = 0;
         while (requestItems != null && !requestItems.isEmpty()) {
             stopIfKilled();
             var batchRequest = BatchWriteItemRequest.builder()
@@ -189,15 +187,15 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
             if (response.hasUnprocessedItems() && !response.unprocessedItems().isEmpty()) {
                 retries++;
                 if (retries > maxRetries) {
-                    int unprocessedCount = response.unprocessedItems().values().stream().mapToInt(List::size).sum();
+                    var unprocessedCount = response.unprocessedItems().values().stream().mapToInt(List::size).sum();
                     throw new IllegalStateException(
                         "DynamoDB BatchWriteItem failed: %d item(s) remained unprocessed after %d retries. Earlier batches were already written. Check table throughput capacity or reduce batch volume before re-running."
                             .formatted(unprocessedCount, maxRetries)
                     );
                 }
                 requestItems = new HashMap<>(response.unprocessedItems());
-                long maxBackoffMs = Math.min(100L * (1L << retries), 5000L);
-                long jitteredBackoffMs = ThreadLocalRandom.current().nextLong(maxBackoffMs / 2, maxBackoffMs + 1);
+                var maxBackoffMs = Math.min(100L * (1L << retries), 5000L);
+                var jitteredBackoffMs = ThreadLocalRandom.current().nextLong(maxBackoffMs / 2, maxBackoffMs + 1);
                 Thread.sleep(jitteredBackoffMs);
             } else {
                 requestItems = null;
@@ -211,14 +209,15 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
             throw new IllegalArgumentException("Cannot write null item to DynamoDB.");
         }
 
-        if (fields.containsKey("deleteRequest") && fields.get("deleteRequest") instanceof Map<?, ?> del) {
+        // a wrapper is the only key of its row, so a regular item with such an attribute stays a put
+        if (fields.size() == 1 && fields.get("deleteRequest") instanceof Map<?, ?> del) {
             return WriteRequest.builder()
                 .deleteRequest(DeleteRequest.builder()
                     .key(valueMapFrom((Map<String, Object>) del))
                     .build())
                 .build();
         }
-        if (fields.containsKey("putRequest") && fields.get("putRequest") instanceof Map<?, ?> put) {
+        if (fields.size() == 1 && fields.get("putRequest") instanceof Map<?, ?> put) {
             return WriteRequest.builder()
                 .putRequest(PutRequest.builder()
                     .item(valueMapFrom((Map<String, Object>) put))
