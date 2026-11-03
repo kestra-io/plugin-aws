@@ -124,7 +124,7 @@ public class S3Service {
         return uniqueTargets(s3Objects, key -> destinationKey(rMoveToKey, key, rPrefix), "move", "`moveTo.key`");
     }
 
-    // pairs each listed file with its destination key and fails before any write when two files share one
+    // fails before any write when two listed files would land on the same key
     static List<Pair<S3Object, String>> uniqueTargets(List<S3Object> s3Objects, Function<String, String> destinationKey, String verb, String destination) {
         var destinationMap = new HashMap<String, S3Object>();
         var targets = new ArrayList<Pair<S3Object, String>>();
@@ -137,7 +137,7 @@ public class S3Service {
             var existing = destinationMap.put(targetKey, object);
             if (existing != null) {
                 throw new IllegalStateException(
-                    "Cannot %s objects to '%s': multiple source objects would overwrite the same destination key: '%s' and '%s'. Set a `prefix` that covers both folders, or narrow the listing with `prefix` or `regExp`, so each object maps to its own key under %s."
+                    "Cannot %s objects to '%s': multiple source objects would overwrite the same destination key: '%s' and '%s'. Set a `prefix` that covers both folders, or narrow the listing with `prefix` or `regexp`, so each object maps to its own key under %s."
                         .formatted(verb, targetKey, existing.getKey(), object.getKey(), destination)
                 );
             }

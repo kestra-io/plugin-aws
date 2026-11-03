@@ -39,21 +39,41 @@ class CopyListTest extends AbstractTest {
     @Test
     void shouldKeepTheFullKeyWhenNoPrefixIsSet() throws Exception {
         var bucket = this.createBucket();
+        var destBucket = this.createBucket(IdUtils.create().toLowerCase());
         var testId = IdUtils.create();
         this.update("tasks/s3/%s/folderA/item.txt".formatted(testId), bucket);
         this.update("tasks/s3/%s/folderB/item.txt".formatted(testId), bucket);
 
         var run = copyList(bucket)
             .regexp(Property.ofValue("tasks/s3/%s/.*/item\\.txt".formatted(testId)))
-            .to(CopyList.Destination.builder().prefix(Property.ofValue("copies")).build())
+            .to(CopyList.Destination.builder().bucket(Property.ofValue(destBucket)).prefix(Property.ofValue("copies")).build())
             .build();
         var output = run.run(runContext(run));
 
         assertThat(output.getCount()).isEqualTo(2L);
-        assertThat(keys(bucket, "copies")).containsExactlyInAnyOrder(
+        assertThat(keys(destBucket, "copies")).containsExactlyInAnyOrder(
             "copies/tasks/s3/%s/folderA/item.txt".formatted(testId),
             "copies/tasks/s3/%s/folderB/item.txt".formatted(testId)
         );
+    }
+
+    @Test
+    void shouldRefuseADestinationInsideTheSourcePrefixOfTheSameBucket() throws Exception {
+        var bucket = this.createBucket();
+        var prefix = "tasks/s3/%s/inbound".formatted(IdUtils.create());
+        var existing = this.update("%s/processed/a.yml".formatted(prefix), bucket);
+        this.upload(prefix, bucket);
+
+        var run = copyList(bucket)
+            .prefix(Property.ofValue(prefix))
+            .to(CopyList.Destination.builder().prefix(Property.ofValue("%s/processed".formatted(prefix))).build())
+            .delete(Property.ofValue(true))
+            .build();
+
+        assertThatThrownBy(() -> run.run(runContext(run)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("inside the listed source range");
+        assertThat(keys(bucket, prefix)).hasSize(2).contains(existing);
     }
 
     @Test
@@ -133,11 +153,12 @@ class CopyListTest extends AbstractTest {
     @Test
     void shouldRefuseToCopyAnObjectOntoItself() throws Exception {
         var bucket = this.createBucket();
-        var prefix = "tasks/s3/%s/self".formatted(IdUtils.create());
-        this.upload(prefix, bucket);
+        var prefix = "tasks/s3/%s/self/".formatted(IdUtils.create());
+        this.upload(prefix.substring(0, prefix.length() - 1), bucket);
 
         var run = copyList(bucket)
             .prefix(Property.ofValue(prefix))
+            .delimiter(Property.ofValue("/"))
             .to(CopyList.Destination.builder().prefix(Property.ofValue(prefix)).build())
             .delete(Property.ofValue(true))
             .build();

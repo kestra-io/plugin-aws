@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -119,7 +120,7 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
     private Property<String> encodingType;
 
     @Builder.Default
-    @PluginProperty(group = "connection")
+    @PluginProperty(group = "execution")
     private Property<Integer> maxKeys = Property.ofValue(1000);
 
     @PluginProperty(group = "connection")
@@ -140,22 +141,25 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
 
     @Schema(
         title = "Delete source objects after copy",
-        description = "When true, each source object is deleted once its copy succeeded, which makes the task a move."
+        description = """
+            When true, each source object is deleted once its copy succeeded, which makes the task a move."""
     )
     @Builder.Default
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "advanced")
     private Property<Boolean> delete = Property.ofValue(false);
 
     @Schema(
         title = "Parallel copies",
-        description = "Copies run one at a time when unset, otherwise between 2 and 64 at once."
+        description = """
+            Copies run one at a time when unset, otherwise between 2 and 64 at once."""
     )
     @PluginProperty(group = "execution")
     private Property<@Min(2) @Max(64) Integer> concurrent;
 
     @Schema(
         title = "Error if empty",
-        description = "When true, the task fails when no object matches the filters."
+        description = """
+            When true, the task fails when no object matches the filters."""
     )
     @Builder.Default
     @PluginProperty(group = "reliability")
@@ -172,6 +176,16 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
         var rDelete = runContext.render(this.delete).as(Boolean.class).orElse(false);
         var rConcurrent = runContext.render(this.concurrent).as(Integer.class).orElse(null);
         var rMaxKeys = runContext.render(this.maxKeys).as(Integer.class).orElse(1000);
+
+        if (rSourceBucket.equals(rDestBucket)) {
+            var rHasDelimiter = runContext.render(this.delimiter).as(String.class).isPresent();
+            if (!rHasDelimiter && (rSourcePrefix == null || rDestPrefix.startsWith(rSourcePrefix))) {
+                throw new IllegalArgumentException(
+                    "`to.prefix` '%s' is inside the listed source range, so copied objects would be listed and copied again. Set a `to.prefix` outside `prefix`, a different `to.bucket`, or a `delimiter`."
+                        .formatted(rDestPrefix)
+                );
+            }
+        }
 
         try (var client = this.client(runContext)) {
             var objects = S3Service.list(runContext, client, this, this);
@@ -238,7 +252,7 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
         String sourceBucket,
         String destBucket,
         boolean delete
-    ) throws Exception {
+    ) throws IllegalVariableEvaluationException {
         var copyRequest = CopyObjectRequest.builder();
         S3Service.applyServerSideEncryption(runContext, copyRequest, this.to.getServerSideEncryption(), this.to.getKmsKeyId());
         var rRequestPayer = runContext.render(this.requestPayer).as(String.class).orElse(null);
@@ -299,7 +313,8 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
     public static class Destination {
         @Schema(
             title = "The destination bucket",
-            description = "Defaults to the source bucket."
+            description = """
+                Defaults to the source bucket. In the same bucket, `to.prefix` must be outside `prefix` unless a `delimiter` is set."""
         )
         @PluginProperty(group = "destination")
         private Property<String> bucket;
