@@ -176,6 +176,8 @@ class CopyListTest extends AbstractTest {
         assertThat(CopyList.destinationKey("b", "a/x/y.csv", "a")).isEqualTo("b/x/y.csv");
         assertThat(CopyList.destinationKey("b", "a/x/y.csv", null)).isEqualTo("b/a/x/y.csv");
         assertThat(CopyList.destinationKey("", "a/x/y.csv", "a/")).isEqualTo("x/y.csv");
+        assertThat(CopyList.destinationKey("b", "exports/report_2026-10-21.csv", "exports/report_2026")).isEqualTo("b/report_2026-10-21.csv");
+        assertThat(CopyList.destinationKey("b", "ax", "a")).isEqualTo("b/ax");
     }
 
     private CopyList.CopyListBuilder<?, ?> copyList(String bucket) {

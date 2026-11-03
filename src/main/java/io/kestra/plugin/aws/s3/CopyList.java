@@ -28,6 +28,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
@@ -221,9 +222,10 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
 
             var copy = copyObject(runContext, logger, client, rSourceBucket, rDestBucket, rDelete);
             var flux = Flux.fromIterable(targets);
+            // a shared queue, so a large object does not hold back the copies waiting behind it
             var sizes = rConcurrent == null
                 ? flux.map(copy)
-                : flux.parallel(rConcurrent).runOn(Schedulers.boundedElastic()).map(copy).sequential();
+                : flux.flatMap(target -> Mono.fromCallable(() -> copy.apply(target)).subscribeOn(Schedulers.boundedElastic()), rConcurrent);
 
             var results = sizes.collectList().block();
             var count = (long) results.size();
@@ -237,10 +239,13 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
         }
     }
 
+    // a prefix that is not a folder, like `exports/report_2026`, only strips its parent folder so file names stay whole
     static String destinationKey(String destPrefix, String key, String sourcePrefix) {
-        var relative = sourcePrefix != null && !sourcePrefix.isEmpty() && key.startsWith(sourcePrefix)
-            ? StringUtils.removeStart(key.substring(sourcePrefix.length()), "/")
-            : key;
+        var folder = StringUtils.stripEnd(Objects.toString(sourcePrefix, ""), "/");
+        if (!folder.isEmpty() && !key.startsWith("%s/".formatted(folder))) {
+            folder = folder.contains("/") ? folder.substring(0, folder.lastIndexOf('/')) : "";
+        }
+        var relative = folder.isEmpty() ? key : StringUtils.removeStart(key, "%s/".formatted(folder));
         var base = StringUtils.stripEnd(destPrefix, "/");
         return base.isEmpty() ? relative : "%s/%s".formatted(base, relative);
     }
@@ -253,9 +258,10 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
         String destBucket,
         boolean delete
     ) throws IllegalVariableEvaluationException {
-        var copyRequest = CopyObjectRequest.builder();
-        S3Service.applyServerSideEncryption(runContext, copyRequest, this.to.getServerSideEncryption(), this.to.getKmsKeyId());
         var rRequestPayer = runContext.render(this.requestPayer).as(String.class).orElse(null);
+        var templateBuilder = CopyObjectRequest.builder().sourceBucket(sourceBucket).destinationBucket(destBucket).requestPayer(rRequestPayer);
+        S3Service.applyServerSideEncryption(runContext, templateBuilder, this.to.getServerSideEncryption(), this.to.getKmsKeyId());
+        var template = templateBuilder.build();
 
         return target -> {
             var sourceKey = target.getLeft().getKey();
@@ -263,13 +269,7 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
             logger.debug("Copying '{}/{}' to '{}/{}'", sourceBucket, sourceKey, destBucket, destKey);
 
             try {
-                client.copyObject(copyRequest.copy()
-                    .sourceBucket(sourceBucket)
-                    .sourceKey(sourceKey)
-                    .destinationBucket(destBucket)
-                    .destinationKey(destKey)
-                    .requestPayer(rRequestPayer)
-                    .build());
+                client.copyObject(template.toBuilder().sourceKey(sourceKey).destinationKey(destKey).build());
             } catch (RuntimeException e) {
                 throw new IllegalStateException(
                     "Failed to copy '%s/%s' to '%s/%s': %s. Check read access on the source and write access on the destination."
@@ -319,7 +319,11 @@ public class CopyList extends AbstractS3Object implements RunnableTask<CopyList.
         @PluginProperty(group = "destination")
         private Property<String> bucket;
 
-        @Schema(title = "The destination prefix")
+        @Schema(
+            title = "The destination prefix",
+            description = """
+                Each key keeps its path relative to `prefix` under it. Defaults to the bucket root."""
+        )
         @PluginProperty(group = "destination")
         private Property<String> prefix;
 
