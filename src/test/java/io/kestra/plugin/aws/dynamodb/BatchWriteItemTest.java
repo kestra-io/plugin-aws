@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.dynamodb;
 
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,14 +45,14 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     @Test
     void shouldBatchWriteItemsFromList() throws Exception {
         var runContext = runContextFactory.of();
-        var table = tableName() + "-list";
+        var table = "%s-list".formatted(tableName());
 
-        List<Object> items = new ArrayList<>();
+        var items = new ArrayList<Object>();
         for (int i = 1; i <= 30; i++) {
             items.add(Map.of(
-                "id", "user-" + i,
-                "firstname", "First" + i,
-                "lastname", "Last" + i,
+                "id", "user-%d".formatted(i),
+                "firstname", "First%d".formatted(i),
+                "lastname", "Last%d".formatted(i),
                 "age", i + 20
             ));
         }
@@ -96,15 +95,15 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     @Test
     void shouldBatchWriteItemsFromFile() throws Exception {
         var runContext = runContextFactory.of();
-        var table = tableName() + "-file";
+        var table = "%s-file".formatted(tableName());
 
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
             for (int i = 101; i <= 130; i++) {
                 FileSerde.write(output, Map.of(
-                    "id", "file-user-" + i,
-                    "firstname", "FileFirst" + i,
-                    "lastname", "FileLast" + i
+                    "id", "file-user-%d".formatted(i),
+                    "firstname", "FileFirst%d".formatted(i),
+                    "lastname", "FileLast%d".formatted(i)
                 ));
             }
         }
@@ -141,7 +140,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     @Test
     void shouldBatchWriteWithDeleteRequest() throws Exception {
         var runContext = runContextFactory.of();
-        var table = tableName() + "-del";
+        var table = "%s-del".formatted(tableName());
 
         var initialWrite = BatchWriteItem.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
@@ -197,9 +196,15 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     }
 
     @Test
-    void shouldWriteItemWithLiteralCurlyBraces() throws Exception {
+    void shouldWriteRowsFromAFileWithoutRenderingThem() throws Exception {
         var runContext = runContextFactory.of();
-        var table = tableName() + "-curly";
+        var table = "%s-curly".formatted(tableName());
+
+        var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        try (var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)) {
+            FileSerde.write(output, Map.of("id", "curly-item", "content", "unrendered {{ text }} and {{ 1+1 }}"));
+        }
+        var storageUri = runContext.storage().putFile(tempFile);
 
         var batchWrite = BatchWriteItem.builder()
             .endpointOverride(Property.ofValue(endpointUrl()))
@@ -207,12 +212,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .accessKeyId(Property.ofValue(ACCESS_KEY))
             .secretKeyId(Property.ofValue(SECRET_KEY))
             .tableName(Property.ofValue(table))
-            .from(List.of(
-                Map.of(
-                    "id", "curly-item",
-                    "content", "unrendered {{ text }} and {{ 1+1 }}"
-                )
-            ))
+            .from(storageUri.toString())
             .build();
 
         createTable(runContext, batchWrite, table);

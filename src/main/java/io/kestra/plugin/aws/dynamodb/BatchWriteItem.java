@@ -82,13 +82,20 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
                 """
         ),
         @Example(
-            title = "Batch write items from Kestra internal storage (e.g. from an upstream query or file task)",
+            title = "Copy the items of one table into another through Kestra internal storage",
             full = true,
             code = """
                 id: aws_dynamodb_batch_write_file
                 namespace: company.team
 
                 tasks:
+                  - id: extract_customers
+                    type: io.kestra.plugin.aws.dynamodb.Scan
+                    accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
+                    secretKeyId: "{{ secret('AWS_SECRET_KEY_ID') }}"
+                    region: "eu-central-1"
+                    tableName: "customers_staging"
+
                   - id: batch_write
                     type: io.kestra.plugin.aws.dynamodb.BatchWriteItem
                     accessKeyId: "{{ secret('AWS_ACCESS_KEY_ID') }}"
@@ -110,7 +117,11 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
 )
 @Schema(
     title = "Batch write items to DynamoDB",
-    description = "Puts or deletes multiple items in DynamoDB tables using BatchWriteItem (chunks of 25). Supports inputs from a list of maps, a single map, a JSON string, or an internal storage URI via `Data.From`. Items default to put requests, or can specify `putRequest` or `deleteRequest` wrappers. Note: DynamoDB rejects batches containing duplicate keys in the same batch request."
+    description = """
+        Puts or deletes items with BatchWriteItem, 25 per request.
+        `from` takes a list of items, a single item, or a `kestra://` file such as the output of a `Scan` with `fetchType: STORE`.
+        An item is written as a put, or wrapped in `putRequest` or `deleteRequest` (with the key) to choose explicitly.
+        DynamoDB rejects a batch that has the same key twice, so a file with duplicate keys fails after the batches before it are written."""
 )
 public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output>, Data.From {
     public static final int BATCH_LIMIT = 25;
@@ -125,14 +136,14 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
     private Object from;
 
     @Builder.Default
-    @Min(0)
-    @Max(20)
     @Schema(
         title = "Max retries for unprocessed items",
-        description = "Maximum number of retry attempts when DynamoDB returns unprocessed items due to throughput throttling. Defaults to 5."
+        description = """
+            Retries when DynamoDB returns unprocessed items because of throttling, between 0 and 20.
+            Defaults to 5."""
     )
     @PluginProperty(group = "reliability")
-    private Property<Integer> maxRetries = Property.ofValue(5);
+    private Property<@Min(0) @Max(20) Integer> maxRetries = Property.ofValue(5);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
