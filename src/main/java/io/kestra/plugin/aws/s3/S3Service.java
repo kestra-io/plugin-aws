@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
@@ -19,16 +20,19 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
+import io.kestra.plugin.aws.s3.models.S3ServerSideEncryption;
 import io.kestra.plugin.aws.shared.s3.AbstractS3;
 
 import software.amazon.awssdk.crt.CRT;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
@@ -117,6 +121,11 @@ public class S3Service {
             ? runContext.render(listInterface.getPrefix()).as(String.class).orElse(null)
             : null;
 
+        return uniqueTargets(s3Objects, key -> destinationKey(rMoveToKey, key, rPrefix), "move", "`moveTo.key`");
+    }
+
+    // pairs each listed file with its destination key and fails before any write when two files share one
+    static List<Pair<S3Object, String>> uniqueTargets(List<S3Object> s3Objects, Function<String, String> destinationKey, String verb, String destination) {
         var destinationMap = new HashMap<String, S3Object>();
         var targets = new ArrayList<Pair<S3Object, String>>();
 
@@ -124,18 +133,34 @@ public class S3Service {
             if (isDirectoryMarker(object)) {
                 continue;
             }
-            var targetKey = destinationKey(rMoveToKey, object.getKey(), rPrefix);
+            var targetKey = destinationKey.apply(object.getKey());
             var existing = destinationMap.put(targetKey, object);
             if (existing != null) {
                 throw new IllegalStateException(
-                    "Cannot move objects to '%s': multiple source objects would overwrite the same destination key: '%s' and '%s'. Set a `prefix` that covers both folders, or narrow the listing with `prefix` or `regExp`, so each object maps to its own key under `moveTo.key`."
-                        .formatted(targetKey, existing.getKey(), object.getKey())
+                    "Cannot %s objects to '%s': multiple source objects would overwrite the same destination key: '%s' and '%s'. Set a `prefix` that covers both folders, or narrow the listing with `prefix` or `regExp`, so each object maps to its own key under %s."
+                        .formatted(verb, targetKey, existing.getKey(), object.getKey(), destination)
                 );
             }
             targets.add(Pair.of(object, targetKey));
         }
 
         return targets;
+    }
+
+    static void applyServerSideEncryption(
+        RunContext runContext,
+        CopyObjectRequest.Builder request,
+        Property<S3ServerSideEncryption> serverSideEncryption,
+        Property<String> kmsKeyId
+    ) throws IllegalVariableEvaluationException {
+        var rSse = runContext.render(serverSideEncryption).as(S3ServerSideEncryption.class).orElse(null);
+        if (rSse == null || rSse == S3ServerSideEncryption.NONE) {
+            return;
+        }
+        request.serverSideEncryption(ServerSideEncryption.valueOf(rSse.name()));
+        if (rSse == S3ServerSideEncryption.AWS_KMS) {
+            runContext.render(kmsKeyId).as(String.class).ifPresent(request::ssekmsKeyId);
+        }
     }
 
     static String destinationKey(String moveToKey, String objectKey, String prefix) {
@@ -240,10 +265,6 @@ public class S3Service {
         }
     }
 
-    public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list) throws IllegalVariableEvaluationException {
-        return list(runContext, client, list, (AbstractS3Object) null);
-    }
-
     public static List<S3Object> list(RunContext runContext, S3Client client, ListInterface list, AbstractS3Object abstractS3) throws IllegalVariableEvaluationException {
         int rMaxKeys = runContext.render(list.getMaxKeys()).as(Integer.class).orElse(1000);
         if (rMaxKeys < 0) {
@@ -277,7 +298,7 @@ public class S3Service {
             builder.expectedBucketOwner(runContext.render(list.getExpectedBucketOwner()).as(String.class).orElseThrow());
         }
 
-        if (abstractS3 != null && abstractS3.getRequestPayer() != null) {
+        if (abstractS3.getRequestPayer() != null) {
             builder.requestPayer(runContext.render(abstractS3.getRequestPayer()).as(String.class).orElseThrow());
         }
 
