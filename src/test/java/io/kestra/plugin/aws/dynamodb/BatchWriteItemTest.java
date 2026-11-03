@@ -211,12 +211,37 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
 
         var e = assertThrows(IllegalStateException.class, () -> batchWrite.run(runContext));
 
-        assertThat(e.getMessage(), containsString("25 put and delete request(s) were applied before the failure"));
+        assertThat(e.getMessage(), containsString("25 put and delete request(s) were applied before the failure. Puts and deletes can be replayed"));
         var counter = (Counter) runContext.metrics().stream()
             .filter(m -> "dynamodb.items.written.count".equals(m.getName()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("The dynamodb.items.written.count metric is missing."));
         assertThat(counter.getValue(), is(25D));
+    }
+
+    @Test
+    void shouldSurfaceTheDynamoDbErrorWhenNothingWasApplied() throws Exception {
+        var runContext = runContextFactory.of();
+        var table = "%s-none".formatted(tableName());
+
+        var batchWrite = BatchWriteItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(table))
+            .from(List.of(Map.of("name", "missing key")))
+            .build();
+        createTable(runContext, batchWrite, table);
+
+        var e = assertThrows(DynamoDbException.class, () -> batchWrite.run(runContext));
+
+        assertThat(e.getMessage(), not(containsString("applied before the failure")));
+        var counter = (Counter) runContext.metrics().stream()
+            .filter(m -> "dynamodb.items.written.count".equals(m.getName()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("The dynamodb.items.written.count metric is missing."));
+        assertThat(counter.getValue(), is(0D));
     }
 
     @Test

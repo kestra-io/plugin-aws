@@ -125,7 +125,7 @@ import static io.kestra.core.utils.Rethrow.throwConsumer;
         Puts or deletes items with BatchWriteItem, 25 per request.
         `from` takes a list of items, a single item, or a `kestra://` file such as the output of a `Scan` with `fetchType: STORE`.
         An item is written as a put, or wrapped in `putRequest` or `deleteRequest` (with the key) to choose explicitly.
-        DynamoDB rejects a batch that has the same key twice, so a file with duplicate keys fails after the batches before it are written."""
+        Two requests for the same key in one batch of 25 fail that batch, after the earlier batches are written."""
 )
 public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<BatchWriteItem.Output>, Data.From {
     private static final int BATCH_LIMIT = 25;
@@ -169,11 +169,11 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
                 throw e;
             }
             throw new IllegalStateException(
-                "%d put and delete request(s) were applied before the failure, so a rerun should skip them: %s".formatted(totalWritten.get(), e.getMessage()),
+                "%d put and delete request(s) were applied before the failure. Puts and deletes can be replayed, so once the cause is fixed, rerunning the whole input is safe: %s".formatted(totalWritten.get(), e.getMessage()),
                 e
             );
         } finally {
-            runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten.get()));
+            runContext.metric(Counter.of("dynamodb.items.written.count", totalWritten.get(), "tableName", rTableName));
         }
 
         return Output.builder()
