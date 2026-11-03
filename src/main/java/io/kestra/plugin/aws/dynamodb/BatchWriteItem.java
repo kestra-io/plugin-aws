@@ -162,14 +162,14 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
                 .read(runContext)
                 .map(this::toWriteRequest)
                 .buffer(BATCH_LIMIT)
-                .doOnNext(throwConsumer(batch -> {
-                    sendBatch(dynamoDb, rTableName, batch, rMaxRetries);
-                    totalWritten.addAndGet(batch.size());
-                }))
+                .doOnNext(throwConsumer(batch -> sendBatch(dynamoDb, rTableName, batch, rMaxRetries, totalWritten)))
                 .blockLast();
         } catch (RuntimeException e) {
+            if (totalWritten.get() == 0) {
+                throw e;
+            }
             throw new IllegalStateException(
-                "%d item(s) were written before the failure, so a rerun should skip them: %s".formatted(totalWritten.get(), e.getMessage()),
+                "%d put and delete request(s) were applied before the failure, so a rerun should skip them: %s".formatted(totalWritten.get(), e.getMessage()),
                 e
             );
         } finally {
@@ -182,16 +182,18 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
     }
 
     // package-private so the retry path can be tested with a mocked client, LocalStack never throttles
-    void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries) throws InterruptedException {
+    void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries, AtomicLong applied) throws InterruptedException {
         var requestItems = Map.of(tableName, batch);
         for (var retries = 0; ; retries++) {
             stopIfKilled();
+            var sent = requestItems.values().stream().mapToInt(List::size).sum();
             var unprocessed = dynamoDb.batchWriteItem(BatchWriteItemRequest.builder().requestItems(requestItems).build()).unprocessedItems();
+            var unprocessedCount = unprocessed.values().stream().mapToInt(List::size).sum();
+            applied.addAndGet(sent - unprocessedCount);
             if (unprocessed.isEmpty()) {
                 return;
             }
             if (retries >= maxRetries) {
-                var unprocessedCount = unprocessed.values().stream().mapToInt(List::size).sum();
                 throw new IllegalStateException(
                     "DynamoDB left %d item(s) unprocessed after %d retries. Check the table throughput capacity or raise `maxRetries`."
                         .formatted(unprocessedCount, maxRetries)

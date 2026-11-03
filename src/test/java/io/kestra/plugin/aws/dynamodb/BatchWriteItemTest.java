@@ -5,8 +5,10 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.property.Property;
@@ -209,7 +211,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
 
         var e = assertThrows(IllegalStateException.class, () -> batchWrite.run(runContext));
 
-        assertThat(e.getMessage(), containsString("25 item(s) were written before the failure"));
+        assertThat(e.getMessage(), containsString("25 put and delete request(s) were applied before the failure"));
         var counter = (Counter) runContext.metrics().stream()
             .filter(m -> "dynamodb.items.written.count".equals(m.getName()))
             .findFirst()
@@ -257,35 +259,24 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
     }
 
     @Test
-    void shouldRetryUnprocessedItemsAndSucceed() throws Exception {
+    void shouldResendOnlyTheUnprocessedItems() throws Exception {
         var mockDynamoDb = mock(DynamoDbClient.class);
         var table = "test-retry-table";
-
-        var writeReq = WriteRequest.builder()
-            .putRequest(PutRequest.builder()
-                .item(Map.of("id", AttributeValue.builder().s("1").build()))
-                .build())
-            .build();
-
-        var retryResponse = BatchWriteItemResponse.builder()
-            .unprocessedItems(Map.of(table, List.of(writeReq)))
-            .build();
-
-        var successResponse = BatchWriteItemResponse.builder()
-            .unprocessedItems(Map.of())
-            .build();
+        var first = WriteRequest.builder().putRequest(PutRequest.builder().item(Map.of("id", AttributeValue.builder().s("1").build())).build()).build();
+        var second = WriteRequest.builder().putRequest(PutRequest.builder().item(Map.of("id", AttributeValue.builder().s("2").build())).build()).build();
 
         when(mockDynamoDb.batchWriteItem(any(BatchWriteItemRequest.class)))
-            .thenReturn(retryResponse)
-            .thenReturn(successResponse);
+            .thenReturn(BatchWriteItemResponse.builder().unprocessedItems(Map.of(table, List.of(second))).build())
+            .thenReturn(BatchWriteItemResponse.builder().unprocessedItems(Map.of()).build());
 
-        var task = BatchWriteItem.builder()
-            .tableName(Property.ofValue(table))
-            .build();
+        var applied = new AtomicLong();
+        BatchWriteItem.builder().tableName(Property.ofValue(table)).build()
+            .sendBatch(mockDynamoDb, table, List.of(first, second), 3, applied);
 
-        task.sendBatch(mockDynamoDb, table, List.of(writeReq), 3);
-
-        verify(mockDynamoDb, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
+        var requests = ArgumentCaptor.forClass(BatchWriteItemRequest.class);
+        verify(mockDynamoDb, times(2)).batchWriteItem(requests.capture());
+        assertThat(requests.getAllValues().get(1).requestItems().get(table), contains(second));
+        assertThat(applied.get(), is(2L));
     }
 
     @Test
@@ -310,7 +301,7 @@ class BatchWriteItemTest extends AbstractDynamoDbTest {
             .tableName(Property.ofValue(table))
             .build();
 
-        var ex = assertThrows(IllegalStateException.class, () -> task.sendBatch(mockDynamoDb, table, List.of(writeReq), 2));
+        var ex = assertThrows(IllegalStateException.class, () -> task.sendBatch(mockDynamoDb, table, List.of(writeReq), 2, new AtomicLong()));
         assertThat(ex.getMessage(), containsString("DynamoDB left 1 item(s) unprocessed after 2 retries."));
     }
 
