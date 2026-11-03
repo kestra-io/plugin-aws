@@ -23,7 +23,10 @@ public abstract class AbstractDynamoDbTest extends AbstractFlociTest {
     }
 
     void createTable(RunContext runContext, AbstractDynamoDb dynamoDb) throws IllegalVariableEvaluationException {
-        var table = tableName();
+        createTable(runContext, dynamoDb, tableName());
+    }
+
+    void createTable(RunContext runContext, AbstractDynamoDb dynamoDb, String table) throws IllegalVariableEvaluationException {
         try (var dynamoDbClient = dynamoDb.client(runContext)) {
             if (!dynamoDbClient.listTables().tableNames().contains(table)) {
                 var request = CreateTableRequest.builder()

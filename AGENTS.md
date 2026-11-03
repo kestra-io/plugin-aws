@@ -40,6 +40,7 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.cloudwatch.Push`
 - `io.kestra.plugin.aws.cloudwatch.Query`
 - `io.kestra.plugin.aws.cloudwatch.Trigger`
+- `io.kestra.plugin.aws.dynamodb.BatchWriteItem`
 - `io.kestra.plugin.aws.dynamodb.DeleteItem`
 - `io.kestra.plugin.aws.dynamodb.GetItem`
 - `io.kestra.plugin.aws.dynamodb.PutItem`
