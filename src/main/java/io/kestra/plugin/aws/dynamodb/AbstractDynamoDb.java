@@ -92,7 +92,7 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
 
     protected void stopIfKilled() {
         if (isKilled.get()) {
-            throw new IllegalStateException("Stopped reading DynamoDB because the execution was killed.");
+            throw new IllegalStateException("Stopped because the execution was killed.");
         }
     }
 

@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.dynamodb;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -25,7 +26,10 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.*;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutRequest;
+import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 
@@ -173,33 +177,23 @@ public class BatchWriteItem extends AbstractDynamoDb implements RunnableTask<Bat
     }
 
     void sendBatch(DynamoDbClient dynamoDb, String tableName, List<WriteRequest> batch, int maxRetries) throws InterruptedException {
-        var requestItems = new HashMap<String, List<WriteRequest>>();
-        requestItems.put(tableName, new ArrayList<>(batch));
-
-        var retries = 0;
-        while (requestItems != null && !requestItems.isEmpty()) {
+        var requestItems = Map.of(tableName, batch);
+        for (var retries = 0; ; retries++) {
             stopIfKilled();
-            var batchRequest = BatchWriteItemRequest.builder()
-                .requestItems(requestItems)
-                .build();
-            var response = dynamoDb.batchWriteItem(batchRequest);
-
-            if (response.hasUnprocessedItems() && !response.unprocessedItems().isEmpty()) {
-                retries++;
-                if (retries > maxRetries) {
-                    var unprocessedCount = response.unprocessedItems().values().stream().mapToInt(List::size).sum();
-                    throw new IllegalStateException(
-                        "DynamoDB BatchWriteItem failed: %d item(s) remained unprocessed after %d retries. Earlier batches were already written. Check table throughput capacity or reduce batch volume before re-running."
-                            .formatted(unprocessedCount, maxRetries)
-                    );
-                }
-                requestItems = new HashMap<>(response.unprocessedItems());
-                var maxBackoffMs = Math.min(100L * (1L << retries), 5000L);
-                var jitteredBackoffMs = ThreadLocalRandom.current().nextLong(maxBackoffMs / 2, maxBackoffMs + 1);
-                Thread.sleep(jitteredBackoffMs);
-            } else {
-                requestItems = null;
+            var unprocessed = dynamoDb.batchWriteItem(BatchWriteItemRequest.builder().requestItems(requestItems).build()).unprocessedItems();
+            if (unprocessed.isEmpty()) {
+                return;
             }
+            if (retries >= maxRetries) {
+                var unprocessedCount = unprocessed.values().stream().mapToInt(List::size).sum();
+                throw new IllegalStateException(
+                    "DynamoDB BatchWriteItem failed: %d item(s) remained unprocessed after %d retries. Earlier batches were already written. Check table throughput capacity or reduce batch volume before re-running."
+                        .formatted(unprocessedCount, maxRetries)
+                );
+            }
+            requestItems = unprocessed;
+            var maxBackoffMs = Math.min(100L * (1L << (retries + 1)), 5000L);
+            Thread.sleep(ThreadLocalRandom.current().nextLong(maxBackoffMs / 2, maxBackoffMs + 1));
         }
     }
 
