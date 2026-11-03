@@ -111,25 +111,8 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
                 );
             }
 
-            // Server-side encryption
-            if (this.to != null && this.to.serverSideEncryption != null) {
-                S3ServerSideEncryption sse = runContext
-                    .render(this.to.serverSideEncryption)
-                    .as(S3ServerSideEncryption.class)
-                    .orElse(null);
-
-                if (sse != null && sse != S3ServerSideEncryption.NONE) {
-                    copyObjectBuilder.serverSideEncryption(
-                        software.amazon.awssdk.services.s3.model.ServerSideEncryption.valueOf(sse.name())
-                    );
-
-                    // If using AWS_KMS encryption, set the KMS key ID
-                    if (sse == S3ServerSideEncryption.AWS_KMS && this.to.kmsKeyId != null) {
-                        copyObjectBuilder.ssekmsKeyId(
-                            runContext.render(this.to.kmsKeyId).as(String.class).orElseThrow()
-                        );
-                    }
-                }
+            if (this.to != null) {
+                S3Service.applyServerSideEncryption(runContext, copyObjectBuilder, this.to.serverSideEncryption, this.to.kmsKeyId);
             }
 
             CopyObjectRequest copyObjectRequest = copyObjectBuilder.build();
