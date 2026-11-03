@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -233,5 +234,56 @@ class TriggerTest extends AbstractKinesisTest {
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
         assertThat(execution.isPresent(), is(true));
         assertThat(execution.orElseThrow().getTrigger().getVariables().get("count"), is(1));
+    }
+
+    @Test
+    void evaluateMaxRecordsIsSharedAcrossShards() throws Exception {
+        var multiShardStream = createStream(2);
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .records(List.of(
+                Record.builder().partitionKey("pk-0").data("record 0").build(),
+                Record.builder().partitionKey("pk-1").data("record 1").build(),
+                Record.builder().partitionKey("pk-2").data("record 2").build(),
+                Record.builder().partitionKey("pk-3").data("record 3").build()
+            ))
+            .build()
+            .run(runContextFactory.of());
+
+        var stateKey = "kinesis_two_shards_" + IdUtils.create();
+        var trigger = Trigger.builder()
+            .id(TriggerTest.class.getSimpleName() + "MaxRecordsTwoShards")
+            .type(TriggerTest.class.getName())
+            .streamName(Property.ofValue(multiShardStream))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
+            .stateKey(Property.ofValue(stateKey))
+            .maxRecords(Property.ofValue(2))
+            .maxDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofMillis(10)))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        Optional<Execution> first = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(first.isPresent(), is(true));
+        assertThat(first.orElseThrow().getTrigger().getVariables().get("count"), is(2));
+
+        var state = StatefulTriggerService.readState(context.getKey().getRunContext(), stateKey, Optional.empty());
+        assertThat(state, aMapWithSize(2));
+
+        Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(second.isPresent(), is(true));
+        assertThat(second.orElseThrow().getTrigger().getVariables().get("count"), is(2));
+
+        assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
     }
 }

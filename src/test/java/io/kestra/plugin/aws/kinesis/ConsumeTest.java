@@ -124,4 +124,46 @@ class ConsumeTest extends AbstractKinesisTest {
         assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
         assertThat(output.get(), notNullValue());
     }
+
+    @Test
+    void maxRecordsIsSharedAcrossShards() throws Exception {
+        var runContext = runContextFactory.of();
+        var multiShardStream = createStream(2);
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .records(List.of(
+                Record.builder().partitionKey("pk-0").data("record 0").build(),
+                Record.builder().partitionKey("pk-1").data("record 1").build(),
+                Record.builder().partitionKey("pk-2").data("record 2").build(),
+                Record.builder().partitionKey("pk-3").data("record 3").build()
+            ))
+            .build()
+            .run(runContext);
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
+            .maxRecords(Property.ofValue(2))
+            .maxDuration(Property.ofValue(Duration.ofSeconds(5)))
+            .pollDuration(Property.ofValue(Duration.ofMillis(10)))
+            .build();
+
+        var output = consume.run(runContext);
+
+        assertThat(output.getCount(), is(2));
+        assertThat(output.getResumePositionPerShard().keySet(), hasSize(2));
+
+        List<Consume.ConsumedRecord> records = loadOutput(runContext, output.getUri());
+        assertThat(records, hasSize(2));
+        assertThat(records.stream().map(Consume.ConsumedRecord::getShardId).distinct().count(), is(2L));
+    }
 }

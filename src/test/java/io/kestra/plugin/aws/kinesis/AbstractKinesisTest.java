@@ -52,6 +52,37 @@ public class AbstractKinesisTest extends AbstractFlociTest {
         }
     }
 
+    protected String createStream(int shardCount) throws InterruptedException {
+        var name = "stream-" + shardCount + "shards-" + IdUtils.create();
+
+        try (
+            KinesisClient kinesisClient = KinesisClient.builder()
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .region(Region.of(REGION))
+                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .build()
+        ) {
+            kinesisClient.createStream(
+                CreateStreamRequest.builder()
+                    .streamName(name)
+                    .shardCount(shardCount)
+                    .build()
+            );
+
+            DescribeStreamResponse ds;
+            do {
+                Thread.sleep(200);
+                ds = kinesisClient.describeStream(r -> r.streamName(name));
+            } while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE);
+        }
+
+        return name;
+    }
+
     protected String registerConsumer() throws Exception {
         try (
             KinesisClient kinesis = KinesisClient.builder()
