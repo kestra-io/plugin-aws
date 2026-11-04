@@ -27,6 +27,8 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 
 - `io.kestra.plugin.aws.athena.Query`
 - `io.kestra.plugin.aws.auth.EksToken`
+- `io.kestra.plugin.aws.billing.AnomalyTrigger`
+- `io.kestra.plugin.aws.billing.BudgetThresholdTrigger`
 - `io.kestra.plugin.aws.billing.DescribeBudget`
 - `io.kestra.plugin.aws.billing.DescribeBudgets`
 - `io.kestra.plugin.aws.billing.GetAnomalies`
@@ -38,6 +40,7 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.cloudwatch.Push`
 - `io.kestra.plugin.aws.cloudwatch.Query`
 - `io.kestra.plugin.aws.cloudwatch.Trigger`
+- `io.kestra.plugin.aws.dynamodb.BatchWriteItem`
 - `io.kestra.plugin.aws.dynamodb.DeleteItem`
 - `io.kestra.plugin.aws.dynamodb.GetItem`
 - `io.kestra.plugin.aws.dynamodb.PutItem`
@@ -79,6 +82,7 @@ Single-module plugin. Source packages under `io.kestra.plugin`:
 - `io.kestra.plugin.aws.msk.Trigger`
 - `io.kestra.plugin.aws.lambda.Invoke`
 - `io.kestra.plugin.aws.s3.Copy`
+- `io.kestra.plugin.aws.s3.CopyList`
 - `io.kestra.plugin.aws.s3.CreateBucket`
 - `io.kestra.plugin.aws.s3.Delete`
 - `io.kestra.plugin.aws.s3.DeleteList`
