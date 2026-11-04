@@ -75,13 +75,14 @@ public class Entry {
         var busName = runContext.render(eventBusName);
         var type = runContext.render(detailType);
         var json = jsonValue(runContext, detail);
+        var renderedResources = resources != null ? runContext.render(resources) : null;
 
         return PutEventsRequestEntry.builder()
             .eventBusName(busName)
             .source(source)
             .detailType(type)
             .detail(json)
-            .resources(resources)
+            .resources(renderedResources)
             .build();
     }
 

@@ -79,4 +79,29 @@ class PutEventsBatchingUnitTest {
         assertEquals(1, output.getFailedEntryCount());
         assertEquals(15, output.getEntryCount());
     }
+
+    @Test
+    void testResourcesPebbleRendering() throws Exception {
+        var runContext = runContextFactory.of(java.util.Map.of("flowId", "my-flow", "env", "prod"));
+
+        var entry = Entry.builder()
+            .source("custom.test")
+            .detailType("unit-test")
+            .detail("{\"key\": \"val\"}")
+            .resources(List.of(
+                "arn:aws:events:us-east-1:123456789012:rule/{{ flowId }}",
+                "arn:aws:events:us-east-1:123456789012:event-bus/{{ env }}-bus"
+            ))
+            .build();
+
+        var requestEntry = entry.toRequestEntry(runContext);
+
+        assertEquals(
+            List.of(
+                "arn:aws:events:us-east-1:123456789012:rule/my-flow",
+                "arn:aws:events:us-east-1:123456789012:event-bus/prod-bus"
+            ),
+            requestEntry.resources()
+        );
+    }
 }
