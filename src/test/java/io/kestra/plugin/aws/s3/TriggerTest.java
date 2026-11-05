@@ -1,6 +1,7 @@
 package io.kestra.plugin.aws.s3;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
@@ -482,6 +483,106 @@ class TriggerTest extends AbstractTest {
         assertThat(second.isPresent(), is(true));
         assertThat(triggeredKeys(second.get()), is(remaining));
         assertThat(keys(bucket, "trigger/kill").size(), is(0));
+    }
+
+    @Test
+    void moveDoesNotFailOnSeenSiblingWithSameBasename() throws Exception {
+        String bucket = "trigger-move-seen-sibling";
+        String archive = "trigger-move-seen-sibling-archive";
+        this.createBucket(bucket);
+        this.createBucket(archive);
+
+        uploadKey(bucket, "dir1/x.txt");
+
+        Trigger trigger = Trigger.builder()
+            .id("s3-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .bucket(Property.ofValue(bucket))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(Copy.CopyObject.builder().bucket(Property.ofValue(archive)).key(Property.ofValue("archive")).build())
+            .interval(Duration.ofSeconds(10))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        Optional<Execution> first = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(first.isPresent(), is(true));
+        assertThat(triggeredKeys(first.get()), is(java.util.List.of("dir1/x.txt")));
+
+        // Same content, so the same ETag: the object stays seen and does not fire again.
+        uploadKey(bucket, "dir1/x.txt");
+        // Same basename in another folder: without a prefix both resolve to archive/x.txt.
+        uploadKey(bucket, "dir2/x.txt");
+
+        Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(second.isPresent(), is(true));
+        assertThat(triggeredKeys(second.get()), is(java.util.List.of("dir2/x.txt")));
+        // The new object moved, the seen sibling was left untouched.
+        assertThat(keys(bucket, "dir"), is(java.util.List.of("dir1/x.txt")));
+    }
+
+    @Test
+    void moveStillFailsWhenTwoFiringObjectsCollide() throws Exception {
+        String bucket = "trigger-move-collision";
+        String archive = "trigger-move-collision-archive";
+        this.createBucket(bucket);
+        this.createBucket(archive);
+
+        uploadKey(bucket, "dir1/x.txt");
+        uploadKey(bucket, "dir2/x.txt");
+
+        Trigger trigger = Trigger.builder()
+            .id("s3-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .bucket(Property.ofValue(bucket))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(Copy.CopyObject.builder().bucket(Property.ofValue(archive)).key(Property.ofValue("archive")).build())
+            .interval(Duration.ofSeconds(10))
+            .build();
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        var failure = assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        assertThat(
+            causeChain(failure).stream().anyMatch(
+                cause -> cause instanceof IllegalStateException
+                    && cause.getMessage() != null
+                    && cause.getMessage().contains("multiple source objects would overwrite the same destination key")
+            ),
+            is(true)
+        );
+        assertThat(keys(bucket, "dir").size(), is(2));
+    }
+
+    private void uploadKey(String bucket, String key) throws Exception {
+        URI source = storagePut(null);
+
+        Upload upload = Upload.builder()
+            .id(AllTest.class.getSimpleName())
+            .type(Upload.class.getName())
+            .bucket(Property.ofValue(bucket))
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(source.toString())
+            .key(Property.ofValue(key))
+            .build();
+        upload.run(runContext(upload));
     }
 
     private static java.util.List<Throwable> causeChain(Throwable throwable) {
