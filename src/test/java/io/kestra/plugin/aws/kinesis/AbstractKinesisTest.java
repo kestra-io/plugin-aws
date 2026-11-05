@@ -21,7 +21,7 @@ public class AbstractKinesisTest extends AbstractFlociTest {
 
     @BeforeEach
     void setupStream() throws InterruptedException {
-        streamName = "stream-" + IdUtils.create();
+        streamName = createStream(1);
 
         try (
             KinesisClient kinesisClient = KinesisClient.builder()
@@ -34,21 +34,7 @@ public class AbstractKinesisTest extends AbstractFlociTest {
                 .endpointOverride(java.net.URI.create(endpointUrl()))
                 .build()
         ) {
-
-            kinesisClient.createStream(
-                CreateStreamRequest.builder()
-                    .streamName(streamName)
-                    .shardCount(1)
-                    .build()
-            );
-
-            DescribeStreamResponse ds;
-            do {
-                Thread.sleep(200);
-                ds = kinesisClient.describeStream(r -> r.streamName(streamName));
-            } while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE);
-
-            streamArn = ds.streamDescription().streamARN();
+            streamArn = kinesisClient.describeStream(r -> r.streamName(streamName)).streamDescription().streamARN();
         }
     }
 
