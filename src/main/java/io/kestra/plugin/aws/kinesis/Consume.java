@@ -203,7 +203,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                 GetRecordsResponse response = client.getRecords(
                     GetRecordsRequest.builder()
                         .shardIterator(cursor.iterator)
-                        .limit(1000)
+                        .limit((int) Math.min(1000, Math.min(quota, (long) rMaxRecords - consumed)))
                         .build()
                 );
                 cursor.millisBehindLatest = response.millisBehindLatest();
