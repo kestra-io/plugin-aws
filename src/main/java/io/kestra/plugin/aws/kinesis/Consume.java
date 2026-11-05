@@ -74,7 +74,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @ToString.Exclude
     private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
-
     @NotNull
     @Schema(
         title = "Stream name",
@@ -117,12 +116,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Builder.Default
     @Schema(
         title = "Poll interval",
-        description = "Sleep between GetRecords calls; default 1s."
+        description = "Sleep between polling rounds; default 1s."
     )
     @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
-
-
 
     @Override
     public void kill() {
@@ -135,13 +132,17 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     }
 
     Output run(RunContext runContext, Map<String, String> startingPositionPerShard) throws Exception {
+        return run(runContext, startingPositionPerShard, List.of());
+    }
+
+    Output run(RunContext runContext, Map<String, String> startingPositionPerShard, List<String> preferredShardOrder) throws Exception {
         long startedAt = System.nanoTime();
         var rStream = runContext.render(this.streamName).as(String.class).orElseThrow();
 
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
-        var startingPositions = startingPositionPerShard == null ? Map.<String, String>of() : startingPositionPerShard;
+        var startingPositions = startingPositionPerShard == null ? Map.<String, String> of() : startingPositionPerShard;
         var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
         var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
 
@@ -155,31 +156,46 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE);
         var rPollDuration = runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1));
 
+        var preferredIndex = new HashMap<String, Integer>();
+        for (int i = 0; i < preferredShardOrder.size(); i++) {
+            preferredIndex.put(preferredShardOrder.get(i), i);
+        }
+
         List<ShardCursor> cursors = new ArrayList<>(shards.size());
         for (Shard shard : shards) {
             var shardStart = buildShardIterator(runContext, client, rStream, shard, startingPositions.get(shard.shardId()));
             cursors.add(new ShardCursor(shard, shardStart.iterator(), shardStart.startingPosition()));
         }
+        cursors.sort(Comparator.comparingInt(cursor -> preferredIndex.getOrDefault(cursor.shard.shardId(), -1)));
+
+        var cursorByShardId = new HashMap<String, ShardCursor>();
+        for (ShardCursor cursor : cursors) {
+            cursorByShardId.put(cursor.shard.shardId(), cursor);
+        }
 
         while (true) {
+            int readableShards = 0;
+            for (ShardCursor cursor : cursors) {
+                if (isReadable(cursor, cursorByShardId)) {
+                    readableShards++;
+                }
+            }
+
+            if (readableShards == 0 || isStopped.get() || consumed >= rMaxRecords) {
+                break;
+            }
+
+            long remaining = (long) rMaxRecords - consumed;
+            int quota = (int) Math.min(Integer.MAX_VALUE, (remaining + readableShards - 1) / readableShards);
             boolean fetched = false;
 
-            for (int i = 0; i < cursors.size(); i++) {
-                var cursor = cursors.get(i);
+            for (ShardCursor cursor : cursors) {
                 if (isStopped.get() || consumed >= rMaxRecords) {
                     break;
                 }
-                if (cursor.iterator == null) {
+                if (!isReadable(cursor, cursorByShardId)) {
                     continue;
                 }
-
-                long activeShards = 0;
-                for (int j = i; j < cursors.size(); j++) {
-                    if (cursors.get(j).iterator != null) {
-                        activeShards++;
-                    }
-                }
-                int quota = (int) Math.max(1L, (long) rMaxRecords - consumed - (activeShards - 1));
 
                 fetched = true;
                 cursor.shardRead = true;
@@ -213,7 +229,15 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                     cursor.lastPosition = record.sequenceNumber();
                 }
 
-                cursor.iterator = response.nextShardIterator();
+                if (taken < response.records().size()) {
+                    cursor.iterator = shardIteratorAfter(client, rStream, cursor.shard.shardId(), cursor.lastPosition);
+                } else {
+                    cursor.iterator = response.nextShardIterator();
+                }
+
+                if (isStopped.get() || consumed >= rMaxRecords || Instant.now().isAfter(rMaxDuration)) {
+                    break;
+                }
             }
 
             if (!fetched || isStopped.get() || consumed >= rMaxRecords || Instant.now().isAfter(rMaxDuration)) {
@@ -268,7 +292,34 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
     }
 
-    private record ShardStart(String iterator, String startingPosition) {}
+    private record ShardStart(String iterator, String startingPosition) {
+    }
+
+    private String shardIteratorAfter(KinesisClient client, String stream, String shardId, String sequenceNumber) {
+        return client.getShardIterator(
+            GetShardIteratorRequest.builder()
+                .streamName(stream)
+                .shardId(shardId)
+                .shardIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
+                .startingSequenceNumber(sequenceNumber)
+                .build()
+        ).shardIterator();
+    }
+
+    private static boolean isReadable(ShardCursor cursor, Map<String, ShardCursor> cursorByShardId) {
+        return cursor.iterator != null
+            && !hasActiveParent(cursor.shard.parentShardId(), cursorByShardId)
+            && !hasActiveParent(cursor.shard.adjacentParentShardId(), cursorByShardId);
+    }
+
+    private static boolean hasActiveParent(String parentShardId, Map<String, ShardCursor> cursorByShardId) {
+        if (parentShardId == null) {
+            return false;
+        }
+
+        ShardCursor parent = cursorByShardId.get(parentShardId);
+        return parent != null && parent.iterator != null;
+    }
 
     private static final class ShardCursor {
         private final Shard shard;
