@@ -257,7 +257,7 @@ class TriggerTest extends AbstractKinesisTest {
 
         var stateKey = "kinesis_two_shards_" + IdUtils.create();
         var trigger = Trigger.builder()
-            .id(TriggerTest.class.getSimpleName() + "MaxRecordsTwoShards")
+            .id(TriggerTest.class.getSimpleName() + "MaxRecordsTwoShards" + IdUtils.create())
             .type(TriggerTest.class.getName())
             .streamName(Property.ofValue(multiShardStream))
             .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))

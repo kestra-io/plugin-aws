@@ -157,25 +157,25 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         var rPollDuration = runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1));
 
         var preferredIndex = new HashMap<String, Integer>();
-        for (int i = 0; i < preferredShardOrder.size(); i++) {
+        for (var i = 0; i < preferredShardOrder.size(); i++) {
             preferredIndex.put(preferredShardOrder.get(i), i);
         }
 
-        List<ShardCursor> cursors = new ArrayList<>(shards.size());
-        for (Shard shard : shards) {
+        var cursors = new ArrayList<ShardCursor>(shards.size());
+        for (var shard : shards) {
             var shardStart = buildShardIterator(runContext, client, rStream, shard, startingPositions.get(shard.shardId()));
             cursors.add(new ShardCursor(shard, shardStart.iterator(), shardStart.startingPosition()));
         }
         cursors.sort(Comparator.comparingInt(cursor -> preferredIndex.getOrDefault(cursor.shard.shardId(), -1)));
 
         var cursorByShardId = new HashMap<String, ShardCursor>();
-        for (ShardCursor cursor : cursors) {
+        for (var cursor : cursors) {
             cursorByShardId.put(cursor.shard.shardId(), cursor);
         }
 
         while (true) {
-            int readableShards = 0;
-            for (ShardCursor cursor : cursors) {
+            var readableShards = 0;
+            for (var cursor : cursors) {
                 if (isReadable(cursor, cursorByShardId)) {
                     readableShards++;
                 }
@@ -185,11 +185,11 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                 break;
             }
 
-            long remaining = (long) rMaxRecords - consumed;
-            int quota = (int) Math.min(Integer.MAX_VALUE, (remaining + readableShards - 1) / readableShards);
-            boolean fetched = false;
+            var remaining = (long) rMaxRecords - consumed;
+            var quota = (int) Math.min(Integer.MAX_VALUE, (remaining + readableShards - 1) / readableShards);
+            var fetched = false;
 
-            for (ShardCursor cursor : cursors) {
+            for (var cursor : cursors) {
                 if (isStopped.get() || consumed >= rMaxRecords) {
                     break;
                 }
@@ -208,7 +208,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
                 );
                 cursor.millisBehindLatest = response.millisBehindLatest();
 
-                int taken = 0;
+                var taken = 0;
                 for (Record record : response.records()) {
                     if (consumed >= rMaxRecords || taken >= quota) {
                         break;
@@ -247,7 +247,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             Thread.sleep(rPollDuration.toMillis());
         }
 
-        for (ShardCursor cursor : cursors) {
+        for (var cursor : cursors) {
             if (!cursor.shardRead) {
                 continue;
             }
@@ -317,7 +317,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
             return false;
         }
 
-        ShardCursor parent = cursorByShardId.get(parentShardId);
+        var parent = cursorByShardId.get(parentShardId);
         return parent != null && parent.iterator != null;
     }
 

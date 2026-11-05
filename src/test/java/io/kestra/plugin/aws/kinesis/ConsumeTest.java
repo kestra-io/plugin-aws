@@ -6,7 +6,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.*;
@@ -165,7 +164,7 @@ class ConsumeTest extends AbstractKinesisTest {
         assertThat(output.getCount(), is(2));
         assertThat(output.getResumePositionPerShard().keySet(), hasSize(2));
 
-        List<Consume.ConsumedRecord> records = loadOutput(runContext, output.getUri());
+        var records = loadOutput(runContext, output.getUri());
         assertThat(records, hasSize(2));
         assertThat(records.stream().map(Consume.ConsumedRecord::getShardId).distinct().count(), is(2L));
     }
@@ -176,7 +175,7 @@ class ConsumeTest extends AbstractKinesisTest {
         var multiShardStream = createStream(2);
 
         var records = new ArrayList<Record>();
-        for (int i = 0; i < 10; i++) {
+        for (var i = 0; i < 10; i++) {
             records.add(Record.builder().partitionKey("pk-0").explicitHashKey("0").data("shard-0-" + i).build());
             records.add(
                 Record.builder()
@@ -213,7 +212,7 @@ class ConsumeTest extends AbstractKinesisTest {
 
         assertThat(output.getCount(), is(10));
 
-        Map<String, Long> recordsPerShard = loadOutput(runContext, output.getUri()).stream()
+        var recordsPerShard = loadOutput(runContext, output.getUri()).stream()
             .collect(Collectors.groupingBy(Consume.ConsumedRecord::getShardId, Collectors.counting()));
         assertThat(recordsPerShard.values(), everyItem(is(5L)));
     }
@@ -224,7 +223,7 @@ class ConsumeTest extends AbstractKinesisTest {
         var multiShardStream = createStream(2);
 
         var records = new ArrayList<Record>();
-        for (int i = 0; i < 4; i++) {
+        for (var i = 0; i < 4; i++) {
             records.add(Record.builder().partitionKey("pk-0").explicitHashKey("0").data("record-" + i).build());
         }
 

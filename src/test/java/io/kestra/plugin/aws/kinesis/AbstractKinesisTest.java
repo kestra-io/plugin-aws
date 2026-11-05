@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.net.URI;
+
 import org.junit.jupiter.api.BeforeEach;
 
 import io.kestra.core.runners.RunContextFactory;
@@ -31,7 +33,7 @@ public class AbstractKinesisTest extends AbstractFlociTest {
                     )
                 )
                 .region(Region.of(REGION))
-                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .endpointOverride(URI.create(endpointUrl()))
                 .build()
         ) {
             streamArn = kinesisClient.describeStream(r -> r.streamName(streamName)).streamDescription().streamARN();
@@ -49,7 +51,7 @@ public class AbstractKinesisTest extends AbstractFlociTest {
                     )
                 )
                 .region(Region.of(REGION))
-                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .endpointOverride(URI.create(endpointUrl()))
                 .build()
         ) {
             kinesisClient.createStream(
