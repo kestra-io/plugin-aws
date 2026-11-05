@@ -286,4 +286,16 @@ class TriggerTest extends AbstractKinesisTest {
 
         assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
     }
+
+    @Test
+    void shardOrderPrefersLeastRecentlyReadShard() {
+        var scope = "scope_";
+        var now = Instant.now();
+        var state = new HashMap<String, StatefulTriggerService.Entry>();
+        state.put(scope + "shard-0", new StatefulTriggerService.Entry(scope + "shard-0", "1", now, null));
+        state.put(scope + "shard-1", new StatefulTriggerService.Entry(scope + "shard-1", "2", now.minusSeconds(60), null));
+        state.put("other_scope_shard", new StatefulTriggerService.Entry("other_scope_shard", "3", now.minusSeconds(120), null));
+
+        assertThat(Trigger.shardOrder(state, scope), contains("shard-1", "shard-0"));
+    }
 }
