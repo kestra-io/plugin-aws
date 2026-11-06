@@ -253,13 +253,11 @@ public class Trigger extends AbstractTrigger
             return Optional.empty();
         }
 
-        S3Service.moveTargets(run.getObjects(), this.action, this.moveTo, runContext, this);
-
         var previousState = readState(runContext, rStateKey, rStateTtl);
         // State as read, to roll back the objects whose action fails so the next poll picks them up again.
         var stateAsRead = new HashMap<>(previousState);
 
-        var toFire = run.getObjects().stream()
+        var candidates = run.getObjects().stream()
             .filter(object -> !S3Service.isDirectoryMarker(object))
             .flatMap(throwFunction(object ->
             {
@@ -274,37 +272,52 @@ public class Trigger extends AbstractTrigger
                 if (change.fire()) {
                     var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
 
-                    var download = Download.builder()
-                        .id(this.id)
-                        .type(Download.class.getName())
-                        .region(this.region)
-                        .endpointOverride(this.endpointOverride)
-                        .accessKeyId(this.accessKeyId)
-                        .secretKeyId(this.secretKeyId)
-                        .sessionToken(this.sessionToken)
-                        .stsRoleArn(this.stsRoleArn)
-                        .stsRoleSessionName(this.stsRoleSessionName)
-                        .stsRoleExternalId(this.stsRoleExternalId)
-                        .stsRoleSessionDuration(this.stsRoleSessionDuration)
-                        .stsEndpointOverride(this.stsEndpointOverride)
-                        .requestPayer(this.requestPayer)
-                        .bucket(this.bucket)
-                        .key(Property.ofValue(object.getKey()))
-                        .compatibilityMode(this.compatibilityMode)
-                        .forcePathStyle(this.forcePathStyle)
-                        .build();
-
-                    var dlOut = killable.run(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
-                    var downloaded = object.withUri(dlOut.getUri());
-
                     return Stream.of(
                         TriggeredObject.builder()
-                            .object(downloaded)
+                            .object(object)
                             .changeType(changeType)
                             .build()
                     );
                 }
                 return Stream.empty();
+            }))
+            .toList();
+
+        // Validate collisions over the objects that actually move on this poll, not over the whole listing:
+        // an object that is already seen and will not fire must not block a new one.
+        S3Service.moveTargets(candidates.stream().map(TriggeredObject::toObject).toList(), this.action, this.moveTo, runContext, this);
+
+        var toFire = candidates.stream()
+            .map(throwFunction(triggered ->
+            {
+                var object = triggered.toObject();
+
+                var download = Download.builder()
+                    .id(this.id)
+                    .type(Download.class.getName())
+                    .region(this.region)
+                    .endpointOverride(this.endpointOverride)
+                    .accessKeyId(this.accessKeyId)
+                    .secretKeyId(this.secretKeyId)
+                    .sessionToken(this.sessionToken)
+                    .stsRoleArn(this.stsRoleArn)
+                    .stsRoleSessionName(this.stsRoleSessionName)
+                    .stsRoleExternalId(this.stsRoleExternalId)
+                    .stsRoleSessionDuration(this.stsRoleSessionDuration)
+                    .stsEndpointOverride(this.stsEndpointOverride)
+                    .requestPayer(this.requestPayer)
+                    .bucket(this.bucket)
+                    .key(Property.ofValue(object.getKey()))
+                    .compatibilityMode(this.compatibilityMode)
+                    .forcePathStyle(this.forcePathStyle)
+                    .build();
+
+                var dlOut = killable.run(() -> download.asyncClient(runContext), client -> download.run(runContext, client));
+
+                return TriggeredObject.builder()
+                    .object(object.withUri(dlOut.getUri()))
+                    .changeType(triggered.getChangeType())
+                    .build();
             }))
             .toList();
 
