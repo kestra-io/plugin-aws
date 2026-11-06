@@ -224,7 +224,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .stsRoleSessionDuration(stsRoleSessionDuration)
             .build();
 
-        Consume.Output output = consume.run(runContext, sequences);
+        Consume.Output output = consume.run(runContext, sequences, shardOrder(previousState, streamScope));
 
         output.getResumePositionPerShard().forEach((shard, position) -> previousState.put(streamScope + shard, StatefulTriggerService.Entry.candidate(streamScope + shard, position, Instant.now())));
         StatefulTriggerService.writeState(runContext, rStateKey, previousState, rStateTtl);
@@ -240,6 +240,19 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(
             TriggerService.generateExecution(this, conditionContext, context, output)
         );
+    }
+
+    static List<String> shardOrder(Map<String, StatefulTriggerService.Entry> state, String streamScope) {
+        return state.entrySet().stream()
+            .filter(entry -> entry.getKey().startsWith(streamScope))
+            .sorted(
+                Comparator.comparing(
+                    (Map.Entry<String, StatefulTriggerService.Entry> entry) -> entry.getValue().modifiedAt(),
+                    Comparator.nullsFirst(Comparator.naturalOrder())
+                )
+            )
+            .map(entry -> entry.getKey().substring(streamScope.length()))
+            .toList();
     }
 
     private static String stateKey(TriggerContext context, String region, String endpoint, String stream) {

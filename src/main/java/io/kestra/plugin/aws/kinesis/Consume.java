@@ -74,7 +74,6 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @ToString.Exclude
     private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
-
     @NotNull
     @Schema(
         title = "Stream name",
@@ -117,12 +116,10 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     @Builder.Default
     @Schema(
         title = "Poll interval",
-        description = "Sleep between GetRecords calls; default 1s."
+        description = "Sleep between polling rounds; default 1s."
     )
     @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(1));
-
-
 
     @Override
     public void kill() {
@@ -135,13 +132,17 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
     }
 
     Output run(RunContext runContext, Map<String, String> startingPositionPerShard) throws Exception {
+        return run(runContext, startingPositionPerShard, List.of());
+    }
+
+    Output run(RunContext runContext, Map<String, String> startingPositionPerShard, List<String> preferredShardOrder) throws Exception {
         long startedAt = System.nanoTime();
         var rStream = runContext.render(this.streamName).as(String.class).orElseThrow();
 
         KinesisClient client = client(runContext);
 
         List<Shard> shards = client.listShards(ListShardsRequest.builder().streamName(rStream).build()).shards();
-        var startingPositions = startingPositionPerShard == null ? Map.<String, String>of() : startingPositionPerShard;
+        var startingPositions = startingPositionPerShard == null ? Map.<String, String> of() : startingPositionPerShard;
         var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
         var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
 
@@ -153,72 +154,110 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         var resumePositionPerShard = new HashMap<String, String>();
         var rMaxDuration = Instant.now().plus(runContext.render(maxDuration).as(Duration.class).orElse(Duration.ofSeconds(30)));
         var rMaxRecords = runContext.render(maxRecords).as(Integer.class).orElse(Integer.MAX_VALUE);
+        var rPollDuration = runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1));
 
-        for (Shard shard : shards) {
-            if (isStopped.get() || consumed >= rMaxRecords) {
+        var preferredIndex = new HashMap<String, Integer>();
+        for (var i = 0; i < preferredShardOrder.size(); i++) {
+            preferredIndex.put(preferredShardOrder.get(i), i);
+        }
+
+        var cursors = new ArrayList<ShardCursor>(shards.size());
+        for (var shard : shards) {
+            var shardStart = buildShardIterator(runContext, client, rStream, shard, startingPositions.get(shard.shardId()));
+            cursors.add(new ShardCursor(shard, shardStart.iterator(), shardStart.startingPosition()));
+        }
+        cursors.sort(Comparator.comparingInt(cursor -> preferredIndex.getOrDefault(cursor.shard.shardId(), -1)));
+
+        var cursorByShardId = new HashMap<String, ShardCursor>();
+        for (var cursor : cursors) {
+            cursorByShardId.put(cursor.shard.shardId(), cursor);
+        }
+
+        while (true) {
+            var readableShards = 0;
+            for (var cursor : cursors) {
+                if (isReadable(cursor, cursorByShardId)) {
+                    readableShards++;
+                }
+            }
+
+            if (readableShards == 0 || isStopped.get() || consumed >= rMaxRecords) {
                 break;
             }
-            var shardStart = buildShardIterator(runContext, client, rStream, shard, startingPositions.get(shard.shardId()));
-            var iterator = shardStart.iterator();
-            var startingPosition = shardStart.startingPosition();
-            String lastPosition = null;
-            Long millisBehindLatest = null;
-            var shardRead = false;
 
-            while (iterator != null) {
-                if (isStopped.get()) {
+            var remaining = (long) rMaxRecords - consumed;
+            var quota = (int) Math.min(Integer.MAX_VALUE, (remaining + readableShards - 1) / readableShards);
+            var fetched = false;
+
+            for (var cursor : cursors) {
+                if (isStopped.get() || consumed >= rMaxRecords) {
                     break;
                 }
-                shardRead = true;
+                if (!isReadable(cursor, cursorByShardId)) {
+                    continue;
+                }
+
+                fetched = true;
+                cursor.shardRead = true;
 
                 GetRecordsResponse response = client.getRecords(
                     GetRecordsRequest.builder()
-                        .shardIterator(iterator)
-                        .limit(1000)
+                        .shardIterator(cursor.iterator)
+                        .limit((int) Math.min(1000, Math.min(quota, (long) rMaxRecords - consumed)))
                         .build()
                 );
-                millisBehindLatest = response.millisBehindLatest();
+                cursor.millisBehindLatest = response.millisBehindLatest();
 
+                var taken = 0;
                 for (Record record : response.records()) {
+                    if (consumed >= rMaxRecords || taken >= quota) {
+                        break;
+                    }
+
                     ConsumedRecord consumedRecord = ConsumedRecord.builder()
                         .data(new String(record.data().asByteArray()))
                         .partitionKey(record.partitionKey())
                         .sequenceNumber(record.sequenceNumber())
                         .approximateArrivalTimestamp(record.approximateArrivalTimestamp())
-                        .shardId(shard.shardId())
+                        .shardId(cursor.shard.shardId())
                         .build();
 
                     FileSerde.write(output, consumedRecord);
 
                     consumed++;
-                    lastPosition = record.sequenceNumber();
-
-                    if (consumed >= rMaxRecords) {
-                        break;
-                    }
+                    taken++;
+                    cursor.lastPosition = record.sequenceNumber();
                 }
 
-                iterator = response.nextShardIterator();
+                if (taken < response.records().size()) {
+                    cursor.iterator = shardIteratorAfter(client, rStream, cursor.shard.shardId(), cursor.lastPosition);
+                } else {
+                    cursor.iterator = response.nextShardIterator();
+                }
 
-                if (
-                    Instant.now().isAfter(rMaxDuration) ||
-                        consumed >= rMaxRecords
-                ) {
+                if (isStopped.get() || consumed >= rMaxRecords || Instant.now().isAfter(rMaxDuration)) {
                     break;
                 }
-
-                Thread.sleep(runContext.render(pollDuration).as(Duration.class).orElse(Duration.ofSeconds(1)).toMillis());
             }
 
-            if (shardRead) {
-                if (lastPosition != null) {
-                    lastSequence.put(shard.shardId(), lastPosition);
-                    resumePositionPerShard.put(shard.shardId(), lastPosition);
-                } else if (startingPosition != null) {
-                    resumePositionPerShard.put(shard.shardId(), startingPosition);
-                } else if (rIteratorType == IteratorType.LATEST || (millisBehindLatest != null && millisBehindLatest == 0L)) {
-                    resumePositionPerShard.put(shard.shardId(), timestampPosition(pollStartedAt));
-                }
+            if (!fetched || isStopped.get() || consumed >= rMaxRecords || Instant.now().isAfter(rMaxDuration)) {
+                break;
+            }
+
+            Thread.sleep(rPollDuration.toMillis());
+        }
+
+        for (var cursor : cursors) {
+            if (!cursor.shardRead) {
+                continue;
+            }
+            if (cursor.lastPosition != null) {
+                lastSequence.put(cursor.shard.shardId(), cursor.lastPosition);
+                resumePositionPerShard.put(cursor.shard.shardId(), cursor.lastPosition);
+            } else if (cursor.startingPosition != null) {
+                resumePositionPerShard.put(cursor.shard.shardId(), cursor.startingPosition);
+            } else if (rIteratorType == IteratorType.LATEST || (cursor.millisBehindLatest != null && cursor.millisBehindLatest == 0L)) {
+                resumePositionPerShard.put(cursor.shard.shardId(), timestampPosition(pollStartedAt));
             }
         }
 
@@ -253,7 +292,49 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
         return new ShardStart(getShardIterator(runContext, client, stream, shard, null), null);
     }
 
-    private record ShardStart(String iterator, String startingPosition) {}
+    private record ShardStart(String iterator, String startingPosition) {
+    }
+
+    private String shardIteratorAfter(KinesisClient client, String stream, String shardId, String sequenceNumber) {
+        return client.getShardIterator(
+            GetShardIteratorRequest.builder()
+                .streamName(stream)
+                .shardId(shardId)
+                .shardIteratorType(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
+                .startingSequenceNumber(sequenceNumber)
+                .build()
+        ).shardIterator();
+    }
+
+    private static boolean isReadable(ShardCursor cursor, Map<String, ShardCursor> cursorByShardId) {
+        return cursor.iterator != null
+            && !hasActiveParent(cursor.shard.parentShardId(), cursorByShardId)
+            && !hasActiveParent(cursor.shard.adjacentParentShardId(), cursorByShardId);
+    }
+
+    private static boolean hasActiveParent(String parentShardId, Map<String, ShardCursor> cursorByShardId) {
+        if (parentShardId == null) {
+            return false;
+        }
+
+        var parent = cursorByShardId.get(parentShardId);
+        return parent != null && parent.iterator != null;
+    }
+
+    private static final class ShardCursor {
+        private final Shard shard;
+        private final String startingPosition;
+        private String iterator;
+        private String lastPosition;
+        private Long millisBehindLatest;
+        private boolean shardRead;
+
+        private ShardCursor(Shard shard, String iterator, String startingPosition) {
+            this.shard = shard;
+            this.iterator = iterator;
+            this.startingPosition = startingPosition;
+        }
+    }
 
     private String getShardIterator(RunContext runContext, KinesisClient client, String stream, Shard shard, String startingPosition) throws IllegalVariableEvaluationException {
         var savedSequence = startingPosition != null && !startingPosition.startsWith("timestamp:") ? startingPosition : null;

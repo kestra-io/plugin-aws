@@ -1,5 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
+import java.net.URI;
+
 import org.junit.jupiter.api.BeforeEach;
 
 import io.kestra.core.runners.RunContextFactory;
@@ -21,7 +23,7 @@ public class AbstractKinesisTest extends AbstractFlociTest {
 
     @BeforeEach
     void setupStream() throws InterruptedException {
-        streamName = "stream-" + IdUtils.create();
+        streamName = createStream(1);
 
         try (
             KinesisClient kinesisClient = KinesisClient.builder()
@@ -31,25 +33,42 @@ public class AbstractKinesisTest extends AbstractFlociTest {
                     )
                 )
                 .region(Region.of(REGION))
-                .endpointOverride(java.net.URI.create(endpointUrl()))
+                .endpointOverride(URI.create(endpointUrl()))
                 .build()
         ) {
+            streamArn = kinesisClient.describeStream(r -> r.streamName(streamName)).streamDescription().streamARN();
+        }
+    }
 
+    protected String createStream(int shardCount) throws InterruptedException {
+        var name = "stream-" + shardCount + "shards-" + IdUtils.create();
+
+        try (
+            KinesisClient kinesisClient = KinesisClient.builder()
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)
+                    )
+                )
+                .region(Region.of(REGION))
+                .endpointOverride(URI.create(endpointUrl()))
+                .build()
+        ) {
             kinesisClient.createStream(
                 CreateStreamRequest.builder()
-                    .streamName(streamName)
-                    .shardCount(1)
+                    .streamName(name)
+                    .shardCount(shardCount)
                     .build()
             );
 
             DescribeStreamResponse ds;
             do {
                 Thread.sleep(200);
-                ds = kinesisClient.describeStream(r -> r.streamName(streamName));
+                ds = kinesisClient.describeStream(r -> r.streamName(name));
             } while (ds.streamDescription().streamStatus() != StreamStatus.ACTIVE);
-
-            streamArn = ds.streamDescription().streamARN();
         }
+
+        return name;
     }
 
     protected String registerConsumer() throws Exception {

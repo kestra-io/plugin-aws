@@ -4,7 +4,9 @@ import java.io.BufferedInputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.*;
 
@@ -107,7 +109,7 @@ class ConsumeTest extends AbstractKinesisTest {
             .build();
 
         java.util.concurrent.atomic.AtomicReference<Consume.Output> output = new java.util.concurrent.atomic.AtomicReference<>();
-        
+
         Thread thread = new Thread(() -> {
             try {
                 output.set(consume.run(runContext));
@@ -123,5 +125,133 @@ class ConsumeTest extends AbstractKinesisTest {
 
         assertThat(thread.isAlive(), is(false)); // Ensure it successfully exited
         assertThat(output.get(), notNullValue());
+    }
+
+    @Test
+    void maxRecordsIsSharedAcrossShards() throws Exception {
+        var runContext = runContextFactory.of();
+        var multiShardStream = createStream(2);
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .records(List.of(
+                Record.builder().partitionKey("pk-0").data("record 0").build(),
+                Record.builder().partitionKey("pk-1").data("record 1").build(),
+                Record.builder().partitionKey("pk-2").data("record 2").build(),
+                Record.builder().partitionKey("pk-3").data("record 3").build()
+            ))
+            .build()
+            .run(runContext);
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
+            .maxRecords(Property.ofValue(2))
+            .maxDuration(Property.ofValue(Duration.ofSeconds(5)))
+            .pollDuration(Property.ofValue(Duration.ofMillis(10)))
+            .build();
+
+        var output = consume.run(runContext);
+
+        assertThat(output.getCount(), is(2));
+        assertThat(output.getResumePositionPerShard().keySet(), hasSize(2));
+
+        var records = loadOutput(runContext, output.getUri());
+        assertThat(records, hasSize(2));
+        assertThat(records.stream().map(Consume.ConsumedRecord::getShardId).distinct().count(), is(2L));
+    }
+
+    @Test
+    void maxRecordsIsSplitEvenlyAcrossShards() throws Exception {
+        var runContext = runContextFactory.of();
+        var multiShardStream = createStream(2);
+
+        var records = new ArrayList<Record>();
+        for (var i = 0; i < 10; i++) {
+            records.add(Record.builder().partitionKey("pk-0").explicitHashKey("0").data("shard-0-" + i).build());
+            records.add(
+                Record.builder()
+                    .partitionKey("pk-1")
+                    .explicitHashKey("340282366920938463463374607431768211455")
+                    .data("shard-1-" + i)
+                    .build()
+            );
+        }
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .records(records)
+            .build()
+            .run(runContext);
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
+            .maxRecords(Property.ofValue(10))
+            .maxDuration(Property.ofValue(Duration.ofSeconds(5)))
+            .pollDuration(Property.ofValue(Duration.ofMillis(10)))
+            .build();
+
+        var output = consume.run(runContext);
+
+        assertThat(output.getCount(), is(10));
+
+        var recordsPerShard = loadOutput(runContext, output.getUri()).stream()
+            .collect(Collectors.groupingBy(Consume.ConsumedRecord::getShardId, Collectors.counting()));
+        assertThat(recordsPerShard.values(), everyItem(is(5L)));
+    }
+
+    @Test
+    void truncatedBatchIsResumed() throws Exception {
+        var runContext = runContextFactory.of();
+        var multiShardStream = createStream(2);
+
+        var records = new ArrayList<Record>();
+        for (var i = 0; i < 4; i++) {
+            records.add(Record.builder().partitionKey("pk-0").explicitHashKey("0").data("record-" + i).build());
+        }
+
+        PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .records(records)
+            .build()
+            .run(runContext);
+
+        var consume = Consume.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(multiShardStream))
+            .iteratorType(Property.ofValue(AbstractKinesis.IteratorType.TRIM_HORIZON))
+            .maxRecords(Property.ofValue(5))
+            .maxDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofMillis(10)))
+            .build();
+
+        var output = consume.run(runContext);
+
+        assertThat(output.getCount(), is(4));
+        assertThat(loadOutput(runContext, output.getUri()), hasSize(4));
     }
 }
