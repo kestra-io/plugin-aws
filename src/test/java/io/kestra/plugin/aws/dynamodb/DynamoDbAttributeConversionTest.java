@@ -2,12 +2,14 @@ package io.kestra.plugin.aws.dynamodb;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
 class DynamoDbAttributeConversionTest {
@@ -35,8 +37,11 @@ class DynamoDbAttributeConversionTest {
     }
 
     @Test
-    void shouldStoreAStringListAsAStringSetAndAnyOtherListAsAList() {
-        assertThat(task.objectFrom(List.of("a", "b")).ss(), is(List.of("a", "b")));
+    void shouldStoreAStringListAsAListAndAStringSetAsAStringSet() {
+        var stringList = task.objectFrom(List.of("a", "b"));
+        assertThat(stringList.type(), is(AttributeValue.Type.L));
+        assertThat(stringList.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("b"))));
+
         assertThat(
             task.objectFrom(List.of(new BigDecimal("1"), new BigDecimal("2"))).l(),
             is(List.of(AttributeValue.fromN("1"), AttributeValue.fromN("2")))
@@ -45,5 +50,9 @@ class DynamoDbAttributeConversionTest {
         var duplicates = task.objectFrom(List.of("a", "a"));
         assertThat(duplicates.type(), is(AttributeValue.Type.L));
         assertThat(duplicates.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("a"))));
+
+        var stringSet = task.objectFrom(Set.of("a", "b"));
+        assertThat(stringSet.type(), is(AttributeValue.Type.SS));
+        assertThat(stringSet.ss(), containsInAnyOrder("a", "b"));
     }
 }

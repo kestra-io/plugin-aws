@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -162,11 +163,13 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
         }
-        if (value instanceof List<?> list) {
-            // DynamoDB rejects an empty string set and a string set that contains duplicates.
-            if (isStringSet(list)) {
-                return AttributeValue.fromSs(list.stream().map(String.class::cast).toList());
+        if (value instanceof Set<?> set) {
+            if (isStringSet(set)) {
+                return AttributeValue.fromSs(set.stream().map(String.class::cast).toList());
             }
+            return AttributeValue.fromL(set.stream().map(this::objectFrom).toList());
+        }
+        if (value instanceof List<?> list) {
             return AttributeValue.fromL(list.stream().map(this::objectFrom).toList());
         }
         if (value instanceof Map) {
@@ -179,13 +182,12 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         return AttributeValue.fromS(value.toString());
     }
 
-    private static boolean isStringSet(List<?> list) {
-        if (list.isEmpty()) {
+    private static boolean isStringSet(Set<?> set) {
+        if (set.isEmpty()) {
             return false;
         }
-        var seen = new HashSet<String>();
-        for (var element : list) {
-            if (!(element instanceof String string) || !seen.add(string)) {
+        for (var element : set) {
+            if (element instanceof String == false) {
                 return false;
             }
         }
