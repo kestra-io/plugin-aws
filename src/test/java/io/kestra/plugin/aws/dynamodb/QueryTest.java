@@ -217,4 +217,102 @@ class QueryTest extends AbstractDynamoDbTest {
             dynamoDbClient.putItem(putRequest);
         }
     }
+
+    @Test
+    void shouldQueryBinaryAttributesFromDynamoDb() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var query = Query.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .keyConditionExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-query-872")))
+            .fetchType(Property.ofValue(FetchType.FETCH))
+            .build();
+
+        createTable(runContext, query);
+
+        try (var client = query.client(runContext)) {
+            var binary = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {0, 1, 2}
+            );
+
+            var first = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xAA}
+            );
+
+            var second = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xBB}
+            );
+
+            client.putItem(PutItemRequest.builder()
+                .tableName(tableName())
+                .item(Map.of(
+                    "id", AttributeValue.fromS("binary-query-872"),
+                    "payload", AttributeValue.fromB(binary),
+                    "payloadSet", AttributeValue.fromBs(
+                        java.util.List.of(first, second)
+                    )
+                ))
+                .build());
+        }
+
+        var output = query.run(runContext);
+
+        assertThat(output.getSize(), is(1L));
+        assertThat(output.getRows(), is(notNullValue()));
+        assertThat(output.getRows().size(), is(1));
+
+        var row = (Map<?, ?>) output.getRows().get(0);
+
+        assertThat(row.get("payload"), is("AAEC"));
+        assertThat(
+            java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
+            is(java.util.Set.of("qg==", "uw=="))
+        );
+
+        var storedQuery = Query.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .keyConditionExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-query-872")))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        var stored = storedQuery.run(runContext);
+
+        assertThat(stored.getSize(), is(1L));
+        assertThat(stored.getRows(), is(nullValue()));
+        assertThat(stored.getUri(), is(notNullValue()));
+
+        try (var input = new java.io.BufferedInputStream(
+            runContext.storage().getFile(stored.getUri()),
+            io.kestra.core.serializers.FileSerde.BUFFER_SIZE
+        )) {
+            var rows = new java.util.ArrayList<Object>();
+            io.kestra.core.serializers.FileSerde.read(input, rows::add);
+
+            assertThat(rows.size(), is(1));
+
+            var storedRow = (Map<?, ?>) rows.get(0);
+
+            assertThat(storedRow.get("payload"), is("AAEC"));
+            assertThat(
+                storedRow.get("payloadSet"),
+                org.hamcrest.Matchers.instanceOf(java.util.List.class)
+            );
+            assertThat(
+                java.util.Set.copyOf((java.util.List<?>) storedRow.get("payloadSet")),
+                is(java.util.Set.of("qg==", "uw=="))
+            );
+        }
+
+    }
+
 }

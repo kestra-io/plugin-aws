@@ -186,4 +186,149 @@ class ScanTest extends AbstractDynamoDbTest {
             dynamoDbClient.putItem(putRequest);
         }
     }
+
+    @Test
+    void shouldScanBinaryAttributesFromDynamoDb() throws Exception {
+        var runContext = runContextFactory.of();
+        var isolatedTable = tableName() + "-binary-fetch-872";
+
+        var scan = Scan.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(isolatedTable))
+            .filterExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-scan-872")))
+            .fetchType(Property.ofValue(FetchType.FETCH))
+            .build();
+
+        createTable(runContext, scan, isolatedTable);
+
+        try (var client = scan.client(runContext)) {
+            var binary = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] { 0, 1, 2 }
+            );
+
+            var first = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] { (byte) 0xAA }
+            );
+
+            var second = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] { (byte) 0xBB }
+            );
+
+            client.putItem(
+                PutItemRequest.builder()
+                    .tableName(isolatedTable)
+                    .item(
+                        Map.of(
+                            "id", AttributeValue.fromS("binary-scan-872"),
+                            "payload", AttributeValue.fromB(binary),
+                            "payloadSet", AttributeValue.fromBs(
+                                java.util.List.of(first, second)
+                            )
+                        )
+                    )
+                    .build()
+            );
+        }
+
+        var output = scan.run(runContext);
+
+        assertThat(output.getSize(), is(1L));
+        assertThat(output.getRows(), is(notNullValue()));
+        assertThat(output.getRows().size(), is(1));
+
+        var row = (Map<?, ?>) output.getRows().get(0);
+
+        assertThat(row.get("payload"), is("AAEC"));
+        assertThat(
+            row.get("payloadSet"),
+            instanceOf(java.util.List.class)
+        );
+
+        assertThat(
+            java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
+            is(java.util.Set.of("qg==", "uw=="))
+        );
+    }
+
+    @Test
+    void shouldStoreBinaryAttributesWithoutLosingData() throws Exception {
+        var runContext = runContextFactory.of();
+        var isolatedTable = tableName() + "-binary-store-872";
+
+        var scan = Scan.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(isolatedTable))
+            .filterExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-store-872")))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        createTable(runContext, scan, isolatedTable);
+
+        try (var client = scan.client(runContext)) {
+            client.putItem(
+                PutItemRequest.builder()
+                    .tableName(isolatedTable)
+                    .item(
+                        Map.of(
+                            "id", AttributeValue.fromS("binary-store-872"),
+                            "payload", AttributeValue.fromB(
+                                software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                    new byte[] { 0, 1, 2 }
+                                )
+                            ),
+                            "payloadSet", AttributeValue.fromBs(
+                                java.util.List.of(
+                                    software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                        new byte[] { (byte) 0xAA }
+                                    ),
+                                    software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                        new byte[] { (byte) 0xBB }
+                                    )
+                                )
+                            )
+                        )
+                    )
+                    .build()
+            );
+        }
+
+        var output = scan.run(runContext);
+
+        assertThat(output.getSize(), is(1L));
+        assertThat(output.getRows(), is(nullValue()));
+        assertThat(output.getUri(), is(notNullValue()));
+
+        try (
+            var input = new java.io.BufferedInputStream(
+                runContext.storage().getFile(output.getUri()),
+                io.kestra.core.serializers.FileSerde.BUFFER_SIZE
+            )
+        ) {
+            var storedRows = new java.util.ArrayList<Object>();
+            io.kestra.core.serializers.FileSerde.read(input, storedRows::add);
+
+            assertThat(storedRows.size(), is(1));
+
+            var row = (Map<?, ?>) storedRows.get(0);
+
+            assertThat(row.get("payload"), is("AAEC"));
+            assertThat(
+                row.get("payloadSet"),
+                instanceOf(java.util.List.class)
+            );
+            assertThat(
+                java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
+                is(java.util.Set.of("qg==", "uw=="))
+            );
+        }
+    }
+
 }
