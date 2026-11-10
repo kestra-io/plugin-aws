@@ -79,6 +79,32 @@ class S3ServiceActionTest {
             contains("/archive/archived/a.txt", "/source/in/a.txt", "/archive/archived/b.txt", "/source/in/b.txt")
         );
         assertThat(requests, everyItem(hasEntry("token", SESSION_TOKEN)));
+        assertThat(requests, everyItem(hasEntry("requestPayer", "requester")));
+    }
+
+    @Test
+    void copyWithDeleteSendsRequestPayerOnCopyAndDelete() throws Exception {
+        var task = Copy.builder()
+            .id(IdUtils.create())
+            .type(Copy.class.getName())
+            .endpointOverride(Property.ofValue("http://127.0.0.1:%d".formatted(server.getAddress().getPort())))
+            .region(Property.ofValue("us-east-1"))
+            .accessKeyId(Property.ofValue("ASIATEMPORARYKEY"))
+            .secretKeyId(Property.ofValue("temporary-secret"))
+            .sessionToken(Property.ofValue(SESSION_TOKEN))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(Copy.CopyObjectFrom.builder().bucket(Property.ofValue("source")).key(Property.ofValue("in/a.txt")).build())
+            .to(Copy.CopyObject.builder().bucket(Property.ofValue("archive")).key(Property.ofValue("archived/a.txt")).build())
+            .requestPayer(Property.ofValue("requester"))
+            .delete(Property.ofValue(true))
+            .build();
+
+        task.run(runContextFactory.of());
+
+        assertThat(requests.stream().map(r -> r.get("operation")).toList(), contains("CopyObject", "DeleteObject"));
+        assertThat(requests.stream().map(r -> r.get("path")).toList(), contains("/archive/archived/a.txt", "/source/in/a.txt"));
+        assertThat(requests, everyItem(hasEntry("requestPayer", "requester")));
     }
 
     private Downloads.DownloadsBuilder<?, ?> downloads() {

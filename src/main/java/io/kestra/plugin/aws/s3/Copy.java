@@ -174,6 +174,7 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .bucket(Property.ofValue(copyObjectRequest.sourceBucket()))
                     .key(Property.ofValue(copyObjectRequest.sourceKey()))
+                    .requestPayer(this.requestPayer)
                     .build()
                     .run(runContext);
             }
