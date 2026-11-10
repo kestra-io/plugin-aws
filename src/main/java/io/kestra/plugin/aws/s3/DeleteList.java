@@ -91,6 +91,13 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
+    @Schema(
+        title = "Requester pays",
+        description = "Sets the value of the RequestPayer property for this object. Use 'requester' to charge the requester for the deletes on a requester-pays bucket."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<String> requestPayer;
+
     @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
@@ -136,11 +143,11 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
                 result = flowable
                     .parallel(this.concurrent)
                     .runOn(Schedulers.boundedElastic())
-                    .map(delete(logger, client, bucket))
+                    .map(delete(runContext, logger, client, bucket, this.requestPayer, this.expectedBucketOwner))
                     .sequential();
             } else {
                 result = flowable
-                    .map(delete(logger, client, bucket));
+                    .map(delete(runContext, logger, client, bucket, this.requestPayer, this.expectedBucketOwner));
             }
 
             Pair<Long, Long> finalResult = result
@@ -169,7 +176,7 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         }
     }
 
-    private static Function<S3Object, Long> delete(Logger logger, S3Client client, String bucket) {
+    private static Function<S3Object, Long> delete(RunContext runContext, Logger logger, S3Client client, String bucket, Property<String> requestPayer, Property<String> expectedBucketOwner) {
         return o ->
         {
             logger.debug("Deleting '{}'", o.getKey());
@@ -177,6 +184,22 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
                 .bucket(bucket)
                 .key(o.getKey());
+
+            if (requestPayer != null) {
+                try {
+                    builder.requestPayer(runContext.render(requestPayer).as(String.class).orElseThrow());
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to render requestPayer: " + e.getMessage(), e);
+                }
+            }
+
+            if (expectedBucketOwner != null) {
+                try {
+                    builder.expectedBucketOwner(runContext.render(expectedBucketOwner).as(String.class).orElseThrow());
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to render expectedBucketOwner: " + e.getMessage(), e);
+                }
+            }
 
             client.deleteObject(builder.build());
 

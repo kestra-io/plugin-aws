@@ -135,4 +135,44 @@ class CopyTest extends AbstractTest {
         Copy.Output run = task.run(runContext(task));
         assertThat(run.getKey(), is(move));
     }
+
+    @Test
+    void runWithRequestPayer() throws Exception {
+        this.createBucket();
+
+        String upload = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+        String move = upload("/tasks/s3/" + IdUtils.create() + "/sub");
+
+        Copy task = Copy.builder()
+            .id(CopyTest.class.getSimpleName())
+            .type(Copy.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .from(
+                Copy.CopyObjectFrom.builder()
+                    .bucket(Property.ofValue(this.BUCKET))
+                    .key(Property.ofValue(upload))
+                    .build()
+            )
+            .to(
+                Copy.CopyObject.builder()
+                    .key(Property.ofValue(move))
+                    .build()
+            )
+            .requestPayer(Property.ofValue("requester"))
+            .delete(Property.ofValue(false))
+            .build();
+
+        Copy.Output run = task.run(runContext(task));
+        assertThat(run.getKey(), is(move));
+
+        // The destination object exists
+        List list = list().prefix(Property.ofValue(move)).build();
+        List.Output listOutput = list.run(runContext(list));
+        assertThat(listOutput.getObjects().size(), is(1));
+    }
 }

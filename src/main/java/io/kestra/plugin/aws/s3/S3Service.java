@@ -258,6 +258,9 @@ public class S3Service {
                             .key(Property.ofValue(targetKey))
                             .build()
                     )
+                    // Forward the parent task's requestPayer so the MOVE's
+                    // CopyObject carries x-amz-request-payer (#877).
+                    .requestPayer(abstractS3Object.getRequestPayer())
                     .delete(Property.ofValue(true))
                     .build();
                 copy.run(runContext);
