@@ -1,7 +1,6 @@
 package io.kestra.plugin.aws.s3;
 
 import java.io.File;
-import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Map;
@@ -25,11 +24,10 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -494,20 +492,7 @@ class TriggerTest extends AbstractTest {
 
         uploadKey(bucket, "dir1/x.txt");
 
-        Trigger trigger = Trigger.builder()
-            .id("s3-" + IdUtils.create())
-            .type(Trigger.class.getName())
-            .endpointOverride(Property.ofValue(endpointUrl()))
-            .accessKeyId(Property.ofValue(ACCESS_KEY))
-            .secretKeyId(Property.ofValue(SECRET_KEY))
-            .region(Property.ofValue(REGION))
-            .forcePathStyle(Property.ofValue(true))
-            .compatibilityMode(Property.ofValue(true))
-            .bucket(Property.ofValue(bucket))
-            .action(Property.ofValue(ActionInterface.Action.MOVE))
-            .moveTo(Copy.CopyObject.builder().bucket(Property.ofValue(archive)).key(Property.ofValue("archive")).build())
-            .interval(Duration.ofSeconds(10))
-            .build();
+        Trigger trigger = moveTrigger(bucket, archive);
 
         Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
@@ -537,7 +522,20 @@ class TriggerTest extends AbstractTest {
         uploadKey(bucket, "dir1/x.txt");
         uploadKey(bucket, "dir2/x.txt");
 
-        Trigger trigger = Trigger.builder()
+        Trigger trigger = moveTrigger(bucket, archive);
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        assertMoveCollision(trigger, context);
+        assertThat(keys(bucket, "dir").size(), is(2));
+
+        // Nothing was recorded in state, so the next poll reports the same collision.
+        assertMoveCollision(trigger, context);
+        assertThat(keys(bucket, "dir").size(), is(2));
+    }
+
+    private Trigger moveTrigger(String bucket, String archive) {
+        return Trigger.builder()
             .id("s3-" + IdUtils.create())
             .type(Trigger.class.getName())
             .endpointOverride(Property.ofValue(endpointUrl()))
@@ -551,9 +549,9 @@ class TriggerTest extends AbstractTest {
             .moveTo(Copy.CopyObject.builder().bucket(Property.ofValue(archive)).key(Property.ofValue("archive")).build())
             .interval(Duration.ofSeconds(10))
             .build();
+    }
 
-        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
-
+    private static void assertMoveCollision(Trigger trigger, Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context) {
         var failure = assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
         assertThat(
             causeChain(failure).stream().anyMatch(
@@ -563,26 +561,6 @@ class TriggerTest extends AbstractTest {
             ),
             is(true)
         );
-        assertThat(keys(bucket, "dir").size(), is(2));
-    }
-
-    private void uploadKey(String bucket, String key) throws Exception {
-        URI source = storagePut(null);
-
-        Upload upload = Upload.builder()
-            .id(AllTest.class.getSimpleName())
-            .type(Upload.class.getName())
-            .bucket(Property.ofValue(bucket))
-            .endpointOverride(Property.ofValue(endpointUrl()))
-            .accessKeyId(Property.ofValue(ACCESS_KEY))
-            .secretKeyId(Property.ofValue(SECRET_KEY))
-            .region(Property.ofValue(REGION))
-            .forcePathStyle(Property.ofValue(true))
-            .compatibilityMode(Property.ofValue(true))
-            .from(source.toString())
-            .key(Property.ofValue(key))
-            .build();
-        upload.run(runContext(upload));
     }
 
     private static java.util.List<Throwable> causeChain(Throwable throwable) {

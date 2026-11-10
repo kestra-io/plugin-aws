@@ -283,8 +283,7 @@ public class Trigger extends AbstractTrigger
             }))
             .toList();
 
-        // Validate collisions over the objects that actually move on this poll, not over the whole listing:
-        // an object that is already seen and will not fire must not block a new one.
+        // Only fired objects move, so a seen sibling must not block a new one.
         S3Service.moveTargets(candidates.stream().map(TriggeredObject::toObject).toList(), this.action, this.moveTo, runContext, this);
 
         var toFire = candidates.stream()
@@ -375,8 +374,7 @@ public class Trigger extends AbstractTrigger
         java.util.Map<String, StatefulTriggerService.Entry> state,
         java.util.Map<String, StatefulTriggerService.Entry> stateAsRead,
         String rBucket,
-        TriggeredObject triggered
-    ) {
+        TriggeredObject triggered) {
         var uri = stateUri(rBucket, triggered.toObject().getKey());
         if (stateAsRead.containsKey(uri)) {
             state.put(uri, stateAsRead.get(uri));
