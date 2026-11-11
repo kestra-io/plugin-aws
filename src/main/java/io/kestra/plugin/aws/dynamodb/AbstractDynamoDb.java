@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -162,12 +161,6 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value instanceof Boolean) {
             return AttributeValue.fromBool((Boolean) value);
         }
-        if (value instanceof Set<?> set) {
-            if (isStringSet(set)) {
-                return AttributeValue.fromSs(set.stream().map(String.class::cast).toList());
-            }
-            return AttributeValue.fromL(set.stream().map(this::objectFrom).toList());
-        }
         if (value instanceof List<?> list) {
             return AttributeValue.fromL(list.stream().map(this::objectFrom).toList());
         }
@@ -179,18 +172,6 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         }
 
         return AttributeValue.fromS(value.toString());
-    }
-
-    private static boolean isStringSet(Set<?> set) {
-        if (set.isEmpty()) {
-            return false;
-        }
-        for (var element : set) {
-            if (element instanceof String == false) {
-                return false;
-            }
-        }
-        return true;
     }
 
     protected Integer maxResults(RunContext runContext, Property<Integer> limit, FetchType fetchType) throws IllegalVariableEvaluationException {

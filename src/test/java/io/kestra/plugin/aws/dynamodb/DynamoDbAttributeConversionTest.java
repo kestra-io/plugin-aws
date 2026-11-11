@@ -2,7 +2,6 @@ package io.kestra.plugin.aws.dynamodb;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +36,7 @@ class DynamoDbAttributeConversionTest {
     }
 
     @Test
-    void shouldStoreAStringListAsAListAndAStringSetAsAStringSet() {
+    void shouldStoreAStringListAsAList() {
         var stringList = task.objectFrom(List.of("a", "b"));
         assertThat(stringList.type(), is(AttributeValue.Type.L));
         assertThat(stringList.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("b"))));
@@ -50,9 +49,5 @@ class DynamoDbAttributeConversionTest {
         var duplicates = task.objectFrom(List.of("a", "a"));
         assertThat(duplicates.type(), is(AttributeValue.Type.L));
         assertThat(duplicates.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("a"))));
-
-        var stringSet = task.objectFrom(Set.of("a", "b"));
-        assertThat(stringSet.type(), is(AttributeValue.Type.SS));
-        assertThat(stringSet.ss(), containsInAnyOrder("a", "b"));
     }
 }
