@@ -5,7 +5,6 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -163,10 +162,6 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
             return AttributeValue.fromBool((Boolean) value);
         }
         if (value instanceof List<?> list) {
-            // DynamoDB rejects an empty string set and a string set that contains duplicates.
-            if (isStringSet(list)) {
-                return AttributeValue.fromSs(list.stream().map(String.class::cast).toList());
-            }
             return AttributeValue.fromL(list.stream().map(this::objectFrom).toList());
         }
         if (value instanceof Map) {
@@ -177,19 +172,6 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         }
 
         return AttributeValue.fromS(value.toString());
-    }
-
-    private static boolean isStringSet(List<?> list) {
-        if (list.isEmpty()) {
-            return false;
-        }
-        var seen = new HashSet<String>();
-        for (var element : list) {
-            if (!(element instanceof String string) || !seen.add(string)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     protected Integer maxResults(RunContext runContext, Property<Integer> limit, FetchType fetchType) throws IllegalVariableEvaluationException {
