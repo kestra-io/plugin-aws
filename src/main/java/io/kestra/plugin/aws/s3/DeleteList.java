@@ -91,13 +91,6 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     @PluginProperty(group = "connection")
     private Property<String> expectedBucketOwner;
 
-    @Schema(
-        title = "Requester pays",
-        description = "Sets the value of the RequestPayer property for this object. Use 'requester' to charge the requester for the deletes on a requester-pays bucket."
-    )
-    @PluginProperty(group = "advanced")
-    private Property<String> requestPayer;
-
     @PluginProperty(group = "processing")
     protected Property<String> regexp;
 
@@ -125,6 +118,8 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        var rRequestPayer = runContext.render(this.requestPayer).as(String.class).orElse(null);
+        var rExpectedBucketOwner = runContext.render(this.expectedBucketOwner).as(String.class).orElse(null);
 
         try (S3Client client = this.client(runContext)) {
             Flux<S3Object> flowable = Flux
@@ -143,11 +138,11 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
                 result = flowable
                     .parallel(this.concurrent)
                     .runOn(Schedulers.boundedElastic())
-                    .map(delete(runContext, logger, client, bucket, this.requestPayer, this.expectedBucketOwner))
+                    .map(delete(logger, client, bucket, rRequestPayer, rExpectedBucketOwner))
                     .sequential();
             } else {
                 result = flowable
-                    .map(delete(runContext, logger, client, bucket, this.requestPayer, this.expectedBucketOwner));
+                    .map(delete(logger, client, bucket, rRequestPayer, rExpectedBucketOwner));
             }
 
             Pair<Long, Long> finalResult = result
@@ -176,30 +171,16 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         }
     }
 
-    private static Function<S3Object, Long> delete(RunContext runContext, Logger logger, S3Client client, String bucket, Property<String> requestPayer, Property<String> expectedBucketOwner) {
+    private static Function<S3Object, Long> delete(Logger logger, S3Client client, String bucket, String rRequestPayer, String rExpectedBucketOwner) {
         return o ->
         {
             logger.debug("Deleting '{}'", o.getKey());
 
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
                 .bucket(bucket)
-                .key(o.getKey());
-
-            if (requestPayer != null) {
-                try {
-                    builder.requestPayer(runContext.render(requestPayer).as(String.class).orElseThrow());
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to render requestPayer: " + e.getMessage(), e);
-                }
-            }
-
-            if (expectedBucketOwner != null) {
-                try {
-                    builder.expectedBucketOwner(runContext.render(expectedBucketOwner).as(String.class).orElseThrow());
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to render expectedBucketOwner: " + e.getMessage(), e);
-                }
-            }
+                .key(o.getKey())
+                .requestPayer(rRequestPayer)
+                .expectedBucketOwner(rExpectedBucketOwner);
 
             client.deleteObject(builder.build());
 

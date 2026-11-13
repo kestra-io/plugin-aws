@@ -56,14 +56,6 @@ import software.amazon.awssdk.transfer.s3.model.CopyRequest;
     title = "Copy an object between S3 locations",
     description = "Copies an object within or across buckets. Optionally deletes the source after copy. Supports versionId on source and SSE on destination."
 )
-/**
- * Copy an object between S3 locations.
- *
- * <p>On a requester-pays bucket, set {@code requestPayer: requester} so the
- * {@code CopyObject} request carries the {@code x-amz-request-payer} header.
- * Without it the copy returns {@code 403 AccessDenied} even though the
- * preceding list/download succeeded (issue #877).
- */
 public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Output> {
 
     @Schema(
@@ -88,14 +80,6 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
     @PluginProperty(group = "advanced")
     private Property<Boolean> delete = Property.ofValue(false);
 
-    /**
-     * Requester-pays flag for the {@code CopyObject} request.
-     *
-     * <p>Forwarded to {@code CopyObjectRequest.requestPayer(...)} so a MOVE's
-     * copy step sends {@code x-amz-request-payer} like its list/download
-     * siblings. Without this field the copy is built without the header and
-     * fails on a requester-pays bucket (#877).
-     */
     @Schema(
         title = "Requester pays",
         description = "Sets the value of the RequestPayer property for this object. Use 'requester' to charge the requester for the copy on a requester-pays bucket."
@@ -138,11 +122,7 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
                 S3Service.applyServerSideEncryption(runContext, copyObjectBuilder, this.to.serverSideEncryption, this.to.kmsKeyId);
             }
 
-            // Forward requestPayer so the CopyObject request carries
-            // x-amz-request-payer on requester-pays buckets (#877).
-            if (this.requestPayer != null) {
-                copyObjectBuilder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
-            }
+            runContext.render(this.requestPayer).as(String.class).ifPresent(copyObjectBuilder::requestPayer);
 
             CopyObjectRequest copyObjectRequest = copyObjectBuilder.build();
 
