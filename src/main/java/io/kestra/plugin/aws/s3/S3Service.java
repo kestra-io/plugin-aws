@@ -258,6 +258,7 @@ public class S3Service {
                             .key(Property.ofValue(targetKey))
                             .build()
                     )
+                    .requestPayer(abstractS3Object.getRequestPayer())
                     .delete(Property.ofValue(true))
                     .build();
                 copy.run(runContext);
