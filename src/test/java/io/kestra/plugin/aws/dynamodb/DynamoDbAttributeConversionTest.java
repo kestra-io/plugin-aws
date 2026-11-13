@@ -35,8 +35,11 @@ class DynamoDbAttributeConversionTest {
     }
 
     @Test
-    void shouldStoreAStringListAsAStringSetAndAnyOtherListAsAList() {
-        assertThat(task.objectFrom(List.of("a", "b")).ss(), is(List.of("a", "b")));
+    void shouldStoreAStringListAsAList() {
+        var stringList = task.objectFrom(List.of("a", "b"));
+        assertThat(stringList.type(), is(AttributeValue.Type.L));
+        assertThat(stringList.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("b"))));
+
         assertThat(
             task.objectFrom(List.of(new BigDecimal("1"), new BigDecimal("2"))).l(),
             is(List.of(AttributeValue.fromN("1"), AttributeValue.fromN("2")))
