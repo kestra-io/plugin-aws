@@ -49,4 +49,108 @@ class DynamoDbAttributeConversionTest {
         assertThat(duplicates.type(), is(AttributeValue.Type.L));
         assertThat(duplicates.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("a"))));
     }
+
+    @Test
+    void shouldReadBinaryWithoutLosingBytes() {
+        byte[] original = {0, 1, 2};
+
+        var attribute = AttributeValue.fromB(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(original)
+        );
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, is("AAEC"));
+
+        org.junit.jupiter.api.Assertions.assertArrayEquals(
+            original,
+            java.util.Base64.getDecoder().decode((String) result)
+        );
+    }
+
+
+    @Test
+    void shouldReadBinarySetWithoutLosingMembers() {
+        var attribute = AttributeValue.fromBs(List.of(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xAA}
+            ),
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xBB}
+            )
+        ));
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, org.hamcrest.Matchers.instanceOf(List.class));
+
+        var encoded = (List<?>) result;
+
+        assertThat(encoded.size(), is(2));
+        assertThat(
+            java.util.Set.copyOf(encoded),
+            is(java.util.Set.of("qg==", "uw=="))
+        );
+    }
+
+
+    @Test
+    void shouldReadEmptyBinaryWithoutReturningNull() {
+        var attribute = AttributeValue.fromB(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(new byte[0])
+        );
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, is(""));
+    }
+
+
+    @Test
+    void shouldReadBinaryInsideNestedMapsAndLists() {
+        var binary = AttributeValue.fromB(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xFF, 0}
+            )
+        );
+
+        var binarySet = AttributeValue.fromBs(List.of(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {0}
+            ),
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xFE}
+            )
+        ));
+
+        var nestedBinary = AttributeValue.fromB(
+            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                new byte[] {1, 2}
+            )
+        );
+
+        var attribute = AttributeValue.fromM(java.util.Map.of(
+            "payload", binary,
+            "items", AttributeValue.fromL(List.of(
+                binarySet,
+                AttributeValue.fromM(java.util.Map.of(
+                    "nested", nestedBinary
+                ))
+            ))
+        ));
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(
+            result,
+            is(java.util.Map.of(
+                "payload", "/wA=",
+                "items", List.of(
+                    List.of("AA==", "/g=="),
+                    java.util.Map.of("nested", "AQI=")
+                )
+            ))
+        );
+    }
+
 }

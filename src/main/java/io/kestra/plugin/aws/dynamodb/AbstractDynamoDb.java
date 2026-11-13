@@ -4,6 +4,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +131,15 @@ public abstract class AbstractDynamoDb extends AbstractConnection {
         if (value.hasNs()) {
             return value.ns().stream().map(BigDecimal::new).toList();
         }
+        if (value.b() != null) {
+            return Base64.getEncoder().encodeToString(value.b().asByteArray());
+        }
+        if (value.hasBs()) {
+            return value.bs().stream()
+                .map(bytes -> Base64.getEncoder().encodeToString(bytes.asByteArray()))
+                .toList();
+        }
+
         if (value.hasL()) {
             return value.l().stream().map(this::objectFrom).toList();
         }
