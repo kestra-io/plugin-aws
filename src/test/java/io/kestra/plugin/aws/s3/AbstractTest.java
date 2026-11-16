@@ -81,7 +81,10 @@ public abstract class AbstractTest extends AbstractFlociTest {
     }
 
     protected String upload(String dir, String bucket) throws Exception {
-        String out = IdUtils.create();
+        return uploadKey(bucket, dir + "/" + IdUtils.create() + ".yml");
+    }
+
+    protected String uploadKey(String bucket, String key) throws Exception {
         URI source = storagePut(null);
 
         Upload upload = Upload.builder()
@@ -95,7 +98,7 @@ public abstract class AbstractTest extends AbstractFlociTest {
             .forcePathStyle(Property.ofValue(true))
             .compatibilityMode(Property.ofValue(true))
             .from(source.toString())
-            .key(Property.ofValue(dir + "/" + out + ".yml"))
+            .key(Property.ofValue(key))
             .build();
         upload.run(runContext(upload));
 

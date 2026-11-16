@@ -118,6 +118,8 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         String bucket = runContext.render(this.bucket).as(String.class).orElseThrow();
+        var rRequestPayer = runContext.render(this.requestPayer).as(String.class).orElse(null);
+        var rExpectedBucketOwner = runContext.render(this.expectedBucketOwner).as(String.class).orElse(null);
 
         try (S3Client client = this.client(runContext)) {
             Flux<S3Object> flowable = Flux
@@ -136,11 +138,11 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
                 result = flowable
                     .parallel(this.concurrent)
                     .runOn(Schedulers.boundedElastic())
-                    .map(delete(logger, client, bucket))
+                    .map(delete(logger, client, bucket, rRequestPayer, rExpectedBucketOwner))
                     .sequential();
             } else {
                 result = flowable
-                    .map(delete(logger, client, bucket));
+                    .map(delete(logger, client, bucket, rRequestPayer, rExpectedBucketOwner));
             }
 
             Pair<Long, Long> finalResult = result
@@ -169,14 +171,16 @@ public class DeleteList extends AbstractS3Object implements RunnableTask<DeleteL
         }
     }
 
-    private static Function<S3Object, Long> delete(Logger logger, S3Client client, String bucket) {
+    private static Function<S3Object, Long> delete(Logger logger, S3Client client, String bucket, String rRequestPayer, String rExpectedBucketOwner) {
         return o ->
         {
             logger.debug("Deleting '{}'", o.getKey());
 
             DeleteObjectRequest.Builder builder = DeleteObjectRequest.builder()
                 .bucket(bucket)
-                .key(o.getKey());
+                .key(o.getKey())
+                .requestPayer(rRequestPayer)
+                .expectedBucketOwner(rExpectedBucketOwner);
 
             client.deleteObject(builder.build());
 

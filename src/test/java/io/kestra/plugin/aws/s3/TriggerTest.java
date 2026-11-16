@@ -24,11 +24,10 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.aws.s3.models.S3Object;
 
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import reactor.core.publisher.Flux;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -482,6 +481,86 @@ class TriggerTest extends AbstractTest {
         assertThat(second.isPresent(), is(true));
         assertThat(triggeredKeys(second.get()), is(remaining));
         assertThat(keys(bucket, "trigger/kill").size(), is(0));
+    }
+
+    @Test
+    void moveDoesNotFailOnSeenSiblingWithSameBasename() throws Exception {
+        String bucket = "trigger-move-seen-sibling";
+        String archive = "trigger-move-seen-sibling-archive";
+        this.createBucket(bucket);
+        this.createBucket(archive);
+
+        uploadKey(bucket, "dir1/x.txt");
+
+        Trigger trigger = moveTrigger(bucket, archive);
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        Optional<Execution> first = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(first.isPresent(), is(true));
+        assertThat(triggeredKeys(first.get()), is(java.util.List.of("dir1/x.txt")));
+
+        // Same content, so the same ETag: the object stays seen and does not fire again.
+        uploadKey(bucket, "dir1/x.txt");
+        // Same basename in another folder: without a prefix both resolve to archive/x.txt.
+        uploadKey(bucket, "dir2/x.txt");
+
+        Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue());
+        assertThat(second.isPresent(), is(true));
+        assertThat(triggeredKeys(second.get()), is(java.util.List.of("dir2/x.txt")));
+        // The new object moved, the seen sibling was left untouched.
+        assertThat(keys(bucket, "dir"), is(java.util.List.of("dir1/x.txt")));
+    }
+
+    @Test
+    void moveStillFailsWhenTwoFiringObjectsCollide() throws Exception {
+        String bucket = "trigger-move-collision";
+        String archive = "trigger-move-collision-archive";
+        this.createBucket(bucket);
+        this.createBucket(archive);
+
+        uploadKey(bucket, "dir1/x.txt");
+        uploadKey(bucket, "dir2/x.txt");
+
+        Trigger trigger = moveTrigger(bucket, archive);
+
+        Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        assertMoveCollision(trigger, context);
+        assertThat(keys(bucket, "dir").size(), is(2));
+
+        // Nothing was recorded in state, so the next poll reports the same collision.
+        assertMoveCollision(trigger, context);
+        assertThat(keys(bucket, "dir").size(), is(2));
+    }
+
+    private Trigger moveTrigger(String bucket, String archive) {
+        return Trigger.builder()
+            .id("s3-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .region(Property.ofValue(REGION))
+            .forcePathStyle(Property.ofValue(true))
+            .compatibilityMode(Property.ofValue(true))
+            .bucket(Property.ofValue(bucket))
+            .action(Property.ofValue(ActionInterface.Action.MOVE))
+            .moveTo(Copy.CopyObject.builder().bucket(Property.ofValue(archive)).key(Property.ofValue("archive")).build())
+            .interval(Duration.ofSeconds(10))
+            .build();
+    }
+
+    private static void assertMoveCollision(Trigger trigger, Map.Entry<ConditionContext, io.kestra.core.models.triggers.Trigger> context) {
+        var failure = assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        assertThat(
+            causeChain(failure).stream().anyMatch(
+                cause -> cause instanceof IllegalStateException
+                    && cause.getMessage() != null
+                    && cause.getMessage().contains("multiple source objects would overwrite the same destination key")
+            ),
+            is(true)
+        );
     }
 
     private static java.util.List<Throwable> causeChain(Throwable throwable) {

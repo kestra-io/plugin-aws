@@ -80,6 +80,13 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
     @PluginProperty(group = "advanced")
     private Property<Boolean> delete = Property.ofValue(false);
 
+    @Schema(
+        title = "Requester pays",
+        description = "Sets the value of the RequestPayer property for this object. Use 'requester' to charge the requester for the copy on a requester-pays bucket."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<String> requestPayer;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
 
@@ -115,6 +122,8 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
                 S3Service.applyServerSideEncryption(runContext, copyObjectBuilder, this.to.serverSideEncryption, this.to.kmsKeyId);
             }
 
+            runContext.render(this.requestPayer).as(String.class).ifPresent(copyObjectBuilder::requestPayer);
+
             CopyObjectRequest copyObjectRequest = copyObjectBuilder.build();
 
             // TransferManager copy (parallel & multipart aware)
@@ -145,6 +154,7 @@ public class Copy extends AbstractS3Connection implements RunnableTask<Copy.Outp
                     .stsEndpointOverride(this.stsEndpointOverride)
                     .bucket(Property.ofValue(copyObjectRequest.sourceBucket()))
                     .key(Property.ofValue(copyObjectRequest.sourceKey()))
+                    .requestPayer(this.requestPayer)
                     .build()
                     .run(runContext);
             }
