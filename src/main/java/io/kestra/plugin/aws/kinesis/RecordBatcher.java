@@ -64,7 +64,15 @@ final class RecordBatcher<T> {
             return;
         }
 
-        var results = sendWithRetry(entries);
+        var results = new ArrayList<>(sender.send(entries).records());
+        Exception retryFailure = null;
+        try {
+            retry(entries, results);
+        } catch (Exception e) {
+            // The first request already wrote part of the batch, so hand its results over before failing; records still waiting for a retry keep their last error.
+            retryFailure = e;
+        }
+
         for (var i = 0; i < items.size(); i++) {
             resultHandler.accept(items.get(i), results.get(i));
         }
@@ -72,12 +80,14 @@ final class RecordBatcher<T> {
         items.clear();
         entries.clear();
         bytes = 0L;
+
+        if (retryFailure != null) {
+            throw retryFailure;
+        }
     }
 
     // Resends only the retryable failed entries and puts their new result in place, so results stay aligned with the input.
-    private List<PutRecordsResultEntry> sendWithRetry(List<PutRecordsRequestEntry> batch) throws InterruptedException {
-        var results = new ArrayList<>(sender.send(batch).records());
-
+    private void retry(List<PutRecordsRequestEntry> batch, List<PutRecordsResultEntry> results) throws InterruptedException {
         for (var attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             var retryIndexes = IntStream.range(0, results.size())
                 .filter(i -> isRetryable(results.get(i)))
@@ -93,8 +103,6 @@ final class RecordBatcher<T> {
                 results.set(retryIndexes.get(i), retried.get(i));
             }
         }
-
-        return results;
     }
 
     static Duration backoff(int attempt) {
