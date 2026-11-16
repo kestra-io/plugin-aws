@@ -1,6 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.io.BufferedInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,13 +12,14 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-
 class ScanTest extends AbstractDynamoDbTest {
 
     @Test
@@ -206,15 +211,15 @@ class ScanTest extends AbstractDynamoDbTest {
         createTable(runContext, scan, isolatedTable);
 
         try (var client = scan.client(runContext)) {
-            var binary = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var binary = SdkBytes.fromByteArray(
                 new byte[] { 0, 1, 2 }
             );
 
-            var first = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var first = SdkBytes.fromByteArray(
                 new byte[] { (byte) 0xAA }
             );
 
-            var second = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var second = SdkBytes.fromByteArray(
                 new byte[] { (byte) 0xBB }
             );
 
@@ -226,7 +231,7 @@ class ScanTest extends AbstractDynamoDbTest {
                             "id", AttributeValue.fromS("binary-scan-872"),
                             "payload", AttributeValue.fromB(binary),
                             "payloadSet", AttributeValue.fromBs(
-                                java.util.List.of(first, second)
+                                List.of(first, second)
                             )
                         )
                     )
@@ -240,17 +245,17 @@ class ScanTest extends AbstractDynamoDbTest {
         assertThat(output.getRows(), is(notNullValue()));
         assertThat(output.getRows().size(), is(1));
 
-        var row = (Map<?, ?>) output.getRows().get(0);
+        var row = (Map<?, ?>) output.getRows().getFirst();
 
         assertThat(row.get("payload"), is("AAEC"));
         assertThat(
             row.get("payloadSet"),
-            instanceOf(java.util.List.class)
+            instanceOf(List.class)
         );
 
         assertThat(
-            java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
-            is(java.util.Set.of("qg==", "uw=="))
+            Set.copyOf((List<?>) row.get("payloadSet")),
+            is(Set.of("qg==", "uw=="))
         );
     }
 
@@ -280,16 +285,16 @@ class ScanTest extends AbstractDynamoDbTest {
                         Map.of(
                             "id", AttributeValue.fromS("binary-store-872"),
                             "payload", AttributeValue.fromB(
-                                software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                SdkBytes.fromByteArray(
                                     new byte[] { 0, 1, 2 }
                                 )
                             ),
                             "payloadSet", AttributeValue.fromBs(
-                                java.util.List.of(
-                                    software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                List.of(
+                                    SdkBytes.fromByteArray(
                                         new byte[] { (byte) 0xAA }
                                     ),
-                                    software.amazon.awssdk.core.SdkBytes.fromByteArray(
+                                    SdkBytes.fromByteArray(
                                         new byte[] { (byte) 0xBB }
                                     )
                                 )
@@ -307,28 +312,27 @@ class ScanTest extends AbstractDynamoDbTest {
         assertThat(output.getUri(), is(notNullValue()));
 
         try (
-            var input = new java.io.BufferedInputStream(
+            var input = new BufferedInputStream(
                 runContext.storage().getFile(output.getUri()),
-                io.kestra.core.serializers.FileSerde.BUFFER_SIZE
+                FileSerde.BUFFER_SIZE
             )
         ) {
-            var storedRows = new java.util.ArrayList<Object>();
-            io.kestra.core.serializers.FileSerde.read(input, storedRows::add);
+            var storedRows = new ArrayList<Object>();
+            FileSerde.read(input, storedRows::add);
 
             assertThat(storedRows.size(), is(1));
 
-            var row = (Map<?, ?>) storedRows.get(0);
+            var row = (Map<?, ?>) storedRows.getFirst();
 
             assertThat(row.get("payload"), is("AAEC"));
             assertThat(
                 row.get("payloadSet"),
-                instanceOf(java.util.List.class)
+                instanceOf(List.class)
             );
             assertThat(
-                java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
-                is(java.util.Set.of("qg==", "uw=="))
+                Set.copyOf((List<?>) row.get("payloadSet")),
+                is(Set.of("qg==", "uw=="))
             );
         }
     }
-
 }

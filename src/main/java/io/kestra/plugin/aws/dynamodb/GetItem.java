@@ -76,7 +76,7 @@ public class GetItem extends AbstractDynamoDb implements RunnableTask<GetItem.Ou
 
         @Schema(
             title = "Item",
-            description = "Fetched item as a map; empty if not found."
+            description = "Fetched item as a map; empty if not found. Binary (B) attributes are returned as Base64 strings, and binary sets (BS) as lists of Base64 strings. Writing these values back does not automatically restore DynamoDB binary types."
         )
         private Map<String, Object> row;
     }

@@ -27,7 +27,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 @NoArgsConstructor
 @Schema(
     title = "Scan items from a DynamoDB table",
-    description = "Performs a Scan over the table and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE; FETCH and FETCH_ONE read into memory. Optional limit stops once that many matching items are collected."
+    description = "Performs a Scan over the table and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE; FETCH and FETCH_ONE read into memory. Optional limit stops once that many matching items are collected. Binary (B) attributes are returned as Base64 strings, and binary sets (BS) as lists of Base64 strings. Writing these values back does not automatically restore DynamoDB binary types."
 )
 @Plugin(
     examples = {

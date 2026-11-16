@@ -1,6 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.io.BufferedInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,15 +12,17 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-
 class QueryTest extends AbstractDynamoDbTest {
 
     @Test
@@ -236,15 +242,15 @@ class QueryTest extends AbstractDynamoDbTest {
         createTable(runContext, query);
 
         try (var client = query.client(runContext)) {
-            var binary = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var binary = SdkBytes.fromByteArray(
                 new byte[] {0, 1, 2}
             );
 
-            var first = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var first = SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xAA}
             );
 
-            var second = software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            var second = SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xBB}
             );
 
@@ -254,7 +260,7 @@ class QueryTest extends AbstractDynamoDbTest {
                     "id", AttributeValue.fromS("binary-query-872"),
                     "payload", AttributeValue.fromB(binary),
                     "payloadSet", AttributeValue.fromBs(
-                        java.util.List.of(first, second)
+                        List.of(first, second)
                     )
                 ))
                 .build());
@@ -266,12 +272,12 @@ class QueryTest extends AbstractDynamoDbTest {
         assertThat(output.getRows(), is(notNullValue()));
         assertThat(output.getRows().size(), is(1));
 
-        var row = (Map<?, ?>) output.getRows().get(0);
+        var row = (Map<?, ?>) output.getRows().getFirst();
 
         assertThat(row.get("payload"), is("AAEC"));
         assertThat(
-            java.util.Set.copyOf((java.util.List<?>) row.get("payloadSet")),
-            is(java.util.Set.of("qg==", "uw=="))
+            Set.copyOf((List<?>) row.get("payloadSet")),
+            is(Set.of("qg==", "uw=="))
         );
 
         var storedQuery = Query.builder()
@@ -291,28 +297,27 @@ class QueryTest extends AbstractDynamoDbTest {
         assertThat(stored.getRows(), is(nullValue()));
         assertThat(stored.getUri(), is(notNullValue()));
 
-        try (var input = new java.io.BufferedInputStream(
+        try (var input = new BufferedInputStream(
             runContext.storage().getFile(stored.getUri()),
-            io.kestra.core.serializers.FileSerde.BUFFER_SIZE
+            FileSerde.BUFFER_SIZE
         )) {
-            var rows = new java.util.ArrayList<Object>();
-            io.kestra.core.serializers.FileSerde.read(input, rows::add);
+            var rows = new ArrayList<Object>();
+            FileSerde.read(input, rows::add);
 
             assertThat(rows.size(), is(1));
 
-            var storedRow = (Map<?, ?>) rows.get(0);
+            var storedRow = (Map<?, ?>) rows.getFirst();
 
             assertThat(storedRow.get("payload"), is("AAEC"));
             assertThat(
                 storedRow.get("payloadSet"),
-                org.hamcrest.Matchers.instanceOf(java.util.List.class)
+                instanceOf(List.class)
             );
             assertThat(
-                java.util.Set.copyOf((java.util.List<?>) storedRow.get("payloadSet")),
-                is(java.util.Set.of("qg==", "uw=="))
+                Set.copyOf((List<?>) storedRow.get("payloadSet")),
+                is(Set.of("qg==", "uw=="))
             );
         }
 
     }
-
 }

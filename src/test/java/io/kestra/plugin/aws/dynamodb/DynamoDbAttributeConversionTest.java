@@ -1,15 +1,20 @@
 package io.kestra.plugin.aws.dynamodb;
 
 import java.math.BigDecimal;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 class DynamoDbAttributeConversionTest {
     private final GetItem task = GetItem.builder().build();
 
@@ -52,49 +57,47 @@ class DynamoDbAttributeConversionTest {
         byte[] original = {0, 1, 2};
 
         var attribute = AttributeValue.fromB(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(original)
+            SdkBytes.fromByteArray(original)
         );
 
         var result = task.objectFrom(attribute);
 
         assertThat(result, is("AAEC"));
 
-        org.junit.jupiter.api.Assertions.assertArrayEquals(
+        assertArrayEquals(
             original,
-            java.util.Base64.getDecoder().decode((String) result)
+            Base64.getDecoder().decode((String) result)
         );
     }
-
 
     @Test
     void shouldReadBinarySetWithoutLosingMembers() {
         var attribute = AttributeValue.fromBs(List.of(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xAA}
             ),
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xBB}
             )
         ));
 
         var result = task.objectFrom(attribute);
 
-        assertThat(result, org.hamcrest.Matchers.instanceOf(List.class));
+        assertThat(result, instanceOf(List.class));
 
         var encoded = (List<?>) result;
 
         assertThat(encoded.size(), is(2));
         assertThat(
-            java.util.Set.copyOf(encoded),
-            is(java.util.Set.of("qg==", "uw=="))
+            Set.copyOf(encoded),
+            is(Set.of("qg==", "uw=="))
         );
     }
-
 
     @Test
     void shouldReadEmptyBinaryWithoutReturningNull() {
         var attribute = AttributeValue.fromB(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(new byte[0])
+            SdkBytes.fromByteArray(new byte[0])
         );
 
         var result = task.objectFrom(attribute);
@@ -102,35 +105,34 @@ class DynamoDbAttributeConversionTest {
         assertThat(result, is(""));
     }
 
-
     @Test
     void shouldReadBinaryInsideNestedMapsAndLists() {
         var binary = AttributeValue.fromB(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xFF, 0}
             )
         );
 
         var binarySet = AttributeValue.fromBs(List.of(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {0}
             ),
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {(byte) 0xFE}
             )
         ));
 
         var nestedBinary = AttributeValue.fromB(
-            software.amazon.awssdk.core.SdkBytes.fromByteArray(
+            SdkBytes.fromByteArray(
                 new byte[] {1, 2}
             )
         );
 
-        var attribute = AttributeValue.fromM(java.util.Map.of(
+        var attribute = AttributeValue.fromM(Map.of(
             "payload", binary,
             "items", AttributeValue.fromL(List.of(
                 binarySet,
-                AttributeValue.fromM(java.util.Map.of(
+                AttributeValue.fromM(Map.of(
                     "nested", nestedBinary
                 ))
             ))
@@ -140,14 +142,13 @@ class DynamoDbAttributeConversionTest {
 
         assertThat(
             result,
-            is(java.util.Map.of(
+            is(Map.of(
                 "payload", "/wA=",
                 "items", List.of(
                     List.of("AA==", "/g=="),
-                    java.util.Map.of("nested", "AQI=")
+                    Map.of("nested", "AQI=")
                 )
             ))
         );
     }
-
 }
