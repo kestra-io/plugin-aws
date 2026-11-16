@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+
 class ScanTest extends AbstractDynamoDbTest {
 
     @Test

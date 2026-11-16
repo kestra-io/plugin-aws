@@ -15,6 +15,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+
 class DynamoDbAttributeConversionTest {
     private final GetItem task = GetItem.builder().build();
 

@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.dynamodb.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+
 class GetItemTest extends AbstractDynamoDbTest {
 
     @Test
