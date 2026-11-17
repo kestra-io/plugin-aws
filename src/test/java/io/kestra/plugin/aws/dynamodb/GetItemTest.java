@@ -1,11 +1,14 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.models.property.Property;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,4 +53,55 @@ class GetItemTest extends AbstractDynamoDbTest {
         assertThat(output.getRow().get("lastname"), is(equalTo("Doe")));
     }
 
+    @Test
+    void shouldReadBinaryAttributesFromDynamoDb() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var get = GetItem.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .key(Property.ofValue(Map.of("id", "binary-872")))
+            .build();
+
+        createTable(runContext, get);
+
+        try (var client = get.client(runContext)) {
+            var binary = SdkBytes.fromByteArray(
+                new byte[] {0, 1, 2}
+            );
+
+            var first = SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xAA}
+            );
+
+            var second = SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xBB}
+            );
+
+            client.putItem(PutItemRequest.builder()
+                .tableName(tableName())
+                .item(Map.of(
+                    "id", AttributeValue.fromS("binary-872"),
+                    "payload", AttributeValue.fromB(binary),
+                    "payloadSet", AttributeValue.fromBs(
+                        List.of(first, second)
+                    )
+                ))
+                .build());
+        }
+
+        var row = get.run(runContext).getRow();
+
+        assertThat(row, is(notNullValue()));
+        assertThat(row.get("payload"), is("AAEC"));
+        assertThat(row.get("payloadSet"), instanceOf(List.class));
+
+        assertThat(
+            Set.copyOf((List<?>) row.get("payloadSet")),
+            is(Set.of("qg==", "uw=="))
+        );
+    }
 }

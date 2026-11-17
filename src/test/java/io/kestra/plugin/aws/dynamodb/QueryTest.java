@@ -1,6 +1,10 @@
 package io.kestra.plugin.aws.dynamodb;
 
+import java.io.BufferedInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,11 +12,14 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -216,5 +223,102 @@ class QueryTest extends AbstractDynamoDbTest {
                 .build();
             dynamoDbClient.putItem(putRequest);
         }
+    }
+
+    @Test
+    void shouldQueryBinaryAttributesFromDynamoDb() throws Exception {
+        var runContext = runContextFactory.of();
+
+        var query = Query.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .keyConditionExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-query-872")))
+            .fetchType(Property.ofValue(FetchType.FETCH))
+            .build();
+
+        createTable(runContext, query);
+
+        try (var client = query.client(runContext)) {
+            var binary = SdkBytes.fromByteArray(
+                new byte[] {0, 1, 2}
+            );
+
+            var first = SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xAA}
+            );
+
+            var second = SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xBB}
+            );
+
+            client.putItem(PutItemRequest.builder()
+                .tableName(tableName())
+                .item(Map.of(
+                    "id", AttributeValue.fromS("binary-query-872"),
+                    "payload", AttributeValue.fromB(binary),
+                    "payloadSet", AttributeValue.fromBs(
+                        List.of(first, second)
+                    )
+                ))
+                .build());
+        }
+
+        var output = query.run(runContext);
+
+        assertThat(output.getSize(), is(1L));
+        assertThat(output.getRows(), is(notNullValue()));
+        assertThat(output.getRows().size(), is(1));
+
+        var row = (Map<?, ?>) output.getRows().getFirst();
+
+        assertThat(row.get("payload"), is("AAEC"));
+        assertThat(
+            Set.copyOf((List<?>) row.get("payloadSet")),
+            is(Set.of("qg==", "uw=="))
+        );
+
+        var storedQuery = Query.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .tableName(Property.ofValue(tableName()))
+            .keyConditionExpression(Property.ofValue("id = :id"))
+            .expressionAttributeValues(Property.ofValue(Map.of(":id", "binary-query-872")))
+            .fetchType(Property.ofValue(FetchType.STORE))
+            .build();
+
+        var stored = storedQuery.run(runContext);
+
+        assertThat(stored.getSize(), is(1L));
+        assertThat(stored.getRows(), is(nullValue()));
+        assertThat(stored.getUri(), is(notNullValue()));
+
+        try (var input = new BufferedInputStream(
+            runContext.storage().getFile(stored.getUri()),
+            FileSerde.BUFFER_SIZE
+        )) {
+            var rows = new ArrayList<Object>();
+            FileSerde.read(input, rows::add);
+
+            assertThat(rows.size(), is(1));
+
+            var storedRow = (Map<?, ?>) rows.getFirst();
+
+            assertThat(storedRow.get("payload"), is("AAEC"));
+            assertThat(
+                storedRow.get("payloadSet"),
+                instanceOf(List.class)
+            );
+            assertThat(
+                Set.copyOf((List<?>) storedRow.get("payloadSet")),
+                is(Set.of("qg==", "uw=="))
+            );
+        }
+
     }
 }

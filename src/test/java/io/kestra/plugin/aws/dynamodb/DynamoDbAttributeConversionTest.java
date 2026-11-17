@@ -1,14 +1,20 @@
 package io.kestra.plugin.aws.dynamodb;
 
 import java.math.BigDecimal;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 class DynamoDbAttributeConversionTest {
     private final GetItem task = GetItem.builder().build();
@@ -48,5 +54,105 @@ class DynamoDbAttributeConversionTest {
         var duplicates = task.objectFrom(List.of("a", "a"));
         assertThat(duplicates.type(), is(AttributeValue.Type.L));
         assertThat(duplicates.l(), is(List.of(AttributeValue.fromS("a"), AttributeValue.fromS("a"))));
+    }
+
+    @Test
+    void shouldReadBinaryWithoutLosingBytes() {
+        byte[] original = {0, 1, 2};
+
+        var attribute = AttributeValue.fromB(
+            SdkBytes.fromByteArray(original)
+        );
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, is("AAEC"));
+
+        assertArrayEquals(
+            original,
+            Base64.getDecoder().decode((String) result)
+        );
+    }
+
+    @Test
+    void shouldReadBinarySetWithoutLosingMembers() {
+        var attribute = AttributeValue.fromBs(List.of(
+            SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xAA}
+            ),
+            SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xBB}
+            )
+        ));
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, instanceOf(List.class));
+
+        var encoded = (List<?>) result;
+
+        assertThat(encoded.size(), is(2));
+        assertThat(
+            Set.copyOf(encoded),
+            is(Set.of("qg==", "uw=="))
+        );
+    }
+
+    @Test
+    void shouldReadEmptyBinaryWithoutReturningNull() {
+        var attribute = AttributeValue.fromB(
+            SdkBytes.fromByteArray(new byte[0])
+        );
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(result, is(""));
+    }
+
+    @Test
+    void shouldReadBinaryInsideNestedMapsAndLists() {
+        var binary = AttributeValue.fromB(
+            SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xFF, 0}
+            )
+        );
+
+        var binarySet = AttributeValue.fromBs(List.of(
+            SdkBytes.fromByteArray(
+                new byte[] {0}
+            ),
+            SdkBytes.fromByteArray(
+                new byte[] {(byte) 0xFE}
+            )
+        ));
+
+        var nestedBinary = AttributeValue.fromB(
+            SdkBytes.fromByteArray(
+                new byte[] {1, 2}
+            )
+        );
+
+        var attribute = AttributeValue.fromM(Map.of(
+            "payload", binary,
+            "items", AttributeValue.fromL(List.of(
+                binarySet,
+                AttributeValue.fromM(Map.of(
+                    "nested", nestedBinary
+                ))
+            ))
+        ));
+
+        var result = task.objectFrom(attribute);
+
+        assertThat(
+            result,
+            is(Map.of(
+                "payload", "/wA=",
+                "items", List.of(
+                    List.of("AA==", "/g=="),
+                    Map.of("nested", "AQI=")
+                )
+            ))
+        );
     }
 }

@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 @NoArgsConstructor
 @Schema(
     title = "Query DynamoDB items by key condition",
-    description = "Executes a Query and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit stops once that many matching items are collected."
+    description = "Executes a Query and follows LastEvaluatedKey until every matching item is read. fetchType defaults to STORE, writing results to internal storage; FETCH and FETCH_ONE load results into memory. Optional limit stops once that many matching items are collected. Binary (B) attributes are returned as Base64 strings, and binary sets (BS) as lists of Base64 strings. Writing these values back does not automatically restore DynamoDB binary types."
 )
 @Plugin(
     examples = {
