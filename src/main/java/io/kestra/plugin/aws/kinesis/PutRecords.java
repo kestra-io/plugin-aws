@@ -36,6 +36,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
+
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -112,7 +113,13 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 )
 @Schema(
     title = "Put records to Kinesis Data Streams",
-    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default). If a request fails as a whole (for example an invalid record or missing permissions), sending stops and the task fails. When the task fails after some records were sent, its output still lists those records with their result."
+    description = """
+        Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file.
+        Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff.
+        Records require data and partitionKey; explicitHashKey is optional.
+        Fails the task when any record fails if failOnUnsuccessfulRecords is true (default).
+        If a request fails as a whole (for example an invalid record or missing permissions), sending stops and the task fails.
+        When the task fails or is killed after some records were sent, its output still lists those records with their result."""
 )
 public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -168,8 +175,7 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             var batcher = new RecordBatcher<Record>(
                 entries -> client.putRecords(request.records(entries).build()),
                 duration -> Thread.sleep(duration.toMillis()),
-                (record, result) ->
-                {
+                (record, result) -> {
                     summary.add(result);
                     FileSerde.write(output, toOutputEntry(record, result));
                 }
@@ -182,8 +188,8 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             failure = e;
         }
 
-        // Nothing was sent, or the task was killed: fail as is.
-        if (failure != null && (summary.getCount() == 0 || failure instanceof InterruptedException)) {
+        // Nothing was sent: fail as is.
+        if (failure != null && summary.getCount() == 0) {
             throw failure;
         }
 
@@ -192,13 +198,23 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         runContext.metric(Counter.of("record.successful", summary.getCount() - summary.getFailedCount()));
         runContext.metric(Counter.of("record.count", summary.getCount()));
 
+        URI uri;
+        try {
+            uri = runContext.storage().putFile(tempFile);
+        } catch (Exception e) {
+            if (failure != null) {
+                e.addSuppressed(failure);
+            }
+            throw e;
+        }
+
         var result = Output.builder()
-            .uri(runContext.storage().putFile(tempFile))
+            .uri(uri)
             .failedRecordsCount(summary.getFailedCount())
             .recordCount(summary.getCount())
             .build();
 
-        // The records sent before a failure are already in the stream, so the failed task keeps their results as its output.
+        // The records sent before a failure or a kill are already in the stream, so the task keeps their results as its output.
         if (failure != null) {
             throw new RunnableTaskException(summary.stoppedMessage(failure), failure, result);
         }
@@ -303,9 +319,8 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         }
 
         String stoppedMessage(Exception cause) {
-            return String.format(
-                "Stopped at record position %d: %s. The results of the %d records sent before it (%d failed) are in the output; records from position %d on were not confirmed as written.",
-                count, Optional.ofNullable(cause.getMessage()).orElse(cause.getClass().getName()), count, failedCount, count
+            return "Sent %d records (%d failed), their results are in the output. Resend from position %d after fixing: %s".formatted(
+                count, failedCount, count, Optional.ofNullable(cause.getMessage()).orElse(cause.getClass().getName())
             );
         }
     }
@@ -316,10 +331,11 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
         @Schema(
             title = "The URI of stored data",
-            description = "The successfully and unsuccessfully ingested records." +
-                "If the ingestion was successful, the output includes the record sequence number." +
-                "Otherwise, the output provides the error code and error message for troubleshooting. " +
-                "If the task fails after some records were sent, the output is kept and lists those records."
+            description = """
+                The successfully and unsuccessfully ingested records.
+                If the ingestion was successful, the output includes the record sequence number.
+                Otherwise, the output provides the error code and error message for troubleshooting.
+                If the task fails or is killed after some records were sent, the output is kept and lists those records."""
         )
         private URI uri;
 

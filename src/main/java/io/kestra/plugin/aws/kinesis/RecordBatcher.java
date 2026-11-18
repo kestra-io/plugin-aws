@@ -69,7 +69,7 @@ final class RecordBatcher<T> {
         try {
             retry(entries, results);
         } catch (Exception e) {
-            // The first request already wrote part of the batch, so hand its results over before failing; records still waiting for a retry keep their last error.
+            // Part of the batch is already written, so hand its results over before failing
             retryFailure = e;
         }
 

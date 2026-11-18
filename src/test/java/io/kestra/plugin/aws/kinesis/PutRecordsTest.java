@@ -251,7 +251,10 @@ class PutRecordsTest extends AbstractKinesisTest {
 
         var exception = assertThrows(RunnableTaskException.class, () -> put.run(runContext));
 
-        assertThat(exception.getMessage(), startsWith("Stopped at record position 500: Record at position 550 has no partitionKey"));
+        assertThat(
+            exception.getMessage(),
+            is("Sent 500 records (0 failed), their results are in the output. Resend from position 500 after fixing: Record at position 550 has no partitionKey, set it on every record")
+        );
         var output = (PutRecords.Output) exception.getOutput();
         assertThat(output.getRecordCount(), is(500));
         assertThat(output.getFailedRecordsCount(), is(0));
@@ -284,12 +287,10 @@ class PutRecordsTest extends AbstractKinesisTest {
 
     private static List<Record> generateRecords(int count) {
         return IntStream.range(0, count)
-            .mapToObj(
-                i -> Record.builder()
-                    .partitionKey("partitionKey-" + i)
-                    .data("record " + i)
-                    .build()
-            )
+            .mapToObj(i -> Record.builder()
+                .partitionKey("partitionKey-" + i)
+                .data("record " + i)
+                .build())
             .toList();
     }
 

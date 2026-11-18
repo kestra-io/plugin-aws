@@ -49,14 +49,12 @@ class RecordBatcherTest {
 
         RecordBatcher<String> batcher(RecordBatcher.Sender sender) {
             return new RecordBatcher<>(
-                entries ->
-                {
+                entries -> {
                     requests.add(List.copyOf(entries));
                     return sender.send(entries);
                 },
                 sleeps::add,
-                (item, result) ->
-                {
+                (item, result) -> {
                     items.add(item);
                     results.add(result);
                 }
@@ -162,14 +160,11 @@ class RecordBatcherTest {
         var recorder = new Recorder();
         var calls = new int[] { 0 };
         // The first request throttles the records at positions 1 and 3; the retry accepts them.
-        var batcher = recorder.batcher(entries ->
-        {
+        var batcher = recorder.batcher(entries -> {
             var first = calls[0]++ == 0;
-            return response(
-                IntStream.range(0, entries.size())
-                    .mapToObj(i -> first && (i == 1 || i == 3) ? failure(THROTTLED) : success(entries.get(i)))
-                    .toList()
-            );
+            return response(IntStream.range(0, entries.size())
+                .mapToObj(i -> first && (i == 1 || i == 3) ? failure(THROTTLED) : success(entries.get(i)))
+                .toList());
         });
 
         addAll(batcher, smallEntries(5));
@@ -203,26 +198,6 @@ class RecordBatcherTest {
         assertThat(recorder.requestSizes(), contains(2));
         assertThat(recorder.sleeps, is(empty()));
         assertThat(recorder.results.stream().map(PutRecordsResultEntry::errorCode).toList(), contains("KMSAccessDeniedException", "KMSAccessDeniedException"));
-    }
-
-    @Test
-    void failingRequestKeepsTheResultsOfEarlierRequests() {
-        var recorder = new Recorder();
-        var calls = new int[] { 0 };
-        var batcher = recorder.batcher(entries ->
-        {
-            if (calls[0]++ == 1) {
-                throw new IllegalStateException("second request rejected");
-            }
-            return response(entries.stream().map(RecordBatcherTest::success).toList());
-        });
-
-        var exception = assertThrows(IllegalStateException.class, () -> addAll(batcher, smallEntries(501)));
-
-        assertThat(exception.getMessage(), is("second request rejected"));
-        assertThat(recorder.requestSizes(), contains(500, 1));
-        assertThat(recorder.items, equalTo(smallEntries(500).stream().map(PutRecordsRequestEntry::partitionKey).toList()));
-        assertThat(recorder.results.stream().filter(r -> r.sequenceNumber() == null).count(), is(0L));
     }
 
     @Test
@@ -261,10 +236,10 @@ class RecordBatcherTest {
         assertThat(
             summary.stoppedMessage(new IllegalStateException("request rejected")),
             is(
-                "Stopped at record position 500: request rejected. The results of the 500 records sent before it (1 failed) are in the output; records from position 500 on were not confirmed as written."
+                "Sent 500 records (1 failed), their results are in the output. Resend from position 500 after fixing: request rejected"
             )
         );
-        assertThat(summary.stoppedMessage(new IllegalStateException()), startsWith("Stopped at record position 500: java.lang.IllegalStateException."));
+        assertThat(summary.stoppedMessage(new IllegalStateException()), endsWith("after fixing: java.lang.IllegalStateException"));
     }
 
     @Test

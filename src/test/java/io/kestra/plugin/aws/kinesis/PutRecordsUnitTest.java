@@ -1,6 +1,8 @@
 package io.kestra.plugin.aws.kinesis;
 
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -13,6 +15,8 @@ import io.kestra.core.models.tasks.RunnableTaskException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.storages.Storage;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.aws.kinesis.model.Record;
 
 import jakarta.inject.Inject;
@@ -49,6 +53,17 @@ class PutRecordsUnitTest {
             .build();
     }
 
+    private static PutRecordsResponse throttled(PutRecordsRequest request) {
+        return PutRecordsResponse.builder()
+            .records(
+                request.records().stream()
+                    .map(entry -> PutRecordsResultEntry.builder().errorCode("ProvisionedThroughputExceededException").errorMessage("slow down").build())
+                    .toList()
+            )
+            .failedRecordCount(request.records().size())
+            .build();
+    }
+
     private static InvalidArgumentException rejected() {
         return (InvalidArgumentException) InvalidArgumentException.builder().message("request rejected").statusCode(400).build();
     }
@@ -62,7 +77,7 @@ class PutRecordsUnitTest {
     private static PutRecords task(KinesisClient client, List<Record> records) throws Exception {
         var task = spy(
             PutRecords.builder()
-                .id("put_records")
+                .id(IdUtils.create())
                 .type(PutRecords.class.getName())
                 .region(Property.ofValue("us-east-1"))
                 .accessKeyId(Property.ofValue("test"))
@@ -99,7 +114,7 @@ class PutRecordsUnitTest {
 
         verify(client, times(2)).putRecords(any(PutRecordsRequest.class));
         assertThat(exception.getCause(), instanceOf(InvalidArgumentException.class));
-        assertThat(exception.getMessage(), startsWith("Stopped at record position 500: request rejected"));
+        assertThat(exception.getMessage(), is("Sent 500 records (0 failed), their results are in the output. Resend from position 500 after fixing: request rejected"));
 
         var output = (PutRecords.Output) exception.getOutput();
         assertThat(output.getRecordCount(), is(500));
@@ -110,6 +125,57 @@ class PutRecordsUnitTest {
             assertThat(entries.get(i).getRecord(), equalTo(records.get(i)));
             assertThat(entries.get(i).getSequenceNumber(), is("seq-key-" + i));
         }
+    }
+
+    @Test
+    void killDuringARetryKeepsTheResultsSentSoFar() throws Exception {
+        var runContext = runContextFactory.of();
+        var client = mock(KinesisClient.class);
+        var calls = new int[] { 0 };
+        // The second request throttles its record, then a kill interrupts the backoff before the retry.
+        when(client.putRecords(any(PutRecordsRequest.class))).thenAnswer(invocation ->
+        {
+            if (calls[0]++ == 1) {
+                Thread.currentThread().interrupt();
+                return throttled(invocation.getArgument(0));
+            }
+            return accepted(invocation.getArgument(0));
+        });
+
+        var exception = assertThrows(RunnableTaskException.class, () -> task(client, records(501)).run(runContext));
+
+        verify(client, times(2)).putRecords(any(PutRecordsRequest.class));
+        assertThat(exception.getCause(), instanceOf(InterruptedException.class));
+        var output = (PutRecords.Output) exception.getOutput();
+        assertThat(output.getRecordCount(), is(501));
+        assertThat(output.getFailedRecordsCount(), is(1));
+        var entries = readOutput(runContext, output.getUri());
+        assertThat(entries, hasSize(501));
+        assertThat(entries.get(499).getSequenceNumber(), is("seq-key-499"));
+        assertThat(entries.get(500).getErrorCode(), is("ProvisionedThroughputExceededException"));
+    }
+
+    @Test
+    void storageFailureKeepsTheKinesisFailureAsSuppressed() throws Exception {
+        var runContext = spy(runContextFactory.of());
+        var storage = mock(Storage.class);
+        when(storage.putFile(any(File.class))).thenThrow(new IOException("storage unavailable"));
+        doReturn(storage).when(runContext).storage();
+        var client = mock(KinesisClient.class);
+        var calls = new int[] { 0 };
+        when(client.putRecords(any(PutRecordsRequest.class))).thenAnswer(invocation ->
+        {
+            if (calls[0]++ == 1) {
+                throw rejected();
+            }
+            return accepted(invocation.getArgument(0));
+        });
+
+        var exception = assertThrows(IOException.class, () -> task(client, records(501)).run(runContext));
+
+        assertThat(exception.getMessage(), is("storage unavailable"));
+        assertThat(exception.getSuppressed(), arrayWithSize(1));
+        assertThat(exception.getSuppressed()[0], instanceOf(InvalidArgumentException.class));
     }
 
     @Test
