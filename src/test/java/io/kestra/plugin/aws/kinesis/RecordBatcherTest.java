@@ -204,7 +204,7 @@ class RecordBatcherTest {
     void failingRetryStillHandsOverTheFirstResults() {
         var recorder = new Recorder();
         var calls = new int[] { 0 };
-        // The first request writes positions 0 and 2 and throttles position 1; the retry request then fails as a whole.
+        // The first request writes positions 0 and 2 and throttles position 1, then the retry request fails as a whole.
         var batcher = recorder.batcher(entries ->
         {
             if (calls[0]++ == 1) {

@@ -236,7 +236,7 @@ class PutRecordsTest extends AbstractKinesisTest {
     @Test
     void runFailingAfterFirstBatchKeepsItsOutput() throws Exception {
         var runContext = runContextFactory.of();
-        // The first 500 records are sent when the 501st is added; the record at position 550 then fails validation.
+        // The first 500 records are sent when the 501st is added, then the record at position 550 fails validation.
         var records = new ArrayList<>(generateRecords(600));
         records.set(550, Record.builder().data("record without partition key").build());
 

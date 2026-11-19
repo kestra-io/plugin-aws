@@ -46,7 +46,7 @@ class PutRecordsUnitTest {
         return PutRecordsResponse.builder()
             .records(
                 request.records().stream()
-                    .map(entry -> PutRecordsResultEntry.builder().sequenceNumber("seq-" + entry.partitionKey()).shardId("shardId-000000000000").build())
+                    .map(entry -> PutRecordsResultEntry.builder().sequenceNumber("seq-%s".formatted(entry.partitionKey())).shardId("shardId-000000000000").build())
                     .toList()
             )
             .failedRecordCount(0)
@@ -70,7 +70,7 @@ class PutRecordsUnitTest {
 
     private static List<Record> records(int count) {
         return IntStream.range(0, count)
-            .mapToObj(i -> Record.builder().partitionKey("key-" + i).data("record " + i).build())
+            .mapToObj(i -> Record.builder().partitionKey("key-%s".formatted(i)).data("record %s".formatted(i)).build())
             .toList();
     }
 
@@ -123,7 +123,7 @@ class PutRecordsUnitTest {
         assertThat(entries, hasSize(500));
         for (var i = 0; i < 500; i++) {
             assertThat(entries.get(i).getRecord(), equalTo(records.get(i)));
-            assertThat(entries.get(i).getSequenceNumber(), is("seq-key-" + i));
+            assertThat(entries.get(i).getSequenceNumber(), is("seq-key-%s".formatted(i)));
         }
     }
 

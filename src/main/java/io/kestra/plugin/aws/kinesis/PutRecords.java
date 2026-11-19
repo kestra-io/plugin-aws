@@ -116,7 +116,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
     description = """
         Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file.
         Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff.
-        Records require data and partitionKey; explicitHashKey is optional.
+        Records require data and partitionKey. explicitHashKey is optional.
         Fails the task when any record fails if failOnUnsuccessfulRecords is true (default).
         If a request fails as a whole (for example an invalid record or missing permissions), sending stops and the task fails.
         When the task fails or is killed after some records were sent, its output still lists those records with their result."""
@@ -188,7 +188,6 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             failure = e;
         }
 
-        // Nothing was sent: fail as is.
         if (failure != null && summary.getCount() == 0) {
             throw failure;
         }
