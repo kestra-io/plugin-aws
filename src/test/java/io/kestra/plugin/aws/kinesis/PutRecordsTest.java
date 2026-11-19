@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTaskException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
@@ -25,6 +27,10 @@ import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
@@ -225,6 +231,58 @@ class PutRecordsTest extends AbstractKinesisTest {
 
         var exception = assertThrows(IllegalArgumentException.class, () -> put.run(runContext));
         assertThat(exception.getMessage(), is("Record at position 1 has no partitionKey, set it on every record"));
+    }
+
+    @Test
+    void runFailingAfterFirstBatchKeepsItsOutput() throws Exception {
+        var runContext = runContextFactory.of();
+        // The first 500 records are sent when the 501st is added, then the record at position 550 fails validation.
+        var records = new ArrayList<>(generateRecords(600));
+        records.set(550, Record.builder().data("record without partition key").build());
+
+        var put = PutRecords.builder()
+            .endpointOverride(Property.ofValue(endpointUrl()))
+            .region(Property.ofValue(REGION))
+            .accessKeyId(Property.ofValue(ACCESS_KEY))
+            .secretKeyId(Property.ofValue(SECRET_KEY))
+            .streamName(Property.ofValue(streamName))
+            .records(records)
+            .build();
+
+        var exception = assertThrows(RunnableTaskException.class, () -> put.run(runContext));
+
+        assertThat(
+            exception.getMessage(),
+            is("Sent 500 records (0 failed), their results are in the output. Resend from position 500 after fixing: Record at position 550 has no partitionKey, set it on every record")
+        );
+        var output = (PutRecords.Output) exception.getOutput();
+        assertThat(output.getRecordCount(), is(500));
+        assertThat(output.getFailedRecordsCount(), is(0));
+        assertOutputEntriesMatch(runContext, output.getUri(), records.subList(0, 500));
+        assertThat(countRecordsInStream(), is(500));
+    }
+
+    private int countRecordsInStream() {
+        try (
+            var kinesisClient = KinesisClient.builder()
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
+                .region(Region.of(REGION))
+                .endpointOverride(URI.create(endpointUrl()))
+                .build()
+        ) {
+            var shardId = kinesisClient.listShards(r -> r.streamName(streamName)).shards().getFirst().shardId();
+            var iterator = kinesisClient.getShardIterator(r -> r.streamName(streamName).shardId(shardId).shardIteratorType(ShardIteratorType.TRIM_HORIZON)).shardIterator();
+            var count = 0;
+            while (iterator != null) {
+                var response = kinesisClient.getRecords(GetRecordsRequest.builder().shardIterator(iterator).limit(1_000).build());
+                count += response.records().size();
+                if (response.records().isEmpty()) {
+                    break;
+                }
+                iterator = response.nextShardIterator();
+            }
+            return count;
+        }
     }
 
     private static List<Record> generateRecords(int count) {

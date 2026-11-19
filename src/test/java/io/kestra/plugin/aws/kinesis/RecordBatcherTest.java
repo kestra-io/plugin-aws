@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RecordBatcherTest {
     private static final int TWO_AND_A_HALF_MIB = 5 * 1024 * 1024 / 2;
@@ -197,6 +198,48 @@ class RecordBatcherTest {
         assertThat(recorder.requestSizes(), contains(2));
         assertThat(recorder.sleeps, is(empty()));
         assertThat(recorder.results.stream().map(PutRecordsResultEntry::errorCode).toList(), contains("KMSAccessDeniedException", "KMSAccessDeniedException"));
+    }
+
+    @Test
+    void failingRetryStillHandsOverTheFirstResults() {
+        var recorder = new Recorder();
+        var calls = new int[] { 0 };
+        // The first request writes positions 0 and 2 and throttles position 1, then the retry request fails as a whole.
+        var batcher = recorder.batcher(entries ->
+        {
+            if (calls[0]++ == 1) {
+                throw new IllegalStateException("retry rejected");
+            }
+            return response(
+                IntStream.range(0, entries.size())
+                    .mapToObj(i -> i == 1 ? failure(THROTTLED) : success(entries.get(i)))
+                    .toList()
+            );
+        });
+
+        var exception = assertThrows(IllegalStateException.class, () -> addAll(batcher, smallEntries(3)));
+
+        assertThat(exception.getMessage(), is("retry rejected"));
+        assertThat(recorder.requestSizes(), contains(3, 1));
+        assertThat(recorder.items, contains("key-0", "key-1", "key-2"));
+        assertThat(recorder.results.stream().map(PutRecordsResultEntry::sequenceNumber).toList(), contains("key-0", null, "key-2"));
+        assertThat(recorder.results.get(1).errorCode(), is(THROTTLED));
+    }
+
+    @Test
+    void stoppedMessageNamesThePositionAndTheCause() {
+        var summary = new PutRecords.ResultSummary();
+        for (var i = 0; i < 500; i++) {
+            summary.add(i == 3 ? failure(THROTTLED) : PutRecordsResultEntry.builder().sequenceNumber(String.valueOf(i)).build());
+        }
+
+        assertThat(
+            summary.stoppedMessage(new IllegalStateException("request rejected")),
+            is(
+                "Sent 500 records (1 failed), their results are in the output. Resend from position 500 after fixing: request rejected"
+            )
+        );
+        assertThat(summary.stoppedMessage(new IllegalStateException()), endsWith("after fixing: java.lang.IllegalStateException"));
     }
 
     @Test

@@ -22,6 +22,7 @@ import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.flows.State;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.RunnableTaskException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.serializers.JacksonMapper;
@@ -112,7 +113,13 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 )
 @Schema(
     title = "Put records to Kinesis Data Streams",
-    description = "Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file. Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff. Records require data and partitionKey; explicitHashKey is optional. Fails the task when any record fails if failOnUnsuccessfulRecords is true (default)."
+    description = """
+        Sends multiple records to a stream by name or ARN. Records can be inline or loaded from a kestra:// ION file.
+        Records are sent in batches of at most 500 records and 5 MiB, the Kinesis limits for a single PutRecords request, and throttled records are retried up to 3 times with backoff.
+        Records require data and partitionKey. explicitHashKey is optional.
+        Fails the task when any record fails if failOnUnsuccessfulRecords is true (default).
+        If a request fails as a whole (for example an invalid record or missing permissions), sending stops and the task fails.
+        When the task fails or is killed after some records were sent, its output still lists those records with their result."""
 )
 public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecords.Output> {
     private static final ObjectMapper MAPPER = JacksonMapper.ofIon()
@@ -159,6 +166,7 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
         var tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         var summary = new ResultSummary();
+        Exception failure = null;
         try (
             var client = client(runContext);
             var output = new BufferedOutputStream(new FileOutputStream(tempFile), FileSerde.BUFFER_SIZE)
@@ -176,12 +184,12 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
             var position = new int[] { 0 };
             forEachRecord(runContext, record -> batcher.add(record, toEntry(runContext, record, position[0]++)));
             batcher.flush();
+        } catch (Exception e) {
+            failure = e;
         }
 
-        if (rFailOnUnsuccessfulRecords && summary.getFailedCount() > 0) {
-            var message = summary.failureMessage();
-            runContext.logger().error(message);
-            throw new RuntimeException(message);
+        if (failure != null && summary.getCount() == 0) {
+            throw failure;
         }
 
         runContext.metric(Timer.of("duration", Duration.ofNanos(System.nanoTime() - start)));
@@ -189,11 +197,34 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
         runContext.metric(Counter.of("record.successful", summary.getCount() - summary.getFailedCount()));
         runContext.metric(Counter.of("record.count", summary.getCount()));
 
-        return Output.builder()
-            .uri(runContext.storage().putFile(tempFile))
+        URI uri;
+        try {
+            uri = runContext.storage().putFile(tempFile);
+        } catch (Exception e) {
+            if (failure != null) {
+                e.addSuppressed(failure);
+            }
+            throw e;
+        }
+
+        var result = Output.builder()
+            .uri(uri)
             .failedRecordsCount(summary.getFailedCount())
             .recordCount(summary.getCount())
             .build();
+
+        // The records sent before a failure or a kill are already in the stream, so the task keeps their results as its output.
+        if (failure != null) {
+            throw new RunnableTaskException(summary.stoppedMessage(failure), failure, result);
+        }
+
+        if (rFailOnUnsuccessfulRecords && summary.getFailedCount() > 0) {
+            var message = summary.failureMessage();
+            runContext.logger().error(message);
+            throw new RunnableTaskException(message, result);
+        }
+
+        return result;
     }
 
     private PutRecordsRequest.Builder requestBuilder(RunContext runContext) throws IllegalVariableEvaluationException {
@@ -285,6 +316,12 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
                 failedCount, count, RecordBatcher.MAX_RETRIES, firstFailures.size(), String.join("; ", firstFailures)
             );
         }
+
+        String stoppedMessage(Exception cause) {
+            return "Sent %d records (%d failed), their results are in the output. Resend from position %d after fixing: %s".formatted(
+                count, failedCount, count, Optional.ofNullable(cause.getMessage()).orElse(cause.getClass().getName())
+            );
+        }
     }
 
     @Builder
@@ -293,9 +330,11 @@ public class PutRecords extends AbstractKinesis implements RunnableTask<PutRecor
 
         @Schema(
             title = "The URI of stored data",
-            description = "The successfully and unsuccessfully ingested records." +
-                "If the ingestion was successful, the output includes the record sequence number." +
-                "Otherwise, the output provides the error code and error message for troubleshooting."
+            description = """
+                The successfully and unsuccessfully ingested records.
+                If the ingestion was successful, the output includes the record sequence number.
+                Otherwise, the output provides the error code and error message for troubleshooting.
+                If the task fails or is killed after some records were sent, the output is kept and lists those records."""
         )
         private URI uri;
 
