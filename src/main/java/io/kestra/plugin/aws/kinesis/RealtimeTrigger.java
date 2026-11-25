@@ -1,7 +1,7 @@
 package io.kestra.plugin.aws.kinesis;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -279,10 +279,13 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             }
 
             try {
-                List<Shard> shards = client
-                    .listShards(ListShardsRequest.builder().streamName(stream).build())
-                    .get()
-                    .shards();
+                var shards = new ArrayList<Shard>();
+                var page = client.listShards(ListShardsRequest.builder().streamName(stream).build()).get();
+                shards.addAll(page.shards());
+                while (page.nextToken() != null) {
+                    page = client.listShards(ListShardsRequest.builder().nextToken(page.nextToken()).build()).get();
+                    shards.addAll(page.shards());
+                }
 
                 for (Shard shard : shards) {
                     subscribers.computeIfAbsent(shard.shardId(), sid ->
