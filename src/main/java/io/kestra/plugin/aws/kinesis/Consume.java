@@ -141,13 +141,7 @@ public class Consume extends AbstractKinesis implements RunnableTask<Consume.Out
 
         KinesisClient client = client(runContext);
 
-        var shards = new ArrayList<Shard>();
-        var page = client.listShards(ListShardsRequest.builder().streamName(rStream).build());
-        shards.addAll(page.shards());
-        while (page.nextToken() != null) {
-            page = client.listShards(ListShardsRequest.builder().nextToken(page.nextToken()).build());
-            shards.addAll(page.shards());
-        }
+        var shards = listShards(rStream, client::listShards);
         var startingPositions = startingPositionPerShard == null ? Map.<String, String> of() : startingPositionPerShard;
         var rIteratorType = runContext.render(iteratorType).as(IteratorType.class).orElse(IteratorType.LATEST);
         var pollStartedAt = Instant.now().minus(Duration.ofSeconds(2));
