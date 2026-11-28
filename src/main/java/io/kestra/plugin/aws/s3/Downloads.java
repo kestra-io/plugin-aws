@@ -199,6 +199,14 @@ public class Downloads extends AbstractS3Object implements RunnableTask<Download
                         .bucket(runContext.render(bucket).as(String.class).orElseThrow())
                         .key(object.getKey());
 
+                    if (this.requestPayer != null) {
+                        builder.requestPayer(runContext.render(this.requestPayer).as(String.class).orElseThrow());
+                    }
+
+                    if (this.expectedBucketOwner != null) {
+                        builder.expectedBucketOwner(runContext.render(this.expectedBucketOwner).as(String.class).orElseThrow());
+                    }
+
                     if (validate) {
                         builder.checksumMode(ChecksumMode.ENABLED);
                     }
